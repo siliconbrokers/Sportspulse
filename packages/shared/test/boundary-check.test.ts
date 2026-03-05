@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, resolve } from 'path';
-import { FORBIDDEN_IMPORTS } from '../src/utils/boundary-check.js';
+import { FORBIDDEN_IMPORTS, FORBIDDEN_PATH_PATTERNS } from '../src/utils/boundary-check.js';
 
 function getTypeScriptFiles(dir: string): string[] {
   const files: string[] = [];
@@ -38,6 +38,23 @@ describe('Boundary enforcement', () => {
                               content.includes(`require('${forbiddenImport}`) ||
                               content.includes(`require("${forbiddenImport}`);
             expect(hasImport, `${file} imports ${forbiddenImport}`).toBe(false);
+          }
+        });
+      }
+    });
+  }
+
+  for (const [pkg, patterns] of Object.entries(FORBIDDEN_PATH_PATTERNS)) {
+    describe(`packages/${pkg} path-level restrictions`, () => {
+      const pkgSrcDir = join(PACKAGES_ROOT, pkg, 'src');
+      const files = getTypeScriptFiles(pkgSrcDir);
+
+      for (const pattern of patterns) {
+        it(`must not import paths containing '${pattern}'`, () => {
+          for (const file of files) {
+            const content = readFileSync(file, 'utf-8');
+            const hasPattern = content.includes(pattern);
+            expect(hasPattern, `${file} references forbidden path '${pattern}'`).toBe(false);
           }
         });
       }

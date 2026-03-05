@@ -25,11 +25,19 @@ importers:
 
   packages/layout: {}
 
-  packages/scoring: {}
+  packages/scoring:
+    dependencies:
+      '@sportpulse/signals':
+        specifier: workspace:*
+        version: link:../signals
 
   packages/shared: {}
 
-  packages/signals: {}
+  packages/signals:
+    dependencies:
+      '@sportpulse/canonical':
+        specifier: workspace:*
+        version: link:../canonical
 
   packages/snapshot: {}
 

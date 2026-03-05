@@ -10,5 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest watch",
     "lint": "echo 'lint placeholder'"
+  },
+  "dependencies": {
+    "@sportpulse/signals": "workspace:*"
   }
 }
