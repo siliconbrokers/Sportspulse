@@ -18,13 +18,15 @@ When information conflicts, the higher-numbered document loses:
 2. `Domain_Glossary_and_Invariants_v1.0.md` — canonical terminology, semantic backbone
 3. `MVP_Execution_Scope_v1.0.md` — what to build / not build
 4. `Non_Functional_Requirements_v1.0.md` — quality baseline
-5. `Repo_Structure_and_Module_Boundaries_v1.0.md` — architecture and dependency rules
-6. `Errors_and_Warnings_Taxonomy_v1.0.md` — error/warning codes and semantics
-7. `Acceptance_Test_Matrix_v1.0.md` + `Golden_Snapshot_Fixtures_v1.0.md` — truth locks
-8. Core technical specs: signals, metrics, scoring-policy, snapshot-engine, dashboard-snapshot-dto, api-contract, treemap-algorithm, layout-stability, frontend-architecture, ui-spec
-9. Supporting docs: component-map, interaction-spec, backend-architecture, data-normalization, event-lifecycle, data-quality, feature-evolution, product-loop
-10. `AI_SDD_Operating_Protocol_v1.0.md` — governs how AI participates in development
-11. `Implementation_Backlog_SDD_v1.0.md` — ticket graph with phases, dependencies, and acceptance mapping
+5. `Operational_Baseline_v1.0.md` — CI/CD, deployment, security, logging, performance targets
+6. `Repo_Structure_and_Module_Boundaries_v1.0.md` — architecture and dependency rules
+7. `Errors_and_Warnings_Taxonomy_v1.0.md` — error/warning codes and semantics
+8. `Acceptance_Test_Matrix_v1.0.md` + `Golden_Snapshot_Fixtures_v1.0.md` — truth locks
+9. Core technical specs: signals, metrics, scoring-policy, snapshot-engine, dashboard-snapshot-dto, api-contract, treemap-algorithm, layout-stability, frontend-architecture, ui-spec
+10. Supporting docs: component-map, interaction-spec, backend-architecture, data-normalization, event-lifecycle, data-quality, feature-evolution, product-loop
+11. `AI_SDD_Operating_Protocol_v1.0.md` — governs how AI participates in development
+12. `SubAgents_Definition_v1.0.md` — sub-agent system: roles, prompts, handoffs, execution workflow
+13. `Implementation_Backlog_SDD_v1.0.md` — ticket graph with phases, dependencies, and acceptance mapping
 
 Strategic briefs (MVP Strategic Brief, One Pager) are non-binding for implementation details. Archive docs are non-authoritative.
 
@@ -104,44 +106,88 @@ When proposing a spec change, provide: change description, rationale, affected d
 
 ---
 
-## Agent Routing (Token Efficiency)
+## Model Routing (Cost Efficiency)
 
-**Principio: no gastar tokens caros en tareas baratas.** El agente principal (Opus) solo razona; todo lo mecánico se delega.
+**Principio: no gastar tokens caros en tareas baratas.** Claude Code usa un solo modelo por sesión. La optimización se logra cambiando de modelo entre bloques de trabajo con `/model`.
 
-### Por SDD Stage
+### Tres tiers de modelo
 
-| Stage | Agente principal | Subagente (Agent tool) | Herramientas directas |
-|-------|-----------------|----------------------|----------------------|
-| 0 — Intake | NO (es mecánico) | NO | Clasificar en una línea |
-| 1 — Spec alignment | Solo si hay conflictos entre specs | Explore para buscar invariantes en paralelo | Grep/Read para secciones puntuales |
-| 2 — Design proposal | SÍ (requiere razonamiento) | NO | — |
-| 3 — Implementation | Solo lógica compleja (algorithms, scoring, signals) | Scaffolding, boilerplate, configs, tipos simples, archivos repetitivos | Write/Edit para archivos individuales |
-| 4 — Verification | Solo diagnóstico de fallos complejos | Verificar boundary violations en paralelo | Bash para correr tests |
-| 5 — Delivery | Resumen breve, ir al grano | NO | — |
+| Tier | Modelo | Costo (in/out MTok) | Cuándo usar |
+|------|--------|--------------------:|-------------|
+| **Opus** | claude-opus-4-6 | $15 / $75 | Diseño (Stage 2), resolución de conflictos entre specs, debugging complejo, decisiones arquitectónicas |
+| **Sonnet** | claude-sonnet-4-6 | $3 / $15 | Implementación que sigue patrones, tests con lógica, componentes con plan previo de Opus |
+| **Haiku** | claude-haiku-4-5 | $0.25 / $1.25 | Configs, deps, scripts, CI YAML, formatting, git ops, cualquier tarea donde las instrucciones son 100% explícitas |
 
-### Por Fase del Backlog
+### Flujo de trabajo obligatorio por sesión
 
-| Fase | Principal para | Subagentes para |
-|------|---------------|----------------|
-| 0 — Scaffolding | Decisiones de tooling | Crear carpetas, configs, placeholders |
-| 1 — Canonical | Diseño de modelos, normalization mapping | Scaffold de tipos, tests de mapping |
-| 2 — Signals | Lógica de cómputo (FORM, NEXT_MATCH) | Registry boilerplate, tipos DTO |
-| 3 — Scoring | Policy execution, weights, contributions | Legacy resistance tests (grep-based) |
-| 4 — Layout | Squarified treemap, rounding rules | Geometry validation utilities |
-| 5 — Snapshot | Pipeline orchestration, identity | Warning aggregation, cache scaffolding |
-| 6 — API | Diseño de endpoints | Scaffolding de rutas, middleware, error envelopes |
-| 7 — Frontend | Diseño de componentes | Component scaffolding, theme, state boilerplate |
-| 8 — Degraded | Diagnóstico de fallos | Test harness, simulación de outage |
-| 9 — Golden fixtures | Diseño del fixture runner | Generar directorios y JSONs esperados |
+```
+1. Sesión Opus (/model opus): SOLO diseñar
+   → Stage 2 de las próximas N tareas
+   → Output: plan detallado guardado en memory/plans/SP-xxxx.md
+   → NO implementar código
+
+2. Sesión Sonnet (/model sonnet): implementar tareas de producto
+   → Lee planes de memory/plans/
+   → Implementa, escribe tests, verifica
+   → Stage 3 + Stage 4
+
+3. Sesión Haiku (/model haiku): tareas de infraestructura
+   → Configs, deps, CI, formatting, git commits
+   → Solo si las instrucciones son 100% explícitas
+
+4. Volver a Opus SOLO si:
+   → Un test falla por razones no triviales
+   → Hay conflicto entre specs
+   → Se necesita rediseñar algo
+```
+
+### Clasificación por tarea
+
+**Toda tarea DEBE tener `metadata.tier` (opus/sonnet/haiku) al momento de creación.**
+
+| Tier | Criterio | Ejemplos |
+|------|----------|----------|
+| `opus` | Requiere razonamiento sobre specs, trade-offs, algoritmos, o diseño de interfaces entre módulos | Diseñar SnapshotDTO shape, orquestación de pipeline, cache strategy |
+| `sonnet` | Sigue patrones existentes del codebase, tiene plan previo, o es lógica moderada | Implementar endpoints, componentes React, signal helpers, tests de integración |
+| `haiku` | Instrucciones 100% explícitas, cero ambigüedad, puro template/config | package.json edits, CI YAML, prettier config, git commits, adding deps |
+
+### Sub-agent System (definido en `SubAgents_Definition_v1.0.md`)
+
+10 agentes con scope estricto. Prompts en `memory/subagent-prompts.md`. Cada agente define **qué** hacer; el **tier de modelo** define con qué modelo se ejecuta.
+
+**Governance agents** (no implementan lógica de producto):
+- **SDD Orchestrator** — asigna tickets, confirma deps, decide merge/no-merge
+- **Spec & Version Guardian** — pre/post check de docs, invariants, versiones, legacy
+- **QA / Fixture Enforcer** — acceptance matrix, golden fixtures, regression gates
+
+**Implementation agents** (escriben código SOLO dentro de su paquete):
+- **Canonical Engineer** → `packages/canonical`
+- **Signals Engineer** → `packages/signals`
+- **Scoring Policy Engineer** → `packages/scoring`
+- **Layout Engineer** → `packages/layout`
+- **Snapshot Engine Engineer** → `packages/snapshot`
+- **UI API Engineer** → `packages/api`
+- **Frontend Engineer** → `packages/web`
+
+### Cuándo usar Agent tool (subagentes)
+
+El Agent tool **usa el mismo modelo de la sesión**. Solo es útil para:
+- **Paralelismo**: lanzar múltiples tareas independientes simultáneamente
+- **Aislamiento de contexto**: evitar que boilerplate contamine el contexto principal
+- **Exploración**: buscar en codebase sin gastar contexto del principal
+
+**NO usar Agent tool para "ahorro de costo"** — no cambia el modelo.
 
 ### Anti-patrones (prohibidos)
 
-- **NO leer todos los specs con el agente principal** → subagente Explore o Grep directo
-- **NO re-leer un spec que ya se leyó en la sesión** → confiar en el contexto
-- **NO usar subagente para razonar sobre diseño** → pierden contexto, producen basura
+- **NO usar Opus para boilerplate/configs/scripts** → cambiar a Haiku/Sonnet
+- **NO implementar código en sesión Opus** → solo diseñar, guardar plan, cambiar a Sonnet
+- **NO leer todos los specs con Opus** → subagente Explore o Grep directo
+- **NO re-leer un spec ya leído en la sesión** → confiar en el contexto
+- **NO usar subagente para razonar sobre diseño** → pierden contexto
 - **NO duplicar trabajo** → si un subagente busca algo, el principal no repite
 - **NO output verbose en Stage 5** → ir al grano
-- **NO usar el agente principal para crear 10 archivos de boilerplate** → subagente o loop directo
+- **NO crear tareas sin tier y agent asignados** → viola la política de routing
 
 ---
 
