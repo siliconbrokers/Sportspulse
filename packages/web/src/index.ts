@@ -1,1 +1,13 @@
-export {};
+export { App } from './App.js';
+export { DashboardLayout } from './components/DashboardLayout.js';
+export { TreemapCanvas } from './components/TreemapCanvas.js';
+export { TeamTile } from './components/TeamTile.js';
+export { DetailPanel } from './components/DetailPanel.js';
+export { DashboardHeader } from './components/DashboardHeader.js';
+export { WarningBanner } from './components/WarningBanner.js';
+export { LoadingSkeleton } from './components/LoadingSkeleton.js';
+export { EmptyState } from './components/EmptyState.js';
+export { ErrorState } from './components/ErrorState.js';
+export { useDashboardSnapshot } from './hooks/use-dashboard-snapshot.js';
+export { useTeamDetail } from './hooks/use-team-detail.js';
+export { useUrlState } from './hooks/use-url-state.js';
