@@ -9,6 +9,13 @@
     "build": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "lint": "echo 'lint placeholder'"
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@sportpulse/canonical": "workspace:*",
+    "@sportpulse/layout": "workspace:*",
+    "@sportpulse/scoring": "workspace:*",
+    "@sportpulse/shared": "workspace:*",
+    "@sportpulse/signals": "workspace:*"
   }
 }

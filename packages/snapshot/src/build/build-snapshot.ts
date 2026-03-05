@@ -1,0 +1,85 @@
+import type { Team, Match } from '@sportpulse/canonical';
+import type { PolicyDefinition } from '@sportpulse/scoring';
+import type { TreemapContainer, TreemapInput } from '@sportpulse/layout';
+import {
+  squarify,
+  isAllZeroWeights,
+  LAYOUT_ALGORITHM_KEY,
+  LAYOUT_ALGORITHM_VERSION,
+} from '@sportpulse/layout';
+import type { DashboardSnapshotDTO } from '../dto/dashboard-snapshot.js';
+import type { TeamScoreDTO } from '../dto/team-score.js';
+import { assembleHeader } from '../identity/assemble-header.js';
+import { WarningCollector } from '../warnings/warning-collector.js';
+import { buildTeamTile } from './team-tile-builder.js';
+import { sortTeamsByWeight } from './sort-teams.js';
+
+export interface BuildSnapshotInput {
+  competitionId: string;
+  seasonId: string;
+  buildNowUtc: string;
+  timezone: string;
+  teams: readonly Team[];
+  matches: readonly Match[];
+  policy: PolicyDefinition;
+  container: TreemapContainer;
+  freshnessUtc?: string;
+}
+
+export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
+  const warnings = new WarningCollector();
+
+  // Step 1: Build tiles for each team (signals + scoring)
+  const tilesWithoutRect = input.teams.map((team) =>
+    buildTeamTile(team, input.teams, input.matches, input.buildNowUtc, input.policy, warnings),
+  );
+
+  // Step 2: Sort by layoutWeight desc, teamId asc
+  const sorted = [...tilesWithoutRect].sort((a, b) => {
+    if (b.layoutWeight !== a.layoutWeight) return b.layoutWeight - a.layoutWeight;
+    return a.teamId.localeCompare(b.teamId);
+  });
+
+  // Step 3: Build treemap inputs
+  const treemapInputs: TreemapInput[] = sorted.map((t) => ({
+    entityId: t.teamId,
+    layoutWeight: t.layoutWeight,
+  }));
+
+  // Step 4: Detect all-zero weights
+  if (isAllZeroWeights(treemapInputs)) {
+    warnings.layoutDegraded();
+  }
+
+  // Step 5: Generate geometry
+  const tiles = squarify(treemapInputs, input.container);
+  const rectMap = new Map(tiles.map((t) => [t.entityId, t.rect]));
+
+  // Step 6: Merge scoring + geometry into TeamScoreDTOs
+  const teamScores: TeamScoreDTO[] = sorted.map((t) => ({
+    ...t,
+    rect: rectMap.get(t.teamId) ?? { x: 0, y: 0, w: 0, h: 0 },
+  }));
+
+  // Step 7: Assemble header
+  const header = assembleHeader({
+    competitionId: input.competitionId,
+    seasonId: input.seasonId,
+    buildNowUtc: input.buildNowUtc,
+    timezone: input.timezone,
+    policyKey: input.policy.policyKey,
+    policyVersion: input.policy.policyVersion,
+    freshnessUtc: input.freshnessUtc,
+  });
+
+  return {
+    header,
+    layout: {
+      algorithmKey: LAYOUT_ALGORITHM_KEY,
+      algorithmVersion: LAYOUT_ALGORITHM_VERSION,
+      container: input.container,
+    },
+    warnings: warnings.toArray(),
+    teams: teamScores,
+  };
+}

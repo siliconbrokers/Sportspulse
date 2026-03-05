@@ -9,9 +9,17 @@
     "build": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "lint": "echo 'lint placeholder'"
+    "lint": "eslint src/"
   },
   "dependencies": {
+    "@sportpulse/shared": "workspace:*",
+    "@sportpulse/snapshot": "workspace:*",
     "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "@sportpulse/canonical": "workspace:*",
+    "@sportpulse/scoring": "workspace:*",
+    "@types/node": "^25.3.3",
+    "fastify-plugin": "^5.1.0"
   }
 }

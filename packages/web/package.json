@@ -9,9 +9,10 @@
     "build": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "lint": "echo 'lint placeholder'"
+    "lint": "eslint src/"
   },
   "dependencies": {
+    "@sportpulse/shared": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
