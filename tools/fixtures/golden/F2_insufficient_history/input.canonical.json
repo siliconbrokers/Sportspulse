@@ -1,0 +1,18 @@
+{
+  "teams": [
+    { "teamId": "team:football-data:86", "sportId": "FOOTBALL", "name": "Real Madrid", "providerKey": "football-data", "providerTeamId": "86" },
+    { "teamId": "team:football-data:81", "sportId": "FOOTBALL", "name": "FC Barcelona", "providerKey": "football-data", "providerTeamId": "81" }
+  ],
+  "matches": [
+    { "matchId": "match:football-data:1", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-02-01T20:00:00Z", "status": "FINISHED", "homeTeamId": "team:football-data:86", "awayTeamId": "team:football-data:100", "scoreHome": 2, "scoreAway": 0, "providerKey": "football-data", "providerMatchId": "1", "lastSeenUtc": "2026-03-04T11:00:00Z" },
+    { "matchId": "match:football-data:2", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-02-08T20:00:00Z", "status": "FINISHED", "homeTeamId": "team:football-data:86", "awayTeamId": "team:football-data:101", "scoreHome": 3, "scoreAway": 1, "providerKey": "football-data", "providerMatchId": "2", "lastSeenUtc": "2026-03-04T11:00:00Z" },
+    { "matchId": "match:football-data:3", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-02-15T20:00:00Z", "status": "FINISHED", "homeTeamId": "team:football-data:102", "awayTeamId": "team:football-data:86", "scoreHome": 0, "scoreAway": 1, "providerKey": "football-data", "providerMatchId": "3", "lastSeenUtc": "2026-03-04T11:00:00Z" },
+    { "matchId": "match:football-data:4", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-02-22T20:00:00Z", "status": "FINISHED", "homeTeamId": "team:football-data:86", "awayTeamId": "team:football-data:103", "scoreHome": 1, "scoreAway": 1, "providerKey": "football-data", "providerMatchId": "4", "lastSeenUtc": "2026-03-04T11:00:00Z" },
+    { "matchId": "match:football-data:5", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-03-01T20:00:00Z", "status": "FINISHED", "homeTeamId": "team:football-data:104", "awayTeamId": "team:football-data:86", "scoreHome": 0, "scoreAway": 2, "providerKey": "football-data", "providerMatchId": "5", "lastSeenUtc": "2026-03-04T11:00:00Z" },
+
+    { "matchId": "match:football-data:6", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-02-22T18:00:00Z", "status": "FINISHED", "homeTeamId": "team:football-data:81", "awayTeamId": "team:football-data:100", "scoreHome": 2, "scoreAway": 0, "providerKey": "football-data", "providerMatchId": "6", "lastSeenUtc": "2026-03-04T11:00:00Z" },
+    { "matchId": "match:football-data:7", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-03-01T18:00:00Z", "status": "FINISHED", "homeTeamId": "team:football-data:101", "awayTeamId": "team:football-data:81", "scoreHome": 1, "scoreAway": 0, "providerKey": "football-data", "providerMatchId": "7", "lastSeenUtc": "2026-03-04T11:00:00Z" },
+
+    { "matchId": "match:football-data:30", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-03-05T20:00:00Z", "status": "SCHEDULED", "homeTeamId": "team:football-data:86", "awayTeamId": "team:football-data:81", "scoreHome": null, "scoreAway": null, "providerKey": "football-data", "providerMatchId": "30", "lastSeenUtc": "2026-03-04T11:00:00Z" }
+  ]
+}

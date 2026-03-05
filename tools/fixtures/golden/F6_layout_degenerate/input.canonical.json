@@ -1,0 +1,8 @@
+{
+  "teams": [
+    { "teamId": "team:football-data:200", "sportId": "FOOTBALL", "name": "Team A", "providerKey": "football-data", "providerTeamId": "200" },
+    { "teamId": "team:football-data:201", "sportId": "FOOTBALL", "name": "Team B", "providerKey": "football-data", "providerTeamId": "201" },
+    { "teamId": "team:football-data:202", "sportId": "FOOTBALL", "name": "Team C", "providerKey": "football-data", "providerTeamId": "202" }
+  ],
+  "matches": []
+}

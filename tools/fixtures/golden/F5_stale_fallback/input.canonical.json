@@ -1,0 +1,12 @@
+{
+  "_note": "F5 is a runtime behavior test. This input is used for the initial fresh build. The stale fallback is tested by simulating a build failure on subsequent serve() calls.",
+  "teams": [
+    { "teamId": "team:football-data:86", "sportId": "FOOTBALL", "name": "Real Madrid", "providerKey": "football-data", "providerTeamId": "86" },
+    { "teamId": "team:football-data:81", "sportId": "FOOTBALL", "name": "FC Barcelona", "providerKey": "football-data", "providerTeamId": "81" }
+  ],
+  "matches": [
+    { "matchId": "match:football-data:1", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-02-22T20:00:00Z", "status": "FINISHED", "homeTeamId": "team:football-data:86", "awayTeamId": "team:football-data:100", "scoreHome": 2, "scoreAway": 0, "providerKey": "football-data", "providerMatchId": "1", "lastSeenUtc": "2026-03-04T11:00:00Z" },
+    { "matchId": "match:football-data:2", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-02-22T18:00:00Z", "status": "FINISHED", "homeTeamId": "team:football-data:81", "awayTeamId": "team:football-data:101", "scoreHome": 1, "scoreAway": 0, "providerKey": "football-data", "providerMatchId": "2", "lastSeenUtc": "2026-03-04T11:00:00Z" },
+    { "matchId": "match:football-data:30", "seasonId": "season:football-data:2025", "startTimeUtc": "2026-03-05T20:00:00Z", "status": "SCHEDULED", "homeTeamId": "team:football-data:86", "awayTeamId": "team:football-data:81", "scoreHome": null, "scoreAway": null, "providerKey": "football-data", "providerMatchId": "30", "lastSeenUtc": "2026-03-04T11:00:00Z" }
+  ]
+}

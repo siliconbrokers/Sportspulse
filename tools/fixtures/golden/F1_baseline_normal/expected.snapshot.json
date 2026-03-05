@@ -1,0 +1,366 @@
+{
+  "header": {
+    "snapshotSchemaVersion": 1,
+    "competitionId": "comp:football-data:PD",
+    "seasonId": "season:football-data:2025",
+    "buildNowUtc": "2026-03-04T11:00:00Z",
+    "timezone": "Europe/Madrid",
+    "policyKey": "sportpulse.mvp.form-agenda",
+    "policyVersion": 1,
+    "computedAtUtc": "<<EXCLUDED>>",
+    "snapshotKey": "comp:football-data:PD|season:football-data:2025|2026-03-04T11:00:00Z|sportpulse.mvp.form-agenda@1"
+  },
+  "layout": {
+    "algorithmKey": "treemap.squarified",
+    "algorithmVersion": 1,
+    "container": {
+      "width": 1200,
+      "height": 700,
+      "outerPadding": 8,
+      "innerGutter": 6
+    }
+  },
+  "warnings": [],
+  "teams": [
+    {
+      "teamId": "team:football-data:81",
+      "teamName": "FC Barcelona",
+      "policyKey": "sportpulse.mvp.form-agenda",
+      "policyVersion": 1,
+      "buildNowUtc": "2026-03-04T11:00:00Z",
+      "rawScore": 0.8477380952380953,
+      "attentionScore": 0.8477380952380953,
+      "displayScore": 0.8477380952380953,
+      "layoutWeight": 0.8477380952380953,
+      "topContributions": [
+        {
+          "signalKey": "FORM_POINTS_LAST_5",
+          "rawValue": 13,
+          "normValue": 0.8666666666666667,
+          "weight": 0.7,
+          "contribution": 0.6066666666666667
+        },
+        {
+          "signalKey": "NEXT_MATCH_HOURS",
+          "rawValue": 33,
+          "normValue": 0.8035714285714286,
+          "weight": 0.3,
+          "contribution": 0.24107142857142858
+        }
+      ],
+      "signals": [
+        {
+          "key": "FORM_POINTS_LAST_5",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:81",
+          "value": 0.8666666666666667,
+          "unit": "points",
+          "params": {
+            "windowSize": 5,
+            "matchesUsed": 5,
+            "rawPoints": 13,
+            "maxPoints": 15,
+            "matchIds": [
+              "match:football-data:10",
+              "match:football-data:9",
+              "match:football-data:8",
+              "match:football-data:7",
+              "match:football-data:6"
+            ]
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": false
+          },
+          "explain": "Points in last 5 finished matches normalized by maximum possible in that window."
+        },
+        {
+          "key": "NEXT_MATCH_HOURS",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:81",
+          "value": 0.8035714285714286,
+          "unit": "hours",
+          "params": {
+            "hours": 33,
+            "minHours": 0,
+            "maxHours": 168,
+            "nextMatchId": "match:football-data:30"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": false
+          },
+          "explain": "Sooner next match => higher attention; normalized inverse hours within horizon."
+        }
+      ],
+      "nextMatch": {
+        "matchId": "match:football-data:30",
+        "kickoffUtc": "2026-03-05T20:00:00Z",
+        "opponentTeamId": "team:football-data:86",
+        "opponentName": "Real Madrid",
+        "venue": "AWAY"
+      },
+      "rect": {
+        "x": 8,
+        "y": 8,
+        "w": 672,
+        "h": 339
+      }
+    },
+    {
+      "teamId": "team:football-data:86",
+      "teamName": "Real Madrid",
+      "policyKey": "sportpulse.mvp.form-agenda",
+      "policyVersion": 1,
+      "buildNowUtc": "2026-03-04T11:00:00Z",
+      "rawScore": 0.8477380952380953,
+      "attentionScore": 0.8477380952380953,
+      "displayScore": 0.8477380952380953,
+      "layoutWeight": 0.8477380952380953,
+      "topContributions": [
+        {
+          "signalKey": "FORM_POINTS_LAST_5",
+          "rawValue": 13,
+          "normValue": 0.8666666666666667,
+          "weight": 0.7,
+          "contribution": 0.6066666666666667
+        },
+        {
+          "signalKey": "NEXT_MATCH_HOURS",
+          "rawValue": 33,
+          "normValue": 0.8035714285714286,
+          "weight": 0.3,
+          "contribution": 0.24107142857142858
+        }
+      ],
+      "signals": [
+        {
+          "key": "FORM_POINTS_LAST_5",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:86",
+          "value": 0.8666666666666667,
+          "unit": "points",
+          "params": {
+            "windowSize": 5,
+            "matchesUsed": 5,
+            "rawPoints": 13,
+            "maxPoints": 15,
+            "matchIds": [
+              "match:football-data:5",
+              "match:football-data:4",
+              "match:football-data:3",
+              "match:football-data:2",
+              "match:football-data:1"
+            ]
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": false
+          },
+          "explain": "Points in last 5 finished matches normalized by maximum possible in that window."
+        },
+        {
+          "key": "NEXT_MATCH_HOURS",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:86",
+          "value": 0.8035714285714286,
+          "unit": "hours",
+          "params": {
+            "hours": 33,
+            "minHours": 0,
+            "maxHours": 168,
+            "nextMatchId": "match:football-data:30"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": false
+          },
+          "explain": "Sooner next match => higher attention; normalized inverse hours within horizon."
+        }
+      ],
+      "nextMatch": {
+        "matchId": "match:football-data:30",
+        "kickoffUtc": "2026-03-05T20:00:00Z",
+        "opponentTeamId": "team:football-data:81",
+        "opponentName": "FC Barcelona",
+        "venue": "HOME"
+      },
+      "rect": {
+        "x": 8,
+        "y": 353,
+        "w": 672,
+        "h": 339
+      }
+    },
+    {
+      "teamId": "team:football-data:78",
+      "teamName": "Atletico Madrid",
+      "policyKey": "sportpulse.mvp.form-agenda",
+      "policyVersion": 1,
+      "buildNowUtc": "2026-03-04T11:00:00Z",
+      "rawScore": 0.7151190476190477,
+      "attentionScore": 0.7151190476190477,
+      "displayScore": 0.7151190476190477,
+      "layoutWeight": 0.7151190476190477,
+      "topContributions": [
+        {
+          "signalKey": "FORM_POINTS_LAST_5",
+          "rawValue": 11,
+          "normValue": 0.7333333333333333,
+          "weight": 0.7,
+          "contribution": 0.5133333333333333
+        },
+        {
+          "signalKey": "NEXT_MATCH_HOURS",
+          "rawValue": 55,
+          "normValue": 0.6726190476190477,
+          "weight": 0.3,
+          "contribution": 0.2017857142857143
+        }
+      ],
+      "signals": [
+        {
+          "key": "FORM_POINTS_LAST_5",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:78",
+          "value": 0.7333333333333333,
+          "unit": "points",
+          "params": {
+            "windowSize": 5,
+            "matchesUsed": 5,
+            "rawPoints": 11,
+            "maxPoints": 15,
+            "matchIds": [
+              "match:football-data:15",
+              "match:football-data:14",
+              "match:football-data:13",
+              "match:football-data:12",
+              "match:football-data:11"
+            ]
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": false
+          },
+          "explain": "Points in last 5 finished matches normalized by maximum possible in that window."
+        },
+        {
+          "key": "NEXT_MATCH_HOURS",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:78",
+          "value": 0.6726190476190477,
+          "unit": "hours",
+          "params": {
+            "hours": 55,
+            "minHours": 0,
+            "maxHours": 168,
+            "nextMatchId": "match:football-data:31"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": false
+          },
+          "explain": "Sooner next match => higher attention; normalized inverse hours within horizon."
+        }
+      ],
+      "nextMatch": {
+        "matchId": "match:football-data:31",
+        "kickoffUtc": "2026-03-06T18:00:00Z",
+        "opponentTeamId": "team:football-data:77",
+        "opponentName": "Athletic Bilbao",
+        "venue": "HOME"
+      },
+      "rect": {
+        "x": 686,
+        "y": 8,
+        "w": 506,
+        "h": 375
+      }
+    },
+    {
+      "teamId": "team:football-data:77",
+      "teamName": "Athletic Bilbao",
+      "policyKey": "sportpulse.mvp.form-agenda",
+      "policyVersion": 1,
+      "buildNowUtc": "2026-03-04T11:00:00Z",
+      "rawScore": 0.5751190476190475,
+      "attentionScore": 0.5751190476190475,
+      "displayScore": 0.5751190476190475,
+      "layoutWeight": 0.5751190476190475,
+      "topContributions": [
+        {
+          "signalKey": "FORM_POINTS_LAST_5",
+          "rawValue": 8,
+          "normValue": 0.5333333333333333,
+          "weight": 0.7,
+          "contribution": 0.3733333333333333
+        },
+        {
+          "signalKey": "NEXT_MATCH_HOURS",
+          "rawValue": 55,
+          "normValue": 0.6726190476190477,
+          "weight": 0.3,
+          "contribution": 0.2017857142857143
+        }
+      ],
+      "signals": [
+        {
+          "key": "FORM_POINTS_LAST_5",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:77",
+          "value": 0.5333333333333333,
+          "unit": "points",
+          "params": {
+            "windowSize": 5,
+            "matchesUsed": 5,
+            "rawPoints": 8,
+            "maxPoints": 15,
+            "matchIds": [
+              "match:football-data:20",
+              "match:football-data:19",
+              "match:football-data:18",
+              "match:football-data:17",
+              "match:football-data:16"
+            ]
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": false
+          },
+          "explain": "Points in last 5 finished matches normalized by maximum possible in that window."
+        },
+        {
+          "key": "NEXT_MATCH_HOURS",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:77",
+          "value": 0.6726190476190477,
+          "unit": "hours",
+          "params": {
+            "hours": 55,
+            "minHours": 0,
+            "maxHours": 168,
+            "nextMatchId": "match:football-data:31"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": false
+          },
+          "explain": "Sooner next match => higher attention; normalized inverse hours within horizon."
+        }
+      ],
+      "nextMatch": {
+        "matchId": "match:football-data:31",
+        "kickoffUtc": "2026-03-06T18:00:00Z",
+        "opponentTeamId": "team:football-data:78",
+        "opponentName": "Atletico Madrid",
+        "venue": "AWAY"
+      },
+      "rect": {
+        "x": 686,
+        "y": 389,
+        "w": 506,
+        "h": 303
+      }
+    }
+  ]
+}

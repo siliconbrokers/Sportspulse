@@ -1,0 +1,260 @@
+{
+  "header": {
+    "snapshotSchemaVersion": 1,
+    "competitionId": "comp:football-data:PD",
+    "seasonId": "season:football-data:2025",
+    "buildNowUtc": "2026-03-04T11:00:00Z",
+    "timezone": "Europe/Madrid",
+    "policyKey": "sportpulse.mvp.form-agenda",
+    "policyVersion": 1,
+    "computedAtUtc": "<<EXCLUDED>>",
+    "snapshotKey": "comp:football-data:PD|season:football-data:2025|2026-03-04T11:00:00Z|sportpulse.mvp.form-agenda@1"
+  },
+  "layout": {
+    "algorithmKey": "treemap.squarified",
+    "algorithmVersion": 1,
+    "container": {
+      "width": 1200,
+      "height": 700,
+      "outerPadding": 8,
+      "innerGutter": 6
+    }
+  },
+  "warnings": [
+    {
+      "code": "MISSING_SIGNAL",
+      "severity": "WARN",
+      "message": "Signal FORM_POINTS_LAST_5 missing for team:football-data:200",
+      "entityId": "team:football-data:200"
+    },
+    {
+      "code": "MISSING_SIGNAL",
+      "severity": "WARN",
+      "message": "Signal NEXT_MATCH_HOURS missing for team:football-data:200",
+      "entityId": "team:football-data:200"
+    },
+    {
+      "code": "NO_UPCOMING_MATCH",
+      "severity": "INFO",
+      "message": "No upcoming scheduled match",
+      "entityId": "team:football-data:200"
+    },
+    {
+      "code": "MISSING_SIGNAL",
+      "severity": "WARN",
+      "message": "Signal FORM_POINTS_LAST_5 missing for team:football-data:201",
+      "entityId": "team:football-data:201"
+    },
+    {
+      "code": "MISSING_SIGNAL",
+      "severity": "WARN",
+      "message": "Signal NEXT_MATCH_HOURS missing for team:football-data:201",
+      "entityId": "team:football-data:201"
+    },
+    {
+      "code": "NO_UPCOMING_MATCH",
+      "severity": "INFO",
+      "message": "No upcoming scheduled match",
+      "entityId": "team:football-data:201"
+    },
+    {
+      "code": "MISSING_SIGNAL",
+      "severity": "WARN",
+      "message": "Signal FORM_POINTS_LAST_5 missing for team:football-data:202",
+      "entityId": "team:football-data:202"
+    },
+    {
+      "code": "MISSING_SIGNAL",
+      "severity": "WARN",
+      "message": "Signal NEXT_MATCH_HOURS missing for team:football-data:202",
+      "entityId": "team:football-data:202"
+    },
+    {
+      "code": "NO_UPCOMING_MATCH",
+      "severity": "INFO",
+      "message": "No upcoming scheduled match",
+      "entityId": "team:football-data:202"
+    },
+    {
+      "code": "LAYOUT_DEGRADED",
+      "severity": "WARN",
+      "message": "All layout weights are zero; using equal-area fallback"
+    }
+  ],
+  "teams": [
+    {
+      "teamId": "team:football-data:200",
+      "teamName": "Team A",
+      "policyKey": "sportpulse.mvp.form-agenda",
+      "policyVersion": 1,
+      "buildNowUtc": "2026-03-04T11:00:00Z",
+      "rawScore": 0,
+      "attentionScore": 0,
+      "displayScore": 0,
+      "layoutWeight": 0,
+      "topContributions": [],
+      "signals": [
+        {
+          "key": "FORM_POINTS_LAST_5",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:200",
+          "value": 0,
+          "unit": "points",
+          "params": {
+            "windowSize": 5,
+            "matchesUsed": 0,
+            "rawPoints": 0,
+            "maxPoints": 0,
+            "reason": "no_finished_matches"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": true
+          },
+          "explain": "No finished matches available for form computation."
+        },
+        {
+          "key": "NEXT_MATCH_HOURS",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:200",
+          "value": 0,
+          "unit": "hours",
+          "params": {
+            "hours": null,
+            "minHours": 0,
+            "maxHours": 168,
+            "nextMatchId": null,
+            "reason": "no_next_match"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": true
+          },
+          "explain": "No upcoming scheduled match found."
+        }
+      ],
+      "rect": {
+        "x": 8,
+        "y": 8,
+        "w": 394,
+        "h": 684
+      }
+    },
+    {
+      "teamId": "team:football-data:201",
+      "teamName": "Team B",
+      "policyKey": "sportpulse.mvp.form-agenda",
+      "policyVersion": 1,
+      "buildNowUtc": "2026-03-04T11:00:00Z",
+      "rawScore": 0,
+      "attentionScore": 0,
+      "displayScore": 0,
+      "layoutWeight": 0,
+      "topContributions": [],
+      "signals": [
+        {
+          "key": "FORM_POINTS_LAST_5",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:201",
+          "value": 0,
+          "unit": "points",
+          "params": {
+            "windowSize": 5,
+            "matchesUsed": 0,
+            "rawPoints": 0,
+            "maxPoints": 0,
+            "reason": "no_finished_matches"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": true
+          },
+          "explain": "No finished matches available for form computation."
+        },
+        {
+          "key": "NEXT_MATCH_HOURS",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:201",
+          "value": 0,
+          "unit": "hours",
+          "params": {
+            "hours": null,
+            "minHours": 0,
+            "maxHours": 168,
+            "nextMatchId": null,
+            "reason": "no_next_match"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": true
+          },
+          "explain": "No upcoming scheduled match found."
+        }
+      ],
+      "rect": {
+        "x": 408,
+        "y": 8,
+        "w": 394,
+        "h": 684
+      }
+    },
+    {
+      "teamId": "team:football-data:202",
+      "teamName": "Team C",
+      "policyKey": "sportpulse.mvp.form-agenda",
+      "policyVersion": 1,
+      "buildNowUtc": "2026-03-04T11:00:00Z",
+      "rawScore": 0,
+      "attentionScore": 0,
+      "displayScore": 0,
+      "layoutWeight": 0,
+      "topContributions": [],
+      "signals": [
+        {
+          "key": "FORM_POINTS_LAST_5",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:202",
+          "value": 0,
+          "unit": "points",
+          "params": {
+            "windowSize": 5,
+            "matchesUsed": 0,
+            "rawPoints": 0,
+            "maxPoints": 0,
+            "reason": "no_finished_matches"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": true
+          },
+          "explain": "No finished matches available for form computation."
+        },
+        {
+          "key": "NEXT_MATCH_HOURS",
+          "entityKind": "TEAM",
+          "entityId": "team:football-data:202",
+          "value": 0,
+          "unit": "hours",
+          "params": {
+            "hours": null,
+            "minHours": 0,
+            "maxHours": 168,
+            "nextMatchId": null,
+            "reason": "no_next_match"
+          },
+          "quality": {
+            "source": "canonical_derived",
+            "missing": true
+          },
+          "explain": "No upcoming scheduled match found."
+        }
+      ],
+      "rect": {
+        "x": 808,
+        "y": 8,
+        "w": 384,
+        "h": 684
+      }
+    }
+  ]
+}
