@@ -14,7 +14,7 @@ export function App() {
       <DashboardLayout
         competitionId="comp:football-data:PD"
         dateLocal={today}
-        timezone="Europe/Madrid"
+        timezone="America/Montevideo"
       />
     </div>
   );
