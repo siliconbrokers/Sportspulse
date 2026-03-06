@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { MatchCardDTO, UrgencyColorKey, HeatBorderKey } from '../types/snapshot.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
+import { computeLiveTimeChip } from '../utils/time-chip.js';
 import './match-map.css';
 
 interface MatchMapCardGridProps {
@@ -191,19 +192,24 @@ function TileContent({ card, crestSize }: { card: MatchCardDTO; crestSize: numbe
         </span>
       </div>
 
-      {/* Tiempo */}
-      <div
-        style={{
-          fontSize: 10,
-          color: 'rgba(255,255,255,0.65)',
-          textAlign: 'center',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {card.timeChip.icon} {card.timeChip.label}
-      </div>
+      {/* Tiempo — calculado en cliente para no depender del cache del backend */}
+      {(() => {
+        const tc = computeLiveTimeChip(card.status, card.kickoffUtc);
+        return (
+          <div
+            style={{
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.65)',
+              textAlign: 'center',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {tc.icon} {tc.label}
+          </div>
+        );
+      })()}
     </div>
   );
 }

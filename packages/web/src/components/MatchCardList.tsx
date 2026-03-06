@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { MatchCardDTO } from '../types/snapshot.js';
+import { computeLiveTimeChip } from '../utils/time-chip.js';
 
 interface MatchCardListProps {
   matchCards: MatchCardDTO[];
@@ -163,12 +164,17 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: Match
             transition: 'background-color 0.18s ease, border-color 0.18s ease',
           }}
         >
-          {/* Time chip */}
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <span style={chipStyle(card.timeChip.level)}>
-              {card.timeChip.icon} {card.timeChip.label}
-            </span>
-          </div>
+          {/* Time chip — calculado en cliente para no depender del cache del backend */}
+          {(() => {
+            const tc = computeLiveTimeChip(card.status, card.kickoffUtc);
+            return (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <span style={chipStyle(tc.level)}>
+                  {tc.icon} {tc.label}
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Teams row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
