@@ -6,6 +6,14 @@
     <title>SportsPulse</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
+      .team-tile {
+        transition: transform 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
+      }
+      .team-tile:hover {
+        transform: scale(1.03);
+        z-index: 10 !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      }
       @keyframes pulse {
         0%, 100% { opacity: 0.4; }
         50% { opacity: 0.8; }
