@@ -184,16 +184,8 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
         boxSizing: 'border-box',
       }}
     >
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 18 }}>{detail.team.teamName}</h2>
-          {detail.team.coachName && (
-            <div style={{ fontSize: 12, opacity: 0.5, marginTop: 2 }}>
-              DT: {detail.team.coachName}
-            </div>
-          )}
-        </div>
+      {/* Header — solo botón de cierre */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button
           data-testid="close-detail"
           onClick={onClose}
@@ -310,6 +302,11 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                   <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
                     {isHome ? detail.team.teamName : (nm.opponentName ?? 'Rival')}
                   </div>
+                  {isHome && detail.team.coachName && (
+                    <div style={{ fontSize: 10, marginTop: 2, opacity: 0.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+                      {detail.team.coachName}
+                    </div>
+                  )}
                 </div>
                 {played ? (
                   <div style={{ textAlign: 'center', flexShrink: 0, width: 72 }}>
@@ -333,6 +330,11 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                   <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
                     {isHome ? (nm.opponentName ?? 'Rival') : detail.team.teamName}
                   </div>
+                  {!isHome && detail.team.coachName && (
+                    <div style={{ fontSize: 10, marginTop: 2, opacity: 0.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+                      {detail.team.coachName}
+                    </div>
+                  )}
                 </div>
               </div>
             );
