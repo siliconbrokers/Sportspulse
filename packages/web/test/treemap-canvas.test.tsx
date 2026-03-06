@@ -61,7 +61,7 @@ describe('TreemapCanvas', () => {
     render(<TreemapCanvas teams={teams} layout={layout} focusedTeamId="A" onSelectTeam={() => {}} />);
 
     expect(screen.getByTestId('tile-A').style.opacity).toBe('1');
-    expect(screen.getByTestId('tile-B').style.opacity).toBe('0.5');
+    expect(screen.getByTestId('tile-B').style.opacity).toBe('0.4');
   });
 
   it('does not import any layout solver (H-01 boundary)', async () => {

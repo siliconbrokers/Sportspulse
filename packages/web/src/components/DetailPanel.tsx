@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { TeamDetailDTO } from '../types/team-detail.js';
+import { formatDateTime } from '../utils/format-date.js';
 
 interface DetailPanelProps {
   detail: TeamDetailDTO;
@@ -68,7 +69,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             {detail.nextMatch.venue && `(${detail.nextMatch.venue})`}
           </p>
           <p style={{ margin: '4px 0 0', fontSize: 12, opacity: 0.6 }}>
-            {detail.nextMatch.kickoffUtc}
+            {formatDateTime(detail.nextMatch.kickoffUtc, detail.header.timezone)}
           </p>
         </section>
       )}

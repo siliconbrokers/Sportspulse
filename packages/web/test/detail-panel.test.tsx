@@ -25,8 +25,8 @@ const detail: TeamDetailDTO = {
   },
   explainability: {
     topContributions: [
-      { signalKey: 'FORM_POINTS_LAST_5', rawContribution: 10, weightedContribution: 6, weight: 0.6 },
-      { signalKey: 'NEXT_MATCH_HOURS', rawContribution: 5, weightedContribution: 2, weight: 0.4 },
+      { signalKey: 'FORM_POINTS_LAST_5', rawValue: 10, normValue: 0.8, weight: 0.6, contribution: 6 },
+      { signalKey: 'NEXT_MATCH_HOURS', rawValue: 5, normValue: 0.5, weight: 0.4, contribution: 2 },
     ],
   },
 };

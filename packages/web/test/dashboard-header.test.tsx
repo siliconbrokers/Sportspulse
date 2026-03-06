@@ -17,7 +17,8 @@ describe('DashboardHeader', () => {
   it('shows competition and date from snapshot header', () => {
     render(<DashboardHeader header={header} warnings={[]} source={null} />);
     expect(screen.getByText('PD')).toBeInTheDocument();
-    expect(screen.getByText(/2026-03-04/)).toBeInTheDocument();
+    // Europe/Madrid is Spanish → DD/MM/YYYY format
+    expect(screen.getByText(/04\/03\/2026/)).toBeInTheDocument();
   });
 
   it('shows warning badge when warnings present', () => {

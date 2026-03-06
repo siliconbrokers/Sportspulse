@@ -1,4 +1,5 @@
 import type { SnapshotHeaderDTO, WarningDTO } from '../types/snapshot.js';
+import { formatDate } from '../utils/format-date.js';
 
 interface DashboardHeaderProps {
   header: SnapshotHeaderDTO;
@@ -17,13 +18,13 @@ export function DashboardHeader({ header, warnings, source }: DashboardHeaderPro
             {header.competitionId.split(':').pop()?.toUpperCase() ?? 'Dashboard'}
           </h1>
           <span style={{ fontSize: 13, opacity: 0.7 }}>
-            {header.buildNowUtc.split('T')[0]} · {header.timezone}
+            {formatDate(header.buildNowUtc, header.timezone)} · {header.timezone}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {source === 'stale_fallback' && (
             <span data-testid="stale-indicator" style={{ fontSize: 12, color: '#fbbf24' }}>
-              Stale data · {header.computedAtUtc.split('T')[0]}
+              Stale data · {formatDate(header.computedAtUtc, header.timezone)}
             </span>
           )}
           {warningCount > 0 && (
