@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import type { MatchCardDTO } from '../types/snapshot.js';
 
 interface MatchCardListProps {
   matchCards: MatchCardDTO[];
+  onSelectTeam?: (teamId: string) => void;
+  focusedTeamId?: string | null;
 }
 
 function chipStyle(level: string): React.CSSProperties {
@@ -28,11 +31,11 @@ function chipStyle(level: string): React.CSSProperties {
 }
 
 function TeamSide({
-  teamId,
   name,
   crestUrl,
   formChip,
   align,
+  isSelected,
 }: {
   teamId: string;
   name: string;
@@ -50,6 +53,7 @@ function TeamSide({
         alignItems: isRight ? 'flex-end' : 'flex-start',
         gap: 5,
         minWidth: 0,
+        pointerEvents: 'none',
       }}
     >
       <div
@@ -102,7 +106,9 @@ function TeamSide({
   );
 }
 
-export function MatchCardList({ matchCards }: MatchCardListProps) {
+export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: MatchCardListProps) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
   if (matchCards.length === 0) {
     return (
       <div
@@ -132,14 +138,29 @@ export function MatchCardList({ matchCards }: MatchCardListProps) {
       {matchCards.map((card) => (
         <div
           key={card.matchId}
+          onMouseEnter={() => setHoveredId(card.matchId)}
+          onMouseLeave={() => setHoveredId(null)}
+          onClick={onSelectTeam ? (e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const teamId = (e.clientX - rect.left) < rect.width / 2
+              ? card.home.teamId
+              : card.away.teamId;
+            onSelectTeam(teamId);
+          } : undefined}
           style={{
-            backgroundColor: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.09)',
+            backgroundColor: hoveredId === card.matchId
+              ? 'rgba(255,255,255,0.09)'
+              : 'rgba(255,255,255,0.05)',
+            border: hoveredId === card.matchId
+              ? '1px solid rgba(255,255,255,0.2)'
+              : '1px solid rgba(255,255,255,0.09)',
             borderRadius: 12,
             padding: '12px 16px',
             display: 'flex',
             flexDirection: 'column',
             gap: 10,
+            cursor: onSelectTeam ? 'pointer' : undefined,
+            transition: 'background-color 0.18s ease, border-color 0.18s ease',
           }}
         >
           {/* Time chip */}
@@ -158,16 +179,23 @@ export function MatchCardList({ matchCards }: MatchCardListProps) {
               formChip={card.home.formChip}
               align="left"
             />
-            <span
+            <div
               style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: 'rgba(255,255,255,0.35)',
                 flexShrink: 0,
+                textAlign: 'center',
+                minWidth: 48,
               }}
             >
-              vs
-            </span>
+              {card.status === 'FINISHED' && card.scoreHome != null && card.scoreAway != null ? (
+                <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: 2 }}>
+                  {card.scoreHome} - {card.scoreAway}
+                </span>
+              ) : (
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.35)' }}>
+                  vs
+                </span>
+              )}
+            </div>
             <TeamSide
               teamId={card.away.teamId}
               name={card.away.name}
@@ -188,7 +216,7 @@ export function MatchCardList({ matchCards }: MatchCardListProps) {
                 paddingTop: 8,
               }}
             >
-              {card.explainLine.text}
+              {card.explainLine.text.replace(/^Porque:\s*/i, '')}
             </div>
           )}
         </div>

@@ -53,7 +53,11 @@ export function DashboardLayout({ competitionId, matchday, timezone, viewMode = 
       <DashboardHeader header={data.header} warnings={data.warnings} source={source} />
       <WarningBanner warnings={data.warnings} />
       {viewMode === 'partidos' ? (
-        <MatchCardList matchCards={data.matchCards ?? []} />
+        <MatchCardList
+          matchCards={data.matchCards ?? []}
+          onSelectTeam={(id) => setFocus(id === focus ? null : id)}
+          focusedTeamId={focus}
+        />
       ) : data.teams.length === 0 ? (
         <EmptyState />
       ) : isMobile ? (
@@ -71,7 +75,7 @@ export function DashboardLayout({ competitionId, matchday, timezone, viewMode = 
           onSelectTeam={(id) => setFocus(id === focus ? null : id)}
         />
       )}
-      {viewMode !== 'partidos' && focus && teamDetail && (
+      {focus && teamDetail && (
         <DetailPanel detail={teamDetail} onClose={() => setFocus(null)} />
       )}
     </div>

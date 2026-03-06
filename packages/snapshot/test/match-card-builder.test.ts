@@ -188,13 +188,11 @@ describe('buildMatchCards', () => {
     expect(cards[0].rankScore).toBe(0);
   });
 
-  it('sorted rankScore desc, then matchId asc', () => {
+  it('sorted by kickoffUtc desc (más reciente primero), then matchId asc', () => {
     const m1 = makeMatch('match:z', 'team:a', 'team:b', '2026-03-07T20:00:00Z');
     const m2 = makeMatch('match:a', 'team:b', 'team:c', '2026-03-08T20:00:00Z');
-    const scores = [makeScore('team:a', 0.9), makeScore('team:b', 0.5), makeScore('team:c', 0.1)];
-    const cards = buildMatchCards([m1, m2], teams, scores, BUILD_NOW);
-    // match:z: rankScore = 1-(0.1*0.5) = 0.95
-    // match:a: rankScore = 1-(0.5*0.9) = 0.55
+    const cards = buildMatchCards([m1, m2], teams, [], BUILD_NOW);
+    // match:z kickoff 07 < match:a kickoff 08 → match:z primero (más cercano)
     expect(cards[0].matchId).toBe('match:z');
     expect(cards[1].matchId).toBe('match:a');
   });

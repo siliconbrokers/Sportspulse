@@ -22,10 +22,12 @@
         from { transform: translateX(100%); }
         to { transform: translateX(0); }
       }
-      .detail-panel { width: 360px; }
+      .detail-panel { width: 340px; }
       @media (max-width: 640px) {
-        .detail-panel { width: 100vw !important; }
+        .detail-panel { width: 100vw !important; left: 0 !important; }
       }
+      /* Prevent horizontal scroll on mobile */
+      body { overflow-x: hidden; }
     </style>
   </head>
   <body>

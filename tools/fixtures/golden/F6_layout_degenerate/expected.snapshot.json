@@ -1,6 +1,6 @@
 {
   "header": {
-    "snapshotSchemaVersion": 1,
+    "snapshotSchemaVersion": 2,
     "competitionId": "comp:football-data:PD",
     "seasonId": "season:football-data:2025",
     "buildNowUtc": "2026-03-04T11:00:00Z",
@@ -81,6 +81,10 @@
       "message": "All layout weights are zero; using equal-area fallback"
     }
   ],
+  "displayRules": {
+    "displayRulesKey": "sportpulse.display.dummies",
+    "displayRulesVersion": 1
+  },
   "teams": [
     {
       "teamId": "team:football-data:200",
@@ -157,6 +161,20 @@
         "y": 8,
         "w": 394,
         "h": 684
+      },
+      "displayHints": {
+        "formChip": {
+          "icon": "⚠️",
+          "label": "Sin datos",
+          "level": "UNKNOWN",
+          "kind": "FORM_MISSING"
+        },
+        "nextMatchChip": {
+          "icon": "⚠️",
+          "label": "Sin fecha",
+          "level": "UNKNOWN",
+          "kind": "TIME_UNKNOWN"
+        }
       }
     },
     {
@@ -234,6 +252,20 @@
         "y": 8,
         "w": 394,
         "h": 684
+      },
+      "displayHints": {
+        "formChip": {
+          "icon": "⚠️",
+          "label": "Sin datos",
+          "level": "UNKNOWN",
+          "kind": "FORM_MISSING"
+        },
+        "nextMatchChip": {
+          "icon": "⚠️",
+          "label": "Sin fecha",
+          "level": "UNKNOWN",
+          "kind": "TIME_UNKNOWN"
+        }
       }
     },
     {
@@ -311,7 +343,22 @@
         "y": 8,
         "w": 384,
         "h": 684
+      },
+      "displayHints": {
+        "formChip": {
+          "icon": "⚠️",
+          "label": "Sin datos",
+          "level": "UNKNOWN",
+          "kind": "FORM_MISSING"
+        },
+        "nextMatchChip": {
+          "icon": "⚠️",
+          "label": "Sin fecha",
+          "level": "UNKNOWN",
+          "kind": "TIME_UNKNOWN"
+        }
       }
     }
-  ]
+  ],
+  "matchCards": []
 }

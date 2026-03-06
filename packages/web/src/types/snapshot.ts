@@ -139,6 +139,8 @@ export interface MatchCardDTO {
   matchId: string;
   kickoffUtc?: string;
   status?: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'UNKNOWN';
+  scoreHome?: number | null;
+  scoreAway?: number | null;
   timeChip: DisplayChipDTO;
   home: MatchCardTeam;
   away: MatchCardTeam;

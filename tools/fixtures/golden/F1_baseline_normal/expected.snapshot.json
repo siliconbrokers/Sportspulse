@@ -1,6 +1,6 @@
 {
   "header": {
-    "snapshotSchemaVersion": 1,
+    "snapshotSchemaVersion": 2,
     "competitionId": "comp:football-data:PD",
     "seasonId": "season:football-data:2025",
     "buildNowUtc": "2026-03-04T11:00:00Z",
@@ -21,6 +21,10 @@
     }
   },
   "warnings": [],
+  "displayRules": {
+    "displayRulesKey": "sportpulse.display.dummies",
+    "displayRulesVersion": 1
+  },
   "teams": [
     {
       "teamId": "team:football-data:81",
@@ -155,6 +159,20 @@
         "y": 8,
         "w": 672,
         "h": 339
+      },
+      "displayHints": {
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        },
+        "nextMatchChip": {
+          "icon": "⏳",
+          "label": "Mañana · en 33 h",
+          "level": "OK",
+          "kind": "TIME_TOMORROW_HOURS"
+        }
       }
     },
     {
@@ -290,6 +308,20 @@
         "y": 353,
         "w": 672,
         "h": 339
+      },
+      "displayHints": {
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        },
+        "nextMatchChip": {
+          "icon": "⏳",
+          "label": "Mañana · en 33 h",
+          "level": "OK",
+          "kind": "TIME_TOMORROW_HOURS"
+        }
       }
     },
     {
@@ -425,6 +457,20 @@
         "y": 8,
         "w": 506,
         "h": 375
+      },
+      "displayHints": {
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        },
+        "nextMatchChip": {
+          "icon": "📅",
+          "label": "En 2 días",
+          "level": "INFO",
+          "kind": "TIME_DAYS"
+        }
       }
     },
     {
@@ -560,6 +606,94 @@
         "y": 389,
         "w": 506,
         "h": 303
+      },
+      "displayHints": {
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        },
+        "nextMatchChip": {
+          "icon": "📅",
+          "label": "En 2 días",
+          "level": "INFO",
+          "kind": "TIME_DAYS"
+        }
+      }
+    }
+  ],
+  "matchCards": [
+    {
+      "matchId": "match:football-data:30",
+      "kickoffUtc": "2026-03-05T20:00:00Z",
+      "status": "SCHEDULED",
+      "timeChip": {
+        "icon": "⏳",
+        "label": "Mañana · en 33 h",
+        "level": "OK",
+        "kind": "TIME_TOMORROW_HOURS"
+      },
+      "home": {
+        "teamId": "team:football-data:86",
+        "name": "Real Madrid",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:81",
+        "name": "FC Barcelona",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "rankScore": 0.9768163123582767,
+      "explainLine": {
+        "text": "Porque: Mañana · en 33 h + local picante / visita picante",
+        "kind": "WHY_MATCH_SIMPLE"
+      }
+    },
+    {
+      "matchId": "match:football-data:31",
+      "kickoffUtc": "2026-03-06T18:00:00Z",
+      "status": "SCHEDULED",
+      "timeChip": {
+        "icon": "📅",
+        "label": "En 2 días",
+        "level": "INFO",
+        "kind": "TIME_DAYS"
+      },
+      "home": {
+        "teamId": "team:football-data:78",
+        "name": "Atletico Madrid",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:77",
+        "name": "Athletic Bilbao",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "rankScore": 0.8789595096371882,
+      "explainLine": {
+        "text": "Porque: En 2 días + local viene bien / visita viene bien",
+        "kind": "WHY_MATCH_SIMPLE"
       }
     }
   ]

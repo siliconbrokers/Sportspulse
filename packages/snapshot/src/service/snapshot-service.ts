@@ -58,6 +58,7 @@ export class SnapshotService {
       buildNowUtc,
       this.policy.policyKey,
       this.policy.policyVersion,
+      input.matchday,
     );
 
     // 1. Cache hit

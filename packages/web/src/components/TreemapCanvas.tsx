@@ -19,14 +19,18 @@ export function TreemapCanvas({ teams, layout, focusedTeamId, onSelectTeam }: Tr
       if (!wrapperRef.current) return;
       const parent = wrapperRef.current.parentElement;
       if (!parent) return;
-      const availableWidth = parent.clientWidth - 32; // 16px padding each side
-      const s = Math.min(1, availableWidth / width);
+      const availableWidth = parent.clientWidth - 32;
+      // On portrait mobile, also constrain by available height to avoid scroll
+      const availableHeight = window.innerHeight - 100; // reserve ~100px for header
+      const scaleByWidth = availableWidth / width;
+      const scaleByHeight = availableHeight / height;
+      const s = Math.min(1, scaleByWidth, scaleByHeight);
       setScale(s);
     }
     updateScale();
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
-  }, [width]);
+  }, [width, height]);
 
   return (
     <div

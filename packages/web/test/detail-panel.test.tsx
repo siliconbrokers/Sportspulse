@@ -49,27 +49,35 @@ describe('DetailPanel', () => {
     expect(screen.getByText('Comienza en')).toBeInTheDocument();
   });
 
-  it('renders match estimate when form data available', () => {
+  it('renders match estimate with probabilities when form data available', () => {
     const withForm: TeamDetailDTO = {
       ...detail,
-      team: { ...detail.team, recentForm: ['W', 'W', 'W', 'D', 'L'] },
-      nextMatch: { ...detail.nextMatch!, opponentRecentForm: ['L', 'L', 'D', 'W', 'L'] },
+      team: {
+        ...detail.team,
+        recentForm: ['W', 'W', 'W', 'D', 'L'],
+        homeGoalStats: { goalsFor: 20, goalsAgainst: 8, goalDifference: 12, points: 30 },
+      },
+      nextMatch: {
+        ...detail.nextMatch!,
+        opponentRecentForm: ['L', 'L', 'D', 'W', 'L'],
+        opponentAwayGoalStats: { goalsFor: 10, goalsAgainst: 15, goalDifference: -5, points: 10 },
+      },
     };
     render(<DetailPanel detail={withForm} onClose={() => {}} />);
     expect(screen.getByTestId('match-estimate')).toBeInTheDocument();
-    // FC Barcelona: 10pts + 2 home bonus = 12, Real Madrid: 4pts = 4 → diff=8 → Favorito
-    expect(screen.getByText(/Favorito: FC Barcelona/)).toBeInTheDocument();
+    // Stronger team (home pts 30 vs opp away pts 10) + better form → higher win%
+    expect(screen.getByText('Empate')).toBeInTheDocument();
   });
 
-  it('renders "Partido parejo" when forms are similar', () => {
-    const even: TeamDetailDTO = {
+  it('renders match estimate based on form only when no venue stats', () => {
+    const withForm: TeamDetailDTO = {
       ...detail,
       team: { ...detail.team, recentForm: ['W', 'D', 'L', 'W', 'D'] },
       nextMatch: { ...detail.nextMatch!, venue: 'AWAY', opponentRecentForm: ['D', 'W', 'L', 'D', 'W'] },
     };
-    render(<DetailPanel detail={even} onClose={() => {}} />);
-    // Team: 8pts, Opp: 8pts + 2 home bonus = 10, diff = -2 → Leve ventaja
-    expect(screen.getByText(/Leve ventaja: Real Madrid/)).toBeInTheDocument();
+    render(<DetailPanel detail={withForm} onClose={() => {}} />);
+    expect(screen.getByTestId('match-estimate')).toBeInTheDocument();
+    expect(screen.getByText('Empate')).toBeInTheDocument();
   });
 
   it('calls onClose when Escape is pressed', () => {

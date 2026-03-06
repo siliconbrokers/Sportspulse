@@ -16,6 +16,8 @@ export interface MatchCardDTO {
   matchId: string;
   kickoffUtc?: string;
   status?: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'UNKNOWN';
+  scoreHome?: number | null;
+  scoreAway?: number | null;
   timeChip: DisplayChipDTO;
   home: MatchCardTeam;
   away: MatchCardTeam;
@@ -112,20 +114,25 @@ export function buildMatchCards(
   allTeams: readonly Team[],
   teamScores: readonly Omit<TeamScoreDTO, 'rect'>[],
   buildNowUtc: string,
+  matchday?: number,
 ): MatchCardDTO[] {
   const scoreMap = new Map<string, Omit<TeamScoreDTO, 'rect'>>(
     teamScores.map((t) => [t.teamId, t]),
   );
   const teamMap = new Map<string, Team>(allTeams.map((t) => [t.teamId, t]));
 
-  // Include LIVE and future SCHEDULED matches only
-  const relevant = matches.filter(
-    (m) =>
-      m.status === EventStatus.IN_PROGRESS ||
-      (m.status === EventStatus.SCHEDULED &&
-        m.startTimeUtc !== null &&
-        m.startTimeUtc > buildNowUtc),
-  );
+  // When a matchday is given: show all matches of that matchday (any status).
+  // Otherwise: show only LIVE or future SCHEDULED matches.
+  const relevant =
+    matchday !== undefined
+      ? matches.filter((m) => m.matchday === matchday)
+      : matches.filter(
+          (m) =>
+            m.status === EventStatus.IN_PROGRESS ||
+            (m.status === EventStatus.SCHEDULED &&
+              m.startTimeUtc !== null &&
+              m.startTimeUtc > buildNowUtc),
+        );
 
   const cardMap = new Map<string, MatchCardDTO>();
 
@@ -139,7 +146,10 @@ export function buildMatchCards(
       hours = diffMs / (1000 * 60 * 60);
     }
 
-    const timeChip = mapTimeChipFromHours(hours, isLive);
+    const isFinished = match.status === EventStatus.FINISHED;
+    const timeChip = isFinished
+      ? { icon: '✅', label: 'Finalizado', level: 'INFO' as const, kind: 'TIME_FINISHED' }
+      : mapTimeChipFromHours(hours, isLive);
 
     const homeScore = scoreMap.get(match.homeTeamId);
     const awayScore = scoreMap.get(match.awayTeamId);
@@ -172,6 +182,8 @@ export function buildMatchCards(
       matchId: match.matchId,
       kickoffUtc: match.startTimeUtc ?? undefined,
       status: toCardStatus(match.status),
+      scoreHome: isFinished ? match.scoreHome : undefined,
+      scoreAway: isFinished ? match.scoreAway : undefined,
       timeChip,
       home: {
         teamId: match.homeTeamId,
@@ -191,9 +203,9 @@ export function buildMatchCards(
   }
 
   return [...cardMap.values()].sort((a, b) => {
-    const ra = a.rankScore ?? 0;
-    const rb = b.rankScore ?? 0;
-    if (rb !== ra) return rb - ra;
+    const ta = a.kickoffUtc ?? '';
+    const tb = b.kickoffUtc ?? '';
+    if (tb !== ta) return ta.localeCompare(tb); // más cercano primero
     return a.matchId.localeCompare(b.matchId);
   });
 }

@@ -10,6 +10,7 @@ export interface AssembleHeaderInput {
   policyKey: string;
   policyVersion: number;
   freshnessUtc?: string;
+  matchday?: number;
 }
 
 export function assembleHeader(input: AssembleHeaderInput): SnapshotHeaderDTO {
@@ -19,6 +20,7 @@ export function assembleHeader(input: AssembleHeaderInput): SnapshotHeaderDTO {
     input.buildNowUtc,
     input.policyKey,
     input.policyVersion,
+    input.matchday,
   );
 
   return {

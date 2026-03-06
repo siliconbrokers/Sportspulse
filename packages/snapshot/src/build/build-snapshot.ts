@@ -82,7 +82,13 @@ export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
   }));
 
   // Step 7: Build match cards (§8 display-hints-spec-v1.1)
-  const matchCards = buildMatchCards(input.matches, input.teams, teamScores, input.buildNowUtc);
+  const matchCards = buildMatchCards(
+    input.matches,
+    input.teams,
+    teamScores,
+    input.buildNowUtc,
+    input.matchday,
+  );
 
   // Step 8: Assemble header
   const header = assembleHeader({
@@ -93,6 +99,7 @@ export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
     policyKey: input.policy.policyKey,
     policyVersion: input.policy.policyVersion,
     freshnessUtc: input.freshnessUtc,
+    matchday: input.matchday,
   });
 
   return {

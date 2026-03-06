@@ -1,6 +1,6 @@
 /**
  * Builds a deterministic snapshot key from the identity tuple.
- * Format: competitionId|seasonId|buildNowUtc|policyKey@policyVersion
+ * Format: competitionId|seasonId|buildNowUtc|policyKey@policyVersion[|jornada:N]
  */
 export function buildSnapshotKey(
   competitionId: string,
@@ -8,8 +8,10 @@ export function buildSnapshotKey(
   buildNowUtc: string,
   policyKey: string,
   policyVersion: number,
+  matchday?: number,
 ): string {
-  return `${competitionId}|${seasonId}|${buildNowUtc}|${policyKey}@${policyVersion}`;
+  const base = `${competitionId}|${seasonId}|${buildNowUtc}|${policyKey}@${policyVersion}`;
+  return matchday !== undefined ? `${base}|jornada:${matchday}` : base;
 }
 
 /**
@@ -42,7 +44,7 @@ export function buildNowUtcFromDate(dateLocal: string, timezone: string): string
   // Find the UTC time that corresponds to noon in the given timezone
   // by iterating: we need the UTC instant where local time = noon
   const parts = formatter.formatToParts(localNoon);
-  const getPart = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+  const getPart = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
   const localHour = parseInt(getPart('hour'), 10);
 
   // The difference between 12 (desired local) and what localNoon shows in that tz
