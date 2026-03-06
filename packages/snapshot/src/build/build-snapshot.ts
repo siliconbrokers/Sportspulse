@@ -49,10 +49,18 @@ export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
     return a.teamId.localeCompare(b.teamId);
   });
 
-  // Step 3: Build treemap inputs
+  // Step 3: Build treemap inputs with minimum weight floor for visual readability.
+  // No tile should receive less than MIN_FLOOR_FACTOR * avgWeight so low-score
+  // teams still render as legible tiles. The original layoutWeight in TeamScoreDTO
+  // is preserved — only the geometry calculation uses the floored value.
+  const MIN_FLOOR_FACTOR = 0.35;
+  const totalWeight = sorted.reduce((sum, t) => sum + t.layoutWeight, 0);
+  const avgWeight = totalWeight / (sorted.length || 1);
+  const minFloorWeight = avgWeight * MIN_FLOOR_FACTOR;
+
   const treemapInputs: TreemapInput[] = sorted.map((t) => ({
     entityId: t.teamId,
-    layoutWeight: t.layoutWeight,
+    layoutWeight: Math.max(t.layoutWeight, minFloorWeight),
   }));
 
   // Step 4: Detect all-zero weights

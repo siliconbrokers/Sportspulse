@@ -3,6 +3,7 @@ import { DashboardLayout } from './components/DashboardLayout.js';
 import { StandingsTable } from './components/StandingsTable.js';
 import { useStandings } from './hooks/use-standings.js';
 import { useCompetitionInfo } from './hooks/use-competition-info.js';
+import { useWindowWidth } from './hooks/use-window-width.js';
 import { competitionDisplayName } from './utils/labels.js';
 
 type ViewMode = 'treemap' | 'standings';
@@ -34,8 +35,21 @@ export function App() {
     setMatchday(null);
   }, [competitionId]);
 
+  const { breakpoint } = useWindowWidth();
+  const isMobile = breakpoint === 'mobile';
   const totalMatchdays = compInfo?.totalMatchdays ?? 38;
   const matchdayOptions = Array.from({ length: totalMatchdays }, (_, i) => i + 1);
+
+  const selectStyle: React.CSSProperties = {
+    backgroundColor: '#1e293b',
+    color: '#fff',
+    border: '1px solid rgba(255,255,255,0.2)',
+    borderRadius: 6,
+    padding: isMobile ? '5px 8px' : '6px 10px',
+    fontSize: isMobile ? 12 : 13,
+    cursor: 'pointer',
+    flex: isMobile ? 1 : undefined,
+  };
 
   return (
     <div
@@ -48,61 +62,19 @@ export function App() {
       <div
         style={{
           display: 'flex',
-          gap: 12,
-          padding: '8px 16px',
+          flexWrap: 'wrap',
+          gap: isMobile ? 8 : 12,
+          padding: isMobile ? '6px 12px' : '8px 16px',
           alignItems: 'center',
           borderBottom: '1px solid rgba(255,255,255,0.1)',
         }}
       >
+        {/* Fila 1: logo + botones vista */}
         <img
           src="/logo.png"
           alt="SportsPulse"
-          style={{ height: 40, width: 'auto' }}
+          style={{ height: isMobile ? 36 : 56, width: 'auto' }}
         />
-        <select
-          value={competitionId}
-          onChange={(e) => setCompetitionId(e.target.value)}
-          style={{
-            backgroundColor: '#1e293b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: 6,
-            padding: '6px 10px',
-            fontSize: 13,
-            cursor: 'pointer',
-          }}
-        >
-          {COMPETITIONS.map((c) => (
-            <option key={c.id} value={c.id}>
-              {competitionDisplayName(c.id)}
-            </option>
-          ))}
-        </select>
-        <select
-          value={matchday ?? ''}
-          onChange={(e) => setMatchday(Number(e.target.value))}
-          disabled={compInfoLoading || !compInfo}
-          style={{
-            backgroundColor: '#1e293b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: 6,
-            padding: '6px 10px',
-            fontSize: 13,
-            cursor: 'pointer',
-            opacity: compInfoLoading ? 0.5 : 1,
-          }}
-        >
-          {compInfoLoading ? (
-            <option value="">Cargando...</option>
-          ) : (
-            matchdayOptions.map((md) => (
-              <option key={md} value={md}>
-                Jornada {md}{md === compInfo?.currentMatchday ? ' (actual)' : ''}
-              </option>
-            ))
-          )}
-        </select>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           {(['treemap', 'standings'] as const).map((v) => (
             <button
@@ -113,8 +85,8 @@ export function App() {
                 color: '#fff',
                 border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: 6,
-                padding: '6px 12px',
-                fontSize: 12,
+                padding: isMobile ? '5px 10px' : '6px 12px',
+                fontSize: isMobile ? 12 : 12,
                 cursor: 'pointer',
                 fontWeight: view === v ? 700 : 400,
               }}
@@ -122,6 +94,43 @@ export function App() {
               {v === 'treemap' ? 'Mapa' : 'Tabla'}
             </button>
           ))}
+        </div>
+
+        {/* Fila 2 en mobile: selects a ancho completo */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            width: isMobile ? '100%' : undefined,
+          }}
+        >
+          <select
+            value={competitionId}
+            onChange={(e) => setCompetitionId(e.target.value)}
+            style={selectStyle}
+          >
+            {COMPETITIONS.map((c) => (
+              <option key={c.id} value={c.id}>
+                {competitionDisplayName(c.id)}
+              </option>
+            ))}
+          </select>
+          <select
+            value={matchday ?? ''}
+            onChange={(e) => setMatchday(Number(e.target.value))}
+            disabled={compInfoLoading || !compInfo}
+            style={{ ...selectStyle, opacity: compInfoLoading ? 0.5 : 1 }}
+          >
+            {compInfoLoading ? (
+              <option value="">Cargando...</option>
+            ) : (
+              matchdayOptions.map((md) => (
+                <option key={md} value={md}>
+                  Jornada {md}{md === compInfo?.currentMatchday ? ' ✓' : ''}
+                </option>
+              ))
+            )}
+          </select>
         </div>
       </div>
       {view === 'treemap' ? (
@@ -133,7 +142,7 @@ export function App() {
       ) : (
         <div style={{ padding: 16 }}>
           {standingsLoading && <div style={{ color: '#fff', opacity: 0.5 }}>Cargando tabla...</div>}
-          {standings && <StandingsTable standings={standings} onTeamClick={() => {}} />}
+          {standings && <StandingsTable standings={standings} onTeamClick={() => {}} competitionId={competitionId} />}
         </div>
       )}
     </div>
