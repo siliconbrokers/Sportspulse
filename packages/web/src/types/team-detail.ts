@@ -1,4 +1,11 @@
-import type { WarningDTO, NextMatchDTO, ContributionDTO, SignalDTO } from './snapshot.js';
+import type {
+  WarningDTO,
+  NextMatchDTO,
+  ContributionDTO,
+  SignalDTO,
+  FormResult,
+  GoalStatsDTO,
+} from './snapshot.js';
 
 export interface TeamDetailDTO {
   header: {
@@ -17,6 +24,11 @@ export interface TeamDetailDTO {
   team: {
     teamId: string;
     teamName: string;
+    crestUrl?: string;
+    venueName?: string;
+    coachName?: string;
+    recentForm?: FormResult[];
+    goalStats?: GoalStatsDTO;
   };
   score: {
     rawScore: number;

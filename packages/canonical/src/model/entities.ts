@@ -24,6 +24,8 @@ export interface Team {
   name: string;
   shortName?: string;
   crestUrl?: string;
+  venueName?: string;
+  coachName?: string;
   providerKey: string;
   providerTeamId: string;
 }
@@ -31,6 +33,7 @@ export interface Team {
 export interface Match {
   matchId: string;
   seasonId: string;
+  matchday?: number;
   startTimeUtc: string | null;
   status: EventStatus;
   homeTeamId: string;

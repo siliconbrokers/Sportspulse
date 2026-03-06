@@ -44,15 +44,20 @@ describe('parseDashboardQuery', () => {
   });
 
   it('throws on missing competitionId', () => {
-    expect(() => parseDashboardQuery({ dateLocal: '2026-03-04' })).toThrow(
-      QueryValidationError,
-    );
+    expect(() => parseDashboardQuery({ dateLocal: '2026-03-04' })).toThrow(QueryValidationError);
   });
 
-  it('throws on missing dateLocal', () => {
-    expect(() => parseDashboardQuery({ competitionId: 'comp:test' })).toThrow(
-      QueryValidationError,
-    );
+  it('throws on missing dateLocal and matchday', () => {
+    expect(() => parseDashboardQuery({ competitionId: 'comp:test' })).toThrow(QueryValidationError);
+  });
+
+  it('accepts matchday instead of dateLocal', () => {
+    const result = parseDashboardQuery({
+      competitionId: 'comp:test',
+      matchday: '25',
+    });
+    expect(result.matchday).toBe(25);
+    expect(result.dateLocal).toBeUndefined();
   });
 
   it('throws on invalid dateLocal format', () => {
@@ -83,8 +88,8 @@ describe('parseTeamQuery', () => {
   });
 
   it('throws on missing teamId', () => {
-    expect(() =>
-      parseTeamQuery({ competitionId: 'comp:test', dateLocal: '2026-03-04' }),
-    ).toThrow(QueryValidationError);
+    expect(() => parseTeamQuery({ competitionId: 'comp:test', dateLocal: '2026-03-04' })).toThrow(
+      QueryValidationError,
+    );
   });
 });

@@ -24,6 +24,8 @@ export interface FDTeamResponse {
   shortName: string;
   tla: string;
   crest?: string;
+  venue?: string;
+  coach?: { name: string };
 }
 
 export interface FDTeamsListResponse {
@@ -38,6 +40,7 @@ export interface FDScoreDetail {
 export interface FDMatchResponse {
   id: number;
   season: { id: number };
+  matchday?: number;
   utcDate: string;
   status: string;
   homeTeam: { id: number; name: string };

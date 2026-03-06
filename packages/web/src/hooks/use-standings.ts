@@ -1,27 +1,34 @@
 import { useState, useEffect } from 'react';
-import type { TeamDetailDTO } from '../types/team-detail.js';
 
-interface UseTeamDetailResult {
-  data: TeamDetailDTO | null;
+export interface StandingEntry {
+  position: number;
+  teamId: string;
+  teamName: string;
+  crestUrl?: string;
+  playedGames: number;
+  won: number;
+  draw: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+}
+
+interface UseStandingsResult {
+  data: StandingEntry[] | null;
   loading: boolean;
   error: string | null;
 }
 
-export function useTeamDetail(
-  competitionId: string,
-  teamId: string | null,
-  matchday: number | null,
-  timezone: string,
-): UseTeamDetailResult {
-  const [data, setData] = useState<TeamDetailDTO | null>(null);
+export function useStandings(competitionId: string, enabled: boolean): UseStandingsResult {
+  const [data, setData] = useState<StandingEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!teamId || matchday === null) {
+    if (!enabled) {
       setData(null);
-      setLoading(false);
-      setError(null);
       return;
     }
 
@@ -29,23 +36,18 @@ export function useTeamDetail(
     setLoading(true);
     setError(null);
 
-    const params = new URLSearchParams({
-      competitionId,
-      teamId,
-      matchday: String(matchday),
-      timezone,
-    });
-    fetch(`/api/ui/team?${params}`)
+    const params = new URLSearchParams({ competitionId });
+    fetch(`/api/ui/standings?${params}`)
       .then(async (res) => {
         if (cancelled) return;
         if (!res.ok) {
           const body = await res.json().catch(() => null);
-          throw new Error(body?.error?.message || 'Failed to load team detail');
+          throw new Error(body?.error?.message || 'Failed to load standings');
         }
         return res.json();
       })
       .then((json) => {
-        if (!cancelled && json) setData(json);
+        if (!cancelled && json) setData(json.standings);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -60,7 +62,7 @@ export function useTeamDetail(
     return () => {
       cancelled = true;
     };
-  }, [competitionId, teamId, matchday, timezone]);
+  }, [competitionId, enabled]);
 
   return { data, loading, error };
 }

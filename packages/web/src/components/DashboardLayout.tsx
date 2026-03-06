@@ -11,20 +11,20 @@ import { ErrorState } from './ErrorState.js';
 
 interface DashboardLayoutProps {
   competitionId: string;
-  dateLocal: string;
+  matchday: number | null;
   timezone: string;
 }
 
-export function DashboardLayout({ competitionId, dateLocal, timezone }: DashboardLayoutProps) {
+export function DashboardLayout({ competitionId, matchday, timezone }: DashboardLayoutProps) {
   const { data, loading, error, source, refetch } = useDashboardSnapshot(
     competitionId,
-    dateLocal,
+    matchday,
     timezone,
   );
   const { focus, setFocus } = useUrlState();
-  const { data: teamDetail } = useTeamDetail(competitionId, focus, dateLocal, timezone);
+  const { data: teamDetail } = useTeamDetail(competitionId, focus, matchday, timezone);
 
-  if (loading) {
+  if (matchday === null || loading) {
     return (
       <div style={{ padding: 16 }}>
         <LoadingSkeleton width={1200} height={700} />

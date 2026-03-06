@@ -64,6 +64,8 @@ export function mapTeam(fd: FDTeamResponse, teamId: string): Team {
     name: fd.name,
     shortName: fd.shortName || fd.tla || fd.name.slice(0, 3).toUpperCase(),
     crestUrl: fd.crest || undefined,
+    venueName: fd.venue || undefined,
+    coachName: fd.coach?.name || undefined,
     providerKey: PROVIDER_KEY,
     providerTeamId: String(fd.id),
   };
@@ -89,6 +91,7 @@ export function mapMatch(
   return {
     matchId,
     seasonId,
+    matchday: fd.matchday ?? undefined,
     startTimeUtc: fd.utcDate || null,
     status: classifyStatus(fd.status),
     homeTeamId,

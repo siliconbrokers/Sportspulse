@@ -27,6 +27,11 @@ export function projectTeamDetail(
     team: {
       teamId: tile.teamId,
       teamName: tile.teamName,
+      crestUrl: tile.crestUrl,
+      venueName: tile.venueName,
+      coachName: tile.coachName,
+      recentForm: tile.recentForm,
+      goalStats: tile.goalStats,
     },
     score: {
       rawScore: tile.rawScore,

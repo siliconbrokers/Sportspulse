@@ -22,7 +22,7 @@ export function competitionDisplayName(competitionId: string): string {
 /** Signal key → user-friendly label */
 const SIGNAL_LABELS: Record<string, string> = {
   FORM_POINTS_LAST_5: 'Forma (últimos 5)',
-  NEXT_MATCH_HOURS: 'Horas al próximo partido',
+  NEXT_MATCH_HOURS: 'Comienza en',
   PROXIMITY_BUCKET: 'Proximidad temporal',
   STREAK_WIN: 'Racha de victorias',
   STREAK_LOSS: 'Racha de derrotas',
@@ -39,6 +39,24 @@ export function signalLabel(key: string): string {
       .toLowerCase()
       .replace(/^\w/, (c) => c.toUpperCase())
   );
+}
+
+/** Format a signal's rawValue into a human-readable string */
+export function signalValueLabel(key: string, rawValue: number): string {
+  switch (key) {
+    case 'NEXT_MATCH_HOURS': {
+      const h = Math.round(rawValue);
+      if (h < 1) return 'Menos de 1 hora';
+      if (h < 24) return `En ${h}h`;
+      const days = Math.floor(h / 24);
+      const rem = h % 24;
+      return rem > 0 ? `En ${days}d ${rem}h` : `En ${days}d`;
+    }
+    case 'FORM_POINTS_LAST_5':
+      return `${Math.round(rawValue)} de 15 pts`;
+    default:
+      return String(Math.round(rawValue * 100) / 100);
+  }
 }
 
 /** Venue code → display */

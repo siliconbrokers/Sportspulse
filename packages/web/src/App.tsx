@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from './components/DashboardLayout.js';
+import { StandingsTable } from './components/StandingsTable.js';
+import { useStandings } from './hooks/use-standings.js';
+import { useCompetitionInfo } from './hooks/use-competition-info.js';
 import { competitionDisplayName } from './utils/labels.js';
+
+type ViewMode = 'treemap' | 'standings';
 
 const COMPETITIONS = [
   { id: 'comp:football-data:PD', code: 'PD' },
@@ -12,7 +17,25 @@ const COMPETITIONS = [
 
 export function App() {
   const [competitionId, setCompetitionId] = useState(COMPETITIONS[0].id);
-  const [dateLocal, setDateLocal] = useState(() => new Date().toISOString().split('T')[0]);
+  const [matchday, setMatchday] = useState<number | null>(null);
+  const [view, setView] = useState<ViewMode>('treemap');
+  const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(competitionId);
+  const { data: standings, loading: standingsLoading } = useStandings(competitionId, view === 'standings');
+
+  // Set matchday to current when competition info loads
+  useEffect(() => {
+    if (compInfo?.currentMatchday) {
+      setMatchday(compInfo.currentMatchday);
+    }
+  }, [compInfo]);
+
+  // Reset matchday when competition changes
+  useEffect(() => {
+    setMatchday(null);
+  }, [competitionId]);
+
+  const totalMatchdays = compInfo?.totalMatchdays ?? 38;
+  const matchdayOptions = Array.from({ length: totalMatchdays }, (_, i) => i + 1);
 
   return (
     <div
@@ -55,10 +78,10 @@ export function App() {
             </option>
           ))}
         </select>
-        <input
-          type="date"
-          value={dateLocal}
-          onChange={(e) => setDateLocal(e.target.value)}
+        <select
+          value={matchday ?? ''}
+          onChange={(e) => setMatchday(Number(e.target.value))}
+          disabled={compInfoLoading || !compInfo}
           style={{
             backgroundColor: '#1e293b',
             color: '#fff',
@@ -66,15 +89,53 @@ export function App() {
             borderRadius: 6,
             padding: '6px 10px',
             fontSize: 13,
-            colorScheme: 'dark',
+            cursor: 'pointer',
+            opacity: compInfoLoading ? 0.5 : 1,
           }}
-        />
+        >
+          {compInfoLoading ? (
+            <option value="">Cargando...</option>
+          ) : (
+            matchdayOptions.map((md) => (
+              <option key={md} value={md}>
+                Jornada {md}{md === compInfo?.currentMatchday ? ' (actual)' : ''}
+              </option>
+            ))
+          )}
+        </select>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+          {(['treemap', 'standings'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                backgroundColor: view === v ? 'rgba(255,255,255,0.15)' : 'transparent',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 6,
+                padding: '6px 12px',
+                fontSize: 12,
+                cursor: 'pointer',
+                fontWeight: view === v ? 700 : 400,
+              }}
+            >
+              {v === 'treemap' ? 'Mapa' : 'Tabla'}
+            </button>
+          ))}
+        </div>
       </div>
-      <DashboardLayout
-        competitionId={competitionId}
-        dateLocal={dateLocal}
-        timezone="America/Montevideo"
-      />
+      {view === 'treemap' ? (
+        <DashboardLayout
+          competitionId={competitionId}
+          matchday={matchday}
+          timezone="America/Montevideo"
+        />
+      ) : (
+        <div style={{ padding: 16 }}>
+          {standingsLoading && <div style={{ color: '#fff', opacity: 0.5 }}>Cargando tabla...</div>}
+          {standings && <StandingsTable standings={standings} onTeamClick={() => {}} />}
+        </div>
+      )}
     </div>
   );
 }

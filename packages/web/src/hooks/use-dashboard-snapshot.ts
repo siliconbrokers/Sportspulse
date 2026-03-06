@@ -11,7 +11,7 @@ interface UseDashboardSnapshotResult {
 
 export function useDashboardSnapshot(
   competitionId: string,
-  dateLocal: string,
+  matchday: number | null,
   timezone: string,
 ): UseDashboardSnapshotResult {
   const [data, setData] = useState<DashboardSnapshotDTO | null>(null);
@@ -20,11 +20,16 @@ export function useDashboardSnapshot(
   const [source, setSource] = useState<string | null>(null);
 
   const fetchSnapshot = useCallback(async () => {
+    if (matchday === null) return;
     setLoading(true);
     setError(null);
 
     try {
-      const params = new URLSearchParams({ competitionId, dateLocal, timezone });
+      const params = new URLSearchParams({
+        competitionId,
+        matchday: String(matchday),
+        timezone,
+      });
       const res = await fetch(`/api/ui/dashboard?${params}`);
 
       const snapshotSource = res.headers.get('X-Snapshot-Source');
@@ -47,18 +52,18 @@ export function useDashboardSnapshot(
     } finally {
       setLoading(false);
     }
-  }, [competitionId, dateLocal, timezone]);
+  }, [competitionId, matchday, timezone]);
 
   useEffect(() => {
     fetchSnapshot();
   }, [fetchSnapshot]);
 
-  // Auto-refresh every 60 seconds (skip if loading or first load)
+  // Auto-refresh every 1 hour
   useEffect(() => {
     if (!data) return;
     const interval = setInterval(() => {
       fetchSnapshot();
-    }, 60_000);
+    }, 3_600_000);
     return () => clearInterval(interval);
   }, [data, fetchSnapshot]);
 

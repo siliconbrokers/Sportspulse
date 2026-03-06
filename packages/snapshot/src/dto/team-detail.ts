@@ -1,7 +1,7 @@
 import type { ContributionDTO } from '@sportpulse/scoring';
 import type { SignalDTO } from '@sportpulse/signals';
 import type { WarningDTO } from './snapshot-header.js';
-import type { NextMatchDTO } from './team-score.js';
+import type { NextMatchDTO, FormResult, GoalStatsDTO } from './team-score.js';
 
 export interface TeamDetailDTO {
   header: {
@@ -20,6 +20,11 @@ export interface TeamDetailDTO {
   team: {
     teamId: string;
     teamName: string;
+    crestUrl?: string;
+    venueName?: string;
+    coachName?: string;
+    recentForm?: FormResult[];
+    goalStats?: GoalStatsDTO;
   };
   score: {
     rawScore: number;

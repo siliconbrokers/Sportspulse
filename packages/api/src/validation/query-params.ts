@@ -2,7 +2,8 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface DashboardQueryParams {
   competitionId: string;
-  dateLocal: string;
+  dateLocal?: string;
+  matchday?: number;
   timezone: string;
   includeSignals: boolean;
 }
@@ -10,7 +11,8 @@ export interface DashboardQueryParams {
 export interface TeamQueryParams {
   competitionId: string;
   teamId: string;
-  dateLocal: string;
+  dateLocal?: string;
+  matchday?: number;
   timezone: string;
 }
 
@@ -21,14 +23,27 @@ export function parseDashboardQuery(query: Record<string, unknown>): DashboardQu
   }
 
   const dateLocal = asString(query.dateLocal ?? query.date);
-  if (!dateLocal || !DATE_REGEX.test(dateLocal)) {
-    throw new QueryValidationError('Missing or invalid parameter: dateLocal (expected YYYY-MM-DD)');
+  const matchdayRaw = asString(query.matchday);
+  const matchday = matchdayRaw ? parseInt(matchdayRaw, 10) : undefined;
+
+  if (!dateLocal && matchday === undefined) {
+    throw new QueryValidationError(
+      'Missing parameter: provide dateLocal (YYYY-MM-DD) or matchday (number)',
+    );
+  }
+
+  if (dateLocal && !DATE_REGEX.test(dateLocal)) {
+    throw new QueryValidationError('Invalid parameter: dateLocal (expected YYYY-MM-DD)');
+  }
+
+  if (matchday !== undefined && (isNaN(matchday) || matchday < 1)) {
+    throw new QueryValidationError('Invalid parameter: matchday (expected positive integer)');
   }
 
   const timezone = asString(query.timezone) || 'Europe/Madrid';
   const includeSignals = query.includeSignals === 'true' || query.includeSignals === true;
 
-  return { competitionId, dateLocal, timezone, includeSignals };
+  return { competitionId, dateLocal, matchday, timezone, includeSignals };
 }
 
 export function parseTeamQuery(query: Record<string, unknown>): TeamQueryParams {
@@ -43,13 +58,22 @@ export function parseTeamQuery(query: Record<string, unknown>): TeamQueryParams 
   }
 
   const dateLocal = asString(query.dateLocal ?? query.date);
-  if (!dateLocal || !DATE_REGEX.test(dateLocal)) {
-    throw new QueryValidationError('Missing or invalid parameter: dateLocal (expected YYYY-MM-DD)');
+  const matchdayRaw = asString(query.matchday);
+  const matchday = matchdayRaw ? parseInt(matchdayRaw, 10) : undefined;
+
+  if (!dateLocal && matchday === undefined) {
+    throw new QueryValidationError(
+      'Missing parameter: provide dateLocal (YYYY-MM-DD) or matchday (number)',
+    );
+  }
+
+  if (dateLocal && !DATE_REGEX.test(dateLocal)) {
+    throw new QueryValidationError('Invalid parameter: dateLocal (expected YYYY-MM-DD)');
   }
 
   const timezone = asString(query.timezone) || 'Europe/Madrid';
 
-  return { competitionId, teamId, dateLocal, timezone };
+  return { competitionId, teamId, dateLocal, matchday, timezone };
 }
 
 export class QueryValidationError extends Error {

@@ -5,7 +5,7 @@ import { computeFormPointsLast5, computeNextMatchHours } from '@sportpulse/signa
 import { executePolicy } from '@sportpulse/scoring';
 import type { PolicyDefinition, ScoringResult } from '@sportpulse/scoring';
 import type { Rect } from '@sportpulse/layout';
-import type { TeamScoreDTO, NextMatchDTO } from '../dto/team-score.js';
+import type { TeamScoreDTO, NextMatchDTO, FormResult, GoalStatsDTO } from '../dto/team-score.js';
 import { WarningCollector } from '../warnings/warning-collector.js';
 
 export interface TeamTileData {
@@ -49,13 +49,19 @@ export function buildTeamTile(
   // Execute scoring policy
   const scoringResult: ScoringResult = executePolicy(team.teamId, signals, policy);
 
-  // Extract next match info
+  // Extract recent form, goal stats, and next match info
+  const recentForm = extractRecentForm(team.teamId, matches, buildNowUtc);
+  const goalStats = extractGoalStats(team.teamId, matches, buildNowUtc);
   const nextMatch = extractNextMatch(team.teamId, allTeams, matches, buildNowUtc);
 
   return {
     teamId: team.teamId,
     teamName: team.name,
     crestUrl: team.crestUrl,
+    venueName: team.venueName,
+    coachName: team.coachName,
+    recentForm,
+    goalStats,
     policyKey: policy.policyKey,
     policyVersion: policy.policyVersion,
     buildNowUtc,
@@ -92,12 +98,80 @@ function extractNextMatch(
   const opponentId = isHome ? next.awayTeamId : next.homeTeamId;
   const opponent = allTeams.find((t) => t.teamId === opponentId);
 
+  const homeTeam = isHome ? allTeams.find((t) => t.teamId === teamId) : opponent;
+
   return {
     matchId: next.matchId,
+    matchday: next.matchday,
     kickoffUtc: next.startTimeUtc!,
     opponentTeamId: opponentId,
     opponentName: opponent?.name,
     opponentCrestUrl: opponent?.crestUrl,
+    opponentRecentForm: extractRecentForm(opponentId, matches, buildNowUtc),
+    opponentGoalStats: extractGoalStats(opponentId, matches, buildNowUtc),
+    venueName: homeTeam?.venueName,
     venue: isHome ? 'HOME' : 'AWAY',
   };
+}
+
+const FORM_WINDOW = 5;
+
+function extractRecentForm(
+  teamId: string,
+  matches: readonly Match[],
+  buildNowUtc: string,
+): FormResult[] {
+  const finished = matches
+    .filter(
+      (m) =>
+        m.status === EventStatus.FINISHED &&
+        m.startTimeUtc !== null &&
+        m.startTimeUtc < buildNowUtc &&
+        (m.homeTeamId === teamId || m.awayTeamId === teamId) &&
+        m.scoreHome !== null &&
+        m.scoreAway !== null,
+    )
+    .sort((a, b) => (a.startTimeUtc! > b.startTimeUtc! ? -1 : 1))
+    .slice(0, FORM_WINDOW);
+
+  // Reverse so oldest is first (left to right = old to recent)
+  return finished.reverse().map((m) => {
+    const isHome = m.homeTeamId === teamId;
+    const teamScore = isHome ? m.scoreHome! : m.scoreAway!;
+    const oppScore = isHome ? m.scoreAway! : m.scoreHome!;
+    if (teamScore > oppScore) return 'W';
+    if (teamScore === oppScore) return 'D';
+    return 'L';
+  });
+}
+
+function extractGoalStats(
+  teamId: string,
+  matches: readonly Match[],
+  buildNowUtc: string,
+): GoalStatsDTO {
+  let goalsFor = 0;
+  let goalsAgainst = 0;
+
+  for (const m of matches) {
+    if (
+      m.status !== EventStatus.FINISHED ||
+      m.startTimeUtc === null ||
+      m.startTimeUtc >= buildNowUtc ||
+      (m.homeTeamId !== teamId && m.awayTeamId !== teamId) ||
+      m.scoreHome === null ||
+      m.scoreAway === null
+    )
+      continue;
+
+    if (m.homeTeamId === teamId) {
+      goalsFor += m.scoreHome;
+      goalsAgainst += m.scoreAway;
+    } else {
+      goalsFor += m.scoreAway;
+      goalsAgainst += m.scoreHome;
+    }
+  }
+
+  return { goalsFor, goalsAgainst, goalDifference: goalsFor - goalsAgainst };
 }

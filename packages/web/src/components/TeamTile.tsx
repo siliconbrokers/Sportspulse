@@ -8,27 +8,21 @@ interface TeamTileProps {
   onClick: (teamId: string) => void;
 }
 
-/**
- * Heat-map color based on displayScore (0–1 range).
- * High score → warm red/orange, mid → yellow, low → cool blue/teal.
- */
 function getHeatColor(score: number): string {
-  if (score >= 0.8) return 'rgba(239, 68, 68, 0.9)';   // red
-  if (score >= 0.6) return 'rgba(249, 115, 22, 0.85)';  // orange
-  if (score >= 0.4) return 'rgba(234, 179, 8, 0.8)';    // yellow
-  if (score >= 0.2) return 'rgba(34, 197, 94, 0.75)';   // green
-  return 'rgba(59, 130, 246, 0.7)';                      // blue (cold)
+  if (score >= 0.8) return 'rgba(239, 68, 68, 0.9)';
+  if (score >= 0.6) return 'rgba(249, 115, 22, 0.85)';
+  if (score >= 0.4) return 'rgba(234, 179, 8, 0.8)';
+  if (score >= 0.2) return 'rgba(34, 197, 94, 0.75)';
+  return 'rgba(59, 130, 246, 0.7)';
 }
 
 function getTextColor(score: number): string {
-  if (score >= 0.4 && score < 0.6) return '#1e293b'; // dark text on yellow
+  if (score >= 0.4 && score < 0.6) return '#1e293b';
   return '#fff';
 }
 
 function getTileLabel(team: TeamScoreDTO, w: number, h: number): string {
-  if (w < 50 || h < 30) {
-    return team.teamName.slice(0, 3).toUpperCase();
-  }
+  if (w < 50 || h < 30) return team.teamName.slice(0, 3).toUpperCase();
   return team.teamName;
 }
 
@@ -36,24 +30,30 @@ function buildTooltip(team: TeamScoreDTO): string {
   const lines = [team.teamName, `Puntuación: ${Math.round(team.displayScore * 100)}%`];
   if (team.nextMatch?.opponentName) {
     const venue = team.nextMatch.venue ? ` (${venueLabel(team.nextMatch.venue)})` : '';
-    lines.push(`Próximo: vs ${team.nextMatch.opponentName}${venue}`);
+    const jornada = team.nextMatch.matchday ? `J${team.nextMatch.matchday} - ` : '';
+    lines.push(`${jornada}vs ${team.nextMatch.opponentName}${venue}`);
   }
   return lines.join('\n');
 }
 
-const CREST_SIZE = 22;
+function crestSize(w: number, h: number): number {
+  const maxByWidth = (w - 16) / 3.2;
+  const maxByHeight = (h - 44) * 0.6;
+  return Math.floor(Math.min(maxByWidth, maxByHeight));
+}
 
-function Crest({ url, alt }: { url?: string; alt: string }) {
+function Crest({ url, alt, size }: { url?: string; alt: string; size: number }) {
   if (!url) return null;
   return (
     <img
       src={url}
       alt={alt}
       style={{
-        width: CREST_SIZE,
-        height: CREST_SIZE,
+        width: size,
+        height: size,
         objectFit: 'contain',
         flexShrink: 0,
+        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
       }}
     />
   );
@@ -64,9 +64,9 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
   const label = getTileLabel(team, rect.w, rect.h);
   const score = Math.round(team.displayScore * 100);
   const textColor = getTextColor(team.displayScore);
-  const showCrests = rect.w >= 100 && rect.h >= 50 && team.nextMatch;
+  const size = crestSize(rect.w, rect.h);
+  const showCrests = size >= 16 && team.nextMatch;
 
-  // Determine which crest goes left (home) and right (away)
   const isHome = team.nextMatch?.venue === 'HOME';
   const homeCrest = isHome ? team.crestUrl : team.nextMatch?.opponentCrestUrl;
   const awayCrest = isHome ? team.nextMatch?.opponentCrestUrl : team.crestUrl;
@@ -103,21 +103,29 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
         justifyContent: 'space-between',
       }}
     >
-      <div>
-        <div style={{ fontWeight: 700, lineHeight: 1.2, marginBottom: 2 }}>{label}</div>
-        {team.nextMatch?.opponentName && rect.w >= 80 && rect.h >= 40 && (
-          <div style={{ fontSize: 10, opacity: 0.7 }}>
-            vs {team.nextMatch.opponentName}
-          </div>
-        )}
-      </div>
+      <div style={{ fontWeight: 700, lineHeight: 1.2 }}>{label}</div>
+
+      {showCrests && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: size * 0.3,
+            flex: 1,
+          }}
+        >
+          <Crest url={homeCrest} alt="Local" size={size} />
+          <span style={{ fontSize: Math.max(size * 0.35, 10), opacity: 0.6, fontWeight: 700 }}>vs</span>
+          <Crest url={awayCrest} alt="Visitante" size={size} />
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        {showCrests ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Crest url={homeCrest} alt="Local" />
-            <span style={{ fontSize: 9, opacity: 0.5 }}>vs</span>
-            <Crest url={awayCrest} alt="Visitante" />
-          </div>
+        {team.nextMatch?.opponentName && rect.w >= 80 && rect.h >= 40 ? (
+          <span style={{ fontSize: 10, opacity: 0.7 }}>
+            vs {team.nextMatch.opponentName}
+          </span>
         ) : (
           <span />
         )}

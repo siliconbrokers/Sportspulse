@@ -38,6 +38,18 @@
     {
       "teamId": "team:football-data:86",
       "teamName": "Real Madrid",
+      "recentForm": [
+        "W",
+        "W",
+        "W",
+        "D",
+        "W"
+      ],
+      "goalStats": {
+        "goalsFor": 9,
+        "goalsAgainst": 2,
+        "goalDifference": 7
+      },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
       "buildNowUtc": "2026-03-04T11:00:00Z",
@@ -110,6 +122,12 @@
         "matchId": "match:football-data:30",
         "kickoffUtc": "2026-03-05T20:00:00Z",
         "opponentTeamId": "team:football-data:105",
+        "opponentRecentForm": [],
+        "opponentGoalStats": {
+          "goalsFor": 0,
+          "goalsAgainst": 0,
+          "goalDifference": 0
+        },
         "venue": "HOME"
       },
       "rect": {
@@ -122,6 +140,18 @@
     {
       "teamId": "team:football-data:78",
       "teamName": "Atletico Madrid",
+      "recentForm": [
+        "W",
+        "D",
+        "W",
+        "D",
+        "W"
+      ],
+      "goalStats": {
+        "goalsFor": 5,
+        "goalsAgainst": 2,
+        "goalDifference": 3
+      },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
       "buildNowUtc": "2026-03-04T11:00:00Z",
