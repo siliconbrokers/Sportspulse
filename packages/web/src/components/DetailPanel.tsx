@@ -185,11 +185,13 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{detail.team.teamName}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 18 }}>{detail.team.teamName}</h2>
           {detail.team.coachName && (
-            <div style={{ fontSize: 11, opacity: 0.45, marginTop: 2 }}>{detail.team.coachName}</div>
+            <div style={{ fontSize: 12, opacity: 0.5, marginTop: 2 }}>
+              DT: {detail.team.coachName}
+            </div>
           )}
         </div>
         <button
@@ -203,7 +205,6 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             cursor: 'pointer',
             padding: isMobile ? '8px 12px' : '4px',
             margin: isMobile ? '-8px -12px' : 0,
-            flexShrink: 0,
           }}
         >
           ✕
