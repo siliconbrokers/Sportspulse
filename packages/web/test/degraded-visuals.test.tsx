@@ -9,13 +9,13 @@ describe('WarningBanner (H-03)', () => {
   it('renders correct text for STALE_DATA', () => {
     const warnings = [{ code: 'STALE_DATA', severity: 'WARN' as const }];
     render(<WarningBanner warnings={warnings} />);
-    expect(screen.getByTestId('warning-banner')).toHaveTextContent('Data may be outdated');
+    expect(screen.getByTestId('warning-banner')).toHaveTextContent('Los datos pueden estar desactualizados');
   });
 
   it('renders LAYOUT_DEGRADED warning', () => {
     const warnings = [{ code: 'LAYOUT_DEGRADED', severity: 'WARN' as const }];
     render(<WarningBanner warnings={warnings} />);
-    expect(screen.getByTestId('warning-banner')).toHaveTextContent('Layout in fallback mode');
+    expect(screen.getByTestId('warning-banner')).toHaveTextContent('Diseño en modo de respaldo');
   });
 
   it('does not render when only INFO warnings', () => {

@@ -1,11 +1,5 @@
 import type { WarningDTO } from '../types/snapshot.js';
-
-const WARNING_TEXT: Record<string, string> = {
-  STALE_DATA: 'Data may be outdated',
-  PARTIAL_DATA: 'Some data incomplete',
-  LAYOUT_DEGRADED: 'Layout in fallback mode',
-  PROVIDER_ERROR: 'Data source error',
-};
+import { WARNING_LABELS } from '../utils/labels.js';
 
 interface WarningBannerProps {
   warnings: WarningDTO[];
@@ -29,7 +23,7 @@ export function WarningBanner({ warnings }: WarningBannerProps) {
             color: w.severity === 'ERROR' ? '#fca5a5' : '#fde68a',
           }}
         >
-          {WARNING_TEXT[w.code] ?? w.message ?? w.code}
+          {WARNING_LABELS[w.code] ?? w.message ?? w.code}
         </div>
       ))}
     </div>

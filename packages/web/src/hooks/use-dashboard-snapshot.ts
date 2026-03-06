@@ -53,5 +53,14 @@ export function useDashboardSnapshot(
     fetchSnapshot();
   }, [fetchSnapshot]);
 
+  // Auto-refresh every 60 seconds (skip if loading or first load)
+  useEffect(() => {
+    if (!data) return;
+    const interval = setInterval(() => {
+      fetchSnapshot();
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [data, fetchSnapshot]);
+
   return { data, loading, error, source, refetch: fetchSnapshot };
 }

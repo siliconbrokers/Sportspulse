@@ -23,6 +23,7 @@ export interface Team {
   sportId: Sport;
   name: string;
   shortName?: string;
+  crestUrl?: string;
   providerKey: string;
   providerTeamId: string;
 }

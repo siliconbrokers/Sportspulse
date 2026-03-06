@@ -16,7 +16,7 @@ const header = {
 describe('DashboardHeader', () => {
   it('shows competition and date from snapshot header', () => {
     render(<DashboardHeader header={header} warnings={[]} source={null} />);
-    expect(screen.getByText('PD')).toBeInTheDocument();
+    expect(screen.getByText('La Liga')).toBeInTheDocument();
     // Europe/Madrid is Spanish → DD/MM/YYYY format
     expect(screen.getByText(/04\/03\/2026/)).toBeInTheDocument();
   });
@@ -24,7 +24,7 @@ describe('DashboardHeader', () => {
   it('shows warning badge when warnings present', () => {
     const warnings = [{ code: 'LAYOUT_DEGRADED', severity: 'WARN' as const }];
     render(<DashboardHeader header={header} warnings={warnings} source={null} />);
-    expect(screen.getByTestId('warning-badge')).toHaveTextContent('1 warning');
+    expect(screen.getByTestId('warning-badge')).toHaveTextContent('1 alerta');
   });
 
   it('does not show badge when no WARN/ERROR warnings', () => {

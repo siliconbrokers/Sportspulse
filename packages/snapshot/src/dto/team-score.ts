@@ -7,12 +7,14 @@ export interface NextMatchDTO {
   kickoffUtc: string;
   opponentTeamId?: string;
   opponentName?: string;
+  opponentCrestUrl?: string;
   venue?: 'HOME' | 'AWAY' | 'NEUTRAL' | 'UNKNOWN';
 }
 
 export interface TeamScoreDTO {
   teamId: string;
   teamName: string;
+  crestUrl?: string;
   policyKey: string;
   policyVersion: number;
   buildNowUtc: string;

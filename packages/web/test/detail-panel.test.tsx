@@ -46,8 +46,8 @@ describe('DetailPanel', () => {
   it('renders topContributions in explain section', () => {
     render(<DetailPanel detail={detail} onClose={() => {}} />);
     expect(screen.getByTestId('explain-section')).toBeInTheDocument();
-    expect(screen.getByText('FORM_POINTS_LAST_5')).toBeInTheDocument();
-    expect(screen.getByText('NEXT_MATCH_HOURS')).toBeInTheDocument();
+    expect(screen.getByText('Forma (últimos 5)')).toBeInTheDocument();
+    expect(screen.getByText('Horas al próximo partido')).toBeInTheDocument();
   });
 
   it('calls onClose when Escape is pressed', () => {

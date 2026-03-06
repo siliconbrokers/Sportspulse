@@ -55,6 +55,7 @@ export function buildTeamTile(
   return {
     teamId: team.teamId,
     teamName: team.name,
+    crestUrl: team.crestUrl,
     policyKey: policy.policyKey,
     policyVersion: policy.policyVersion,
     buildNowUtc,
@@ -96,6 +97,7 @@ function extractNextMatch(
     kickoffUtc: next.startTimeUtc!,
     opponentTeamId: opponentId,
     opponentName: opponent?.name,
+    opponentCrestUrl: opponent?.crestUrl,
     venue: isHome ? 'HOME' : 'AWAY',
   };
 }

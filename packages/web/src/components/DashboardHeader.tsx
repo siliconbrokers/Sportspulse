@@ -1,5 +1,6 @@
 import type { SnapshotHeaderDTO, WarningDTO } from '../types/snapshot.js';
 import { formatDate } from '../utils/format-date.js';
+import { competitionDisplayName } from '../utils/labels.js';
 
 interface DashboardHeaderProps {
   header: SnapshotHeaderDTO;
@@ -14,17 +15,19 @@ export function DashboardHeader({ header, warnings, source }: DashboardHeaderPro
     <header data-testid="dashboard-header" style={{ padding: '12px 16px', color: '#fff' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
-            {header.competitionId.split(':').pop()?.toUpperCase() ?? 'Dashboard'}
-          </h1>
-          <span style={{ fontSize: 13, opacity: 0.7 }}>
-            {formatDate(header.buildNowUtc, header.timezone)} · {header.timezone}
-          </span>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
+              {competitionDisplayName(header.competitionId)}
+            </h1>
+            <span style={{ fontSize: 13, opacity: 0.7 }}>
+              {formatDate(header.buildNowUtc, header.timezone)} · {header.timezone}
+            </span>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {source === 'stale_fallback' && (
             <span data-testid="stale-indicator" style={{ fontSize: 12, color: '#fbbf24' }}>
-              Stale data · {formatDate(header.computedAtUtc, header.timezone)}
+              Datos desactualizados · {formatDate(header.computedAtUtc, header.timezone)}
             </span>
           )}
           {warningCount > 0 && (
@@ -39,7 +42,7 @@ export function DashboardHeader({ header, warnings, source }: DashboardHeaderPro
                 fontWeight: 600,
               }}
             >
-              {warningCount} warning{warningCount > 1 ? 's' : ''}
+              {warningCount} {warningCount > 1 ? 'alertas' : 'alerta'}
             </span>
           )}
         </div>

@@ -23,6 +23,7 @@ export interface FDTeamResponse {
   name: string;
   shortName: string;
   tla: string;
+  crest?: string;
 }
 
 export interface FDTeamsListResponse {

@@ -26,10 +26,7 @@ const FORMAT_MAP: Record<string, CompetitionFormat> = {
   TOURNAMENT: CompetitionFormat.TOURNAMENT,
 };
 
-export function mapCompetition(
-  fd: FDCompetitionResponse,
-  competitionId: string,
-): Competition {
+export function mapCompetition(fd: FDCompetitionResponse, competitionId: string): Competition {
   return {
     competitionId,
     sportId: Sport.FOOTBALL,
@@ -66,6 +63,7 @@ export function mapTeam(fd: FDTeamResponse, teamId: string): Team {
     sportId: Sport.FOOTBALL,
     name: fd.name,
     shortName: fd.shortName || fd.tla || fd.name.slice(0, 3).toUpperCase(),
+    crestUrl: fd.crest || undefined,
     providerKey: PROVIDER_KEY,
     providerTeamId: String(fd.id),
   };
