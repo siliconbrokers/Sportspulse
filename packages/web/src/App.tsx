@@ -147,6 +147,7 @@ export function App() {
         <DashboardLayout
           competitionId={competitionId}
           matchday={matchday}
+          currentMatchday={compInfo?.currentMatchday ?? null}
           timezone="America/Montevideo"
           viewMode={view}
         />

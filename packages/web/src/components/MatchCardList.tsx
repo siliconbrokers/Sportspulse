@@ -6,6 +6,7 @@ interface MatchCardListProps {
   matchCards: MatchCardDTO[];
   onSelectTeam?: (teamId: string) => void;
   focusedTeamId?: string | null;
+  showForm?: boolean;
 }
 
 function chipStyle(level: string): React.CSSProperties {
@@ -107,7 +108,7 @@ function TeamSide({
   );
 }
 
-export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: MatchCardListProps) {
+export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showForm = false }: MatchCardListProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   if (matchCards.length === 0) {
@@ -136,13 +137,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: Match
         margin: '0 auto',
       }}
     >
-      {matchCards.map((card) => {
-        const isFuture =
-          card.status === 'SCHEDULED' &&
-          !!card.kickoffUtc &&
-          new Date(card.kickoffUtc).getTime() > Date.now();
-
-        return (
+      {matchCards.map((card) => (
         <div
           key={card.matchId}
           onMouseEnter={() => setHoveredId(card.matchId)}
@@ -188,7 +183,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: Match
               teamId={card.home.teamId}
               name={card.home.name}
               crestUrl={card.home.crestUrl}
-              formChip={isFuture ? undefined : card.home.formChip}
+              formChip={showForm ? card.home.formChip : undefined}
               align="left"
             />
             <div
@@ -212,7 +207,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: Match
               teamId={card.away.teamId}
               name={card.away.name}
               crestUrl={card.away.crestUrl}
-              formChip={isFuture ? undefined : card.away.formChip}
+              formChip={showForm ? card.away.formChip : undefined}
               align="right"
             />
           </div>
@@ -232,8 +227,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: Match
             </div>
           )}
         </div>
-        );
-      })}
+      ))}
     </div>
   );
 }

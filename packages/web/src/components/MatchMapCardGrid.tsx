@@ -8,6 +8,7 @@ interface MatchMapCardGridProps {
   matchCards: MatchCardDTO[];
   focusedTeamId: string | null;
   onSelectTeam: (teamId: string) => void;
+  showForm?: boolean;
 }
 
 // ─── Urgency → background color (§5) ─────────────────────────────────────────
@@ -79,20 +80,15 @@ function formColor(kind?: string): string {
   }
 }
 
-function TileContent({ card, crestSize }: { card: MatchCardDTO; crestSize: number }) {
+function TileContent({ card, crestSize, showForm }: { card: MatchCardDTO; crestSize: number; showForm: boolean }) {
   const homeName = card.home.name || '—';
   const awayName = card.away.name || '—';
   const nameSize = crestSize <= 28 ? 10 : 11;
   const scoreSize = crestSize <= 28 ? 15 : 18;
   const pad = crestSize <= 28 ? '8px 10px' : '10px 12px';
 
-  const isFuture =
-    card.status === 'SCHEDULED' &&
-    !!card.kickoffUtc &&
-    new Date(card.kickoffUtc).getTime() > Date.now();
-
-  const homeForm = isFuture ? undefined : card.home.formChip;
-  const awayForm = isFuture ? undefined : card.away.formChip;
+  const homeForm = showForm ? card.home.formChip : undefined;
+  const awayForm = showForm ? card.away.formChip : undefined;
 
   return (
     <div
@@ -225,6 +221,7 @@ export function MatchMapCardGrid({
   matchCards,
   focusedTeamId,
   onSelectTeam,
+  showForm = false,
 }: MatchMapCardGridProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const { breakpoint } = useWindowWidth();
@@ -317,7 +314,7 @@ export function MatchMapCardGrid({
             {isFeatured && heatKey === 'BOTH_HOT' && (
               <span className="mm-tile__badge" aria-hidden="true">🔥</span>
             )}
-            <TileContent card={card} crestSize={crestSize} />
+            <TileContent card={card} crestSize={crestSize} showForm={showForm} />
           </div>
         );
       })}

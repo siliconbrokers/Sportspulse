@@ -13,11 +13,12 @@ import { ErrorState } from './ErrorState.js';
 interface DashboardLayoutProps {
   competitionId: string;
   matchday: number | null;
+  currentMatchday: number | null;
   timezone: string;
   viewMode?: 'treemap' | 'partidos';
 }
 
-export function DashboardLayout({ competitionId, matchday, timezone, viewMode = 'treemap' }: DashboardLayoutProps) {
+export function DashboardLayout({ competitionId, matchday, currentMatchday, timezone, viewMode = 'treemap' }: DashboardLayoutProps) {
   const { data, loading, error, source, refetch } = useDashboardSnapshot(
     competitionId,
     matchday,
@@ -53,6 +54,7 @@ export function DashboardLayout({ competitionId, matchday, timezone, viewMode = 
           matchCards={data.matchCards ?? []}
           onSelectTeam={(id) => setFocus(id === focus ? null : id)}
           focusedTeamId={focus}
+          showForm={matchday === currentMatchday}
         />
       ) : (data.matchCards ?? []).length === 0 ? (
         <EmptyState />
@@ -61,6 +63,7 @@ export function DashboardLayout({ competitionId, matchday, timezone, viewMode = 
           matchCards={data.matchCards ?? []}
           focusedTeamId={focus}
           onSelectTeam={(id) => setFocus(id === focus ? null : id)}
+          showForm={matchday === currentMatchday}
         />
       )}
       {focus && teamDetail && (
