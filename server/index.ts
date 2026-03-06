@@ -26,11 +26,16 @@ async function main() {
   const dataSource = new FootballDataSource(API_TOKEN);
 
   console.log(`Fetching competitions: ${COMPETITION_CODES.join(', ')}...`);
-  for (const code of COMPETITION_CODES) {
+  for (let i = 0; i < COMPETITION_CODES.length; i++) {
+    const code = COMPETITION_CODES[i];
     try {
       await dataSource.fetchCompetition(code);
     } catch (err) {
       console.error(`Failed to fetch ${code}:`, err);
+    }
+    // Respect football-data.org rate limit (10 req/min): wait between fetches
+    if (i < COMPETITION_CODES.length - 1) {
+      await new Promise((r) => setTimeout(r, 7000));
     }
   }
 
@@ -42,13 +47,17 @@ async function main() {
 
   const app = buildApp({ snapshotService, dataSource });
 
-  // Periodic refresh every 5 minutes
+  // Periodic refresh every 5 minutes (with delay between competitions for rate limit)
   setInterval(async () => {
-    for (const code of COMPETITION_CODES) {
+    for (let i = 0; i < COMPETITION_CODES.length; i++) {
+      const code = COMPETITION_CODES[i];
       try {
         await dataSource.fetchCompetition(code);
       } catch (err) {
         console.error(`Refresh failed for ${code}:`, err);
+      }
+      if (i < COMPETITION_CODES.length - 1) {
+        await new Promise((r) => setTimeout(r, 7000));
       }
     }
   }, 5 * 60 * 1000);

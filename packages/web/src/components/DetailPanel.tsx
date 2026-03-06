@@ -27,7 +27,7 @@ function FormGuide({ form, label }: { form: FormResult[]; label: string }) {
   const max = form.length * 3;
   return (
     <div>
-      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
       {form.length === 0 ? (
         <div style={{ fontSize: 11, opacity: 0.4, fontStyle: 'italic' }}>Sin datos</div>
       ) : (
@@ -184,8 +184,11 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
         boxSizing: 'border-box',
       }}
     >
-      {/* Botón cerrar */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+      {/* Botón cerrar + título */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
+          {nm ? (nm.scoreHome === undefined ? 'Próximo partido' : 'Último partido') : ''}
+        </span>
         <button
           data-testid="close-detail"
           onClick={onClose}
@@ -197,33 +200,46 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             cursor: 'pointer',
             padding: isMobile ? '8px 12px' : '4px',
             margin: isMobile ? '-8px -12px' : 0,
+            flexShrink: 0,
           }}
         >
           ✕
         </button>
       </div>
 
+      {/* Identidad del equipo — solo cuando no hay próximo partido */}
+      {!nm && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <TeamCrest url={detail.team.crestUrl} name={detail.team.teamName} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {detail.team.teamName}
+            </div>
+            {detail.team.coachName && (
+              <div style={{ fontSize: 11, opacity: 0.45, marginTop: 2 }}>
+                {detail.team.coachName}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {nm && (
         <section data-testid="next-match" style={{ marginTop: 0 }}>
 
-          {/* 1. Título + jornada / fecha / hora / localía / estadio */}
-          {nm.scoreHome === undefined && (
-            <h3 style={{ fontSize: 13, opacity: 0.5, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>
-              Próximo partido
-            </h3>
-          )}
+          {/* 1. Jornada / fecha / hora / localía / estadio */}
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>
             {nm.matchday && <span>Jornada {nm.matchday}{nm.scoreHome === undefined ? ' · ' : ''}</span>}
             {nm.scoreHome === undefined && formatDateTime(nm.kickoffUtc, detail.header.timezone)}
-            {nm.scoreHome === undefined && nm.venue && <span> · {venueLabel(nm.venue)}</span>}
             {nm.venueName && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>{nm.venueName}</div>}
           </div>
 
           {/* 2. Escudos */}
           {(() => {
             const played = nm.scoreHome !== undefined;
-            const homeScore = isHome ? nm.scoreHome : nm.scoreAway;
-            const awayScore = isHome ? nm.scoreAway : nm.scoreHome;
+            // LEFT crest is always the HOME team, RIGHT is always AWAY — scores match directly
+            const homeScore = nm.scoreHome;
+            const awayScore = nm.scoreAway;
             return (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                 <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
@@ -236,11 +252,14 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                   <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
                     {isHome ? detail.team.teamName : (nm.opponentName ?? 'Rival')}
                   </div>
-                  {isHome && detail.team.coachName && (
-                    <div style={{ fontSize: 10, marginTop: 2, opacity: 0.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
-                      {detail.team.coachName}
-                    </div>
-                  )}
+                  {(() => {
+                    const coach = isHome ? detail.team.coachName : nm.opponentCoachName;
+                    return coach ? (
+                      <div style={{ fontSize: 10, marginTop: 2, opacity: 0.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+                        {coach}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 {played ? (
                   <div style={{ textAlign: 'center', flexShrink: 0, width: 72 }}>
@@ -262,11 +281,14 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                   <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
                     {isHome ? (nm.opponentName ?? 'Rival') : detail.team.teamName}
                   </div>
-                  {!isHome && detail.team.coachName && (
-                    <div style={{ fontSize: 10, marginTop: 2, opacity: 0.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
-                      {detail.team.coachName}
-                    </div>
-                  )}
+                  {(() => {
+                    const coach = isHome ? nm.opponentCoachName : detail.team.coachName;
+                    return coach ? (
+                      <div style={{ fontSize: 10, marginTop: 2, opacity: 0.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+                        {coach}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </div>
             );
@@ -291,17 +313,17 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             return (
               <div data-testid="match-estimate" style={{ marginBottom: 16, padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ textAlign: 'left' }}>
+                  <div style={{ textAlign: 'left', minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.homeWin)}</div>
-                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{homeName}</div>
+                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeName}</div>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
+                  <div style={{ textAlign: 'center', flexShrink: 0, paddingInline: 8 }}>
                     <div style={{ fontSize: 18, fontWeight: 800, color: '#6b7280' }}>{pct(probs.draw)}</div>
                     <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.awayWin)}</div>
-                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{awayName}</div>
+                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayName}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden' }}>

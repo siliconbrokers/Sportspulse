@@ -134,6 +134,7 @@ function extractNextMatch(
     opponentTeamId: opponentId,
     opponentName: opponent?.name,
     opponentCrestUrl: opponent?.crestUrl,
+    opponentCoachName: opponent?.coachName,
     opponentRecentForm: extractRecentForm(opponentId, matches, buildNowUtc),
     opponentGoalStats: extractGoalStats(opponentId, matches, buildNowUtc),
     opponentHomeGoalStats: extractGoalStats(opponentId, matches, buildNowUtc, 'HOME'),

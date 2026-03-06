@@ -19,6 +19,7 @@ export interface NextMatchDTO {
   opponentTeamId?: string;
   opponentName?: string;
   opponentCrestUrl?: string;
+  opponentCoachName?: string;
   opponentRecentForm?: FormResult[];
   opponentGoalStats?: GoalStatsDTO;
   opponentHomeGoalStats?: GoalStatsDTO;

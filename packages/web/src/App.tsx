@@ -14,8 +14,6 @@ const COMPETITIONS = [
   { id: 'comp:football-data:PD', code: 'PD' },
   { id: 'comp:football-data:PL', code: 'PL' },
   { id: 'comp:football-data:BL1', code: 'BL1' },
-  { id: 'comp:football-data:SA', code: 'SA' },
-  { id: 'comp:football-data:FL1', code: 'FL1' },
 ];
 
 export function App() {
@@ -127,7 +125,10 @@ export function App() {
           </select>
           <select
             value={matchday ?? ''}
-            onChange={(e) => setMatchday(Number(e.target.value))}
+            onChange={(e) => {
+              setMatchday(Number(e.target.value));
+              if (view === 'standings') setView('treemap');
+            }}
             disabled={compInfoLoading || !compInfo}
             style={{ ...selectStyle, opacity: compInfoLoading ? 0.5 : 1 }}
           >
