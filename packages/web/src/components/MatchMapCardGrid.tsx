@@ -11,12 +11,27 @@ interface MatchMapCardGridProps {
   showForm?: boolean;
 }
 
+// ─── Urgency key recalculado en cliente con Date.now() ────────────────────────
+
+function computeLiveUrgencyKey(status: string | undefined, kickoffUtc: string | undefined): UrgencyColorKey {
+  if (status === 'LIVE') return 'LIVE';
+  if (status === 'FINISHED') return 'UNKNOWN';
+  if (!kickoffUtc) return 'UNKNOWN';
+  const hours = (new Date(kickoffUtc).getTime() - Date.now()) / (1000 * 60 * 60);
+  if (hours < 0) return 'UNKNOWN';
+  if (hours < 24) return 'TODAY';
+  if (hours < 48) return 'TOMORROW';
+  if (hours < 96) return 'D2_3';
+  if (hours <= 168) return 'D4_7';
+  return 'LATER';
+}
+
 // ─── Urgency → background color (§5) ─────────────────────────────────────────
 
 const URGENCY_BG: Record<UrgencyColorKey, string> = {
   LIVE:     'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)',
   TODAY:    'linear-gradient(135deg, #7c2d12 0%, #92400e 100%)',
-  TOMORROW: 'linear-gradient(135deg, #78350f 0%, #854d0e 100%)',
+  TOMORROW: 'linear-gradient(135deg, #0e4d6e 0%, #0e6d9e 100%)',
   D2_3:     'linear-gradient(135deg, #365314 0%, #3f6212 100%)',
   D4_7:     'linear-gradient(135deg, #14532d 0%, #166534 100%)',
   LATER:    'linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%)',
@@ -26,7 +41,7 @@ const URGENCY_BG: Record<UrgencyColorKey, string> = {
 const URGENCY_GLOW: Record<UrgencyColorKey, string> = {
   LIVE:     'rgba(239,68,68,0.5)',
   TODAY:    'rgba(249,115,22,0.4)',
-  TOMORROW: 'rgba(245,158,11,0.35)',
+  TOMORROW: 'rgba(56,189,248,0.35)',
   D2_3:     'rgba(163,230,53,0.28)',
   D4_7:     'rgba(74,222,128,0.25)',
   LATER:    'rgba(96,165,250,0.22)',
@@ -263,7 +278,7 @@ export function MatchMapCardGrid({
     >
       {matchCards.map((card) => {
         const hints = card.tileHints;
-        const urgencyKey = hints?.urgencyColorKey ?? 'UNKNOWN';
+        const urgencyKey = computeLiveUrgencyKey(card.status, card.kickoffUtc);
         const heatKey = hints?.heatBorderKey ?? 'NONE';
         const isFeatured = hints?.featuredRank === 'FEATURED';
 
@@ -274,6 +289,7 @@ export function MatchMapCardGrid({
 
         const tileClasses = [
           'mm-tile',
+          urgencyKey === 'TODAY' ? 'mm-tile--today' : '',
           heatClass(heatKey),
           isFeatured ? 'mm-tile--featured' : '',
           isCardSelected ? 'mm-tile--selected' : '',

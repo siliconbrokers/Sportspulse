@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { MatchCardDTO } from '../types/snapshot.js';
 import { computeLiveTimeChip } from '../utils/time-chip.js';
+import './match-map.css';
 
 interface MatchCardListProps {
   matchCards: MatchCardDTO[];
@@ -137,9 +138,18 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
         margin: '0 auto',
       }}
     >
-      {matchCards.map((card) => (
+      {matchCards.map((card) => {
+        const isToday = (() => {
+          if (card.status === 'LIVE' || card.status === 'FINISHED') return false;
+          if (!card.kickoffUtc) return false;
+          const hours = (new Date(card.kickoffUtc).getTime() - Date.now()) / (1000 * 60 * 60);
+          return hours >= 0 && hours < 24;
+        })();
+
+        return (
         <div
           key={card.matchId}
+          className={isToday ? 'mm-tile--today' : undefined}
           onMouseEnter={() => setHoveredId(card.matchId)}
           onMouseLeave={() => setHoveredId(null)}
           onClick={onSelectTeam ? (e) => {
@@ -212,7 +222,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
             />
           </div>
 
-          {/* Explain line — solo en jornada actual y partidos no finalizados */}
+          {/* Explain line — reemplaza la parte de tiempo con chip en vivo (buildNowUtc ≠ now) */}
           {card.explainLine && card.status !== 'FINISHED' && showForm && (
             <div
               style={{
@@ -223,11 +233,18 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
                 paddingTop: 8,
               }}
             >
-              {card.explainLine.text.replace(/^Porque:\s*/i, '')}
+              {(() => {
+                const raw = card.explainLine.text.replace(/^Porque:\s*/i, '');
+                const plusIdx = raw.indexOf(' + ');
+                const formPart = plusIdx >= 0 ? raw.slice(plusIdx + 3) : '';
+                const liveLabel = computeLiveTimeChip(card.status, card.kickoffUtc).label;
+                return formPart ? `${liveLabel} + ${formPart}` : liveLabel;
+              })()}
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -13,6 +13,12 @@
   100% { outline-color: var(--mm-border-color); outline-width: 2px; }
 }
 
+@keyframes neon-border {
+  0%   { box-shadow: var(--mm-shadow-base, 0 2px 8px rgba(0,0,0,0.4)), 0 0 6px 2px #f97316, 0 0 14px 4px #f9731660, inset 0 0 6px 1px #f9731630; }
+  50%  { box-shadow: var(--mm-shadow-base, 0 2px 8px rgba(0,0,0,0.4)), 0 0 14px 5px #fb923c, 0 0 28px 8px #fb923c80, inset 0 0 10px 2px #fb923c40; }
+  100% { box-shadow: var(--mm-shadow-base, 0 2px 8px rgba(0,0,0,0.4)), 0 0 6px 2px #f97316, 0 0 14px 4px #f9731660, inset 0 0 6px 1px #f9731630; }
+}
+
 @keyframes badge-pop {
   0%   { transform: scale(1);   opacity: 0.7; }
   50%  { transform: scale(1.4); opacity: 1; }
@@ -131,6 +137,26 @@
   outline-width: 2px;
 }
 
+/* ── TODAY neon border (tiles y cards) ───────────────────────────────────── */
+
+.mm-tile--today {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  border-radius: inherit;
+  animation: neon-border 2s ease-in-out infinite;
+}
+
+/* ── TODAY standings row ─────────────────────────────────────────────────── */
+
+@keyframes neon-row {
+  0%,100% { background-color: rgba(249,115,22,0.08); box-shadow: inset 3px 0 8px rgba(249,115,22,0.4); }
+  50%      { background-color: rgba(249,115,22,0.18); box-shadow: inset 3px 0 16px rgba(251,146,60,0.6); }
+}
+
+.standings-row--today {
+  animation: neon-row 2s ease-in-out infinite !important;
+}
+
 /* ── Reduced motion §11.1 ────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -139,6 +165,12 @@
   }
   .mm-tile--featured {
     animation: none;
+  }
+  .mm-tile--today {
+    animation: none;
+  }
+  .standings-row--today {
+    animation: none !important;
   }
   .mm-tile--featured:hover,
   .mm-tile--featured:focus-visible {

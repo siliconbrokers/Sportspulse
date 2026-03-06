@@ -27,11 +27,12 @@ export function competitionInfoRoute(deps: AppDependencies): FastifyPluginAsync 
         }
 
         const currentMatchday = deps.dataSource.getCurrentMatchday?.(competitionId);
+        const lastPlayedMatchday = deps.dataSource.getLastPlayedMatchday?.(competitionId);
         const totalMatchdays = deps.dataSource.getTotalMatchdays?.(competitionId) ?? 38;
 
         reply
           .header('Cache-Control', 'public, max-age=60')
-          .send({ currentMatchday, totalMatchdays });
+          .send({ currentMatchday, lastPlayedMatchday, totalMatchdays });
       });
     },
     { name: 'competition-info-route' },

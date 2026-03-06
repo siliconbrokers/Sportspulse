@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 interface CompetitionInfo {
   currentMatchday: number | null;
+  lastPlayedMatchday: number | null;
   totalMatchdays: number;
 }
 
@@ -17,6 +18,7 @@ export function useCompetitionInfo(competitionId: string): UseCompetitionInfoRes
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setData(null);
 
     const params = new URLSearchParams({ competitionId });
     fetch(`/api/ui/competition-info?${params}`)
@@ -29,6 +31,7 @@ export function useCompetitionInfo(competitionId: string): UseCompetitionInfoRes
         if (!cancelled && json) {
           setData({
             currentMatchday: json.currentMatchday ?? null,
+            lastPlayedMatchday: json.lastPlayedMatchday ?? null,
             totalMatchdays: json.totalMatchdays ?? 38,
           });
         }

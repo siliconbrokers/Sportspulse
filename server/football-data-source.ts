@@ -86,6 +86,30 @@ export class FootballDataSource implements DataSource {
     return cached?.currentMatchday;
   }
 
+  getLastPlayedMatchday(compId: string): number | undefined {
+    const cached = this.getCached(compId);
+    if (!cached) return undefined;
+
+    // Build stats per matchday: total matches and finished matches
+    const stats = new Map<number, { total: number; finished: number }>();
+    for (const m of cached.matches) {
+      if (m.matchday === undefined) continue;
+      const s = stats.get(m.matchday) ?? { total: 0, finished: 0 };
+      s.total++;
+      if (m.status === 'FINISHED') s.finished++;
+      stats.set(m.matchday, s);
+    }
+
+    // Highest matchday where ALL matches are finished
+    let last: number | undefined = undefined;
+    for (const [md, s] of stats) {
+      if (s.total > 0 && s.finished === s.total) {
+        if (last === undefined || md > last) last = md;
+      }
+    }
+    return last;
+  }
+
   getTotalMatchdays(compId: string): number {
     const cached = this.getCached(compId);
     if (!cached) return 38;

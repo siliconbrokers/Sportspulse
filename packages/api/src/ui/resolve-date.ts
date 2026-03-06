@@ -21,7 +21,10 @@ export function resolveDateFromMatchday(
     .sort((a, b) => (a.startTimeUtc! < b.startTimeUtc! ? -1 : 1));
 
   if (scheduled.length > 0) {
-    return utcToLocalDate(scheduled[0].startTimeUtc!, timezone);
+    // For future matchdays: cap at today so buildNowUtc reflects current form, not a future date
+    const today = utcToLocalDate(new Date().toISOString(), timezone);
+    const scheduledDate = utcToLocalDate(scheduled[0].startTimeUtc!, timezone);
+    return scheduledDate > today ? today : scheduledDate;
   }
 
   const finished = matchdayMatches

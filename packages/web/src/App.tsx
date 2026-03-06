@@ -6,6 +6,7 @@ import { useStandings } from './hooks/use-standings.js';
 import { useCompetitionInfo } from './hooks/use-competition-info.js';
 import { useTeamDetail } from './hooks/use-team-detail.js';
 import { useWindowWidth } from './hooks/use-window-width.js';
+import { useTeamsPlayingToday } from './hooks/use-teams-playing-today.js';
 import { competitionDisplayName } from './utils/labels.js';
 
 type ViewMode = 'treemap' | 'partidos' | 'standings';
@@ -23,6 +24,11 @@ export function App() {
   const [standingsFocusId, setStandingsFocusId] = useState<string | null>(null);
   const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(competitionId);
   const { data: standings, loading: standingsLoading } = useStandings(competitionId, view === 'standings');
+  const teamsPlayingToday = useTeamsPlayingToday(
+    competitionId,
+    view === 'standings' ? (compInfo?.currentMatchday ?? null) : null,
+    'America/Montevideo',
+  );
   const { data: standingsTeamDetail } = useTeamDetail(
     competitionId,
     view === 'standings' ? standingsFocusId : null,
@@ -30,18 +36,18 @@ export function App() {
     'America/Montevideo',
   );
 
-  // Set matchday to current when competition info loads
-  useEffect(() => {
-    if (compInfo?.currentMatchday) {
-      setMatchday(compInfo.currentMatchday);
-    }
-  }, [compInfo]);
-
-  // Reset matchday and standings focus when competition changes
+  // When competition changes: reset matchday and standings focus
   useEffect(() => {
     setMatchday(null);
     setStandingsFocusId(null);
   }, [competitionId]);
+
+  // When compInfo loads: set default matchday for the current competition
+  useEffect(() => {
+    if (!compInfo) return;
+    const defaultMatchday = compInfo.currentMatchday ?? compInfo.lastPlayedMatchday;
+    if (defaultMatchday) setMatchday(defaultMatchday);
+  }, [compInfo]);
 
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
@@ -81,7 +87,8 @@ export function App() {
         <img
           src="/logo.png"
           alt="SportsPulse"
-          style={{ height: isMobile ? 36 : 56, width: 'auto' }}
+          onClick={() => setView('treemap')}
+          style={{ height: isMobile ? 36 : 56, width: 'auto', cursor: 'pointer' }}
         />
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           {(['treemap', 'partidos', 'standings'] as const).map((v) => (
@@ -160,6 +167,7 @@ export function App() {
               standings={standings}
               onTeamClick={(id) => setStandingsFocusId((prev) => (prev === id ? null : id))}
               competitionId={competitionId}
+              teamsPlayingToday={teamsPlayingToday}
             />
           )}
           {standingsFocusId && standingsTeamDetail && (

@@ -658,6 +658,12 @@
       "explainLine": {
         "text": "Porque: Mañana · en 33 h + local picante / visita picante",
         "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "XL",
+        "urgencyColorKey": "TOMORROW",
+        "heatBorderKey": "BOTH_HOT",
+        "featuredRank": "FEATURED"
       }
     },
     {
@@ -694,6 +700,12 @@
       "explainLine": {
         "text": "Porque: En 2 días + local viene bien / visita viene bien",
         "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "D2_3",
+        "heatBorderKey": "NONE",
+        "featuredRank": "NONE"
       }
     }
   ]

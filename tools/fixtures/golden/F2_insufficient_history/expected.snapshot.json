@@ -358,6 +358,12 @@
       "explainLine": {
         "text": "Porque: Mañana · en 33 h + local picante / visita viene mal",
         "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "XL",
+        "urgencyColorKey": "TOMORROW",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "FEATURED"
       }
     }
   ]

@@ -1,4 +1,5 @@
 import type { StandingEntry } from '../hooks/use-standings.js';
+import './match-map.css';
 
 type ZoneType = 'ucl' | 'uel' | 'uecl' | 'playoff' | 'relegation' | null;
 
@@ -63,9 +64,10 @@ interface StandingsTableProps {
   standings: StandingEntry[];
   onTeamClick: (teamId: string) => void;
   competitionId: string;
+  teamsPlayingToday?: Set<string>;
 }
 
-export function StandingsTable({ standings, onTeamClick, competitionId }: StandingsTableProps) {
+export function StandingsTable({ standings, onTeamClick, competitionId, teamsPlayingToday }: StandingsTableProps) {
   const legend = getActiveLegend(competitionId);
 
   return (
@@ -97,15 +99,17 @@ export function StandingsTable({ standings, onTeamClick, competitionId }: Standi
           <tbody>
             {standings.map((row, i) => {
               const zone = getZone(competitionId, row.position);
+              const playsToday = teamsPlayingToday?.has(row.teamId) ?? false;
               return (
                 <tr
                   key={row.teamId}
+                  className={playsToday ? 'standings-row--today' : undefined}
                   onClick={() => onTeamClick(row.teamId)}
                   style={{
                     cursor: 'pointer',
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
                     borderLeft: zone ? `4px solid ${zone.color}` : '4px solid transparent',
-                    backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
+                    backgroundColor: playsToday ? undefined : (i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent'),
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent'; }}

@@ -21,5 +21,6 @@ export interface DataSource {
   getSeasonId(competitionId: string): string | undefined;
   getStandings?(competitionId: string): StandingEntry[];
   getCurrentMatchday?(competitionId: string): number | undefined;
+  getLastPlayedMatchday?(competitionId: string): number | undefined;
   getTotalMatchdays?(competitionId: string): number;
 }
