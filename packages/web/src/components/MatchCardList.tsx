@@ -212,8 +212,8 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
             />
           </div>
 
-          {/* Explain line — solo para partidos no finalizados */}
-          {card.explainLine && card.status !== 'FINISHED' && (
+          {/* Explain line — solo en jornada actual y partidos no finalizados */}
+          {card.explainLine && card.status !== 'FINISHED' && showForm && (
             <div
               style={{
                 fontSize: 11,
