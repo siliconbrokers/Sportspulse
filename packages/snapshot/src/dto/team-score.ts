@@ -8,6 +8,7 @@ export interface GoalStatsDTO {
   goalsFor: number;
   goalsAgainst: number;
   goalDifference: number;
+  points: number;
 }
 
 export interface NextMatchDTO {
@@ -19,6 +20,8 @@ export interface NextMatchDTO {
   opponentCrestUrl?: string;
   opponentRecentForm?: FormResult[];
   opponentGoalStats?: GoalStatsDTO;
+  opponentHomeGoalStats?: GoalStatsDTO;
+  opponentAwayGoalStats?: GoalStatsDTO;
   venueName?: string;
   venue?: 'HOME' | 'AWAY' | 'NEUTRAL' | 'UNKNOWN';
   scoreHome?: number | null;
@@ -33,6 +36,8 @@ export interface TeamScoreDTO {
   coachName?: string;
   recentForm?: FormResult[];
   goalStats?: GoalStatsDTO;
+  homeGoalStats?: GoalStatsDTO;
+  awayGoalStats?: GoalStatsDTO;
   policyKey: string;
   policyVersion: number;
   buildNowUtc: string;

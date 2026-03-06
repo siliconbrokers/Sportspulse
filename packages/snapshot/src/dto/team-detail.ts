@@ -25,6 +25,8 @@ export interface TeamDetailDTO {
     coachName?: string;
     recentForm?: FormResult[];
     goalStats?: GoalStatsDTO;
+    homeGoalStats?: GoalStatsDTO;
+    awayGoalStats?: GoalStatsDTO;
   };
   score: {
     rawScore: number;

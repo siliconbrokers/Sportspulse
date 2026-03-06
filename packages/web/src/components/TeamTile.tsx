@@ -21,11 +21,6 @@ function getTextColor(score: number): string {
   return '#fff';
 }
 
-function getTileLabel(team: TeamScoreDTO, w: number, h: number): string {
-  if (w < 50 || h < 30) return team.teamName.slice(0, 3).toUpperCase();
-  return team.teamName;
-}
-
 function buildTooltip(team: TeamScoreDTO): string {
   const lines = [team.teamName, `Puntuación: ${Math.round(team.displayScore * 100)}%`];
   if (team.nextMatch?.opponentName) {
@@ -36,14 +31,21 @@ function buildTooltip(team: TeamScoreDTO): string {
   return lines.join('\n');
 }
 
-function crestSize(w: number, h: number): number {
-  const maxByWidth = (w - 16) / 3.2;
-  const maxByHeight = (h - 44) * 0.6;
-  return Math.floor(Math.min(maxByWidth, maxByHeight));
+/** Size tier determines what content to show */
+type SizeTier = 'xl' | 'lg' | 'md' | 'sm' | 'xs';
+
+function getSizeTier(w: number, h: number): SizeTier {
+  const area = w * h;
+  const minDim = Math.min(w, h);
+  if (area >= 25000 && minDim >= 100) return 'xl';
+  if (area >= 12000 && minDim >= 70) return 'lg';
+  if (area >= 5000 && minDim >= 50) return 'md';
+  if (area >= 2000 && minDim >= 30) return 'sm';
+  return 'xs';
 }
 
 function Crest({ url, alt, size }: { url?: string; alt: string; size: number }) {
-  if (!url) return null;
+  if (!url || size < 12) return null;
   return (
     <img
       src={url}
@@ -61,15 +63,35 @@ function Crest({ url, alt, size }: { url?: string; alt: string; size: number }) 
 
 export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
   const { rect } = team;
-  const label = getTileLabel(team, rect.w, rect.h);
+  const w = rect.w;
+  const h = rect.h;
+  const tier = getSizeTier(w, h);
   const score = Math.round(team.displayScore * 100);
   const textColor = getTextColor(team.displayScore);
-  const size = crestSize(rect.w, rect.h);
-  const showCrests = size >= 16 && team.nextMatch;
 
   const isHome = team.nextMatch?.venue === 'HOME';
   const homeCrest = isHome ? team.crestUrl : team.nextMatch?.opponentCrestUrl;
   const awayCrest = isHome ? team.nextMatch?.opponentCrestUrl : team.crestUrl;
+
+  // Proportional sizing
+  const padding = tier === 'xs' ? 3 : tier === 'sm' ? 4 : tier === 'md' ? 6 : 8;
+  const innerW = w - padding * 2;
+  const innerH = h - padding * 2;
+  const nameFontSize = tier === 'xs' ? 9 : tier === 'sm' ? 10 : tier === 'md' ? 11 : 13;
+  const nameLineH = nameFontSize * 1.3;
+
+  // Label: abbreviate for small tiles
+  const label = tier === 'xs' || tier === 'sm'
+    ? team.teamName.slice(0, 3).toUpperCase()
+    : team.teamName;
+
+  // Crest sizing: use available space after name and bottom bar
+  const bottomBarH = tier === 'xl' || tier === 'lg' ? 18 : 0;
+  const availForCrests = innerH - nameLineH - bottomBarH - 4;
+  const maxCrestByW = (innerW - 20) / 2.6; // two crests + vs + gaps
+  const maxCrestByH = availForCrests * 0.65;
+  const crestSize = Math.max(0, Math.floor(Math.min(maxCrestByW, maxCrestByH)));
+  const showCrests = crestSize >= 14 && team.nextMatch && tier !== 'xs';
 
   return (
     <div
@@ -86,31 +108,44 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
         position: 'absolute',
         left: rect.x,
         top: rect.y,
-        width: rect.w,
-        height: rect.h,
+        width: w,
+        height: h,
         backgroundColor: getHeatColor(team.displayScore),
         border: focused ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.15)',
         borderRadius: 6,
         opacity: dimmed ? 0.4 : 1,
         cursor: 'pointer',
         overflow: 'hidden',
-        padding: 8,
+        padding,
         boxSizing: 'border-box',
         color: textColor,
-        fontSize: rect.w < 80 ? 11 : 13,
+        fontSize: nameFontSize,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
       }}
     >
-      <div style={{ fontWeight: 700, lineHeight: 1.2 }}>{label}</div>
+      {/* Team name */}
+      <div style={{
+        fontWeight: 700,
+        lineHeight: 1.2,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+      }}>
+        {label}
+      </div>
 
+      {/* Crests + score */}
       {showCrests && (() => {
         const nm = team.nextMatch!;
         const hasScore = nm.scoreHome != null && nm.scoreAway != null;
         const homeScore = isHome ? nm.scoreHome : nm.scoreAway;
         const awayScore = isHome ? nm.scoreAway : nm.scoreHome;
-        const scoreFontSize = Math.max(size * 0.45, 12);
+        const scoreFontSize = Math.max(Math.min(crestSize * 0.45, 18), 10);
+        const vsSize = Math.max(Math.min(crestSize * 0.35, 14), 8);
+        const gap = Math.max(crestSize * 0.2, 4);
 
         return (
           <div
@@ -120,7 +155,9 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
               alignItems: 'center',
               justifyContent: 'center',
               flex: 1,
-              gap: 2,
+              gap: 1,
+              minHeight: 0,
+              overflow: 'hidden',
             }}
           >
             <div
@@ -128,15 +165,21 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: size * 0.3,
+                gap,
               }}
             >
-              <Crest url={homeCrest} alt="Local" size={size} />
-              <span style={{ fontSize: Math.max(size * 0.35, 10), opacity: 0.6, fontWeight: 700 }}>vs</span>
-              <Crest url={awayCrest} alt="Visitante" size={size} />
+              <Crest url={homeCrest} alt="Local" size={crestSize} />
+              <span style={{ fontSize: vsSize, opacity: 0.6, fontWeight: 700, flexShrink: 0 }}>vs</span>
+              <Crest url={awayCrest} alt="Visitante" size={crestSize} />
             </div>
-            {size >= 20 && (
-              <div style={{ fontSize: scoreFontSize, fontWeight: 700, opacity: hasScore ? 1 : 0.4, letterSpacing: 2 }}>
+            {crestSize >= 18 && (
+              <div style={{
+                fontSize: scoreFontSize,
+                fontWeight: 700,
+                opacity: hasScore ? 1 : 0.4,
+                letterSpacing: 1,
+                whiteSpace: 'nowrap',
+              }}>
                 {hasScore ? `${homeScore} - ${awayScore}` : '- - -'}
               </div>
             )}
@@ -144,20 +187,49 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
         );
       })()}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        {team.nextMatch?.opponentName && rect.w >= 80 && rect.h >= 40 ? (
-          <span style={{ fontSize: 10, opacity: 0.7 }}>
-            vs {team.nextMatch.opponentName}
-          </span>
-        ) : (
-          <span />
-        )}
-        {rect.w >= 60 && rect.h >= 50 && (
-          <span style={{ fontSize: 11, opacity: 0.6 }}>
+      {/* Xs/sm tiles without crests: show score centered */}
+      {!showCrests && tier !== 'xs' && (
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: Math.max(nameFontSize - 1, 9),
+          opacity: 0.7,
+          fontWeight: 600,
+        }}>
+          {score}%
+        </div>
+      )}
+
+      {/* Bottom bar: opponent name + score% */}
+      {(tier === 'xl' || tier === 'lg') && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          flexShrink: 0,
+          overflow: 'hidden',
+        }}>
+          {team.nextMatch?.opponentName ? (
+            <span style={{
+              fontSize: 10,
+              opacity: 0.7,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              marginRight: 4,
+            }}>
+              vs {team.nextMatch.opponentName}
+            </span>
+          ) : (
+            <span />
+          )}
+          <span style={{ fontSize: 11, opacity: 0.6, flexShrink: 0 }}>
             {score}%
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

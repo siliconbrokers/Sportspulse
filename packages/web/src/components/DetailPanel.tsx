@@ -283,6 +283,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                       <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>GF</th>
                       <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>GC</th>
                       <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>DG</th>
+                      <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>Pts</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -294,6 +295,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                         <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 600, color: homeStats.goalDifference > 0 ? '#22c55e' : homeStats.goalDifference < 0 ? '#ef4444' : '#6b7280' }}>
                           {homeStats.goalDifference > 0 ? '+' : ''}{homeStats.goalDifference}
                         </td>
+                        <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 700 }}>{homeStats.points}</td>
                       </tr>
                     )}
                     {awayStats && (
@@ -304,10 +306,66 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                         <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 600, color: awayStats.goalDifference > 0 ? '#22c55e' : awayStats.goalDifference < 0 ? '#ef4444' : '#6b7280' }}>
                           {awayStats.goalDifference > 0 ? '+' : ''}{awayStats.goalDifference}
                         </td>
+                        <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 700 }}>{awayStats.points}</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+              </div>
+            );
+          })()}
+
+          {/* Rendimiento local / visitante */}
+          {(() => {
+            const entries: { label: string; home?: typeof detail.team.goalStats; away?: typeof detail.team.goalStats }[] = [];
+            if (detail.team.homeGoalStats || detail.team.awayGoalStats) {
+              entries.push({ label: detail.team.teamName, home: detail.team.homeGoalStats, away: detail.team.awayGoalStats });
+            }
+            if (nm.opponentHomeGoalStats || nm.opponentAwayGoalStats) {
+              entries.push({ label: nm.opponentName ?? 'Rival', home: nm.opponentHomeGoalStats, away: nm.opponentAwayGoalStats });
+            }
+            if (entries.length === 0) return null;
+
+            function VenueRow({ stats, venue }: { stats: typeof detail.team.goalStats; venue: string }) {
+              if (!stats) return null;
+              return (
+                <tr style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <td style={{ padding: '5px 0' }}>{venue}</td>
+                  <td style={{ textAlign: 'center', padding: '5px 6px' }}>{stats.goalsFor}</td>
+                  <td style={{ textAlign: 'center', padding: '5px 6px' }}>{stats.goalsAgainst}</td>
+                  <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 600, color: stats.goalDifference > 0 ? '#22c55e' : stats.goalDifference < 0 ? '#ef4444' : '#6b7280' }}>
+                    {stats.goalDifference > 0 ? '+' : ''}{stats.goalDifference}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 700 }}>{stats.points}</td>
+                </tr>
+              );
+            }
+
+            return (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Rendimiento local / visitante
+                </div>
+                {entries.map((entry) => (
+                  <div key={entry.label} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{entry.label}</div>
+                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ opacity: 0.5 }}>
+                          <th style={{ textAlign: 'left', padding: '4px 0', fontWeight: 400 }}></th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>GF</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>GC</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>DG</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <VenueRow stats={entry.home} venue="Local" />
+                        <VenueRow stats={entry.away} venue="Visitante" />
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
               </div>
             );
           })()}

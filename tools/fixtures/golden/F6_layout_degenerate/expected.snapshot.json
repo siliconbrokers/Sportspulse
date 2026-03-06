@@ -89,7 +89,20 @@
       "goalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
-        "goalDifference": 0
+        "goalDifference": 0,
+        "points": 0
+      },
+      "homeGoalStats": {
+        "goalsFor": 0,
+        "goalsAgainst": 0,
+        "goalDifference": 0,
+        "points": 0
+      },
+      "awayGoalStats": {
+        "goalsFor": 0,
+        "goalsAgainst": 0,
+        "goalDifference": 0,
+        "points": 0
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
@@ -153,7 +166,20 @@
       "goalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
-        "goalDifference": 0
+        "goalDifference": 0,
+        "points": 0
+      },
+      "homeGoalStats": {
+        "goalsFor": 0,
+        "goalsAgainst": 0,
+        "goalDifference": 0,
+        "points": 0
+      },
+      "awayGoalStats": {
+        "goalsFor": 0,
+        "goalsAgainst": 0,
+        "goalDifference": 0,
+        "points": 0
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
@@ -217,7 +243,20 @@
       "goalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
-        "goalDifference": 0
+        "goalDifference": 0,
+        "points": 0
+      },
+      "homeGoalStats": {
+        "goalsFor": 0,
+        "goalsAgainst": 0,
+        "goalDifference": 0,
+        "points": 0
+      },
+      "awayGoalStats": {
+        "goalsFor": 0,
+        "goalsAgainst": 0,
+        "goalDifference": 0,
+        "points": 0
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,

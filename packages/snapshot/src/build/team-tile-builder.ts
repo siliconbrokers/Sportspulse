@@ -53,6 +53,8 @@ export function buildTeamTile(
   // Extract recent form, goal stats, and next match info
   const recentForm = extractRecentForm(team.teamId, matches, buildNowUtc);
   const goalStats = extractGoalStats(team.teamId, matches, buildNowUtc);
+  const homeGoalStats = extractGoalStats(team.teamId, matches, buildNowUtc, 'HOME');
+  const awayGoalStats = extractGoalStats(team.teamId, matches, buildNowUtc, 'AWAY');
   const nextMatch = extractNextMatch(team.teamId, allTeams, matches, buildNowUtc, matchday);
 
   return {
@@ -63,6 +65,8 @@ export function buildTeamTile(
     coachName: team.coachName,
     recentForm,
     goalStats,
+    homeGoalStats,
+    awayGoalStats,
     policyKey: policy.policyKey,
     policyVersion: policy.policyVersion,
     buildNowUtc,
@@ -127,6 +131,8 @@ function extractNextMatch(
     opponentCrestUrl: opponent?.crestUrl,
     opponentRecentForm: extractRecentForm(opponentId, matches, buildNowUtc),
     opponentGoalStats: extractGoalStats(opponentId, matches, buildNowUtc),
+    opponentHomeGoalStats: extractGoalStats(opponentId, matches, buildNowUtc, 'HOME'),
+    opponentAwayGoalStats: extractGoalStats(opponentId, matches, buildNowUtc, 'AWAY'),
     venueName: homeTeam?.venueName,
     venue: isHome ? 'HOME' : 'AWAY',
     scoreHome: target.status === EventStatus.FINISHED ? target.scoreHome : undefined,
@@ -169,9 +175,11 @@ function extractGoalStats(
   teamId: string,
   matches: readonly Match[],
   buildNowUtc: string,
+  venueFilter?: 'HOME' | 'AWAY',
 ): GoalStatsDTO {
   let goalsFor = 0;
   let goalsAgainst = 0;
+  let points = 0;
 
   for (const m of matches) {
     if (
@@ -184,14 +192,19 @@ function extractGoalStats(
     )
       continue;
 
-    if (m.homeTeamId === teamId) {
-      goalsFor += m.scoreHome;
-      goalsAgainst += m.scoreAway;
-    } else {
-      goalsFor += m.scoreAway;
-      goalsAgainst += m.scoreHome;
-    }
+    const isHome = m.homeTeamId === teamId;
+
+    if (venueFilter === 'HOME' && !isHome) continue;
+    if (venueFilter === 'AWAY' && isHome) continue;
+
+    const teamScore = isHome ? m.scoreHome : m.scoreAway;
+    const oppScore = isHome ? m.scoreAway : m.scoreHome;
+    goalsFor += teamScore;
+    goalsAgainst += oppScore;
+
+    if (teamScore > oppScore) points += 3;
+    else if (teamScore === oppScore) points += 1;
   }
 
-  return { goalsFor, goalsAgainst, goalDifference: goalsFor - goalsAgainst };
+  return { goalsFor, goalsAgainst, goalDifference: goalsFor - goalsAgainst, points };
 }

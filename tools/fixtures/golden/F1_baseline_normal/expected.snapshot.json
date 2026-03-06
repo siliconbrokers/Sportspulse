@@ -35,7 +35,20 @@
       "goalStats": {
         "goalsFor": 11,
         "goalsAgainst": 2,
-        "goalDifference": 9
+        "goalDifference": 9,
+        "points": 13
+      },
+      "homeGoalStats": {
+        "goalsFor": 6,
+        "goalsAgainst": 1,
+        "goalDifference": 5,
+        "points": 7
+      },
+      "awayGoalStats": {
+        "goalsFor": 5,
+        "goalsAgainst": 1,
+        "goalDifference": 4,
+        "points": 6
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
@@ -120,7 +133,20 @@
         "opponentGoalStats": {
           "goalsFor": 9,
           "goalsAgainst": 2,
-          "goalDifference": 7
+          "goalDifference": 7,
+          "points": 13
+        },
+        "opponentHomeGoalStats": {
+          "goalsFor": 6,
+          "goalsAgainst": 2,
+          "goalDifference": 4,
+          "points": 7
+        },
+        "opponentAwayGoalStats": {
+          "goalsFor": 3,
+          "goalsAgainst": 0,
+          "goalDifference": 3,
+          "points": 6
         },
         "venue": "AWAY"
       },
@@ -144,7 +170,20 @@
       "goalStats": {
         "goalsFor": 9,
         "goalsAgainst": 2,
-        "goalDifference": 7
+        "goalDifference": 7,
+        "points": 13
+      },
+      "homeGoalStats": {
+        "goalsFor": 6,
+        "goalsAgainst": 2,
+        "goalDifference": 4,
+        "points": 7
+      },
+      "awayGoalStats": {
+        "goalsFor": 3,
+        "goalsAgainst": 0,
+        "goalDifference": 3,
+        "points": 6
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
@@ -229,7 +268,20 @@
         "opponentGoalStats": {
           "goalsFor": 11,
           "goalsAgainst": 2,
-          "goalDifference": 9
+          "goalDifference": 9,
+          "points": 13
+        },
+        "opponentHomeGoalStats": {
+          "goalsFor": 6,
+          "goalsAgainst": 1,
+          "goalDifference": 5,
+          "points": 7
+        },
+        "opponentAwayGoalStats": {
+          "goalsFor": 5,
+          "goalsAgainst": 1,
+          "goalDifference": 4,
+          "points": 6
         },
         "venue": "HOME"
       },
@@ -253,7 +305,20 @@
       "goalStats": {
         "goalsFor": 5,
         "goalsAgainst": 2,
-        "goalDifference": 3
+        "goalDifference": 3,
+        "points": 11
+      },
+      "homeGoalStats": {
+        "goalsFor": 4,
+        "goalsAgainst": 1,
+        "goalDifference": 3,
+        "points": 9
+      },
+      "awayGoalStats": {
+        "goalsFor": 1,
+        "goalsAgainst": 1,
+        "goalDifference": 0,
+        "points": 2
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
@@ -338,7 +403,20 @@
         "opponentGoalStats": {
           "goalsFor": 6,
           "goalsAgainst": 5,
-          "goalDifference": 1
+          "goalDifference": 1,
+          "points": 8
+        },
+        "opponentHomeGoalStats": {
+          "goalsFor": 3,
+          "goalsAgainst": 4,
+          "goalDifference": -1,
+          "points": 2
+        },
+        "opponentAwayGoalStats": {
+          "goalsFor": 3,
+          "goalsAgainst": 1,
+          "goalDifference": 2,
+          "points": 6
         },
         "venue": "HOME"
       },
@@ -362,7 +440,20 @@
       "goalStats": {
         "goalsFor": 6,
         "goalsAgainst": 5,
-        "goalDifference": 1
+        "goalDifference": 1,
+        "points": 8
+      },
+      "homeGoalStats": {
+        "goalsFor": 3,
+        "goalsAgainst": 4,
+        "goalDifference": -1,
+        "points": 2
+      },
+      "awayGoalStats": {
+        "goalsFor": 3,
+        "goalsAgainst": 1,
+        "goalDifference": 2,
+        "points": 6
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
@@ -447,7 +538,20 @@
         "opponentGoalStats": {
           "goalsFor": 5,
           "goalsAgainst": 2,
-          "goalDifference": 3
+          "goalDifference": 3,
+          "points": 11
+        },
+        "opponentHomeGoalStats": {
+          "goalsFor": 4,
+          "goalsAgainst": 1,
+          "goalDifference": 3,
+          "points": 9
+        },
+        "opponentAwayGoalStats": {
+          "goalsFor": 1,
+          "goalsAgainst": 1,
+          "goalDifference": 0,
+          "points": 2
         },
         "venue": "AWAY"
       },

@@ -32,6 +32,8 @@ export function projectTeamDetail(
       coachName: tile.coachName,
       recentForm: tile.recentForm,
       goalStats: tile.goalStats,
+      homeGoalStats: tile.homeGoalStats,
+      awayGoalStats: tile.awayGoalStats,
     },
     score: {
       rawScore: tile.rawScore,

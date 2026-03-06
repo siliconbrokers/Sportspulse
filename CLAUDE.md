@@ -178,6 +178,28 @@ El Agent tool **usa el mismo modelo de la sesión**. Solo es útil para:
 
 **NO usar Agent tool para "ahorro de costo"** — no cambia el modelo.
 
+### Enforcement automático por tier
+
+**Al detectar que una acción no corresponde al tier actual, DETENER inmediatamente y pedir cambio de modelo.**
+
+| Acción | Tier permitido | Si estoy en otro tier |
+|--------|---------------|----------------------|
+| Diseñar (Stage 0-2), resolver conflictos specs | Opus | OK en Opus |
+| Leer archivos para informar diseño | Opus | OK |
+| Escribir/editar código (Stage 3) | **Sonnet** | DETENER → "Cambia a `/model sonnet`" |
+| Escribir/editar tests (Stage 4) | **Sonnet** | DETENER → "Cambia a `/model sonnet`" |
+| Correr tests, build, dev | **Sonnet/Haiku** | DETENER → "Cambia a `/model sonnet`" |
+| Configs, deps, CI YAML, formatting | **Haiku** | DETENER → "Cambia a `/model haiku`" |
+| Git commits | **Haiku** | DETENER → "Cambia a `/model haiku`" |
+| Explorar codebase (Read/Grep/Glob) | Cualquiera | OK (preferir subagente) |
+
+**Flujo automático obligatorio:**
+1. Opus recibe tarea → Stage 0-2 → guarda plan en `memory/plans/SP-xxxx.md` → DETENER → "Plan listo. Cambia a `/model sonnet` para implementar."
+2. Sonnet implementa → Stage 3-4 → DETENER → "Implementación lista. Cambia a `/model haiku` para commit."
+3. Haiku hace commit/configs → done.
+
+**CERO EXCEPCIONES:** Opus no escribe código. Opus no corre build/test/dev. Sonnet no hace commits. No hay "solo un cambio pequeño" — el tier se respeta siempre.
+
 ### Anti-patrones (prohibidos)
 
 - **NO usar Opus para boilerplate/configs/scripts** → cambiar a Haiku/Sonnet
@@ -199,7 +221,7 @@ SportPulse is a **snapshot-first sports attention dashboard**. It transforms nor
 
 ## Repository Status
 
-This repository currently contains **specification documents only** — no source code has been implemented yet. The implementation backlog starts with Phase 0 (repo scaffolding). The target stack is TypeScript (Node.js backend, web frontend), Postgres for storage, optional Redis for caching.
+All phases (0-9) are implemented. The full pipeline is operational: canonical→signals→scoring→layout→snapshot→api→web. Stack: TypeScript (Node.js/Fastify backend, React/Vite frontend), pnpm workspaces. Phase 10 (UI polish) in progress.
 
 ## Architecture (Layered Pipeline)
 
