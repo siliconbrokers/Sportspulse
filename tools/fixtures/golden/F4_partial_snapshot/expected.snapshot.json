@@ -23,7 +23,7 @@
   "warnings": [
     {
       "code": "MISSING_SIGNAL",
-      "severity": "WARN",
+      "severity": "INFO",
       "message": "Signal FORM_POINTS_LAST_5 missing for team:football-data:200",
       "entityId": "team:football-data:200"
     }

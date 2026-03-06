@@ -23,7 +23,7 @@
   "warnings": [
     {
       "code": "MISSING_SIGNAL",
-      "severity": "WARN",
+      "severity": "INFO",
       "message": "Signal FORM_POINTS_LAST_5 missing for team:football-data:200",
       "entityId": "team:football-data:200"
     },
@@ -41,7 +41,7 @@
     },
     {
       "code": "MISSING_SIGNAL",
-      "severity": "WARN",
+      "severity": "INFO",
       "message": "Signal FORM_POINTS_LAST_5 missing for team:football-data:201",
       "entityId": "team:football-data:201"
     },
@@ -59,7 +59,7 @@
     },
     {
       "code": "MISSING_SIGNAL",
-      "severity": "WARN",
+      "severity": "INFO",
       "message": "Signal FORM_POINTS_LAST_5 missing for team:football-data:202",
       "entityId": "team:football-data:202"
     },

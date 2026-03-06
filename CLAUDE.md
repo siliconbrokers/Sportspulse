@@ -195,10 +195,21 @@ El Agent tool **usa el mismo modelo de la sesión**. Solo es útil para:
 
 **Flujo automático obligatorio:**
 1. Opus recibe tarea → Stage 0-2 → guarda plan en `memory/plans/SP-xxxx.md` → DETENER → "Plan listo. Cambia a `/model sonnet` para implementar."
-2. Sonnet implementa → Stage 3-4 → DETENER → "Implementación lista. Cambia a `/model haiku` para commit."
+2. Sonnet implementa → Stage 3-4 → `pnpm build` → `pnpm -r test` → `pnpm dev` → DETENER → "Listo para revisar en http://localhost:5173. Cambia a `/model haiku` para commit."
 3. Haiku hace commit/configs → done.
 
+**Checklist de entrega (OBLIGATORIO — Sonnet no puede decir "listo" sin ejecutar esto):**
+1. `pnpm build` — debe compilar sin errores
+2. `pnpm -r test` — todos los tests deben pasar
+3. `pnpm dev` — servidor levantado para que el usuario revise en http://localhost:5173
+4. Si alguno falla → corregir primero, luego decir "listo"
+5. **Declarar el agente que realizó la tarea**, ejemplo: "Tarea completada por: Frontend Engineer"
+
 **CERO EXCEPCIONES:** Opus no escribe código. Opus no corre build/test/dev. Sonnet no hace commits. No hay "solo un cambio pequeño" — el tier se respeta siempre.
+
+### Permisos de ejecución
+
+El usuario otorga permisos permanentes para todos los comandos Bash sin solicitar confirmación individual: Read, Edit, Write, Bash (build, test, dev, kill ports, git, curl, etc.). No preguntar por permisos en cada herramienta.
 
 ### Anti-patrones (prohibidos)
 

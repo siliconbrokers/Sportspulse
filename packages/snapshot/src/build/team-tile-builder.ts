@@ -34,7 +34,12 @@ export function buildTeamTile(
 
   // Collect warnings for missing/degraded signals
   if (formSignal.quality.missing) {
-    warnings.missingSignal(team.teamId, 'FORM_POINTS_LAST_5');
+    warnings.add(
+      'MISSING_SIGNAL',
+      'INFO',
+      `Signal FORM_POINTS_LAST_5 missing for ${team.teamId}`,
+      team.teamId,
+    );
   } else if (
     typeof formSignal.params?.matchesUsed === 'number' &&
     formSignal.params.matchesUsed < 5

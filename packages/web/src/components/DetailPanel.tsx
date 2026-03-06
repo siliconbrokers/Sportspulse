@@ -215,9 +215,9 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
 
           {/* Jornada, fecha, venue y estadio */}
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>
-            {nm.matchday && <span>Jornada {nm.matchday} · </span>}
-            {formatDateTime(nm.kickoffUtc, detail.header.timezone)}
-            {nm.venue && <span> · {venueLabel(nm.venue)}</span>}
+            {nm.matchday && <span>Jornada {nm.matchday}{nm.scoreHome === undefined ? ' · ' : ''}</span>}
+            {nm.scoreHome === undefined && formatDateTime(nm.kickoffUtc, detail.header.timezone)}
+            {nm.scoreHome === undefined && nm.venue && <span> · {venueLabel(nm.venue)}</span>}
             {nm.venueName && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>{nm.venueName}</div>}
           </div>
 
@@ -348,15 +348,14 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                 </div>
                 {entries.map((entry) => (
                   <div key={entry.label} style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{entry.label}</div>
                     <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ opacity: 0.5 }}>
-                          <th style={{ textAlign: 'left', padding: '4px 0', fontWeight: 400 }}></th>
-                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>GF</th>
-                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>GC</th>
-                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>DG</th>
-                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>Pts</th>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '4px 0', fontWeight: 600, fontSize: 12 }}>{entry.label}</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>GF</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>GC</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>DG</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>Pts</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -376,6 +375,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {detail.explainability.topContributions
             .filter((c) => c.signalKey !== 'FORM_POINTS_LAST_5')
+            .filter((c) => !(c.signalKey === 'NEXT_MATCH_HOURS' && nm?.scoreHome !== undefined))
             .map((c) => (
               <li
                 key={c.signalKey}
