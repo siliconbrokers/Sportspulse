@@ -180,30 +180,27 @@ El Agent tool **usa el mismo modelo de la sesión**. Solo es útil para:
 
 ### Enforcement automático por tier
 
-**Al detectar que una acción no corresponde al tier actual, DETENER inmediatamente y pedir cambio de modelo.**
+**Nunca bloquear ni pedir al usuario que cambie de modelo manualmente.** Proceder siempre con el modelo activo. Al finalizar la tarea, declarar el tier recomendado como referencia.
 
-| Acción | Tier permitido | Si estoy en otro tier |
-|--------|---------------|----------------------|
-| Diseñar (Stage 0-2), resolver conflictos specs | Opus | OK en Opus |
-| Leer archivos para informar diseño | Opus | OK |
-| Escribir/editar código (Stage 3) | **Sonnet** | DETENER → "Cambia a `/model sonnet`" |
-| Escribir/editar tests (Stage 4) | **Sonnet** | DETENER → "Cambia a `/model sonnet`" |
-| Correr tests, build, dev | **Sonnet/Haiku** | DETENER → "Cambia a `/model sonnet`" |
-| Configs, deps, CI YAML, formatting | **Haiku** | DETENER → "Cambia a `/model haiku`" |
-| Git commits | **Haiku** | DETENER → "Cambia a `/model haiku`" |
-| Explorar codebase (Read/Grep/Glob) | Cualquiera | OK (preferir subagente) |
+| Acción | Tier recomendado |
+|--------|-----------------|
+| Diseñar (Stage 0-2), resolver conflictos specs | Opus |
+| Escribir/editar código (Stage 3) | Sonnet |
+| Escribir/editar tests (Stage 4) | Sonnet |
+| Correr tests, build, dev | Sonnet/Haiku |
+| Configs, deps, CI YAML, formatting, git commits | Haiku |
+| Explorar codebase (Read/Grep/Glob) | Cualquiera |
 
-**Flujo automático obligatorio:**
-1. Opus recibe tarea → Stage 0-2 → guarda plan en `memory/plans/SP-xxxx.md` → DETENER → "Plan listo. Cambia a `/model sonnet` para implementar."
-2. Sonnet implementa → Stage 3-4 → `pnpm build` → `pnpm -r test` → `pnpm dev` → DETENER → "Listo para revisar en http://localhost:5173. Cambia a `/model haiku` para commit."
-3. Haiku hace commit/configs → done.
+**Flujo de trabajo:**
+1. Diseñar → Stage 0-2 → guardar plan en `memory/plans/SP-xxxx.md` si la tarea es compleja
+2. Implementar → Stage 3-4 → `pnpm build` → `pnpm -r test`
+3. Documentar y hacer commit
 
-**Checklist de entrega (OBLIGATORIO — Sonnet no puede decir "listo" sin ejecutar esto):**
+**Checklist de entrega (OBLIGATORIO antes de decir "listo"):**
 1. `pnpm build` — debe compilar sin errores
 2. `pnpm -r test` — todos los tests deben pasar
-3. `pnpm dev` — servidor levantado para que el usuario revise en http://localhost:5173
-4. Si alguno falla → corregir primero, luego decir "listo"
-5. **Declarar el agente que realizó la tarea**, ejemplo: "Tarea completada por: Frontend Engineer"
+3. Si alguno falla → corregir primero
+4. **Declarar el agente que realizó la tarea**, ejemplo: "Agente: Frontend Engineer (Sonnet)"
 
 **CERO EXCEPCIONES:** Opus no escribe código. Opus no corre build/test/dev. Sonnet no hace commits. No hay "solo un cambio pequeño" — el tier se respeta siempre.
 

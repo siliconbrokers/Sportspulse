@@ -3,6 +3,7 @@ import type { TeamDetailDTO } from '../types/team-detail.js';
 import type { FormResult } from '../types/snapshot.js';
 import { formatDateTime } from '../utils/format-date.js';
 import { venueLabel, signalLabel, signalValueLabel } from '../utils/labels.js';
+import { useWindowWidth } from '../hooks/use-window-width.js';
 
 interface DetailPanelProps {
   detail: TeamDetailDTO;
@@ -90,38 +91,68 @@ function TeamCrest({ url, name }: { url?: string; name: string }) {
   );
 }
 
-const HOME_BONUS = 2;
-
-interface MatchEstimate {
-  label: string;
-  color: string;
+interface MatchProbs {
+  homeWin: number;
+  draw: number;
+  awayWin: number;
+  hasData: boolean;
 }
 
-function estimateFavorite(
+function formPts(form: FormResult[]): number {
+  return form.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
+}
+
+function computeProbs(
+  teamVenuePoints: number | undefined,
+  oppVenuePoints: number | undefined,
   teamForm: FormResult[],
-  opponentForm: FormResult[],
-  teamName: string,
-  opponentName: string,
-  isHome: boolean,
-): MatchEstimate {
-  if (teamForm.length === 0 && opponentForm.length === 0) {
-    return { label: 'Sin datos suficientes', color: 'rgba(255,255,255,0.5)' };
-  }
+  oppForm: FormResult[],
+  teamIsHome: boolean,
+): MatchProbs {
+  const hasVenue = teamVenuePoints !== undefined && oppVenuePoints !== undefined;
+  const hasForm = teamForm.length > 0 || oppForm.length > 0;
+  if (!hasVenue && !hasForm) return { homeWin: 0, draw: 0, awayWin: 0, hasData: false };
 
-  const teamPts = teamForm.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
-  const oppPts = opponentForm.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
+  // Base strength from venue-specific season points (0 if no data)
+  const teamBase = teamVenuePoints ?? 0;
+  const oppBase = oppVenuePoints ?? 0;
 
-  const teamAdj = teamPts + (isHome ? HOME_BONUS : 0);
-  const oppAdj = oppPts + (isHome ? 0 : HOME_BONUS);
-  const diff = teamAdj - oppAdj;
+  // Form momentum (0-15 range normalized to 0-1)
+  const teamFormScore = teamForm.length > 0 ? formPts(teamForm) / 15 : 0.5;
+  const oppFormScore = oppForm.length > 0 ? formPts(oppForm) / 15 : 0.5;
 
-  if (Math.abs(diff) <= 1) return { label: 'Partido parejo', color: '#6b7280' };
-  const favName = diff > 0 ? teamName : opponentName;
-  if (Math.abs(diff) >= 5) return { label: `Favorito: ${favName}`, color: '#22c55e' };
-  return { label: `Leve ventaja: ${favName}`, color: '#facc15' };
+  // Combine: 60% venue pts weight, 40% form weight
+  const total = teamBase + oppBase;
+  const teamStrength = total > 0
+    ? (teamBase / total) * 0.6 + teamFormScore * 0.4
+    : 0.5 * 0.6 + teamFormScore * 0.4;
+  const oppStrength = total > 0
+    ? (oppBase / total) * 0.6 + oppFormScore * 0.4
+    : 0.5 * 0.6 + oppFormScore * 0.4;
+
+  // Draw probability: higher when teams are balanced, min 15%
+  const balance = 1 - Math.abs(teamStrength - oppStrength) * 2;
+  const drawProb = Math.max(0.15, Math.min(0.35, balance * 0.30));
+
+  // Split remaining between win/loss proportionally
+  const remaining = 1 - drawProb;
+  const sumStr = teamStrength + oppStrength || 1;
+  const teamWinProb = (teamStrength / sumStr) * remaining;
+  const oppWinProb = (oppStrength / sumStr) * remaining;
+
+  return teamIsHome
+    ? { homeWin: teamWinProb, draw: drawProb, awayWin: oppWinProb, hasData: true }
+    : { homeWin: oppWinProb, draw: drawProb, awayWin: teamWinProb, hasData: true };
+}
+
+function pct(v: number): string {
+  return `${Math.round(v * 100)}%`;
 }
 
 export function DetailPanel({ detail, onClose }: DetailPanelProps) {
+  const { breakpoint } = useWindowWidth();
+  const isMobile = breakpoint === 'mobile';
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -141,14 +172,16 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
         position: 'fixed',
         top: 0,
         right: 0,
+        width: isMobile ? '100vw' : 340,
         height: '100vh',
         backgroundColor: '#1e293b',
         color: '#fff',
-        padding: 20,
+        padding: isMobile ? 16 : 20,
         overflowY: 'auto',
         boxShadow: '-4px 0 20px rgba(0,0,0,0.3)',
         animation: 'slideIn 220ms ease-out',
         zIndex: 100,
+        boxSizing: 'border-box',
       }}
     >
       {/* Header */}
@@ -168,23 +201,38 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             background: 'none',
             border: 'none',
             color: '#fff',
-            fontSize: 20,
+            fontSize: isMobile ? 24 : 20,
             cursor: 'pointer',
+            padding: isMobile ? '8px 12px' : '4px',
+            margin: isMobile ? '-8px -12px' : 0,
           }}
         >
           ✕
         </button>
       </div>
 
-      {/* Estimación de favorito */}
-      {nm && (() => {
-        const teamForm = detail.team.recentForm ?? [];
-        const oppForm = nm.opponentRecentForm ?? [];
-        const estimate = estimateFavorite(
-          teamForm, oppForm,
-          detail.team.teamName, nm.opponentName ?? 'Rival',
+      {/* Probabilidad de resultado */}
+      {nm && nm.scoreHome === undefined && (() => {
+        const teamVenuePts = isHome ? detail.team.homeGoalStats?.points : detail.team.awayGoalStats?.points;
+        const oppVenuePts = isHome ? nm.opponentAwayGoalStats?.points : nm.opponentHomeGoalStats?.points;
+        const probs = computeProbs(
+          teamVenuePts, oppVenuePts,
+          detail.team.recentForm ?? [], nm.opponentRecentForm ?? [],
           isHome,
         );
+        if (!probs.hasData) return null;
+
+        const homeName = isHome ? detail.team.teamName : (nm.opponentName ?? 'Local');
+        const awayName = isHome ? (nm.opponentName ?? 'Visitante') : detail.team.teamName;
+
+        const barStyle = (pctVal: number, color: string) => ({
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: color,
+          width: `${Math.round(pctVal * 100)}%`,
+          transition: 'width 0.3s',
+        });
+
         return (
           <div
             data-testid="match-estimate"
@@ -193,14 +241,29 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
               padding: '12px 16px',
               backgroundColor: 'rgba(255,255,255,0.08)',
               borderRadius: 8,
-              textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 20, fontWeight: 700, color: estimate.color }}>
-              {estimate.label}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.homeWin)}</div>
+                <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{homeName}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#6b7280' }}>{pct(probs.draw)}</div>
+                <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.awayWin)}</div>
+                <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{awayName}</div>
+              </div>
             </div>
-            <div style={{ fontSize: 10, opacity: 0.4, marginTop: 6 }}>
-              Estimación basada en forma reciente y localía
+            <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden' }}>
+              <div style={barStyle(probs.homeWin, '#22c55e')} />
+              <div style={barStyle(probs.draw, '#6b7280')} />
+              <div style={barStyle(probs.awayWin, '#ef4444')} />
+            </div>
+            <div style={{ fontSize: 10, opacity: 0.35, marginTop: 8, textAlign: 'center' }}>
+              Estimación heurística · forma reciente + rendimiento por localía
             </div>
           </div>
         );
@@ -209,9 +272,11 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
       {/* Próximo partido */}
       {nm && (
         <section data-testid="next-match" style={{ marginTop: 20 }}>
-          <h3 style={{ fontSize: 13, opacity: 0.5, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Próximo partido
-          </h3>
+          {nm.scoreHome === undefined && (
+            <h3 style={{ fontSize: 13, opacity: 0.5, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: 1 }}>
+              Próximo partido
+            </h3>
+          )}
 
           {/* Jornada, fecha, venue y estadio */}
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>
@@ -222,35 +287,56 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
           </div>
 
           {/* Escudos enfrentados */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 16,
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ textAlign: 'center' }}>
-              <TeamCrest
-                url={isHome ? detail.team.crestUrl : nm.opponentCrestUrl}
-                name={isHome ? detail.team.teamName : (nm.opponentName ?? '')}
-              />
-              <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8 }}>
-                {isHome ? detail.team.teamName : (nm.opponentName ?? 'Rival')}
+          {(() => {
+            const played = nm.scoreHome !== undefined;
+            const homeScore = isHome ? nm.scoreHome : nm.scoreAway;
+            const awayScore = isHome ? nm.scoreAway : nm.scoreHome;
+            return (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <TeamCrest
+                      url={isHome ? detail.team.crestUrl : nm.opponentCrestUrl}
+                      name={isHome ? detail.team.teamName : (nm.opponentName ?? '')}
+                    />
+                  </div>
+                  <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+                    {isHome ? detail.team.teamName : (nm.opponentName ?? 'Rival')}
+                  </div>
+                </div>
+                {played ? (
+                  <div style={{ textAlign: 'center', flexShrink: 0, width: 72 }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 2, lineHeight: 1 }}>
+                      {homeScore ?? '-'} <span style={{ opacity: 0.4, fontSize: 16 }}>-</span> {awayScore ?? '-'}
+                    </div>
+                    <div style={{ fontSize: 10, opacity: 0.4, marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
+                      Final
+                    </div>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 16, fontWeight: 700, opacity: 0.4, flexShrink: 0, width: 40, textAlign: 'center', display: 'block' }}>vs</span>
+                )}
+                <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <TeamCrest
+                      url={isHome ? nm.opponentCrestUrl : detail.team.crestUrl}
+                      name={isHome ? (nm.opponentName ?? '') : detail.team.teamName}
+                    />
+                  </div>
+                  <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+                    {isHome ? (nm.opponentName ?? 'Rival') : detail.team.teamName}
+                  </div>
+                </div>
               </div>
-            </div>
-            <span style={{ fontSize: 16, fontWeight: 700, opacity: 0.4 }}>vs</span>
-            <div style={{ textAlign: 'center' }}>
-              <TeamCrest
-                url={isHome ? nm.opponentCrestUrl : detail.team.crestUrl}
-                name={isHome ? (nm.opponentName ?? '') : detail.team.teamName}
-              />
-              <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8 }}>
-                {isHome ? (nm.opponentName ?? 'Rival') : detail.team.teamName}
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Forma reciente de ambos */}
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
