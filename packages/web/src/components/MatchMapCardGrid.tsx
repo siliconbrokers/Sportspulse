@@ -86,8 +86,13 @@ function TileContent({ card, crestSize }: { card: MatchCardDTO; crestSize: numbe
   const scoreSize = crestSize <= 28 ? 15 : 18;
   const pad = crestSize <= 28 ? '8px 10px' : '10px 12px';
 
-  const homeForm = card.home.formChip;
-  const awayForm = card.away.formChip;
+  const isFuture =
+    card.status === 'SCHEDULED' &&
+    !!card.kickoffUtc &&
+    new Date(card.kickoffUtc).getTime() > Date.now();
+
+  const homeForm = isFuture ? undefined : card.home.formChip;
+  const awayForm = isFuture ? undefined : card.away.formChip;
 
   return (
     <div

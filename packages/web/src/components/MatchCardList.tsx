@@ -136,7 +136,13 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: Match
         margin: '0 auto',
       }}
     >
-      {matchCards.map((card) => (
+      {matchCards.map((card) => {
+        const isFuture =
+          card.status === 'SCHEDULED' &&
+          !!card.kickoffUtc &&
+          new Date(card.kickoffUtc).getTime() > Date.now();
+
+        return (
         <div
           key={card.matchId}
           onMouseEnter={() => setHoveredId(card.matchId)}
@@ -182,7 +188,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: Match
               teamId={card.home.teamId}
               name={card.home.name}
               crestUrl={card.home.crestUrl}
-              formChip={card.home.formChip}
+              formChip={isFuture ? undefined : card.home.formChip}
               align="left"
             />
             <div
@@ -206,7 +212,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: Match
               teamId={card.away.teamId}
               name={card.away.name}
               crestUrl={card.away.crestUrl}
-              formChip={card.away.formChip}
+              formChip={isFuture ? undefined : card.away.formChip}
               align="right"
             />
           </div>
@@ -226,7 +232,8 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId }: Match
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
