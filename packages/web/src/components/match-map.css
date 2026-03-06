@@ -1,0 +1,153 @@
+/* Match Map Visual Encoding animations — match-map-visual-encoding.md */
+
+/* ── Keyframes ────────────────────────────────────────────────────────────── */
+
+@keyframes breathing-glow {
+  0%, 100% { box-shadow: var(--mm-shadow-base), 0 0 6px 1px var(--mm-glow-color); }
+  50%       { box-shadow: var(--mm-shadow-base), 0 0 14px 4px var(--mm-glow-color); }
+}
+
+@keyframes border-pulse {
+  0%   { outline-color: var(--mm-border-color); outline-width: 2px; }
+  40%  { outline-color: var(--mm-border-color); outline-width: 4px; }
+  100% { outline-color: var(--mm-border-color); outline-width: 2px; }
+}
+
+@keyframes badge-pop {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  50%  { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* ── Tile base ────────────────────────────────────────────────────────────── */
+
+.mm-tile {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 160ms ease-out, box-shadow 160ms ease-out, opacity 160ms ease-out;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  /* CSS custom properties set as inline styles by the component */
+  --mm-shadow-base: 0 2px 8px rgba(0,0,0,0.35);
+  --mm-glow-color: rgba(255, 255, 255, 0.08);
+  --mm-border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: var(--mm-shadow-base);
+}
+
+/* ── Featured ambient (idle) §7.2 ────────────────────────────────────────── */
+
+.mm-tile--featured {
+  animation: breathing-glow 3s ease-in-out infinite;
+}
+
+/* ── Hover §8.2 ──────────────────────────────────────────────────────────── */
+
+.mm-tile:hover,
+.mm-tile:focus-visible {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: var(--mm-shadow-base), 0 12px 28px rgba(0,0,0,0.5), 0 0 12px 2px var(--mm-glow-color);
+  outline-color: var(--mm-border-color);
+  z-index: 10;
+}
+
+/* Sheen overlay §8.2.3 */
+.mm-tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 60%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease-out;
+  border-radius: inherit;
+}
+.mm-tile:hover::after,
+.mm-tile:focus-visible::after {
+  opacity: 1;
+}
+
+/* ── Featured hover pulse §8.3 ───────────────────────────────────────────── */
+
+.mm-tile--featured:hover,
+.mm-tile--featured:focus-visible {
+  animation: border-pulse 600ms ease-out forwards;
+}
+
+/* ── Selected state §9 ───────────────────────────────────────────────────── */
+
+.mm-tile--selected {
+  outline-color: #fff;
+  outline-width: 2px;
+  z-index: 5;
+}
+
+/* ── Heat border keys §6 ─────────────────────────────────────────────────── */
+
+.mm-tile--heat-both_hot {
+  --mm-border-color: rgba(255, 100, 30, 0.9);
+  --mm-glow-color: rgba(255, 100, 30, 0.35);
+  outline: 2.5px solid rgba(255, 100, 30, 0.7);
+  outline-offset: 2px;
+}
+.mm-tile--heat-one_hot {
+  --mm-border-color: rgba(255, 160, 50, 0.75);
+  --mm-glow-color: rgba(255, 160, 50, 0.25);
+  outline: 1.5px solid rgba(255, 160, 50, 0.55);
+  outline-offset: 2px;
+}
+.mm-tile--heat-data_missing {
+  outline: 1.5px dashed rgba(255, 255, 255, 0.22);
+  outline-offset: 2px;
+}
+
+/* ── Badge ────────────────────────────────────────────────────────────────── */
+
+.mm-tile__badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.mm-tile--featured:hover .mm-tile__badge,
+.mm-tile--featured:focus-visible .mm-tile__badge {
+  animation: badge-pop 400ms ease-out forwards;
+}
+
+/* ── Dimming non-selected §9 ─────────────────────────────────────────────── */
+
+.mm-grid--has-selection .mm-tile:not(.mm-tile--selected) {
+  opacity: 0.88;
+}
+
+/* ── Focus ring §8.4 ─────────────────────────────────────────────────────── */
+
+.mm-tile:focus-visible {
+  outline-color: #fff;
+  outline-width: 2px;
+}
+
+/* ── Reduced motion §11.1 ────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-tile {
+    transition: none;
+  }
+  .mm-tile--featured {
+    animation: none;
+  }
+  .mm-tile--featured:hover,
+  .mm-tile--featured:focus-visible {
+    animation: none;
+  }
+  .mm-tile__badge {
+    animation: none;
+  }
+  .mm-tile::after {
+    transition: none;
+  }
+}

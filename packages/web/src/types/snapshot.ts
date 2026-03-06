@@ -135,6 +135,18 @@ export interface MatchCardTeam {
   formChip?: DisplayChipDTO;
 }
 
+export type SizeBucket = 'S' | 'M' | 'L' | 'XL';
+export type UrgencyColorKey = 'LIVE' | 'TODAY' | 'TOMORROW' | 'D2_3' | 'D4_7' | 'LATER' | 'UNKNOWN';
+export type HeatBorderKey = 'NONE' | 'ONE_HOT' | 'BOTH_HOT' | 'DATA_MISSING';
+export type FeaturedRank = 'NONE' | 'FEATURED';
+
+export interface MatchTileHintsDTO {
+  sizeBucket: SizeBucket;
+  urgencyColorKey: UrgencyColorKey;
+  heatBorderKey: HeatBorderKey;
+  featuredRank: FeaturedRank;
+}
+
 export interface MatchCardDTO {
   matchId: string;
   kickoffUtc?: string;
@@ -146,6 +158,7 @@ export interface MatchCardDTO {
   away: MatchCardTeam;
   rankScore?: number;
   explainLine?: ExplainLineDTO;
+  tileHints?: MatchTileHintsDTO;
 }
 
 export interface DashboardSnapshotDTO {

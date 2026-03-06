@@ -1,12 +1,10 @@
 import { useDashboardSnapshot } from '../hooks/use-dashboard-snapshot.js';
 import { useTeamDetail } from '../hooks/use-team-detail.js';
 import { useUrlState } from '../hooks/use-url-state.js';
-import { useWindowWidth } from '../hooks/use-window-width.js';
 import { DashboardHeader } from './DashboardHeader.js';
 import { WarningBanner } from './WarningBanner.js';
-import { TreemapCanvas } from './TreemapCanvas.js';
-import { MobileTeamList } from './MobileTeamList.js';
 import { MatchCardList } from './MatchCardList.js';
+import { MatchMapCardGrid } from './MatchMapCardGrid.js';
 import { DetailPanel } from './DetailPanel.js';
 import { LoadingSkeleton } from './LoadingSkeleton.js';
 import { EmptyState } from './EmptyState.js';
@@ -27,8 +25,6 @@ export function DashboardLayout({ competitionId, matchday, timezone, viewMode = 
   );
   const { focus, setFocus } = useUrlState();
   const { data: teamDetail } = useTeamDetail(competitionId, focus, matchday, timezone);
-  const { breakpoint } = useWindowWidth();
-  const isMobile = breakpoint === 'mobile';
 
   if (matchday === null || loading) {
     return (
@@ -58,19 +54,11 @@ export function DashboardLayout({ competitionId, matchday, timezone, viewMode = 
           onSelectTeam={(id) => setFocus(id === focus ? null : id)}
           focusedTeamId={focus}
         />
-      ) : data.teams.length === 0 ? (
+      ) : (data.matchCards ?? []).length === 0 ? (
         <EmptyState />
-      ) : isMobile ? (
-        <MobileTeamList
-          teams={data.teams}
-          focusedTeamId={focus}
-          onSelectTeam={(id) => setFocus(id === focus ? null : id)}
-          timezone={timezone}
-        />
       ) : (
-        <TreemapCanvas
-          teams={data.teams}
-          layout={data.layout}
+        <MatchMapCardGrid
+          matchCards={data.matchCards ?? []}
           focusedTeamId={focus}
           onSelectTeam={(id) => setFocus(id === focus ? null : id)}
         />

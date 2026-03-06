@@ -82,7 +82,6 @@ export function StandingsTable({ standings, onTeamClick, competitionId }: Standi
         >
           <thead>
             <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.15)' }}>
-              <th style={{ ...thStyle, width: 4, padding: 0 }} />
               <th style={thStyle}>#</th>
               <th style={{ ...thStyle, textAlign: 'left', paddingLeft: 8 }}>Equipo</th>
               <th style={thStyle}>PJ</th>
@@ -105,19 +104,12 @@ export function StandingsTable({ standings, onTeamClick, competitionId }: Standi
                   style={{
                     cursor: 'pointer',
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderLeft: zone ? `4px solid ${zone.color}` : '4px solid transparent',
                     backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent'; }}
                 >
-                  {/* Zone color bar */}
-                  <td
-                    style={{
-                      width: 4,
-                      padding: 0,
-                      backgroundColor: zone?.color ?? 'transparent',
-                    }}
-                  />
                   <td style={{ ...tdStyle, fontWeight: 700, opacity: 0.6 }}>{row.position}</td>
                   <td style={{ ...tdStyle, textAlign: 'left', paddingLeft: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

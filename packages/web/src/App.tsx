@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from './components/DashboardLayout.js';
 import { StandingsTable } from './components/StandingsTable.js';
+import { DetailPanel } from './components/DetailPanel.js';
 import { useStandings } from './hooks/use-standings.js';
 import { useCompetitionInfo } from './hooks/use-competition-info.js';
+import { useTeamDetail } from './hooks/use-team-detail.js';
 import { useWindowWidth } from './hooks/use-window-width.js';
 import { competitionDisplayName } from './utils/labels.js';
 
@@ -20,8 +22,15 @@ export function App() {
   const [competitionId, setCompetitionId] = useState(COMPETITIONS[0].id);
   const [matchday, setMatchday] = useState<number | null>(null);
   const [view, setView] = useState<ViewMode>('treemap');
+  const [standingsFocusId, setStandingsFocusId] = useState<string | null>(null);
   const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(competitionId);
   const { data: standings, loading: standingsLoading } = useStandings(competitionId, view === 'standings');
+  const { data: standingsTeamDetail } = useTeamDetail(
+    competitionId,
+    view === 'standings' ? standingsFocusId : null,
+    matchday,
+    'America/Montevideo',
+  );
 
   // Set matchday to current when competition info loads
   useEffect(() => {
@@ -30,9 +39,10 @@ export function App() {
     }
   }, [compInfo]);
 
-  // Reset matchday when competition changes
+  // Reset matchday and standings focus when competition changes
   useEffect(() => {
     setMatchday(null);
+    setStandingsFocusId(null);
   }, [competitionId]);
 
   const { breakpoint } = useWindowWidth();
@@ -143,7 +153,16 @@ export function App() {
       ) : (
         <div style={{ padding: 16 }}>
           {standingsLoading && <div style={{ color: '#fff', opacity: 0.5 }}>Cargando tabla...</div>}
-          {standings && <StandingsTable standings={standings} onTeamClick={() => {}} competitionId={competitionId} />}
+          {standings && (
+            <StandingsTable
+              standings={standings}
+              onTeamClick={(id) => setStandingsFocusId((prev) => (prev === id ? null : id))}
+              competitionId={competitionId}
+            />
+          )}
+          {standingsFocusId && standingsTeamDetail && (
+            <DetailPanel detail={standingsTeamDetail} onClose={() => setStandingsFocusId(null)} />
+          )}
         </div>
       )}
     </div>

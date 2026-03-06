@@ -8,8 +8,7 @@ interface UrlState {
 function readFromUrl(): UrlState {
   const params = new URLSearchParams(window.location.search);
   const mode = params.get('mode') === 'agenda' ? 'agenda' : 'form';
-  const focus = params.get('focus') || null;
-  return { mode, focus };
+  return { mode, focus: null };
 }
 
 function writeToUrl(state: UrlState) {

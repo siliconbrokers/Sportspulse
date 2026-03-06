@@ -252,6 +252,19 @@ shared → canonical → signals → scoring → layout → snapshot → api →
 | `packages/api` | Request validation, routing, response shaping, error envelopes | Scoring, layout, signals computation, provider calls |
 | `packages/web` | Rendering snapshot DTOs, interactions, theming (Night/Day) | Score computation, treemap solving, provider calls |
 
+## Frontend Responsive Requirement (MANDATORY)
+
+**Todo código nuevo o modificado en `packages/web` debe ser responsive y funcionar correctamente en mobile.**
+
+Reglas obligatorias para cualquier tarea de frontend:
+
+- Usar `useWindowWidth()` (hook disponible en `packages/web/src/hooks/use-window-width.ts`) para detectar breakpoint (`'mobile'` | `'desktop'`).
+- Ningún componente nuevo puede ignorar el caso `isMobile = breakpoint === 'mobile'`.
+- Layout mobile: sin overflow horizontal, texto legible, touch targets ≥ 44px, sin contenido cortado.
+- Probar mentalmente ambos casos (mobile y desktop) antes de marcar una tarea como lista.
+- Si un componente existente se modifica y no tenía mobile support, agregarlo como parte del mismo cambio.
+- **No hay excepciones:** un componente sin soporte mobile no está terminado.
+
 ### Hard-Forbidden Dependencies
 
 - `web` must NEVER import from `scoring`, `layout`, `signals`, or `canonical`
