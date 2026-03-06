@@ -211,74 +211,15 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
         </button>
       </div>
 
-      {/* Probabilidad de resultado */}
-      {nm && nm.scoreHome === undefined && (() => {
-        const teamVenuePts = isHome ? detail.team.homeGoalStats?.points : detail.team.awayGoalStats?.points;
-        const oppVenuePts = isHome ? nm.opponentAwayGoalStats?.points : nm.opponentHomeGoalStats?.points;
-        const probs = computeProbs(
-          teamVenuePts, oppVenuePts,
-          detail.team.recentForm ?? [], nm.opponentRecentForm ?? [],
-          isHome,
-        );
-        if (!probs.hasData) return null;
-
-        const homeName = isHome ? detail.team.teamName : (nm.opponentName ?? 'Local');
-        const awayName = isHome ? (nm.opponentName ?? 'Visitante') : detail.team.teamName;
-
-        const barStyle = (pctVal: number, color: string) => ({
-          height: 6,
-          borderRadius: 3,
-          backgroundColor: color,
-          width: `${Math.round(pctVal * 100)}%`,
-          transition: 'width 0.3s',
-        });
-
-        return (
-          <div
-            data-testid="match-estimate"
-            style={{
-              marginTop: 12,
-              padding: '12px 16px',
-              backgroundColor: 'rgba(255,255,255,0.08)',
-              borderRadius: 8,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.homeWin)}</div>
-                <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{homeName}</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#6b7280' }}>{pct(probs.draw)}</div>
-                <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.awayWin)}</div>
-                <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{awayName}</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden' }}>
-              <div style={barStyle(probs.homeWin, '#22c55e')} />
-              <div style={barStyle(probs.draw, '#6b7280')} />
-              <div style={barStyle(probs.awayWin, '#ef4444')} />
-            </div>
-            <div style={{ fontSize: 10, opacity: 0.35, marginTop: 8, textAlign: 'center' }}>
-              Estimación heurística · forma reciente + rendimiento por localía
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Próximo partido */}
       {nm && (
-        <section data-testid="next-match" style={{ marginTop: 20 }}>
+        <section data-testid="next-match" style={{ marginTop: 16 }}>
+
+          {/* 1. Título + jornada / fecha / hora / localía / estadio */}
           {nm.scoreHome === undefined && (
-            <h3 style={{ fontSize: 13, opacity: 0.5, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: 1 }}>
+            <h3 style={{ fontSize: 13, opacity: 0.5, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>
               Próximo partido
             </h3>
           )}
-
-          {/* Jornada, fecha, venue y estadio */}
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>
             {nm.matchday && <span>Jornada {nm.matchday}{nm.scoreHome === undefined ? ' · ' : ''}</span>}
             {nm.scoreHome === undefined && formatDateTime(nm.kickoffUtc, detail.header.timezone)}
@@ -286,20 +227,13 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             {nm.venueName && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>{nm.venueName}</div>}
           </div>
 
-          {/* Escudos enfrentados */}
+          {/* 2. Escudos */}
           {(() => {
             const played = nm.scoreHome !== undefined;
             const homeScore = isHome ? nm.scoreHome : nm.scoreAway;
             const awayScore = isHome ? nm.scoreAway : nm.scoreHome;
             return (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 16,
-                }}
-              >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                 <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <TeamCrest
@@ -316,9 +250,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                     <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 2, lineHeight: 1 }}>
                       {homeScore ?? '-'} <span style={{ opacity: 0.4, fontSize: 16 }}>-</span> {awayScore ?? '-'}
                     </div>
-                    <div style={{ fontSize: 10, opacity: 0.4, marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
-                      Final
-                    </div>
+                    <div style={{ fontSize: 10, opacity: 0.4, marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Final</div>
                   </div>
                 ) : (
                   <span style={{ fontSize: 16, fontWeight: 700, opacity: 0.4, flexShrink: 0, width: 40, textAlign: 'center', display: 'block' }}>vs</span>
@@ -338,7 +270,51 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             );
           })()}
 
-          {/* Forma reciente de ambos */}
+          {/* 3. Estimación heurística */}
+          {nm.scoreHome === undefined && (() => {
+            const teamVenuePts = isHome ? detail.team.homeGoalStats?.points : detail.team.awayGoalStats?.points;
+            const oppVenuePts = isHome ? nm.opponentAwayGoalStats?.points : nm.opponentHomeGoalStats?.points;
+            const probs = computeProbs(
+              teamVenuePts, oppVenuePts,
+              detail.team.recentForm ?? [], nm.opponentRecentForm ?? [],
+              isHome,
+            );
+            if (!probs.hasData) return null;
+            const homeName = isHome ? detail.team.teamName : (nm.opponentName ?? 'Local');
+            const awayName = isHome ? (nm.opponentName ?? 'Visitante') : detail.team.teamName;
+            const barStyle = (pctVal: number, color: string) => ({
+              height: 6, borderRadius: 3, backgroundColor: color,
+              width: `${Math.round(pctVal * 100)}%`, transition: 'width 0.3s',
+            });
+            return (
+              <div data-testid="match-estimate" style={{ marginBottom: 16, padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.homeWin)}</div>
+                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{homeName}</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#6b7280' }}>{pct(probs.draw)}</div>
+                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.awayWin)}</div>
+                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>{awayName}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={barStyle(probs.homeWin, '#22c55e')} />
+                  <div style={barStyle(probs.draw, '#6b7280')} />
+                  <div style={barStyle(probs.awayWin, '#ef4444')} />
+                </div>
+                <div style={{ fontSize: 10, opacity: 0.35, marginTop: 8, textAlign: 'center' }}>
+                  Estimación heurística · forma reciente + rendimiento por localía
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 4. Forma reciente de ambos */}
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
             <FormGuide
               form={(isHome ? detail.team.recentForm : nm.opponentRecentForm) ?? []}
@@ -350,18 +326,63 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             />
           </div>
 
-          {/* Goles comparativos */}
+          {/* 5. Rendimiento local / visitante */}
+          {(() => {
+            const entries: { label: string; home?: typeof detail.team.goalStats; away?: typeof detail.team.goalStats }[] = [];
+            if (detail.team.homeGoalStats || detail.team.awayGoalStats)
+              entries.push({ label: detail.team.teamName, home: detail.team.homeGoalStats, away: detail.team.awayGoalStats });
+            if (nm.opponentHomeGoalStats || nm.opponentAwayGoalStats)
+              entries.push({ label: nm.opponentName ?? 'Rival', home: nm.opponentHomeGoalStats, away: nm.opponentAwayGoalStats });
+            if (entries.length === 0) return null;
+            function VenueRow({ stats, venue }: { stats: typeof detail.team.goalStats; venue: string }) {
+              if (!stats) return null;
+              return (
+                <tr style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <td style={{ padding: '5px 0' }}>{venue}</td>
+                  <td style={{ textAlign: 'center', padding: '5px 6px' }}>{stats.goalsFor}</td>
+                  <td style={{ textAlign: 'center', padding: '5px 6px' }}>{stats.goalsAgainst}</td>
+                  <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 600, color: stats.goalDifference > 0 ? '#22c55e' : stats.goalDifference < 0 ? '#ef4444' : '#6b7280' }}>
+                    {stats.goalDifference > 0 ? '+' : ''}{stats.goalDifference}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 700 }}>{stats.points}</td>
+                </tr>
+              );
+            }
+            return (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Rendimiento local / visitante</div>
+                {entries.map((entry) => (
+                  <div key={entry.label} style={{ marginBottom: 12 }}>
+                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '4px 0', fontWeight: 600, fontSize: 12 }}>{entry.label}</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>GF</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>GC</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>DG</th>
+                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <VenueRow stats={entry.home} venue="Local" />
+                        <VenueRow stats={entry.away} venue="Visitante" />
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* 6. Goles en la temporada */}
           {(detail.team.goalStats || nm.opponentGoalStats) && (() => {
             const homeStats = isHome ? detail.team.goalStats : nm.opponentGoalStats;
             const awayStats = isHome ? nm.opponentGoalStats : detail.team.goalStats;
             const homeName = isHome ? detail.team.teamName : (nm.opponentName ?? 'Local');
             const awayName = isHome ? (nm.opponentName ?? 'Visitante') : detail.team.teamName;
-
             return (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  Goles en la temporada
-                </div>
+                <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Goles en la temporada</div>
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ opacity: 0.5 }}>
@@ -400,63 +421,10 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
               </div>
             );
           })()}
-
-          {/* Rendimiento local / visitante */}
-          {(() => {
-            const entries: { label: string; home?: typeof detail.team.goalStats; away?: typeof detail.team.goalStats }[] = [];
-            if (detail.team.homeGoalStats || detail.team.awayGoalStats) {
-              entries.push({ label: detail.team.teamName, home: detail.team.homeGoalStats, away: detail.team.awayGoalStats });
-            }
-            if (nm.opponentHomeGoalStats || nm.opponentAwayGoalStats) {
-              entries.push({ label: nm.opponentName ?? 'Rival', home: nm.opponentHomeGoalStats, away: nm.opponentAwayGoalStats });
-            }
-            if (entries.length === 0) return null;
-
-            function VenueRow({ stats, venue }: { stats: typeof detail.team.goalStats; venue: string }) {
-              if (!stats) return null;
-              return (
-                <tr style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                  <td style={{ padding: '5px 0' }}>{venue}</td>
-                  <td style={{ textAlign: 'center', padding: '5px 6px' }}>{stats.goalsFor}</td>
-                  <td style={{ textAlign: 'center', padding: '5px 6px' }}>{stats.goalsAgainst}</td>
-                  <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 600, color: stats.goalDifference > 0 ? '#22c55e' : stats.goalDifference < 0 ? '#ef4444' : '#6b7280' }}>
-                    {stats.goalDifference > 0 ? '+' : ''}{stats.goalDifference}
-                  </td>
-                  <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 700 }}>{stats.points}</td>
-                </tr>
-              );
-            }
-
-            return (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  Rendimiento local / visitante
-                </div>
-                {entries.map((entry) => (
-                  <div key={entry.label} style={{ marginBottom: 12 }}>
-                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr>
-                          <th style={{ textAlign: 'left', padding: '4px 0', fontWeight: 600, fontSize: 12 }}>{entry.label}</th>
-                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>GF</th>
-                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>GC</th>
-                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>DG</th>
-                          <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>Pts</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <VenueRow stats={entry.home} venue="Local" />
-                        <VenueRow stats={entry.away} venue="Visitante" />
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
         </section>
       )}
 
+      {/* 7. Signals */}
       <section data-testid="explain-section" style={{ marginTop: 20 }}>
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {detail.explainability.topContributions
