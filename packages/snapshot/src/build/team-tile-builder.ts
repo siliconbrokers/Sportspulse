@@ -24,6 +24,7 @@ export function buildTeamTile(
   buildNowUtc: string,
   policy: PolicyDefinition,
   warnings: WarningCollector,
+  matchday?: number,
 ): Omit<TeamScoreDTO, 'rect'> {
   // Compute signals
   const formSignal = computeFormPointsLast5(team.teamId, matches, buildNowUtc);
@@ -52,7 +53,7 @@ export function buildTeamTile(
   // Extract recent form, goal stats, and next match info
   const recentForm = extractRecentForm(team.teamId, matches, buildNowUtc);
   const goalStats = extractGoalStats(team.teamId, matches, buildNowUtc);
-  const nextMatch = extractNextMatch(team.teamId, allTeams, matches, buildNowUtc);
+  const nextMatch = extractNextMatch(team.teamId, allTeams, matches, buildNowUtc, matchday);
 
   return {
     teamId: team.teamId,
@@ -80,30 +81,47 @@ function extractNextMatch(
   allTeams: readonly Team[],
   matches: readonly Match[],
   buildNowUtc: string,
+  targetMatchday?: number,
 ): NextMatchDTO | undefined {
-  const upcoming = matches
-    .filter(
+  let target: Match | undefined;
+
+  // When a specific matchday is requested, find the match for that matchday
+  if (targetMatchday !== undefined) {
+    target = matches.find(
       (m) =>
         (m.homeTeamId === teamId || m.awayTeamId === teamId) &&
-        m.status === EventStatus.SCHEDULED &&
-        m.startTimeUtc !== null &&
-        m.startTimeUtc > buildNowUtc,
-    )
-    .sort((a, b) => (a.startTimeUtc! < b.startTimeUtc! ? -1 : 1));
+        m.matchday === targetMatchday &&
+        m.startTimeUtc !== null,
+    );
+  }
 
-  if (upcoming.length === 0) return undefined;
+  // Fallback: next SCHEDULED match after buildNowUtc
+  if (!target) {
+    const upcoming = matches
+      .filter(
+        (m) =>
+          (m.homeTeamId === teamId || m.awayTeamId === teamId) &&
+          m.status === EventStatus.SCHEDULED &&
+          m.startTimeUtc !== null &&
+          m.startTimeUtc > buildNowUtc,
+      )
+      .sort((a, b) => (a.startTimeUtc! < b.startTimeUtc! ? -1 : 1));
 
-  const next = upcoming[0];
-  const isHome = next.homeTeamId === teamId;
-  const opponentId = isHome ? next.awayTeamId : next.homeTeamId;
+    target = upcoming[0];
+  }
+
+  if (!target) return undefined;
+
+  const isHome = target.homeTeamId === teamId;
+  const opponentId = isHome ? target.awayTeamId : target.homeTeamId;
   const opponent = allTeams.find((t) => t.teamId === opponentId);
 
   const homeTeam = isHome ? allTeams.find((t) => t.teamId === teamId) : opponent;
 
   return {
-    matchId: next.matchId,
-    matchday: next.matchday,
-    kickoffUtc: next.startTimeUtc!,
+    matchId: target.matchId,
+    matchday: target.matchday,
+    kickoffUtc: target.startTimeUtc!,
     opponentTeamId: opponentId,
     opponentName: opponent?.name,
     opponentCrestUrl: opponent?.crestUrl,
@@ -111,6 +129,8 @@ function extractNextMatch(
     opponentGoalStats: extractGoalStats(opponentId, matches, buildNowUtc),
     venueName: homeTeam?.venueName,
     venue: isHome ? 'HOME' : 'AWAY',
+    scoreHome: target.status === EventStatus.FINISHED ? target.scoreHome : undefined,
+    scoreAway: target.status === EventStatus.FINISHED ? target.scoreAway : undefined,
   };
 }
 

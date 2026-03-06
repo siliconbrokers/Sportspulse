@@ -33,6 +33,8 @@ export interface NextMatchDTO {
   opponentGoalStats?: GoalStatsDTO;
   venueName?: string;
   venue?: 'HOME' | 'AWAY' | 'NEUTRAL' | 'UNKNOWN';
+  scoreHome?: number | null;
+  scoreAway?: number | null;
 }
 
 export interface ContributionDTO {

@@ -24,6 +24,7 @@ export interface BuildSnapshotInput {
   policy: PolicyDefinition;
   container: TreemapContainer;
   freshnessUtc?: string;
+  matchday?: number;
 }
 
 export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
@@ -31,7 +32,15 @@ export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
 
   // Step 1: Build tiles for each team (signals + scoring)
   const tilesWithoutRect = input.teams.map((team) =>
-    buildTeamTile(team, input.teams, input.matches, input.buildNowUtc, input.policy, warnings),
+    buildTeamTile(
+      team,
+      input.teams,
+      input.matches,
+      input.buildNowUtc,
+      input.policy,
+      warnings,
+      input.matchday,
+    ),
   );
 
   // Step 2: Sort by layoutWeight desc, teamId asc

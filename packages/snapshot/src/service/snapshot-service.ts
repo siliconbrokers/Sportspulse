@@ -20,6 +20,7 @@ export interface ServeSnapshotInput {
   teams: readonly Team[];
   matches: readonly Match[];
   freshnessUtc?: string;
+  matchday?: number;
 }
 
 export interface ServeResult {
@@ -29,7 +30,10 @@ export interface ServeResult {
 
 export class SnapshotBuildFailed extends Error {
   readonly code = 'SNAPSHOT_BUILD_FAILED';
-  constructor(message: string, public readonly cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'SnapshotBuildFailed';
   }
@@ -73,6 +77,7 @@ export class SnapshotService {
         policy: this.policy,
         container: this.container,
         freshnessUtc: input.freshnessUtc,
+        matchday: input.matchday,
       });
 
       this.store.set(key, snapshot);
@@ -97,10 +102,7 @@ export class SnapshotService {
       }
 
       // 4. No cache, no build -> throw
-      throw new SnapshotBuildFailed(
-        'Snapshot build failed and no cached version available',
-        err,
-      );
+      throw new SnapshotBuildFailed('Snapshot build failed and no cached version available', err);
     }
   }
 }

@@ -46,6 +46,7 @@ export function dashboardRoute(deps: AppDependencies): FastifyPluginAsync {
             timezone: params.timezone,
             teams,
             matches,
+            matchday: params.matchday,
           });
         } catch (err) {
           if (

@@ -105,21 +105,44 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
     >
       <div style={{ fontWeight: 700, lineHeight: 1.2 }}>{label}</div>
 
-      {showCrests && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: size * 0.3,
-            flex: 1,
-          }}
-        >
-          <Crest url={homeCrest} alt="Local" size={size} />
-          <span style={{ fontSize: Math.max(size * 0.35, 10), opacity: 0.6, fontWeight: 700 }}>vs</span>
-          <Crest url={awayCrest} alt="Visitante" size={size} />
-        </div>
-      )}
+      {showCrests && (() => {
+        const nm = team.nextMatch!;
+        const hasScore = nm.scoreHome != null && nm.scoreAway != null;
+        const homeScore = isHome ? nm.scoreHome : nm.scoreAway;
+        const awayScore = isHome ? nm.scoreAway : nm.scoreHome;
+        const scoreFontSize = Math.max(size * 0.45, 12);
+
+        return (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: 1,
+              gap: 2,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: size * 0.3,
+              }}
+            >
+              <Crest url={homeCrest} alt="Local" size={size} />
+              <span style={{ fontSize: Math.max(size * 0.35, 10), opacity: 0.6, fontWeight: 700 }}>vs</span>
+              <Crest url={awayCrest} alt="Visitante" size={size} />
+            </div>
+            {size >= 20 && (
+              <div style={{ fontSize: scoreFontSize, fontWeight: 700, opacity: hasScore ? 1 : 0.4, letterSpacing: 2 }}>
+                {hasScore ? `${homeScore} - ${awayScore}` : '- - -'}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         {team.nextMatch?.opponentName && rect.w >= 80 && rect.h >= 40 ? (
