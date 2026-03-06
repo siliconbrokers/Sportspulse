@@ -28,7 +28,7 @@ export function App() {
   const { data: standingsTeamDetail } = useTeamDetail(
     competitionId,
     view === 'standings' ? standingsFocusId : null,
-    matchday,
+    compInfo?.currentMatchday ?? null,
     'America/Montevideo',
   );
 
