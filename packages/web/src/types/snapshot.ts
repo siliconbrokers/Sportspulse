@@ -24,9 +24,10 @@ export interface NextMatchDTO {
 
 export interface ContributionDTO {
   signalKey: string;
-  rawContribution: number;
-  weightedContribution: number;
+  rawValue: number;
+  normValue: number;
   weight: number;
+  contribution: number;
 }
 
 export interface SignalDTO {

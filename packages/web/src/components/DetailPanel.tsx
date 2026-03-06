@@ -88,7 +88,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
               }}
             >
               <span>{c.signalKey}</span>
-              <span style={{ fontWeight: 600 }}>{c.weightedContribution.toFixed(2)}</span>
+              <span style={{ fontWeight: 600 }}>{c.contribution.toFixed(2)}</span>
             </li>
           ))}
         </ul>
