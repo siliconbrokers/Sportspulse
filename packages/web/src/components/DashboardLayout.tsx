@@ -6,6 +6,7 @@ import { DashboardHeader } from './DashboardHeader.js';
 import { WarningBanner } from './WarningBanner.js';
 import { TreemapCanvas } from './TreemapCanvas.js';
 import { MobileTeamList } from './MobileTeamList.js';
+import { MatchCardList } from './MatchCardList.js';
 import { DetailPanel } from './DetailPanel.js';
 import { LoadingSkeleton } from './LoadingSkeleton.js';
 import { EmptyState } from './EmptyState.js';
@@ -15,9 +16,10 @@ interface DashboardLayoutProps {
   competitionId: string;
   matchday: number | null;
   timezone: string;
+  viewMode?: 'treemap' | 'partidos';
 }
 
-export function DashboardLayout({ competitionId, matchday, timezone }: DashboardLayoutProps) {
+export function DashboardLayout({ competitionId, matchday, timezone, viewMode = 'treemap' }: DashboardLayoutProps) {
   const { data, loading, error, source, refetch } = useDashboardSnapshot(
     competitionId,
     matchday,
@@ -50,7 +52,9 @@ export function DashboardLayout({ competitionId, matchday, timezone }: Dashboard
     <div data-testid="dashboard-layout">
       <DashboardHeader header={data.header} warnings={data.warnings} source={source} />
       <WarningBanner warnings={data.warnings} />
-      {data.teams.length === 0 ? (
+      {viewMode === 'partidos' ? (
+        <MatchCardList matchCards={data.matchCards ?? []} />
+      ) : data.teams.length === 0 ? (
         <EmptyState />
       ) : isMobile ? (
         <MobileTeamList
@@ -67,7 +71,9 @@ export function DashboardLayout({ competitionId, matchday, timezone }: Dashboard
           onSelectTeam={(id) => setFocus(id === focus ? null : id)}
         />
       )}
-      {focus && teamDetail && <DetailPanel detail={teamDetail} onClose={() => setFocus(null)} />}
+      {viewMode !== 'partidos' && focus && teamDetail && (
+        <DetailPanel detail={teamDetail} onClose={() => setFocus(null)} />
+      )}
     </div>
   );
 }

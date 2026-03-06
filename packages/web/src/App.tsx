@@ -6,7 +6,7 @@ import { useCompetitionInfo } from './hooks/use-competition-info.js';
 import { useWindowWidth } from './hooks/use-window-width.js';
 import { competitionDisplayName } from './utils/labels.js';
 
-type ViewMode = 'treemap' | 'standings';
+type ViewMode = 'treemap' | 'partidos' | 'standings';
 
 const COMPETITIONS = [
   { id: 'comp:football-data:PD', code: 'PD' },
@@ -76,7 +76,7 @@ export function App() {
           style={{ height: isMobile ? 36 : 56, width: 'auto' }}
         />
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-          {(['treemap', 'standings'] as const).map((v) => (
+          {(['treemap', 'partidos', 'standings'] as const).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -91,7 +91,7 @@ export function App() {
                 fontWeight: view === v ? 700 : 400,
               }}
             >
-              {v === 'treemap' ? 'Mapa' : 'Tabla'}
+              {v === 'treemap' ? 'Mapa' : v === 'partidos' ? 'Partidos' : 'Tabla'}
             </button>
           ))}
         </div>
@@ -133,11 +133,12 @@ export function App() {
           </select>
         </div>
       </div>
-      {view === 'treemap' ? (
+      {view === 'treemap' || view === 'partidos' ? (
         <DashboardLayout
           competitionId={competitionId}
           matchday={matchday}
           timezone="America/Montevideo"
+          viewMode={view}
         />
       ) : (
         <div style={{ padding: 16 }}>

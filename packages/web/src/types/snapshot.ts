@@ -128,10 +128,29 @@ export interface LayoutMetadata {
   };
 }
 
+export interface MatchCardTeam {
+  teamId: string;
+  name: string;
+  crestUrl?: string;
+  formChip?: DisplayChipDTO;
+}
+
+export interface MatchCardDTO {
+  matchId: string;
+  kickoffUtc?: string;
+  status?: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'UNKNOWN';
+  timeChip: DisplayChipDTO;
+  home: MatchCardTeam;
+  away: MatchCardTeam;
+  rankScore?: number;
+  explainLine?: ExplainLineDTO;
+}
+
 export interface DashboardSnapshotDTO {
   header: SnapshotHeaderDTO;
   layout: LayoutMetadata;
   warnings: WarningDTO[];
   displayRules: DisplayRulesDTO;
   teams: TeamScoreDTO[];
+  matchCards: MatchCardDTO[];
 }

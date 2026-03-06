@@ -14,6 +14,7 @@ import { WarningCollector } from '../warnings/warning-collector.js';
 import { buildTeamTile } from './team-tile-builder.js';
 import { sortTeamsByWeight } from './sort-teams.js';
 import { DISPLAY_RULES, mapDisplayHints } from '../display-hints/display-hints-mapper.js';
+import { buildMatchCards } from '../display-hints/match-card-builder.js';
 
 export interface BuildSnapshotInput {
   competitionId: string;
@@ -80,7 +81,10 @@ export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
     displayHints: mapDisplayHints(t.signals ?? []),
   }));
 
-  // Step 7: Assemble header
+  // Step 7: Build match cards (§8 display-hints-spec-v1.1)
+  const matchCards = buildMatchCards(input.matches, input.teams, teamScores, input.buildNowUtc);
+
+  // Step 8: Assemble header
   const header = assembleHeader({
     competitionId: input.competitionId,
     seasonId: input.seasonId,
@@ -101,5 +105,6 @@ export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
     warnings: warnings.toArray(),
     displayRules: DISPLAY_RULES,
     teams: teamScores,
+    matchCards,
   };
 }

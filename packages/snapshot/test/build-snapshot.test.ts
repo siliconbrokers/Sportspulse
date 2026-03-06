@@ -48,10 +48,7 @@ function makeMatch(
   };
 }
 
-const TEAMS: Team[] = [
-  makeTeam('86', 'Real Madrid'),
-  makeTeam('81', 'FC Barcelona'),
-];
+const TEAMS: Team[] = [makeTeam('86', 'Real Madrid'), makeTeam('81', 'FC Barcelona')];
 
 const MATCHES: Match[] = [
   // 5 finished matches for Real Madrid (WWWWD = 13 pts)
@@ -82,7 +79,7 @@ describe('buildSnapshot (E-01, E-02, E-03)', () => {
   });
 
   it('has valid header with all required fields', () => {
-    expect(snapshot.header.snapshotSchemaVersion).toBe(1);
+    expect(snapshot.header.snapshotSchemaVersion).toBe(2);
     expect(snapshot.header.competitionId).toBe('comp:football-data:PD');
     expect(snapshot.header.seasonId).toBe('season:football-data:2025');
     expect(snapshot.header.buildNowUtc).toBe(BUILD_NOW);
@@ -194,10 +191,7 @@ describe('determinism (E-02)', () => {
 
 describe('degraded: all missing signals (G-01, G-02)', () => {
   it('all-zero weights → LAYOUT_DEGRADED warning + equal tiles', () => {
-    const teamsNoHistory: Team[] = [
-      makeTeam('200', 'Team A'),
-      makeTeam('201', 'Team B'),
-    ];
+    const teamsNoHistory: Team[] = [makeTeam('200', 'Team A'), makeTeam('201', 'Team B')];
 
     const snapshot = buildSnapshot({
       competitionId: 'comp:test',

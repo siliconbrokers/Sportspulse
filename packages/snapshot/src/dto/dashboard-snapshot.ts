@@ -2,6 +2,7 @@ import type { LayoutMetadata } from '@sportpulse/layout';
 import type { SnapshotHeaderDTO, WarningDTO } from './snapshot-header.js';
 import type { TeamScoreDTO } from './team-score.js';
 import type { DisplayRulesDTO } from '../display-hints/display-hints-mapper.js';
+import type { MatchCardDTO } from '../display-hints/match-card-builder.js';
 
 export interface DashboardSnapshotDTO {
   header: SnapshotHeaderDTO;
@@ -9,4 +10,5 @@ export interface DashboardSnapshotDTO {
   warnings: WarningDTO[];
   displayRules: DisplayRulesDTO;
   teams: TeamScoreDTO[];
+  matchCards: MatchCardDTO[];
 }
