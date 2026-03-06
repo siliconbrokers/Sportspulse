@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Dev Server & Build — Reglas obligatorias
+
+- Después de cualquier cambio de backend (`packages/snapshot`, `packages/api`, `packages/scoring`, etc.) **siempre** correr `pnpm build` y luego reiniciar el dev server automáticamente — sin pedirle al usuario que lo haga.
+- El reinicio se hace con: `pkill -f "tsx.*server" 2>/dev/null; pkill -f "vite" 2>/dev/null; sleep 1; pnpm dev` (en background).
+- El frontend (Vite HMR) actualiza solo; el backend Node.js necesita reinicio porque sirve JS compilado desde `dist/`.
+- Nunca terminar una tarea de implementación sin confirmar que el servidor quedó corriendo.
+
+---
+
 ## Methodology: Spec-Driven Development (SDD)
 
 This project is governed entirely by **SDD (Spec-Driven Development)**. The specs are the source of truth. Code implements specs — never the reverse. Every document, architectural decision, implementation task, and test exists under this framework.

@@ -1,11 +1,5 @@
 import { useState } from 'react';
-import type { MatchCardDTO, UrgencyColorKey, HeatBorderKey, SizeBucket } from '../types/snapshot.js';
-import {
-  MatchMapCard,
-  type MatchFormLabel,
-  type MatchMapCardScore,
-  type MatchMapCardKickoff,
-} from './MatchMapCard.js';
+import type { MatchCardDTO, UrgencyColorKey, HeatBorderKey } from '../types/snapshot.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import './match-map.css';
 
@@ -18,43 +12,24 @@ interface MatchMapCardGridProps {
 // ─── Urgency → background color (§5) ─────────────────────────────────────────
 
 const URGENCY_BG: Record<UrgencyColorKey, string> = {
-  LIVE:     '#7f1d1d',  // red-900
-  TODAY:    '#7c2d12',  // orange-900
-  TOMORROW: '#78350f',  // amber-900
-  D2_3:     '#365314',  // lime-900
-  D4_7:     '#14532d',  // green-900
-  LATER:    '#1e3a5f',  // blue-steel
-  UNKNOWN:  '#1e293b',  // slate-800
+  LIVE:     'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)',
+  TODAY:    'linear-gradient(135deg, #7c2d12 0%, #92400e 100%)',
+  TOMORROW: 'linear-gradient(135deg, #78350f 0%, #854d0e 100%)',
+  D2_3:     'linear-gradient(135deg, #365314 0%, #3f6212 100%)',
+  D4_7:     'linear-gradient(135deg, #14532d 0%, #166534 100%)',
+  LATER:    'linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%)',
+  UNKNOWN:  'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
 };
 
-const URGENCY_ACCENT: Record<UrgencyColorKey, string> = {
-  LIVE:     'rgba(239,68,68,0.55)',
-  TODAY:    'rgba(249,115,22,0.45)',
-  TOMORROW: 'rgba(245,158,11,0.40)',
-  D2_3:     'rgba(163,230,53,0.30)',
+const URGENCY_GLOW: Record<UrgencyColorKey, string> = {
+  LIVE:     'rgba(239,68,68,0.5)',
+  TODAY:    'rgba(249,115,22,0.4)',
+  TOMORROW: 'rgba(245,158,11,0.35)',
+  D2_3:     'rgba(163,230,53,0.28)',
   D4_7:     'rgba(74,222,128,0.25)',
-  LATER:    'rgba(96,165,250,0.25)',
-  UNKNOWN:  'rgba(148,163,184,0.20)',
+  LATER:    'rgba(96,165,250,0.22)',
+  UNKNOWN:  'rgba(148,163,184,0.18)',
 };
-
-// ─── Size → pixel dimensions (§4) ────────────────────────────────────────────
-
-function sizeToPixels(bucket: SizeBucket, isMobile: boolean): { w: number; h: number } {
-  if (isMobile) {
-    switch (bucket) {
-      case 'XL': return { w: 300, h: 200 };
-      case 'L':  return { w: 260, h: 170 };
-      case 'M':  return { w: 220, h: 145 };
-      case 'S':  return { w: 200, h: 130 };
-    }
-  }
-  switch (bucket) {
-    case 'XL': return { w: 320, h: 210 };
-    case 'L':  return { w: 272, h: 178 };
-    case 'M':  return { w: 240, h: 158 };
-    case 'S':  return { w: 210, h: 138 };
-  }
-}
 
 // ─── Heat border CSS class (§6) ───────────────────────────────────────────────
 
@@ -67,33 +42,170 @@ function heatClass(key: HeatBorderKey): string {
   }
 }
 
-// ─── Mappers MatchCardDTO → MatchMapCardProps ─────────────────────────────────
+// ─── Tile content ─────────────────────────────────────────────────────────────
 
-function toFormLabel(card: MatchCardDTO): MatchFormLabel {
-  const homeKind = card.home.formChip?.kind;
-  const awayKind = card.away.formChip?.kind;
-  if (homeKind === 'FORM_HOT' || awayKind === 'FORM_HOT') return 'VIENE_PICANTE';
-  if (homeKind === 'FORM_GOOD' || awayKind === 'FORM_GOOD') return 'VIENE_BIEN';
-  return 'NORMAL';
-}
-
-function toScore(card: MatchCardDTO): MatchMapCardScore | null {
-  if (card.status === 'FINISHED' && card.scoreHome != null && card.scoreAway != null) {
-    return { home: card.scoreHome, away: card.scoreAway };
+function CrestImg({ url, name, size }: { url?: string; name: string; size: number }) {
+  const [err, setErr] = useState(false);
+  if (url && !err) {
+    return (
+      <img
+        src={url}
+        alt={name}
+        onError={() => setErr(true)}
+        style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
+      />
+    );
   }
-  return null;
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        flexShrink: 0,
+      }}
+    />
+  );
 }
 
-function toKickoff(card: MatchCardDTO): MatchMapCardKickoff | null {
-  if (!card.kickoffUtc) return null;
-  return {
-    utc: card.kickoffUtc,
-    relativeLabel: card.timeChip.label,
-  };
+function formColor(kind?: string): string {
+  switch (kind) {
+    case 'FORM_HOT':  return 'rgba(251,146,60,0.95)';  // naranja
+    case 'FORM_GOOD': return 'rgba(74,222,128,0.90)';  // verde
+    case 'FORM_BAD':  return 'rgba(248,113,113,0.90)'; // rojo
+    default:          return 'rgba(255,255,255,0.40)';
+  }
 }
 
-function toInterestPercent(card: MatchCardDTO): number {
-  return Math.round((card.rankScore ?? 0) * 100);
+function TileContent({ card, crestSize }: { card: MatchCardDTO; crestSize: number }) {
+  const homeName = card.home.name || '—';
+  const awayName = card.away.name || '—';
+  const nameSize = crestSize <= 28 ? 10 : 11;
+  const scoreSize = crestSize <= 28 ? 15 : 18;
+  const pad = crestSize <= 28 ? '8px 10px' : '10px 12px';
+
+  const homeForm = card.home.formChip;
+  const awayForm = card.away.formChip;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        padding: pad,
+        boxSizing: 'border-box',
+        gap: 3,
+      }}
+    >
+      {/* Nombres */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 4 }}>
+        <span
+          style={{
+            fontSize: nameSize,
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.95)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          {homeName}
+        </span>
+        <span
+          style={{
+            fontSize: nameSize,
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.95)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            flex: 1,
+            minWidth: 0,
+            textAlign: 'right',
+          }}
+        >
+          {awayName}
+        </span>
+      </div>
+
+      {/* Escudos + marcador */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+        }}
+      >
+        <CrestImg url={card.home.crestUrl} name={homeName} size={crestSize} />
+        <span
+          style={{
+            fontSize: scoreSize,
+            fontWeight: 800,
+            color: '#fff',
+            letterSpacing: '-0.5px',
+            minWidth: 28,
+            textAlign: 'center',
+          }}
+        >
+          {card.status === 'FINISHED' && card.scoreHome != null && card.scoreAway != null
+            ? `${card.scoreHome}-${card.scoreAway}`
+            : 'vs'}
+        </span>
+        <CrestImg url={card.away.crestUrl} name={awayName} size={crestSize} />
+      </div>
+
+      {/* Forma de cada equipo */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 600,
+            color: formColor(homeForm?.kind),
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: '45%',
+          }}
+        >
+          {homeForm ? `${homeForm.icon} ${homeForm.label}` : '—'}
+        </span>
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 600,
+            color: formColor(awayForm?.kind),
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: '45%',
+            textAlign: 'right',
+          }}
+        >
+          {awayForm ? `${awayForm.icon} ${awayForm.label}` : '—'}
+        </span>
+      </div>
+
+      {/* Tiempo */}
+      <div
+        style={{
+          fontSize: 10,
+          color: 'rgba(255,255,255,0.65)',
+          textAlign: 'center',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {card.timeChip.icon} {card.timeChip.label}
+      </div>
+    </div>
+  );
 }
 
 // ─── MatchMapCardGrid ─────────────────────────────────────────────────────────
@@ -124,21 +236,25 @@ export function MatchMapCardGrid({
 
   const hasSelection = focusedTeamId !== null;
 
+  // Dimensiones base del tile: mismo ancho para todos, altura uniforme
+  const tileW = isMobile ? 160 : 200;
+  const tileH = isMobile ? 120 : 150;
+  const crestSize = isMobile ? 26 : 32;
+
   return (
     <div
       className={hasSelection ? 'mm-grid mm-grid--has-selection' : 'mm-grid'}
       style={{
         display: 'flex',
         flexWrap: 'wrap',
-        gap: isMobile ? 10 : 14,
-        padding: isMobile ? '12px' : '16px 24px',
+        gap: isMobile ? 8 : 12,
+        padding: isMobile ? '10px' : '16px 24px',
         justifyContent: 'center',
         alignItems: 'flex-start',
       }}
     >
       {matchCards.map((card) => {
         const hints = card.tileHints;
-        const sizeBucket = hints?.sizeBucket ?? 'M';
         const urgencyKey = hints?.urgencyColorKey ?? 'UNKNOWN';
         const heatKey = hints?.heatBorderKey ?? 'NONE';
         const isFeatured = hints?.featuredRank === 'FEATURED';
@@ -146,9 +262,7 @@ export function MatchMapCardGrid({
         const isCardSelected =
           focusedTeamId === card.home.teamId || focusedTeamId === card.away.teamId;
 
-        const { w, h } = sizeToPixels(sizeBucket, isMobile);
-        const bgColor = URGENCY_BG[urgencyKey];
-        const glowColor = URGENCY_ACCENT[urgencyKey];
+        const glowColor = URGENCY_GLOW[urgencyKey];
 
         const tileClasses = [
           'mm-tile',
@@ -182,36 +296,17 @@ export function MatchMapCardGrid({
               }
             }}
             style={{
-              width: w,
-              height: h,
-              backgroundColor: bgColor,
-              // CSS custom properties for animations
+              width: tileW,
+              height: tileH,
+              background: URGENCY_BG[urgencyKey],
               ['--mm-glow-color' as string]: glowColor,
-              ['--mm-shadow-base' as string]: '0 2px 8px rgba(0,0,0,0.35)',
+              ['--mm-shadow-base' as string]: '0 2px 8px rgba(0,0,0,0.4)',
             }}
           >
             {isFeatured && heatKey === 'BOTH_HOT' && (
               <span className="mm-tile__badge" aria-hidden="true">🔥</span>
             )}
-            <MatchMapCard
-              matchId={card.matchId}
-              homeTeam={{
-                id: card.home.teamId,
-                name: card.home.name,
-                crestUrl: card.home.crestUrl,
-              }}
-              awayTeam={{
-                id: card.away.teamId,
-                name: card.away.name,
-                crestUrl: card.away.crestUrl,
-              }}
-              score={toScore(card)}
-              formLabel={toFormLabel(card)}
-              kickoff={toKickoff(card)}
-              interestPercent={toInterestPercent(card)}
-              isSelected={isCardSelected}
-              isLoading={false}
-            />
+            <TileContent card={card} crestSize={crestSize} />
           </div>
         );
       })}
