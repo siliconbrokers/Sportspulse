@@ -32,6 +32,11 @@ const STATUS_MAP: Record<string, EventStatus> = {
   NOT_STARTED: EventStatus.SCHEDULED,
   FT: EventStatus.FINISHED,
   FINAL: EventStatus.FINISHED,
+
+  // TheSportsDB specific
+  'MATCH FINISHED': EventStatus.FINISHED,
+  'NOT STARTED': EventStatus.SCHEDULED,
+  'IN PROGRESS': EventStatus.IN_PROGRESS,
 };
 
 export function classifyStatus(providerStatus: string): EventStatus {

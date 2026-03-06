@@ -15,6 +15,7 @@ const COMPETITIONS = [
   { id: 'comp:football-data:PD', code: 'PD' },
   { id: 'comp:football-data:PL', code: 'PL' },
   { id: 'comp:football-data:BL1', code: 'BL1' },
+  { id: 'comp:thesportsdb:4432', code: '4432' },
 ];
 
 export function App() {

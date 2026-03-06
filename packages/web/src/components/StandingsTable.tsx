@@ -49,6 +49,11 @@ const ZONE_CONFIGS: Record<string, Zone[]> = {
     { from: 16, to: 16, type: 'playoff', label: 'Playoff descenso', color: '#eab308' },
     { from: 17, to: 18, type: 'relegation', label: 'Descenso',      color: '#ef4444' },
   ],
+  // Liga Uruguaya — Primera División
+  'comp:thesportsdb:4432': [
+    { from: 1, to: 1, type: 'ucl',       label: 'Copa Libertadores', color: '#3b82f6' },
+    { from: 2, to: 5, type: 'uel',       label: 'Copa Sudamericana', color: '#f97316' },
+  ],
 };
 
 function getZone(competitionId: string, position: number): Zone | null {

@@ -12,6 +12,7 @@ const COMPETITION_NAMES: Record<string, string> = {
   CL: 'Champions League',
   EC: 'Euro Cup',
   WC: 'World Cup',
+  '4432': 'Liga Uruguaya',
 };
 
 export function competitionDisplayName(competitionId: string): string {
