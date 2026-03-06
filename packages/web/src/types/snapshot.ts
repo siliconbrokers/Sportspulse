@@ -1,5 +1,31 @@
 /** Frontend-local DTO types mirroring the backend DashboardSnapshotDTO contract. */
 
+export type ChipLevel = 'INFO' | 'OK' | 'WARN' | 'HOT' | 'ERROR' | 'UNKNOWN';
+
+export interface DisplayChipDTO {
+  icon: string;
+  label: string;
+  level: ChipLevel;
+  kind: string;
+}
+
+export interface ExplainLineDTO {
+  text: string;
+  kind: string;
+}
+
+export interface DisplayHintsDTO {
+  formChip?: DisplayChipDTO;
+  nextMatchChip?: DisplayChipDTO;
+  deltaChip?: DisplayChipDTO;
+  explainLine?: ExplainLineDTO;
+}
+
+export interface DisplayRulesDTO {
+  displayRulesKey: string;
+  displayRulesVersion: number;
+}
+
 export interface Rect {
   x: number;
   y: number;
@@ -75,6 +101,7 @@ export interface TeamScoreDTO {
   topContributions: ContributionDTO[];
   signals?: SignalDTO[];
   nextMatch?: NextMatchDTO;
+  displayHints?: DisplayHintsDTO;
 }
 
 export interface SnapshotHeaderDTO {
@@ -105,5 +132,6 @@ export interface DashboardSnapshotDTO {
   header: SnapshotHeaderDTO;
   layout: LayoutMetadata;
   warnings: WarningDTO[];
+  displayRules: DisplayRulesDTO;
   teams: TeamScoreDTO[];
 }

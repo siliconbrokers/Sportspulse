@@ -1,6 +1,7 @@
 import type { Rect } from '@sportpulse/layout';
 import type { ContributionDTO } from '@sportpulse/scoring';
 import type { SignalDTO } from '@sportpulse/signals';
+import type { DisplayHintsDTO } from '../display-hints/display-hints-mapper.js';
 
 export type FormResult = 'W' | 'D' | 'L';
 
@@ -49,4 +50,5 @@ export interface TeamScoreDTO {
   topContributions: ContributionDTO[];
   signals?: SignalDTO[];
   nextMatch?: NextMatchDTO;
+  displayHints?: DisplayHintsDTO;
 }

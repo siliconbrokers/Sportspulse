@@ -74,7 +74,7 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
               />
             )}
 
-            {/* Name + match info */}
+            {/* Name + chips + match info */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
@@ -88,8 +88,37 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
               >
                 {team.teamName}
               </div>
+              {/* Display hint chips */}
+              {(team.displayHints?.formChip || team.displayHints?.nextMatchChip) && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
+                  {team.displayHints.formChip && (
+                    <span style={{
+                      fontSize: 10,
+                      color: 'rgba(255,255,255,0.7)',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      borderRadius: 4,
+                      padding: '1px 5px',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {team.displayHints.formChip.icon} {team.displayHints.formChip.label}
+                    </span>
+                  )}
+                  {team.displayHints.nextMatchChip && (
+                    <span style={{
+                      fontSize: 10,
+                      color: 'rgba(255,255,255,0.7)',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      borderRadius: 4,
+                      padding: '1px 5px',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {team.displayHints.nextMatchChip.icon} {team.displayHints.nextMatchChip.label}
+                    </span>
+                  )}
+                </div>
+              )}
               {nm && (
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>
                   {played
                     ? `${nm.scoreHome} - ${nm.scoreAway} vs ${nm.opponentName ?? '?'}`
                     : nm.opponentName

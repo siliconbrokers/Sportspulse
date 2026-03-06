@@ -202,7 +202,7 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
         </div>
       )}
 
-      {/* Bottom bar: opponent name + score% */}
+      {/* Bottom bar: display hint chips + score% */}
       {(tier === 'xl' || tier === 'lg') && (
         <div style={{
           display: 'flex',
@@ -210,21 +210,32 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
           alignItems: 'flex-end',
           flexShrink: 0,
           overflow: 'hidden',
+          gap: 4,
         }}>
-          {team.nextMatch?.opponentName ? (
-            <span style={{
-              fontSize: 10,
-              opacity: 0.7,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              marginRight: 4,
-            }}>
-              vs {team.nextMatch.opponentName}
-            </span>
-          ) : (
-            <span />
-          )}
+          <div style={{ display: 'flex', gap: 4, minWidth: 0, overflow: 'hidden' }}>
+            {team.displayHints?.formChip && (
+              <span style={{
+                fontSize: 9,
+                opacity: 0.85,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {team.displayHints.formChip.icon}{tier === 'xl' ? ` ${team.displayHints.formChip.label}` : ''}
+              </span>
+            )}
+            {tier === 'xl' && team.displayHints?.nextMatchChip && (
+              <span style={{
+                fontSize: 9,
+                opacity: 0.75,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {team.displayHints.nextMatchChip.icon} {team.displayHints.nextMatchChip.label}
+              </span>
+            )}
+          </div>
           <span style={{ fontSize: 11, opacity: 0.6, flexShrink: 0 }}>
             {score}%
           </span>

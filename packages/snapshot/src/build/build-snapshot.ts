@@ -13,6 +13,7 @@ import { assembleHeader } from '../identity/assemble-header.js';
 import { WarningCollector } from '../warnings/warning-collector.js';
 import { buildTeamTile } from './team-tile-builder.js';
 import { sortTeamsByWeight } from './sort-teams.js';
+import { DISPLAY_RULES, mapDisplayHints } from '../display-hints/display-hints-mapper.js';
 
 export interface BuildSnapshotInput {
   competitionId: string;
@@ -72,10 +73,11 @@ export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
   const tiles = squarify(treemapInputs, input.container);
   const rectMap = new Map(tiles.map((t) => [t.entityId, t.rect]));
 
-  // Step 6: Merge scoring + geometry into TeamScoreDTOs
+  // Step 6: Merge scoring + geometry + display hints into TeamScoreDTOs
   const teamScores: TeamScoreDTO[] = sorted.map((t) => ({
     ...t,
     rect: rectMap.get(t.teamId) ?? { x: 0, y: 0, w: 0, h: 0 },
+    displayHints: mapDisplayHints(t.signals ?? []),
   }));
 
   // Step 7: Assemble header
@@ -97,6 +99,7 @@ export function buildSnapshot(input: BuildSnapshotInput): DashboardSnapshotDTO {
       container: input.container,
     },
     warnings: warnings.toArray(),
+    displayRules: DISPLAY_RULES,
     teams: teamScores,
   };
 }
