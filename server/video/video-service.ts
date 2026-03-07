@@ -10,7 +10,7 @@ import type { VideoCandidate } from './video-relevance.js';
 
 const LEAGUE_ORDER: LeagueKey[] = ['URU', 'LL', 'EPL', 'BUN'];
 
-const MAX_VIDEOS_PER_LEAGUE = 3;
+const MAX_VIDEOS_PER_LEAGUE = 4;
 
 // Default region for availability checks. Can be overridden via YOUTUBE_REGION_CODE env var.
 const REGION_CODE = process.env.YOUTUBE_REGION_CODE ?? 'UY';
@@ -155,13 +155,16 @@ export class VideoService {
     };
 
     const allCandidates = [];
+    const seenVideoIds = new Set<string>();
     for (const query of config.fallbackSearchTerms) {
-      const items = await searchYouTubeVideos(query, this.youtubeApiKey, publishedAfter, 5);
+      const items = await searchYouTubeVideos(query, this.youtubeApiKey, publishedAfter, 8);
       const candidates = items
         .map(searchItemToCandidate)
         .filter((c): c is NonNullable<typeof c> => c !== null)
+        .filter((c) => !seenVideoIds.has(c.videoId))
         .filter((c) => !isBlockedByPolitics(c.title))
         .filter((c) => matchesLeague(c.title));
+      for (const c of candidates) seenVideoIds.add(c.videoId);
       allCandidates.push(...candidates);
     }
 

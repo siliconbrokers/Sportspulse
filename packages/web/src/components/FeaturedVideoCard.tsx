@@ -20,10 +20,11 @@ function formatDateTime(utc: string): string {
 interface FeaturedVideoCardProps {
   highlight: LeagueVideoHighlight;
   accentColor: string;
+  showLabel?: boolean;
 }
 
 // spec §17.3 + §18: facade — no iframe en carga, solo al hacer click
-export function FeaturedVideoCard({ highlight, accentColor }: FeaturedVideoCardProps) {
+export function FeaturedVideoCard({ highlight, accentColor, showLabel = true }: FeaturedVideoCardProps) {
   const [playing, setPlaying] = useState(false);
 
   return (
@@ -35,18 +36,20 @@ export function FeaturedVideoCard({ highlight, accentColor }: FeaturedVideoCardP
       overflow: 'hidden',
     }}>
       {/* Label */}
-      <div style={{
-        padding: '6px 12px',
-        background: `${accentColor}18`,
-        borderBottom: `1px solid ${accentColor}22`,
-        fontSize: 11,
-        fontWeight: 600,
-        letterSpacing: 0.5,
-        color: accentColor,
-        textTransform: 'uppercase',
-      }}>
-        Video destacado
-      </div>
+      {showLabel && (
+        <div style={{
+          padding: '6px 12px',
+          background: `${accentColor}18`,
+          borderBottom: `1px solid ${accentColor}22`,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 0.5,
+          color: accentColor,
+          textTransform: 'uppercase',
+        }}>
+          Video destacado
+        </div>
+      )}
 
       {/* Player area */}
       <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', background: '#000' }}>

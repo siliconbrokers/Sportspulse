@@ -7,6 +7,7 @@ const POSITIVE_TERMS = [
   'highlights', 'highlight',
   'resumen', 'goles', 'goals',
   'jornada', 'matchday', 'spieltag',
+  'zusammenfassung',
   'previa', 'preview',
   'fecha',
 ];
@@ -14,6 +15,11 @@ const POSITIVE_TERMS = [
 const NEGATIVE_TERMS = [
   'live', 'en vivo',
   'promo', 'institucional', 'bienvenido', 'welcome',
+  'entrevista', 'interview',
+  'conferencia', 'rueda de prensa', 'press conference',
+  'training', 'entrenamiento',
+  'noticias del dia', 'noticias hoy',
+  'behind the scenes',
 ];
 
 function norm(text: string): string {

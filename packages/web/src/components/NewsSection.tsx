@@ -56,13 +56,16 @@ function NewsSkeleton({ cols }: { cols: number }) {
 function NewsLeagueBlock({
   block,
   cols,
-  videoHighlight,
+  videoHighlights,
 }: {
   block: NewsBlock;
   cols: number;
-  videoHighlight: import('../hooks/use-videos.js').LeagueVideoHighlight | null;
+  videoHighlights: import('../hooks/use-videos.js').LeagueVideoHighlight[];
 }) {
   const accent = LEAGUE_ACCENT[block.leagueKey] ?? '#64748b';
+  const { breakpoint } = useWindowWidth();
+  const isMobile = breakpoint === 'mobile';
+  const videoCols = isMobile ? 1 : 2;
 
   return (
     <div style={{ marginBottom: 44 }}>
@@ -94,9 +97,18 @@ function NewsLeagueBlock({
         )}
       </div>
 
-      {/* Video destacado — encima del grid (spec §17.1) */}
-      {videoHighlight && (
-        <FeaturedVideoCard highlight={videoHighlight} accentColor={accent} />
+      {/* Videos — grid de hasta 4 miniaturas (spec §17.1) */}
+      {videoHighlights.length > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${videoCols}, 1fr)`,
+          gap: 16,
+          marginBottom: 20,
+        }}>
+          {videoHighlights.map((h, i) => (
+            <FeaturedVideoCard key={h.id} highlight={h} accentColor={accent} showLabel={i === 0} />
+          ))}
+        </div>
       )}
 
       {/* Contenido */}
@@ -148,7 +160,7 @@ export function NewsSection({ feed, loading, error, videoFeed }: NewsSectionProp
 
   // Build video highlights map por leagueKey
   const highlightsByLeague = new Map(
-    (videoFeed?.blocks ?? []).map((vb) => [vb.leagueKey, vb.highlight]),
+    (videoFeed?.blocks ?? []).map((vb) => [vb.leagueKey, vb.highlights ?? []]),
   );
 
   return (
@@ -158,7 +170,7 @@ export function NewsSection({ feed, loading, error, videoFeed }: NewsSectionProp
           key={block.leagueKey}
           block={block}
           cols={cols}
-          videoHighlight={highlightsByLeague.get(block.leagueKey) ?? null}
+          videoHighlights={highlightsByLeague.get(block.leagueKey) ?? []}
         />
       ))}
     </div>
