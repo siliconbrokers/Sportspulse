@@ -28,7 +28,7 @@ export function buildApp(deps: AppDependencies): FastifyInstance {
   app.register(radarRoute(deps));
 
   // Servir el frontend React en producción
-  const webDist = join(__dirname, '../../../../packages/web/dist');
+  const webDist = join(__dirname, '../../../web/dist');
   app.register(fastifyStatic, { root: webDist, prefix: '/' });
   app.setNotFoundHandler((_req, reply) => reply.sendFile('index.html'));
 
