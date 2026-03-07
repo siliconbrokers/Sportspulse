@@ -97,10 +97,11 @@ async function main() {
 
   const radarService = new RadarApiAdapter(dataSource);
 
+  // Eventos — fuente: streamtp10.com/eventos.json (default) o EVENTOS_SOURCE_URL env
   const EVENTOS_SOURCE_URL = process.env.EVENTOS_SOURCE_URL;
   const EVENTOS_DEBUG = process.env.EVENTOS_DEBUG === 'true';
   const eventosService = new EventosService(
-    buildEventSource(EVENTOS_SOURCE_URL),
+    buildEventSource(EVENTOS_SOURCE_URL), // sin arg → usa streamtp10.com por defecto
     { debugMode: EVENTOS_DEBUG },
   );
 

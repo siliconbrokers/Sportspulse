@@ -1,113 +1,97 @@
 // spec §7 — adapter de fuente externa
-// La fuente externa no está especificada en la spec — se implementa como interface configurable.
-// EVENTOS_SOURCE_URL en .env apunta al proveedor real.
-// Si no está configurado, se usa el mock de prueba.
+// Fuente real: https://streamtp10.com/eventos.json
+// Formato: [{ title: "COMPETITION: HOME vs AWAY", time: "HH:MM", status: "en vivo"|"pronto", link: url, category, language }]
 import type { RawEvent } from './types.js';
+
+export const STREAMTP_EVENTOS_URL = 'https://streamtp10.com/eventos.json';
 
 export interface IEventSource {
   getEvents(): Promise<RawEvent[]>;
 }
 
-// Mock con datos de prueba realistas para validar parser y UI
-export class MockEventSource implements IEventSource {
-  async getEvents(): Promise<RawEvent[]> {
-    return [
-      // Uruguay Primera — equipos en whitelist → debe clasificar como URUGUAY_PRIMERA
-      {
-        text: '20:00 - Primera División: Peñarol vs Nacional',
-        url: 'https://example.com/watch/penarol-nacional',
-        statusText: 'Pronto',
-      },
-      {
-        text: '22:30 - Liga AUF Uruguaya: Danubio vs Defensor Sporting',
-        url: 'https://example.com/watch/danubio-defensor',
-        statusText: null,
-      },
-      {
-        text: '18:00 - Primera División: Cerro Largo vs Boston River',
-        url: 'https://example.com/watch/cerrolargo-bostonriver',
-        statusText: 'En Vivo',
-      },
-      // Primera División con equipos NO uruguayos → debe clasificar como OTRA
-      {
-        text: '19:00 - Primera División: Ajax vs PSV',
-        url: 'https://example.com/watch/ajax-psv',
-        statusText: null,
-      },
-      // LaLiga
-      {
-        text: '21:00 - LaLiga EA Sports: Real Madrid vs Barcelona',
-        url: 'https://example.com/watch/realmadrid-barcelona',
-        statusText: 'Pronto',
-      },
-      {
-        text: '19:00 - Spanish La Liga: Atletico Madrid vs Sevilla',
-        url: 'https://example.com/watch/atletico-sevilla',
-        statusText: null,
-      },
-      // Premier League
-      {
-        text: '17:30 - Premier League: Arsenal vs Manchester City',
-        url: 'https://example.com/watch/arsenal-mancity',
-        statusText: 'En Vivo',
-      },
-      // FA Cup — debe clasificar como EXCLUIDA
-      {
-        text: '15:00 - FA Cup: Chelsea vs Liverpool',
-        url: 'https://example.com/watch/chelsea-liverpool-facup',
-        statusText: null,
-      },
-      // Bundesliga
-      {
-        text: '16:30 - Bundesliga: Bayern Munich vs Borussia Dortmund',
-        url: 'https://example.com/watch/bayern-dortmund',
-        statusText: 'Pronto',
-      },
-      // Champions League — debe clasificar como EXCLUIDA
-      {
-        text: '21:00 - Champions League: Real Madrid vs Bayern Munich',
-        url: 'https://example.com/watch/rm-bm-ucl',
-        statusText: null,
-      },
-      // Texto libre sin patrón → OTRA/DESCONOCIDO
-      {
-        text: 'Partido especial de exhibición',
-        url: null,
-        statusText: null,
-      },
-    ];
-  }
+// Formato nativo de streamtp10.com/eventos.json
+interface StreamtpEvent {
+  title: string;
+  time: string;
+  category: string;
+  status: string;
+  link: string;
+  language: string;
 }
 
-// Adapter HTTP para proveedor externo real (configurable por env)
-export class HttpEventSource implements IEventSource {
-  constructor(private readonly sourceUrl: string) {}
+/**
+ * Adapter para streamtp10.com/eventos.json.
+ *
+ * El JSON devuelve múltiples filas para el mismo partido (distintos canales).
+ * Se deduplica por (title + time): se conserva el primer registro con language="Español",
+ * o si no hay español, el primer registro del grupo.
+ *
+ * El campo `text` se construye como "HH:MM - TITLE" para que el parser regex del spec §8.2
+ * lo acepte sin cambios.
+ */
+export class StreamtpEventSource implements IEventSource {
+  constructor(private readonly sourceUrl: string = STREAMTP_EVENTOS_URL) {}
 
   async getEvents(): Promise<RawEvent[]> {
     const res = await fetch(this.sourceUrl, {
-      headers: { 'Accept': 'application/json', 'User-Agent': 'SportsPulse/1.0' },
-      signal: AbortSignal.timeout(8000),
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; SportsPulse/1.0)',
+      },
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
-      throw new Error(`EventSource HTTP error: ${res.status}`);
+      throw new Error(`StreamTP fetch error: ${res.status}`);
     }
-    const data = await res.json() as unknown;
+    const data = await res.json() as StreamtpEvent[];
     if (!Array.isArray(data)) {
-      throw new Error('EventSource: response is not an array');
+      throw new Error('StreamTP: response is not an array');
     }
-    // Normalizar al formato RawEvent
-    return (data as Record<string, unknown>[]).map((item) => ({
-      text: String(item.text ?? item.title ?? item.name ?? ''),
-      url: item.url != null ? String(item.url) : null,
-      statusText: item.status != null ? String(item.status) : null,
+
+    // Deduplicar por (title + time), preferir language="Español"
+    const groups = new Map<string, StreamtpEvent>();
+    for (const item of data) {
+      const key = `${item.time}|${item.title}`;
+      const existing = groups.get(key);
+      if (!existing) {
+        groups.set(key, item);
+      } else {
+        // Prefiero el stream en español sobre vacío o inglés
+        const lang = (item.language ?? '').toLowerCase();
+        if (lang === 'español' || lang === 'spanish') {
+          groups.set(key, item);
+        }
+      }
+    }
+
+    return Array.from(groups.values()).map((item) => ({
+      // Construir el texto en el formato que espera el parser: "HH:MM - COMPETITION: HOME vs AWAY"
+      text: `${item.time} - ${item.title}`,
+      url: item.link || null,
+      statusText: item.status || null,
     }));
   }
 }
 
-export function buildEventSource(sourceUrl: string | undefined): IEventSource {
-  if (sourceUrl) {
-    return new HttpEventSource(sourceUrl);
+// Mock con datos de prueba (usado solo cuando no hay fuente configurada)
+export class MockEventSource implements IEventSource {
+  async getEvents(): Promise<RawEvent[]> {
+    return [
+      { text: '20:00 - Primera División: Peñarol vs Nacional', url: 'https://streamtp10.com/global1.php?stream=goltv', statusText: 'pronto' },
+      { text: '22:30 - Liga AUF Uruguaya: Danubio vs Defensor Sporting', url: 'https://streamtp10.com/global1.php?stream=goltv', statusText: null },
+      { text: '18:00 - Primera División: Cerro Largo vs Boston River', url: 'https://streamtp10.com/global1.php?stream=goltv', statusText: 'en vivo' },
+      { text: '19:00 - Primera División: Ajax vs PSV', url: null, statusText: null },
+      { text: '21:00 - LaLiga EA Sports: Real Madrid vs Barcelona', url: 'https://streamtp10.com/global1.php?stream=laligahypermotion', statusText: 'pronto' },
+      { text: '17:30 - Premier League: Arsenal vs Manchester City', url: null, statusText: 'en vivo' },
+      { text: '15:00 - FA Cup: Chelsea vs Liverpool', url: null, statusText: null },
+      { text: '16:30 - Bundesliga: Bayern Munich vs Borussia Dortmund', url: null, statusText: 'pronto' },
+      { text: '21:00 - Champions League: Real Madrid vs Bayern Munich', url: null, statusText: null },
+    ];
   }
-  console.warn('[EventosService] EVENTOS_SOURCE_URL not set — using mock event source');
-  return new MockEventSource();
+}
+
+export function buildEventSource(sourceUrl?: string): IEventSource {
+  // Por defecto siempre usa streamtp10.com; EVENTOS_SOURCE_URL puede sobreescribir
+  const url = sourceUrl ?? STREAMTP_EVENTOS_URL;
+  return new StreamtpEventSource(url);
 }

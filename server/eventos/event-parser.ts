@@ -66,11 +66,13 @@ function isUruguayMatch(home: string | null, away: string | null): boolean {
 }
 
 // spec §11 — normalización de estado
+// Cubre: "En Vivo", "en vivo", "Live", "LIVE" → EN_VIVO
+//        "Pronto", "pronto", "Soon", "Upcoming" → PROXIMO
 function normalizeStatus(statusText: string | null): EventStatus {
   if (!statusText) return 'DESCONOCIDO';
   const s = norm(statusText);
-  if (s === 'en vivo' || s === 'live') return 'EN_VIVO';
-  if (s === 'pronto' || s === 'soon' || s === 'upcoming') return 'PROXIMO';
+  if (s === 'en vivo' || s === 'live' || s === 'en_vivo') return 'EN_VIVO';
+  if (s === 'pronto' || s === 'soon' || s === 'upcoming' || s === 'next') return 'PROXIMO';
   return 'DESCONOCIDO';
 }
 
