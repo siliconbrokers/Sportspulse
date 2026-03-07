@@ -35,18 +35,21 @@ function chipStyle(level: string): React.CSSProperties {
 
 function TeamSide({
   name,
+  shortName,
   crestUrl,
   formChip,
   align,
-  isSelected,
 }: {
   teamId: string;
   name: string;
+  shortName?: string;
   crestUrl?: string;
   formChip?: MatchCardDTO['home']['formChip'];
   align: 'left' | 'right';
 }) {
   const isRight = align === 'right';
+  // Use shortName when meaningfully shorter (more than 5 chars difference)
+  const displayName = shortName && shortName.length < name.length - 5 ? shortName : name;
   return (
     <div
       style={{
@@ -65,6 +68,9 @@ function TeamSide({
           alignItems: 'center',
           gap: 8,
           flexDirection: isRight ? 'row-reverse' : 'row',
+          minWidth: 0,
+          overflow: 'hidden',
+          width: '100%',
         }}
       >
         {crestUrl ? (
@@ -95,9 +101,10 @@ function TeamSide({
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            minWidth: 0,
           }}
         >
-          {name}
+          {displayName}
         </span>
       </div>
       {formChip && (
@@ -200,6 +207,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
             <TeamSide
               teamId={card.home.teamId}
               name={card.home.name}
+              shortName={card.home.shortName}
               crestUrl={card.home.crestUrl}
               formChip={showForm && card.status !== 'FINISHED' ? card.home.formChip : undefined}
               align="left"
@@ -224,6 +232,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
             <TeamSide
               teamId={card.away.teamId}
               name={card.away.name}
+              shortName={card.away.shortName}
               crestUrl={card.away.crestUrl}
               formChip={showForm && card.status !== 'FINISHED' ? card.away.formChip : undefined}
               align="right"

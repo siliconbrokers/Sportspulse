@@ -22,6 +22,7 @@ export interface MatchTileHintsDTO {
 export interface MatchCardTeam {
   teamId: string;
   name: string;
+  shortName?: string;
   crestUrl?: string;
   formChip?: DisplayChipDTO;
 }
@@ -277,12 +278,14 @@ export function buildMatchCards(
       home: {
         teamId: match.homeTeamId,
         name: homeTeam?.name ?? match.homeTeamId,
+        shortName: homeTeam?.shortName,
         crestUrl: homeTeam?.crestUrl,
         formChip: homeFormChip,
       },
       away: {
         teamId: match.awayTeamId,
         name: awayTeam?.name ?? match.awayTeamId,
+        shortName: awayTeam?.shortName,
         crestUrl: awayTeam?.crestUrl,
         formChip: awayFormChip,
       },

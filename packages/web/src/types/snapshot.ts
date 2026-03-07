@@ -136,6 +136,7 @@ export interface LayoutMetadata {
 export interface MatchCardTeam {
   teamId: string;
   name: string;
+  shortName?: string;
   crestUrl?: string;
   formChip?: DisplayChipDTO;
 }
