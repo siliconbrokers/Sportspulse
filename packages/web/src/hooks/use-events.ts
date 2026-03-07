@@ -27,6 +27,8 @@ export interface ParsedEvent {
   isTodayInPortalTz: boolean;
   isDebugVisible: boolean;
   openUrl: string | null;
+  homeCrestUrl: string | null;
+  awayCrestUrl: string | null;
 }
 
 export interface EventosFeed {

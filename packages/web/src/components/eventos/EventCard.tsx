@@ -1,4 +1,5 @@
 // spec §13.3 — card de evento con badge, hora, equipos, botones DIRECT y EMBED_TEST
+import { useState } from 'react';
 import type { ParsedEvent } from '../../hooks/use-events.js';
 import { openEventDirect, openEventEmbedTest } from '../../hooks/use-events.js';
 
@@ -17,6 +18,14 @@ const LEAGUE_LABEL: Record<string, string> = {
   EXCLUIDA: 'Excluida',
 };
 
+// Logos de liga desde TheSportsDB CDN (verificados)
+const LEAGUE_LOGO: Record<string, string> = {
+  URUGUAY_PRIMERA: 'https://r2.thesportsdb.com/images/media/league/badge/3p98xv1740672448.png',
+  LALIGA: 'https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png',
+  PREMIER_LEAGUE: 'https://r2.thesportsdb.com/images/media/league/badge/gasy9d1737743125.png',
+  BUNDESLIGA: 'https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png',
+};
+
 function formatPortalTime(isoStr: string | null): string {
   if (!isoStr) return '—';
   try {
@@ -31,6 +40,27 @@ function formatPortalTime(isoStr: string | null): string {
   }
 }
 
+interface CrestImgProps {
+  src: string | null;
+  alt: string;
+  size: number;
+}
+
+function CrestImg({ src, alt, size }: CrestImgProps) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return null;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      width={size}
+      height={size}
+      onError={() => setFailed(true)}
+      style={{ objectFit: 'contain', flexShrink: 0 }}
+    />
+  );
+}
+
 interface EventCardProps {
   event: ParsedEvent;
   accentColor: string;
@@ -40,7 +70,9 @@ interface EventCardProps {
 export function EventCard({ event, accentColor, isMobile }: EventCardProps) {
   const status = STATUS_CONFIG[event.normalizedStatus] ?? STATUS_CONFIG.DESCONOCIDO;
   const leagueLabel = LEAGUE_LABEL[event.normalizedLeague] ?? event.normalizedLeague;
+  const leagueLogo = LEAGUE_LOGO[event.normalizedLeague] ?? null;
   const timeStr = formatPortalTime(event.startsAtPortalTz);
+  const crestSize = isMobile ? 20 : 24;
 
   const btnStyle: React.CSSProperties = {
     border: `1px solid ${accentColor}55`,
@@ -63,7 +95,7 @@ export function EventCard({ event, accentColor, isMobile }: EventCardProps) {
       flexDirection: 'column',
       gap: 10,
     }}>
-      {/* Fila superior: badge estado + hora */}
+      {/* Fila superior: badge estado + hora + logo liga */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{
           fontSize: 10, fontWeight: 700, letterSpacing: 0.6,
@@ -76,19 +108,32 @@ export function EventCard({ event, accentColor, isMobile }: EventCardProps) {
         <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
           {timeStr} (UY)
         </span>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginLeft: 'auto' }}>
-          {leagueLabel}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
+          {leagueLogo && (
+            <LeagueLogoImg src={leagueLogo} alt={leagueLabel} />
+          )}
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+            {leagueLabel}
+          </span>
+        </div>
       </div>
 
-      {/* Equipos */}
+      {/* Equipos con escudos */}
       <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
         fontSize: isMobile ? 14 : 16,
         fontWeight: 700,
         color: 'rgba(255,255,255,0.92)',
         lineHeight: 1.3,
+        flexWrap: 'wrap',
       }}>
-        {event.homeTeam ?? '?'} <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>vs</span> {event.awayTeam ?? '?'}
+        <CrestImg src={event.homeCrestUrl} alt={event.homeTeam ?? ''} size={crestSize} />
+        <span style={{ minWidth: 0 }}>{event.homeTeam ?? '?'}</span>
+        <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400, fontSize: isMobile ? 12 : 14 }}>vs</span>
+        <span style={{ minWidth: 0 }}>{event.awayTeam ?? '?'}</span>
+        <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? ''} size={crestSize} />
       </div>
 
       {/* Botones — spec §13.3 + §15.4 */}
@@ -117,5 +162,21 @@ export function EventCard({ event, accentColor, isMobile }: EventCardProps) {
         </button>
       </div>
     </div>
+  );
+}
+
+// Logo de liga pequeño con fallback silencioso
+function LeagueLogoImg({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      width={16}
+      height={16}
+      onError={() => setFailed(true)}
+      style={{ objectFit: 'contain', opacity: 0.6, flexShrink: 0 }}
+    />
   );
 }

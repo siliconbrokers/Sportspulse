@@ -100,9 +100,33 @@ async function main() {
   // Eventos — fuente: streamtp10.com/eventos.json (default) o EVENTOS_SOURCE_URL env
   const EVENTOS_SOURCE_URL = process.env.EVENTOS_SOURCE_URL;
   const EVENTOS_DEBUG = process.env.EVENTOS_DEBUG === 'true';
+
+  // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy)
+  const FD_COMP_IDS = COMPETITION_CODES.map((c) => `comp:football-data:${c}`);
+  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID];
+  function normTeamName(s: string) {
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  }
+  let crestMap: Map<string, string> | null = null;
+  function resolveCrest(teamName: string): string | null {
+    if (!crestMap) {
+      crestMap = new Map();
+      for (const compId of ALL_COMP_IDS) {
+        for (const team of dataSource.getTeams(compId)) {
+          if (team.crestUrl) {
+            crestMap.set(normTeamName(team.name), team.crestUrl);
+            if (team.shortName) crestMap.set(normTeamName(team.shortName), team.crestUrl);
+          }
+        }
+      }
+    }
+    return crestMap.get(normTeamName(teamName)) ?? null;
+  }
+
   const eventosService = new EventosService(
     buildEventSource(EVENTOS_SOURCE_URL), // sin arg → usa streamtp10.com por defecto
     { debugMode: EVENTOS_DEBUG },
+    resolveCrest,
   );
 
   const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService });
