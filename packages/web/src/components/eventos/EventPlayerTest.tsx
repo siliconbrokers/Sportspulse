@@ -192,26 +192,52 @@ export function EventPlayerTest() {
           </div>
         ) : (
           <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
-            {/* spec §17.3-17.4 — iframe sandboxed; src viene del servidor, no de query params */}
-            <iframe
-              ref={iframeRef}
-              src={event.openUrl!}
-              title={`${event.homeTeam} vs ${event.awayTeam}`}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-              allow="autoplay; fullscreen"
-              referrerPolicy="no-referrer"
-              loading="lazy"
-              onLoad={handleIframeLoad}
-              onError={handleIframeError}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                borderRadius: 8,
-              }}
-            />
+            {/*
+              mode=direct → iframe sin sandbox: el proveedor detecta y bloquea sandbox activamente.
+                            La URL permanece oculta (el usuario ve /eventos/ver en la barra).
+              mode=embed  → sandbox restrictivo para pruebas de aislamiento (puede fallar en
+                            proveedores con anti-sandbox; el fallback ofrece navegar directo).
+            */}
+            {mode === 'direct' ? (
+              <iframe
+                ref={iframeRef}
+                src={event.openUrl!}
+                title={`${event.homeTeam} vs ${event.awayTeam}`}
+                allow="autoplay; fullscreen"
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                onLoad={handleIframeLoad}
+                onError={handleIframeError}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  borderRadius: 8,
+                }}
+              />
+            ) : (
+              <iframe
+                ref={iframeRef}
+                src={event.openUrl!}
+                title={`${event.homeTeam} vs ${event.awayTeam}`}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
+                allow="autoplay; fullscreen"
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                onLoad={handleIframeLoad}
+                onError={handleIframeError}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  borderRadius: 8,
+                }}
+              />
+            )}
           </div>
         )}
       </div>
