@@ -9,9 +9,17 @@ import { useWindowWidth } from './hooks/use-window-width.js';
 import { useTeamsPlayingToday } from './hooks/use-teams-playing-today.js';
 import { useVideos } from './hooks/use-videos.js';
 import { VideoSection } from './components/VideoSection.js';
+import { useEvents } from './hooks/use-events.js';
+import { EventsSection } from './components/eventos/EventsSection.js';
+import { EventPlayerTest } from './components/eventos/EventPlayerTest.js';
 import { competitionDisplayName } from './utils/labels.js';
 
-type ViewMode = 'radar' | 'partidos' | 'standings' | 'noticias';
+type ViewMode = 'radar' | 'partidos' | 'standings' | 'noticias' | 'eventos';
+
+// spec §16 — detectar si la ruta actual es el player de prueba
+function isPlayerTestRoute(): boolean {
+  return window.location.pathname.startsWith('/eventos/player-test');
+}
 
 const COMPETITIONS = [
   { id: 'comp:football-data:PD', code: 'PD' },
@@ -20,7 +28,15 @@ const COMPETITIONS = [
   { id: 'comp:thesportsdb:4432', code: '4432' },
 ];
 
-export function App() {
+// spec §16 — página de prueba renderizada si la ruta lo indica
+export function AppRoot() {
+  if (isPlayerTestRoute()) {
+    return <EventPlayerTest />;
+  }
+  return <App />;
+}
+
+function App() {
   const [competitionId, setCompetitionId] = useState(COMPETITIONS[0].id);
   const [matchday, setMatchday] = useState<number | null>(null);
   const [view, setView] = useState<ViewMode>('radar');
@@ -33,6 +49,7 @@ export function App() {
     'America/Montevideo',
   );
   const { data: videoFeed, loading: videoLoading, error: videoError } = useVideos(view === 'noticias');
+  const { data: eventosFeed, loading: eventosLoading, error: eventosError } = useEvents(view === 'eventos');
   const { data: standingsTeamDetail } = useTeamDetail(
     competitionId,
     view === 'standings' ? standingsFocusId : null,
@@ -100,6 +117,7 @@ export function App() {
             { id: 'partidos', label: '⚽ Partidos' },
             { id: 'standings', label: '📊 Tabla' },
             { id: 'noticias', label: '📹 Videos' },
+            { id: 'eventos', label: '🎯 Eventos' },
           ] as { id: ViewMode; label: string }[]).map((v) => (
             <button
               key={v.id}
@@ -171,6 +189,10 @@ export function App() {
       ) : view === 'noticias' ? (
         <div style={{ padding: 16 }}>
           <VideoSection feed={videoFeed} loading={videoLoading} error={videoError} />
+        </div>
+      ) : view === 'eventos' ? (
+        <div style={{ padding: isMobile ? '16px 12px' : 24 }}>
+          <EventsSection feed={eventosFeed} loading={eventosLoading} error={eventosError} />
         </div>
       ) : (
         <div style={{ padding: 16 }}>

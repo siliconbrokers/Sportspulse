@@ -11,6 +11,7 @@ import { competitionInfoRoute } from './ui/competition-info-route.js';
 import { newsRoute } from './ui/news-route.js';
 import { videosRoute } from './ui/videos-route.js';
 import { radarRoute } from './ui/radar-route.js';
+import { eventosRoute } from './ui/eventos-route.js';
 import type { AppDependencies } from './ui/types.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -26,6 +27,7 @@ export function buildApp(deps: AppDependencies): FastifyInstance {
   app.register(newsRoute(deps));
   app.register(videosRoute(deps));
   app.register(radarRoute(deps));
+  app.register(eventosRoute(deps));
 
   // Servir el frontend React en producción
   const webDist = join(__dirname, '../../web/dist');

@@ -5,6 +5,7 @@ import { RoutingDataSource } from './routing-data-source.js';
 import { NewsService } from './news/index.js';
 import { VideoService } from './video/index.js';
 import { RadarApiAdapter } from './radar/index.js';
+import { EventosService, buildEventSource } from './eventos/index.js';
 import {
   SnapshotService,
   InMemorySnapshotStore,
@@ -96,7 +97,14 @@ async function main() {
 
   const radarService = new RadarApiAdapter(dataSource);
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService });
+  const EVENTOS_SOURCE_URL = process.env.EVENTOS_SOURCE_URL;
+  const EVENTOS_DEBUG = process.env.EVENTOS_DEBUG === 'true';
+  const eventosService = new EventosService(
+    buildEventSource(EVENTOS_SOURCE_URL),
+    { debugMode: EVENTOS_DEBUG },
+  );
+
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService });
 
   // Periodic refresh every 10 minutes
   setInterval(async () => {

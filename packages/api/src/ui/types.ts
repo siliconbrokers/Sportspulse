@@ -101,10 +101,37 @@ export interface IRadarService {
   }>;
 }
 
+export interface IEventosService {
+  getEvents(): Promise<{
+    events: Array<{
+      id: string;
+      rawText: string;
+      sourceUrl: string;
+      sourceLanguage: string;
+      sourceTimeText: string | null;
+      sourceCompetitionText: string | null;
+      sourceStatusText: string | null;
+      homeTeam: string | null;
+      awayTeam: string | null;
+      normalizedLeague: string;
+      normalizedStatus: string;
+      sourceTimezoneOffsetMinutes: number | null;
+      startsAtSource: string | null;
+      startsAtPortalTz: string | null;
+      isTodayInPortalTz: boolean;
+      isDebugVisible: boolean;
+      openUrl: string | null;
+    }>;
+    fetchedAtUtc: string;
+    debugMode: boolean;
+  }>;
+}
+
 export interface AppDependencies {
   snapshotService: SnapshotService;
   dataSource: DataSource;
   newsService: INewsService;
   videoService?: IVideoService;
   radarService?: IRadarService;
+  eventosService?: IEventosService;
 }
