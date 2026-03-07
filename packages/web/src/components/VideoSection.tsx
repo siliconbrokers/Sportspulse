@@ -38,6 +38,8 @@ function SkeletonVideo() {
 function VideoLeagueBlock({ block, isMobile }: { block: VideoBlock; isMobile: boolean }) {
   const accent = LEAGUE_ACCENT[block.leagueKey] ?? '#64748b';
   const label = LEAGUE_LABEL[block.leagueKey] ?? block.leagueKey;
+  // Guard: compatibilidad con respuesta antigua del servidor
+  const highlights = Array.isArray(block.highlights) ? block.highlights : [];
 
   return (
     <div style={{ marginBottom: 40 }}>
@@ -51,20 +53,20 @@ function VideoLeagueBlock({ block, isMobile }: { block: VideoBlock; isMobile: bo
         }}>
           {label}
         </h3>
-        {block.highlights.length > 0 && (
+        {highlights.length > 0 && (
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-            {block.highlights.length} {block.highlights.length === 1 ? 'video' : 'videos'}
+            {highlights.length} {highlights.length === 1 ? 'video' : 'videos'}
           </span>
         )}
       </div>
 
-      {block.highlights.length > 0 ? (
+      {highlights.length > 0 ? (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(block.highlights.length, 3)}, 1fr)`,
+          gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(highlights.length, 3)}, 1fr)`,
           gap: 16,
         }}>
-          {block.highlights.map((h) => (
+          {highlights.map((h) => (
             <FeaturedVideoCard key={h.id} highlight={h} accentColor={accent} />
           ))}
         </div>
