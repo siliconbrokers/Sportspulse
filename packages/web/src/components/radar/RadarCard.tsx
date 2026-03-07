@@ -13,6 +13,7 @@
  */
 
 import type { RadarCardEntry, RadarLiveMatchData } from '../../hooks/use-radar.js';
+import { useWindowWidth } from '../../hooks/use-window-width.js';
 
 // ── Label colors ──────────────────────────────────────────────────────────────
 
@@ -75,6 +76,8 @@ interface RadarCardProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function RadarCard({ card, live, matchday, onViewMatch }: RadarCardProps) {
+  const { breakpoint } = useWindowWidth();
+  const isMobile = breakpoint === 'mobile';
   const labelColor = LABEL_COLORS[card.labelKey] ?? LABEL_COLORS.EN_LA_MIRA;
 
   const scoreHome = live?.scoreHome ?? null;
@@ -131,21 +134,43 @@ export function RadarCard({ card, live, matchday, onViewMatch }: RadarCardProps)
       </div>
 
       {/* 2. Match title */}
-      <div style={{ padding: '14px 14px 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        {homeCrest && (
-          <img src={homeCrest} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
-        )}
-        <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.88)' }}>
-          {homeTeamName}
-        </span>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: '0 2px' }}>vs</span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.88)' }}>
-          {awayTeamName}
-        </span>
-        {awayCrest && (
-          <img src={awayCrest} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
-        )}
-      </div>
+      {isMobile ? (
+        <div style={{ padding: '12px 14px 4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            {homeCrest && (
+              <img src={homeCrest} alt="" style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }} />
+            )}
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.88)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {homeTeamName}
+            </span>
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', padding: '3px 0 3px 24px' }}>vs</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            {awayCrest && (
+              <img src={awayCrest} alt="" style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }} />
+            )}
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.88)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {awayTeamName}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: '14px 14px 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {homeCrest && (
+            <img src={homeCrest} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
+          )}
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.88)' }}>
+            {homeTeamName}
+          </span>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: '0 2px' }}>vs</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.88)' }}>
+            {awayTeamName}
+          </span>
+          {awayCrest && (
+            <img src={awayCrest} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
+          )}
+        </div>
+      )}
 
       {/* 4. Main label pill */}
       <div style={{ padding: '10px 14px 0' }}>
@@ -184,6 +209,12 @@ export function RadarCard({ card, live, matchday, onViewMatch }: RadarCardProps)
           color: 'rgba(255,255,255,0.75)',
           margin: 0,
           fontStyle: 'italic',
+          ...(isMobile ? {
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          } : {}),
         }}>
           {card.preMatchText}
         </p>
@@ -248,15 +279,15 @@ export function RadarCard({ card, live, matchday, onViewMatch }: RadarCardProps)
           <div style={{ display: 'flex', marginBottom: 5 }}>
             <div style={{ width: `${Math.round(live.probHomeWin * 100)}%`, textAlign: 'left', overflow: 'hidden' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>{Math.round(live.probHomeWin * 100)}%</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeamName}</div>
+              {!isMobile && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeamName}</div>}
             </div>
             <div style={{ width: `${Math.round(live.probDraw * 100)}%`, textAlign: 'center', overflow: 'hidden', flexShrink: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>{Math.round(live.probDraw * 100)}%</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>Empate</div>
+              {!isMobile && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>Empate</div>}
             </div>
             <div style={{ width: `${Math.round(live.probAwayWin * 100)}%`, textAlign: 'right', overflow: 'hidden' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>{Math.round(live.probAwayWin * 100)}%</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeamName}</div>
+              {!isMobile && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeamName}</div>}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden', height: 4 }}>
