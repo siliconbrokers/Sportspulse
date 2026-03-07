@@ -8,6 +8,7 @@ const POSITIVE_TERMS = [
   'resumen', 'goles', 'goals',
   'jornada', 'matchday', 'spieltag',
   'zusammenfassung',
+  'show de goles', 'todos los goles', 'resumen de la fecha',
   'previa', 'preview',
   'fecha',
 ];
@@ -20,6 +21,24 @@ const NEGATIVE_TERMS = [
   'training', 'entrenamiento',
   'noticias del dia', 'noticias hoy',
   'behind the scenes',
+];
+
+/**
+ * Formatos de contenido que NO son resúmenes de partido.
+ * Se descartan inmediatamente sin importar el score.
+ * Incluye patrones específicos de canales como AUFTV.
+ */
+const CONTENT_TYPE_BLOCKLIST = [
+  'nota con',          // AUFTV: segmento de entrevista ("Nota con jugador X")
+  'revision var',      // AUFTV: revisión de jugadas de VAR
+  'analisis',          // análisis editorial, no resumen de partido
+  'convocatoria',      // lista de convocados
+  'presentacion',      // presentación de jugador
+  'firma de contrato', // firma de contrato
+  'transferencia',     // noticias de mercado
+  'lesion',            // novedades de lesiones
+  'suspension',        // novedades de suspensiones
+  'conferencia de prensa',
 ];
 
 function norm(text: string): string {
@@ -44,6 +63,11 @@ export function scoreCandidate(candidate: VideoCandidate): number {
 
   // Discard immediately if politics
   if (isBlockedByPolitics(candidate.title)) return -100;
+
+  // Discard immediately if non-match content type (interviews, VAR review, etc.)
+  for (const term of CONTENT_TYPE_BLOCKLIST) {
+    if (title.includes(norm(term))) return -100;
+  }
 
   let score = 0;
 
