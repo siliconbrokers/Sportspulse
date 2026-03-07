@@ -254,6 +254,10 @@ All phases (0-9) complete + Phase 10 (UI Polish) complete + News + Video Highlig
 - `server/football-data-source.ts` — football-data.org adapter
 - `server/the-sports-db-source.ts` — TheSportsDB adapter (Liga Uruguaya)
 - `server/routing-data-source.ts` — composite routing by competitionId
+- `server/matchday-cache.ts` — file-based JSON cache per matchday (spec: `matchday-cache-technical-spec.md` v1.0)
+  - Cache dir: `/cache/{provider}/{competitionId}/{season}/matchday-{NN}.json` (runtime, not versioned)
+  - Atomic write (.tmp → rename), TTL by status (finished=1y, live=60s, scheduled=6h, mixed=5min)
+  - Integrated in both data sources via `checkMatchdayCache` / `persistMatchdayCache`
 
 ## Architecture (Layered Pipeline)
 
