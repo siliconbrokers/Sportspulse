@@ -94,19 +94,28 @@
         "goalsFor": 0,
         "goalsAgainst": 0,
         "goalDifference": 0,
-        "points": 0
+        "points": 0,
+        "playedGames": 0,
+        "lambdaAttack": 0,
+        "lambdaDefense": 0
       },
       "homeGoalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
         "goalDifference": 0,
-        "points": 0
+        "points": 0,
+        "playedGames": 0,
+        "lambdaAttack": 0,
+        "lambdaDefense": 0
       },
       "awayGoalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
         "goalDifference": 0,
-        "points": 0
+        "points": 0,
+        "playedGames": 0,
+        "lambdaAttack": 0,
+        "lambdaDefense": 0
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
@@ -185,19 +194,28 @@
         "goalsFor": 0,
         "goalsAgainst": 0,
         "goalDifference": 0,
-        "points": 0
+        "points": 0,
+        "playedGames": 0,
+        "lambdaAttack": 0,
+        "lambdaDefense": 0
       },
       "homeGoalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
         "goalDifference": 0,
-        "points": 0
+        "points": 0,
+        "playedGames": 0,
+        "lambdaAttack": 0,
+        "lambdaDefense": 0
       },
       "awayGoalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
         "goalDifference": 0,
-        "points": 0
+        "points": 0,
+        "playedGames": 0,
+        "lambdaAttack": 0,
+        "lambdaDefense": 0
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
@@ -276,19 +294,28 @@
         "goalsFor": 0,
         "goalsAgainst": 0,
         "goalDifference": 0,
-        "points": 0
+        "points": 0,
+        "playedGames": 0,
+        "lambdaAttack": 0,
+        "lambdaDefense": 0
       },
       "homeGoalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
         "goalDifference": 0,
-        "points": 0
+        "points": 0,
+        "playedGames": 0,
+        "lambdaAttack": 0,
+        "lambdaDefense": 0
       },
       "awayGoalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
         "goalDifference": 0,
-        "points": 0
+        "points": 0,
+        "playedGames": 0,
+        "lambdaAttack": 0,
+        "lambdaDefense": 0
       },
       "policyKey": "sportpulse.mvp.form-agenda",
       "policyVersion": 1,
