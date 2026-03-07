@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // ── Types mirroring the API response ─────────────────────────────────────────
 
@@ -64,14 +64,18 @@ interface UseRadarResult {
   error: string | null;
 }
 
+const POLL_LIVE_MS = 60_000;
+
 /**
  * Hook that fetches the Radar editorial snapshot for the given competition+matchday.
  * Re-fetches whenever competitionId or matchday changes.
+ * Polls every 60s when there is at least one IN_PLAY match.
  */
 export function useRadar(competitionId: string | null, matchday: number | null): UseRadarResult {
   const [data, setData] = useState<RadarData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dataRef = useRef<RadarData | null>(null);
 
   useEffect(() => {
     if (!competitionId || !matchday) {
@@ -79,30 +83,45 @@ export function useRadar(competitionId: string | null, matchday: number | null):
       return;
     }
 
-    const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-
     const url = `/api/ui/radar?competitionId=${encodeURIComponent(competitionId)}&matchday=${matchday}`;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    let active = true;
 
-    fetch(url, { signal: controller.signal })
-      .then((res) => {
+    async function fetchOnce(isInitial: boolean) {
+      const controller = new AbortController();
+      if (isInitial) setLoading(true);
+      try {
+        const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<RadarData>;
-      })
-      .then((json) => {
-        if (!controller.signal.aborted) setData(json);
-      })
-      .catch((err: unknown) => {
-        if (controller.signal.aborted) return;
+        const json = (await res.json()) as RadarData;
+        if (!active) return;
+        dataRef.current = json;
+        setData(json);
+        setError(null);
+      } catch (err: unknown) {
+        if (!active) return;
+        if ((err as { name?: string }).name === 'AbortError') return;
         setError(err instanceof Error ? err.message : 'Error al cargar Radar');
-        setData({ index: null, liveData: [], state: 'unavailable' });
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
+        if (!dataRef.current) setData({ index: null, liveData: [], state: 'unavailable' });
+      } finally {
+        if (active && isInitial) setLoading(false);
+      }
 
-    return () => controller.abort();
+      if (!active) return;
+      const hasLive = (dataRef.current?.liveData ?? []).some((m) => m.status === 'IN_PROGRESS');
+      if (hasLive) {
+        pollTimer = setTimeout(() => {
+          void fetchOnce(false);
+        }, POLL_LIVE_MS);
+      }
+    }
+
+    void fetchOnce(true);
+
+    return () => {
+      active = false;
+      if (pollTimer !== null) clearTimeout(pollTimer);
+    };
   }, [competitionId, matchday]);
 
   return { data, loading, error };

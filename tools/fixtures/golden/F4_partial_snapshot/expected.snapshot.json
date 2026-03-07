@@ -171,7 +171,8 @@
           "lambdaAttack": 0,
           "lambdaDefense": 0
         },
-        "venue": "HOME"
+        "venue": "HOME",
+        "matchStatus": "SCHEDULED"
       },
       "rect": {
         "x": 8,
@@ -319,7 +320,8 @@
           "lambdaAttack": 1.5209876607065325,
           "lambdaDefense": 0
         },
-        "venue": "AWAY"
+        "venue": "AWAY",
+        "matchStatus": "SCHEDULED"
       },
       "rect": {
         "x": 935,

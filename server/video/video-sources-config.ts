@@ -2,9 +2,15 @@ export type LeagueKey = 'URU' | 'LL' | 'EPL' | 'BUN';
 
 export interface LeagueVideoSourceConfig {
   leagueKey: LeagueKey;
-  channelId: string;   // YouTube channel ID (UCxxxxx...)
+  channelId: string;   // YouTube channel ID (UCxxxxx...). Ignorado si searchOnly=true
   channelLabel: string;
   enabled: boolean;
+  /**
+   * Si true: omite la búsqueda por canal y va directo a search.list.
+   * Usar cuando el canal oficial geo-bloquea la región objetivo.
+   * El throttle se controla por TTL de caché (no por límite diario).
+   */
+  searchOnly?: boolean;
   fallbackSearchTerms: string[];
   // Al menos uno de estos términos debe aparecer en el título para aceptar el video
   titleRequiredTerms: string[];
@@ -23,11 +29,16 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
   },
   LL: {
     leagueKey: 'LL',
-    channelId: 'UCTv-XvfzLX3i4IGWAm4sbmA', // LALIGA EA SPORTS oficial (14M subs)
+    channelId: '',   // sin canal fijo — geo-blocking en UY; se usa searchOnly
     channelLabel: 'LaLiga',
     enabled: true,
-    fallbackSearchTerms: ['LaLiga España jornada resumen goles', 'LaLiga española highlights jornada'],
-    titleRequiredTerms: ['laliga', 'la liga', 'liga española', 'real madrid', 'barcelona', 'atletico', 'sevilla', 'primera division'],
+    searchOnly: true,
+    fallbackSearchTerms: [
+      'resumen goles LaLiga jornada',
+      'LaLiga highlights jornada goles resumen',
+      'highlights LaLiga goals today',
+    ],
+    titleRequiredTerms: ['laliga', 'la liga', 'liga española', 'real madrid', 'barcelona', 'atletico', 'sevilla', 'primera division', 'liga espanola'],
   },
   EPL: {
     leagueKey: 'EPL',

@@ -68,19 +68,21 @@ function resolveStatusLabel(status: string, scoreHome: number | null, scoreAway:
 interface RadarCardProps {
   card: RadarCardEntry;
   live: RadarLiveMatchData | null;
+  matchday?: number;
   onViewMatch?: (matchId: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function RadarCard({ card, live, onViewMatch }: RadarCardProps) {
+export function RadarCard({ card, live, matchday, onViewMatch }: RadarCardProps) {
   const labelColor = LABEL_COLORS[card.labelKey] ?? LABEL_COLORS.EN_LA_MIRA;
-  const isPostMatch = card.editorialState === 'POST_MATCH';
-  const isInPlay = card.editorialState === 'IN_PLAY';
 
   const scoreHome = live?.scoreHome ?? null;
   const scoreAway = live?.scoreAway ?? null;
   const status = live?.status ?? 'SCHEDULED';
+
+  const isPostMatch = card.editorialState === 'POST_MATCH';
+  const isInPlay = card.editorialState === 'IN_PLAY' || status === 'IN_PROGRESS';
   const statusLabel = resolveStatusLabel(status, scoreHome, scoreAway);
   const kickoffLabel = formatKickoff(live?.startTimeUtc ?? null);
 
@@ -106,12 +108,26 @@ export function RadarCard({ card, live, onViewMatch }: RadarCardProps) {
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
-          Jornada {/* competitionKey shown via parent */}
+        <span style={{ fontSize: 11, color: isInPlay ? '#ef4444' : 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+          {matchday != null ? `Jornada ${matchday}` : 'Jornada'}
         </span>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-          {statusLabel || kickoffLabel}
-        </span>
+        {isInPlay ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              backgroundColor: '#ef4444',
+              animation: 'pulse 1.4s infinite',
+              flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 600 }}>
+              {statusLabel || 'En juego'}
+            </span>
+          </span>
+        ) : (
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+            {statusLabel || kickoffLabel}
+          </span>
+        )}
       </div>
 
       {/* 2. Match title */}

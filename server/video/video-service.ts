@@ -47,33 +47,36 @@ export class VideoService {
       return { leagueKey, highlights: [] };
     }
 
-    // Estrategia principal — uploads del canal
-    let channelHighlights: LeagueVideoHighlight[] = [];
-    try {
-      channelHighlights = await this.resolveFromChannel(leagueKey);
-    } catch (channelErr) {
-      const msg = channelErr instanceof Error ? channelErr.message : String(channelErr);
-      console.warn(`[VideoService] ${leagueKey}: channel error, trying fallback — ${msg.slice(0, 80)}`);
+    // Estrategia principal — uploads del canal (omitido si searchOnly=true)
+    if (!config.searchOnly) {
+      let channelHighlights: LeagueVideoHighlight[] = [];
+      try {
+        channelHighlights = await this.resolveFromChannel(leagueKey);
+      } catch (channelErr) {
+        const msg = channelErr instanceof Error ? channelErr.message : String(channelErr);
+        console.warn(`[VideoService] ${leagueKey}: channel error, trying fallback — ${msg.slice(0, 80)}`);
+      }
+
+      if (channelHighlights.length > 0) {
+        this.cache.set(leagueKey, channelHighlights);
+        console.log(`[VideoService] ${leagueKey}: found ${channelHighlights.length} videos`);
+        return { leagueKey, highlights: channelHighlights };
+      }
     }
 
-    if (channelHighlights.length > 0) {
-      this.cache.set(leagueKey, channelHighlights);
-      console.log(`[VideoService] ${leagueKey}: found ${channelHighlights.length} videos`);
-      return { leagueKey, highlights: channelHighlights };
-    }
-
-    // Fallback — búsqueda libre si canal no devolvió resultados
+    // Búsqueda libre — throttle via TTL de caché para searchOnly; límite diario para fallback normal
+    const canSearch = config.searchOnly || this.cache.canUseFallback(leagueKey);
     try {
-      if (this.cache.canUseFallback(leagueKey)) {
-        this.cache.markFallbackUsed(leagueKey);
-        const fallbackHighlights = await this.resolveFromSearch(leagueKey);
-        this.cache.set(leagueKey, fallbackHighlights);
-        console.log(`[VideoService] ${leagueKey}: fallback found ${fallbackHighlights.length} videos`);
-        return { leagueKey, highlights: fallbackHighlights };
+      if (canSearch) {
+        if (!config.searchOnly) this.cache.markFallbackUsed(leagueKey);
+        const searchHighlights = await this.resolveFromSearch(leagueKey);
+        this.cache.set(leagueKey, searchHighlights);
+        console.log(`[VideoService] ${leagueKey}: search found ${searchHighlights.length} videos`);
+        return { leagueKey, highlights: searchHighlights };
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[VideoService] ${leagueKey}: fallback error — ${msg}`);
+      console.error(`[VideoService] ${leagueKey}: search error — ${msg}`);
     }
 
     this.cache.set(leagueKey, []);

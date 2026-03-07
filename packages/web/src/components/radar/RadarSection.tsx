@@ -112,6 +112,7 @@ export function RadarSection({ data, loading, onViewMatch }: RadarSectionProps) 
             key={card.matchId}
             card={card}
             live={liveMap.get(card.matchId) ?? null}
+            matchday={data.index?.matchday}
             onViewMatch={onViewMatch}
           />
         ))}
