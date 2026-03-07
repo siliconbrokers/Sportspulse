@@ -1,7 +1,7 @@
 # Radar SportPulse — Editorial Policy
 
-Version: 1.0  
-Status: Consolidated  
+Version: 1.1 (copy library updated to v3)
+Status: Consolidated
 Scope: MVP  
 Audience: Product, Backend, Frontend, QA
 
@@ -129,30 +129,18 @@ Do not use:
 
 ---
 
-## 7. EN LA MIRA
+## 7. EN LA MIRA (→ `CRUCE_PESADO` en librería v3)
 
 ### Allowed subtypes
 
-- `TOP_CONTEXT`
-- `FORM_CONTEXT`
-- `MATCHDAY_WEIGHT`
+- `TOP_CONTEXT` → context `season_turning`
+- `FORM_CONTEXT` → context `heat_of_matchday`
+- `MATCHDAY_WEIGHT` → context `table_pressure`
 
 ### Templates
 
-#### `TOP_CONTEXT`
-- `Cruce con suficiente peso competitivo como para quedar en la mira.`
-- `Partido con contexto de jornada y atención natural dentro de la fecha.`
-- `El cruce tiene suficiente peso en la jornada como para seguirlo de cerca.`
-
-#### `FORM_CONTEXT`
-- `La previa reúne contexto y forma como para poner este cruce en la mira.`
-- `Llega con señales competitivas suficientes como para destacarse en la jornada.`
-- `Hay contexto y dinámica reciente como para prestarle atención.`
-
-#### `MATCHDAY_WEIGHT`
-- `Dentro de la jornada, es uno de los cruces con mayor contexto para seguir.`
-- `La fecha lo pone naturalmente entre los partidos que vale la pena mirar.`
-- `El contexto de la jornada lo empuja a quedar bajo observación.`
+See `radar-editorial-copy-library-rioplatense-v3.json` → label `CRUCE_PESADO`.
+Each context has 12 templates (tone: futbolero / venenoso / picante respectively).
 
 ### Restriction
 
@@ -160,30 +148,18 @@ Do not use contradiction, warning, open-game, or tight-game language here.
 
 ---
 
-## 8. BAJO EL RADAR
+## 8. BAJO EL RADAR (→ `BAJO_EL_RADAR` en librería v3)
 
 ### Allowed subtypes
 
-- `LOW_VISIBILITY_CONTEXT`
-- `QUIET_COMPETITIVE_SIGNAL`
-- `NON_OBVIOUS_BALANCE`
+- `QUIET_COMPETITIVE_SIGNAL` → context `quiet_but_spicy`
+- `LOW_VISIBILITY_CONTEXT` → context `hidden_signals`
+- `NON_OBVIOUS_BALANCE` → context `steals_the_show`
 
 ### Templates
 
-#### `LOW_VISIBILITY_CONTEXT`
-- `No parece el cruce del día, pero trae más contexto del que sugiere a simple vista.`
-- `Pasa más desapercibido de lo normal, aunque llega con señales para mirarlo mejor.`
-- `No entra entre los partidos más visibles, pero deja algo más que mirar.`
-
-#### `QUIET_COMPETITIVE_SIGNAL`
-- `Sin demasiado ruido alrededor, llega con indicios más útiles de lo que parece.`
-- `No destaca por nombre ni tabla, pero trae una lectura menos obvia.`
-- `No llama tanto la atención, aunque el cruce deja señales para no ignorarlo.`
-
-#### `NON_OBVIOUS_BALANCE`
-- `A simple vista queda atrás, pero trae un contexto más interesante del esperado.`
-- `No parece prioritario, aunque deja una señal competitiva que merece atención.`
-- `Queda fuera del foco principal, pero el partido no es tan neutro como parece.`
+See `radar-editorial-copy-library-rioplatense-v3.json` → label `BAJO_EL_RADAR`.
+Each context has 12 templates (tone: picante / futbolero / venenoso respectively).
 
 ### Restriction
 
@@ -191,30 +167,18 @@ If there is a strong contradiction between surface and signals, use **Partido en
 
 ---
 
-## 9. SEÑAL DE ALERTA
+## 9. SEÑAL DE ALERTA (→ `SEÑAL_DE_ALERTA` en librería v3)
 
 ### Allowed subtypes
 
-- `FAVORITE_DEFENSIVE_FRAGILITY`
-- `FAVORITE_WEAK_LOCAL_EDGE`
-- `UNDERDOG_COMPETITIVE_RESISTANCE`
+- `FAVORITE_DEFENSIVE_FRAGILITY` → context `favorite_concedes`
+- `UNDERDOG_COMPETITIVE_RESISTANCE` → context `rival_bites`
+- `FAVORITE_WEAK_LOCAL_EDGE` → context `favorite_shaky`
 
 ### Templates
 
-#### `FAVORITE_DEFENSIVE_FRAGILITY`
-- `El favorito llega mejor posicionado, pero viene dejando señales de fragilidad.`
-- `La tabla lo favorece, aunque su solidez reciente no acompaña del todo.`
-- `Parte mejor perfilado, pero su rendimiento reciente deja una alerta abierta.`
-
-#### `FAVORITE_WEAK_LOCAL_EDGE`
-- `El contexto lo favorece, pero no está imponiéndose con la claridad esperada.`
-- `Llega mejor parado, aunque su ventaja reciente no se ve tan firme.`
-- `La previa lo ubica por delante, pero su control del cruce no parece tan claro.`
-
-#### `UNDERDOG_COMPETITIVE_RESISTANCE`
-- `El favorito parte arriba, pero enfrente hay más resistencia de la que la tabla sugiere.`
-- `Llega mejor posicionado, aunque el rival ofrece más oposición de la esperada.`
-- `La ventaja aparente existe, pero el cruce deja una alerta competitiva abierta.`
+See `radar-editorial-copy-library-rioplatense-v3.json` → label `SEÑAL_DE_ALERTA`.
+Each context has 12 templates (tone: venenoso / futbolero / picante respectively).
 
 ### Restriction
 
@@ -222,30 +186,18 @@ A meaningful pre-match favorite must exist. Otherwise this label is invalid.
 
 ---
 
-## 10. PARTIDO ENGAÑOSO
+## 10. PARTIDO ENGAÑOSO (→ `PARTIDO_ENGAÑOSO` en librería v3)
 
 ### Allowed subtypes
 
-- `TABLE_FORM_CONTRADICTION`
-- `SURFACE_DISTANCE_OVERSOLD`
-- `FAVORITE_NOT_AS_COMFORTABLE`
+- `TABLE_FORM_CONTRADICTION` → context `table_lies`
+- `SURFACE_DISTANCE_OVERSOLD` → context `surface_trap`
+- `FAVORITE_NOT_AS_COMFORTABLE` → context `favorite_inflated`
 
 ### Templates
 
-#### `TABLE_FORM_CONTRADICTION`
-- `La superficie marca una diferencia clara, pero la forma reciente cuenta otra historia.`
-- `La tabla sugiere un cruce más simple de lo que muestran las señales previas.`
-- `La lectura superficial parece clara, aunque la dinámica reciente la complica.`
-
-#### `SURFACE_DISTANCE_OVERSOLD`
-- `Parece más resuelto de lo que realmente sugieren las señales de la previa.`
-- `La distancia aparente existe, pero el cruce llega menos lineal de lo esperado.`
-- `A primera vista parece cómodo, aunque el contexto previo dice otra cosa.`
-
-#### `FAVORITE_NOT_AS_COMFORTABLE`
-- `La previa no termina de sostener la comodidad que la tabla insinúa.`
-- `El favoritismo aparente existe, pero el partido llega más tramposo de lo esperado.`
-- `Hay un favorito visible, aunque el cruce no parece tan limpio como sugiere la tabla.`
+See `radar-editorial-copy-library-rioplatense-v3.json` → label `PARTIDO_ENGAÑOSO`.
+Each context has 12 templates (tone: picante / venenoso / futbolero respectively).
 
 ### Restriction
 
@@ -253,30 +205,18 @@ Do not use this label for simple parity. A true surface-vs-reality contrast must
 
 ---
 
-## 11. PARTIDO ABIERTO
+## 11. PARTIDO ABIERTO (→ `PARTIDO_ABIERTO` en librería v3)
 
 ### Allowed subtypes
 
-- `BOTH_SCORE_AND_CONCEDE`
-- `GOAL_EXCHANGE_SIGNAL`
-- `LOW_CONTROL_PROFILE`
+- `BOTH_SCORE_AND_CONCEDE` → context `both_concede`
+- `GOAL_EXCHANGE_SIGNAL` → context `both_score`
+- `LOW_CONTROL_PROFILE` → context `chaos_profile`
 
 ### Templates
 
-#### `BOTH_SCORE_AND_CONCEDE`
-- `Ambos llegan con señales de gol y margen para un partido abierto.`
-- `La previa deja más espacio para intercambio que para control.`
-- `Los dos traen indicios que empujan a un cruce más suelto que cerrado.`
-
-#### `GOAL_EXCHANGE_SIGNAL`
-- `El partido llega con una dinámica que abre margen para ida y vuelta.`
-- `Las señales previas apuntan a un cruce con más intercambio que contención.`
-- `La lectura de la previa deja ver un partido con margen para moverse.`
-
-#### `LOW_CONTROL_PROFILE`
-- `No hay demasiadas señales de cierre en un cruce que llega bastante suelto.`
-- `La previa muestra poca contención y bastante margen para un partido abierto.`
-- `El contexto reciente deja más olor a intercambio que a control.`
+See `radar-editorial-copy-library-rioplatense-v3.json` → label `PARTIDO_ABIERTO`.
+Each context has 12 templates (tone: venenoso / futbolero / picante respectively).
 
 ### Restriction
 
@@ -284,30 +224,18 @@ Do not use if the openness signal depends almost entirely on only one team.
 
 ---
 
-## 12. DUELO CERRADO
+## 12. DUELO CERRADO (→ `DUELO_CERRADO` en librería v3)
 
 ### Allowed subtypes
 
-- `LOW_GOAL_VOLUME`
-- `TIGHT_BALANCE`
-- `LOW_MARGIN_PROFILE`
+- `LOW_GOAL_VOLUME` → context `low_goal`
+- `TIGHT_BALANCE` → context `tight_balance`
+- `LOW_MARGIN_PROFILE` → context `rough_match`
 
 ### Templates
 
-#### `LOW_GOAL_VOLUME`
-- `La previa apunta a un cruce corto, parejo y con poco margen.`
-- `Todo llega más cerca del ajuste que de la amplitud en este partido.`
-- `Las señales previas empujan a un duelo más cerrado que abierto.`
-
-#### `TIGHT_BALANCE`
-- `El cruce llega con forma pareja y poco espacio para una diferencia amplia.`
-- `La jornada deja acá un partido de equilibrio más que de desborde.`
-- `No aparecen señales de amplitud en un cruce que llega bastante ajustado.`
-
-#### `LOW_MARGIN_PROFILE`
-- `La previa no empuja a un partido suelto, sino a uno de margen corto.`
-- `Hay más señales de contención y ajuste que de un partido roto.`
-- `El contexto reciente deja ver un cruce corto y bastante contenido.`
+See `radar-editorial-copy-library-rioplatense-v3.json` → label `DUELO_CERRADO`.
+Each context has 12 templates (tone: sobrio / futbolero / venenoso respectively).
 
 ### Restriction
 
@@ -349,13 +277,16 @@ Do not use if the match also carries strong open-game evidence.
 
 ---
 
-## 14. Template rotation
+## 14. Template rotation (v3 rules)
 
 Within one matchday snapshot:
 
-- do not repeat the exact same rendered `preMatchText`
-- do not reuse the same template twice in a row when a valid alternative exists
-- prefer the clearest valid template over the most creative one
+- do not repeat the exact same `preMatchText` (deduplication by text, not by id)
+- use `matchId` as deterministic seed to select different templates per match across leagues
+- no `remates_opcionales` — every phrase in v3 is self-contained and closed
+- tone is fixed per context (no per-template tone selection needed)
+- do not repeat an opening pattern of 4+ words within the same label in the same snapshot
+- max 1 venenoso-tone phrase per label per snapshot when alternatives exist
 
 ---
 

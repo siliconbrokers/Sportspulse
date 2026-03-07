@@ -1,3 +1,10 @@
+# Radar editorial copy library rioplatense — versión expandida (DEPRECATED — v2)
+
+> **Esta versión está deprecada.** La versión activa es v3.
+> Ver `radar-editorial-copy-v3-dev-notes.md` y `radar-editorial-copy-library-rioplatense-v3.json`.
+
+---
+
 # Radar editorial copy library rioplatense — versión expandida
 
 ## Qué cambia respecto a la versión anterior

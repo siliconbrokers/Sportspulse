@@ -1,4 +1,9 @@
-# Radar editorial copy library — notas de desarrollo
+# Radar editorial copy library — notas de desarrollo (DEPRECATED — v1)
+
+> **Esta versión está deprecada.** La versión activa es v3.
+> Ver `radar-editorial-copy-v3-dev-notes.md` y `radar-editorial-copy-library-rioplatense-v3.json`.
+
+---
 
 ## Qué incluye
 Esta librería trae copy editorial rioplatense para Radar SportPulse en dos formatos:
