@@ -1,132 +1,126 @@
 /**
- * Radar SportPulse — Text Renderer (Rioplatense Editorial Copy Library v2 — Expanded)
- * Source: radar_docs/radar-editorial-copy-library-rioplatense-expanded.json
- * Dev notes: radar_docs/radar-editorial-copy-expanded-dev-notes.md
+ * Radar SportPulse — Text Renderer (Rioplatense Editorial Copy Library v3)
+ * Source: radar_docs/radar-editorial-copy-library-rioplatense-v3.json
+ * Dev notes: radar_docs/radar-editorial-copy-v3-dev-notes.md
  *
- * Tone selection:
- *   - sobrio: partidos normales (EN_LA_MIRA / cruce_pesado)
- *   - picante: default recomendado
- *   - venenoso: señales fuertes en labels elegibles (umbral ≥ 78)
- *
- * Render rules (expanded v2):
- *   - max_remate_usage_ratio = 0.45 (≈ cada 2-3 cards)
- *   - block_same_template_within_last_n_generated = 24
- *   - prefer_different_context_if_same_label_repeats = true
+ * V3 changes vs v2:
+ *   - Templates are plain strings (no id/tone/text objects)
+ *   - Tone is per-context (all templates in a context share same tone)
+ *   - No remates_opcionales — every phrase is self-contained
+ *   - No voice_policy/banned_phrases
+ *   - New context keys per label
+ *   - New tone: 'futbolero' added alongside sobrio/picante/venenoso
  */
 
 import { createRequire } from 'node:module';
 import type {
   RadarLabelKey,
   RadarSignalSubtype,
-  RadarEvidenceTier,
 } from './radar-types.js';
 
 const require = createRequire(import.meta.url);
 
-// ── Copy library types ─────────────────────────────────────────────────────────
+// ── Copy library types (v3) ────────────────────────────────────────────────────
 
-type ToneLevel = 'sobrio' | 'picante' | 'venenoso';
+type ToneLevel = 'sobrio' | 'picante' | 'venenoso' | 'futbolero';
 
-interface LibraryTemplate {
-  id: string;
+interface LibraryContextV3 {
   tone: ToneLevel;
-  text: string;
+  templates: string[];
 }
 
-interface LibraryContext {
-  key: string;
-  templates: LibraryTemplate[];
+interface LibraryLabelV3 {
+  displayName: string;
+  contexts: Record<string, LibraryContextV3>;
 }
 
-interface LibraryLabel {
-  contexts: LibraryContext[];
-}
-
-/** Remates opcionales en v2: strings simples categorizados por tono */
-interface RematesOpcionales {
-  general: string[];
-  picantes: string[];
-  venenosos: string[];
-}
-
-interface CopyLibrary {
-  labels: Record<string, LibraryLabel>;
-  remates_opcionales: RematesOpcionales;
-  voice_policy: {
-    banned_phrases: string[];
-  };
+interface CopyLibraryV3 {
+  version: string;
+  name: string;
+  labels: Record<string, LibraryLabelV3>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const copyLib: CopyLibrary = require('../../radar_docs/radar-editorial-copy-library-rioplatense-expanded.json');
+const copyLib: CopyLibraryV3 = require('../../radar_docs/radar-editorial-copy-library-rioplatense-v3.json');
 
-// ── Label key mapping ──────────────────────────────────────────────────────────
-// EN_LA_MIRA maps to 'cruce_pesado' in the library (match with table weight)
+// ── Label key mapping (code key → v3 JSON key) ────────────────────────────────
 
 const LABEL_TO_LIB_KEY: Record<RadarLabelKey, string> = {
-  EN_LA_MIRA:       'cruce_pesado',
-  BAJO_EL_RADAR:    'bajo_el_radar',
-  SENAL_DE_ALERTA:  'senal_de_alerta',
-  PARTIDO_ENGANOSO: 'partido_enganoso',
-  PARTIDO_ABIERTO:  'partido_abierto',
-  DUELO_CERRADO:    'duelo_cerrado',
+  EN_LA_MIRA:       'CRUCE_PESADO',
+  BAJO_EL_RADAR:    'BAJO_EL_RADAR',
+  SENAL_DE_ALERTA:  'SEÑAL_DE_ALERTA',
+  PARTIDO_ENGANOSO: 'PARTIDO_ENGAÑOSO',
+  PARTIDO_ABIERTO:  'PARTIDO_ABIERTO',
+  DUELO_CERRADO:    'DUELO_CERRADO',
 };
 
-// ── Subtype → library context key mapping (v2 expanded — context keys updated) ─
+// ── Subtype → v3 context key mapping ──────────────────────────────────────────
 
 const SUBTYPE_TO_CONTEXT: Record<RadarSignalSubtype, string> = {
-  // EN_LA_MIRA → cruce_pesado (4 contexts: points_burn, table_can_move, pressure_game, bisagra_game)
-  TOP_CONTEXT:     'points_burn',
-  FORM_CONTEXT:    'pressure_game',
-  MATCHDAY_WEIGHT: 'table_can_move',
+  // SENAL_DE_ALERTA → SEÑAL_DE_ALERTA (3 contexts)
+  FAVORITE_DEFENSIVE_FRAGILITY:    'favorite_concedes',   // concede mucho
+  UNDERDOG_COMPETITIVE_RESISTANCE: 'rival_bites',         // rival muerde
+  FAVORITE_WEAK_LOCAL_EDGE:        'favorite_shaky',      // favorito inestable
 
-  // BAJO_EL_RADAR (4 contexts: hidden_spice, not_much_marketing, sleeper_game, silent_danger)
-  QUIET_COMPETITIVE_SIGNAL: 'hidden_spice',
-  LOW_VISIBILITY_CONTEXT:   'not_much_marketing',
-  NON_OBVIOUS_BALANCE:      'sleeper_game',
+  // PARTIDO_ENGANOSO → PARTIDO_ENGAÑOSO (3 contexts)
+  TABLE_FORM_CONTRADICTION:    'table_lies',         // tabla engaña
+  SURFACE_DISTANCE_OVERSOLD:   'surface_trap',       // trampa de superficie
+  FAVORITE_NOT_AS_COMFORTABLE: 'favorite_inflated',  // favorito inflado
 
-  // SENAL_DE_ALERTA (4 contexts: favorite_defense_soft, favorite_false_solidity, underdog_can_bite, favorite_home_doubts)
-  FAVORITE_DEFENSIVE_FRAGILITY:    'favorite_defense_soft',
-  UNDERDOG_COMPETITIVE_RESISTANCE: 'underdog_can_bite',
-  FAVORITE_WEAK_LOCAL_EDGE:        'favorite_false_solidity',
+  // PARTIDO_ABIERTO (3 contexts)
+  BOTH_SCORE_AND_CONCEDE: 'both_concede',   // los dos meten y reciben
+  GOAL_EXCHANGE_SIGNAL:   'both_score',     // intercambio de goles
+  LOW_CONTROL_PROFILE:    'chaos_profile',  // perfil caótico
 
-  // PARTIDO_ENGANOSO (4 contexts: table_lies, surface_vs_form, comfortable_favorite_is_fake, deceptive_gap)
-  TABLE_FORM_CONTRADICTION:    'surface_vs_form',
-  FAVORITE_NOT_AS_COMFORTABLE: 'comfortable_favorite_is_fake',
-  SURFACE_DISTANCE_OVERSOLD:   'table_lies',
+  // DUELO_CERRADO (3 contexts)
+  LOW_GOAL_VOLUME:    'low_goal',       // poco gol
+  TIGHT_BALANCE:      'tight_balance',  // equilibrio duro
+  LOW_MARGIN_PROFILE: 'rough_match',    // partido feo y cerrado
 
-  // PARTIDO_ABIERTO (4 contexts: both_score_and_concede, early_goal_chaos, open_profile, shaky_defenses)
-  BOTH_SCORE_AND_CONCEDE: 'both_score_and_concede',
-  GOAL_EXCHANGE_SIGNAL:   'early_goal_chaos',
-  LOW_CONTROL_PROFILE:    'open_profile',           // was 'arcos_hot' in v1
+  // EN_LA_MIRA → CRUCE_PESADO (3 contexts)
+  TOP_CONTEXT:     'season_turning',   // partido bisagra de temporada
+  FORM_CONTEXT:    'heat_of_matchday', // caliente en la fecha
+  MATCHDAY_WEIGHT: 'table_pressure',   // presión de tabla
 
-  // DUELO_CERRADO (4 contexts: low_goal_smell, little_margin, ugly_grindy_game, one_goal_can_decide)
-  LOW_GOAL_VOLUME:    'low_goal_smell',             // was 'little_goal' in v1
-  TIGHT_BALANCE:      'ugly_grindy_game',           // was 'bad_mood_match' in v1
-  LOW_MARGIN_PROFILE: 'one_goal_can_decide',        // was 'one_goal_can_kill_it' in v1
+  // BAJO_EL_RADAR (3 contexts)
+  QUIET_COMPETITIVE_SIGNAL: 'quiet_but_spicy',  // callado pero picante
+  LOW_VISIBILITY_CONTEXT:   'hidden_signals',   // señales ocultas
+  NON_OBVIOUS_BALANCE:      'steals_the_show',  // se roba la fecha
 };
 
-// ── Labels eligible for venenoso tone ─────────────────────────────────────────
+// ── Template selection ─────────────────────────────────────────────────────────
 
-const VENENOSO_ELIGIBLE = new Set<RadarLabelKey>([
-  'SENAL_DE_ALERTA',
-  'PARTIDO_ENGANOSO',
-  'PARTIDO_ABIERTO',
-  'DUELO_CERRADO',
-]);
+function hashSeed(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
 
-const VENENOSO_SIGNAL_THRESHOLD = 78;
+function selectTemplate(
+  libKey: string,
+  contextKey: string,
+  usedTexts: Set<string>,
+  seed: string = '',
+): string | null {
+  const label = copyLib.labels[libKey];
+  if (!label) return null;
 
-// ── Default tone per label (hardcoded — v2 library removed default_tone_by_label) ─
+  const ctx = label.contexts[contextKey];
+  if (!ctx || !ctx.templates.length) return null;
 
-const DEFAULT_TONE: Record<RadarLabelKey, ToneLevel> = {
-  EN_LA_MIRA:       'sobrio',
-  BAJO_EL_RADAR:    'picante',
-  SENAL_DE_ALERTA:  'picante',
-  PARTIDO_ENGANOSO: 'picante',
-  PARTIDO_ABIERTO:  'picante',
-  DUELO_CERRADO:    'picante',
-};
+  const available = ctx.templates.filter((t) => !usedTexts.has(t));
+
+  if (available.length > 0) {
+    const offset = hashSeed(seed);
+    return available[offset % available.length];
+  }
+
+  // All used in this build — fallback without dedup restriction
+  const offset = hashSeed(seed);
+  return ctx.templates[offset % ctx.templates.length];
+}
 
 // ── Subtype selection hints ────────────────────────────────────────────────────
 
@@ -178,134 +172,41 @@ export function resolveSubtype(
   return 'QUIET_COMPETITIVE_SIGNAL';
 }
 
-// ── Tone resolution ────────────────────────────────────────────────────────────
-
-function resolveTone(label: RadarLabelKey, dominantSignalScore: number): ToneLevel {
-  if (VENENOSO_ELIGIBLE.has(label) && dominantSignalScore >= VENENOSO_SIGNAL_THRESHOLD) {
-    return 'venenoso';
-  }
-  return DEFAULT_TONE[label];
-}
-
-// ── Template selection ─────────────────────────────────────────────────────────
-
-function hashSeed(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
-}
-
-function selectTemplate(
-  libKey: string,
-  contextKey: string,
-  tone: ToneLevel,
-  usedTemplateIds: Set<string>,
-  seed: string = '',
-): LibraryTemplate | null {
-  const label = copyLib.labels[libKey];
-  if (!label) return null;
-
-  const ctx = label.contexts.find((c) => c.key === contextKey);
-  if (!ctx) return null;
-
-  // Tone fallback order
-  const toneOrder: ToneLevel[] =
-    tone === 'venenoso' ? ['venenoso', 'picante', 'sobrio'] :
-    tone === 'picante'  ? ['picante', 'venenoso', 'sobrio'] :
-                          ['sobrio', 'picante', 'venenoso'];
-
-  const offset = hashSeed(seed);
-
-  for (const t of toneOrder) {
-    const matching = ctx.templates.filter((tmpl) => tmpl.tone === t && !usedTemplateIds.has(tmpl.id));
-    if (matching.length > 0) {
-      return matching[offset % matching.length];
-    }
-  }
-
-  // All used — fallback to any tone-matching (no rotation block)
-  return ctx.templates.find((t) => t.tone === tone) ?? ctx.templates[0] ?? null;
-}
-
-// ── Remate injection (v2) ──────────────────────────────────────────────────────
-// v2: remates_opcionales = { general: string[], picantes: string[], venenosos: string[] }
-// max_remate_usage_ratio = 0.45 → inject roughly 1 of every 2-3 cards
-// Deterministic via editorialRank: inject when editorialRank % 3 === 0 (rank 3, 6, 9…)
-// Injecting at rank 1 too when rank % 9 === 1 gives ~45% across larger sequences
-
-function maybeAppendRemate(
-  baseText: string,
-  tone: ToneLevel,
-  editorialRank: number,
-  usedRemateTexts: Set<string>,
-): string {
-  // Deterministic ~45%: inject at rank 3, 6, 9… and at rank 1 (1 + every 9th)
-  const shouldInject = editorialRank % 3 === 0 || editorialRank % 9 === 1;
-  if (!shouldInject) return baseText;
-
-  const rem = copyLib.remates_opcionales;
-
-  // Pool by tone compatibility
-  const pool: string[] =
-    tone === 'venenoso' ? [...rem.venenosos, ...rem.picantes, ...rem.general] :
-    tone === 'picante'  ? [...rem.picantes, ...rem.general] :
-                          [...rem.general];
-
-  const candidate = pool.find((text) => !usedRemateTexts.has(text));
-  if (!candidate) return baseText;
-
-  usedRemateTexts.add(candidate);
-  return `${baseText} ${candidate}`;
-}
-
-// ── Banned phrases validation ──────────────────────────────────────────────────
-
-function passesBannedPhrases(text: string): boolean {
-  const lower = text.toLowerCase();
-  return !copyLib.voice_policy.banned_phrases.some((phrase) => lower.includes(phrase.toLowerCase()));
-}
-
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 /**
- * Renders the preMatchText for a given label + subtype using the expanded
- * rioplatense editorial copy library (v2, 264 templates).
+ * Renders the preMatchText for a given label + subtype using the v3
+ * rioplatense editorial copy library.
  *
  * @param label               RadarLabelKey (e.g. SENAL_DE_ALERTA)
  * @param subtype             Resolved signal subtype
- * @param editorialRank       Card rank (1-based), deterministic remate injection
- * @param dominantSignalScore Signal score [0..100], tone upgrade to venenoso
- * @param usedTemplateIds     Set of already-used template IDs in this snapshot build
- * @param usedRemateTexts     Set of already-used remate texts in this snapshot build
+ * @param editorialRank       Card rank (1-based), unused in v3 (kept for compat)
+ * @param dominantSignalScore Signal score [0..100], unused in v3 (kept for compat)
+ * @param usedTemplateIds     Set of already-used template texts in this build
+ * @param _usedRemateTexts    Unused in v3 (no remates); kept for call-site compat
+ * @param matchId             Used as seed for deterministic template offset
  */
 export function renderPreMatchText(
   label: RadarLabelKey,
   subtype: RadarSignalSubtype,
-  editorialRank: number,
-  dominantSignalScore: number,
+  _editorialRank: number,
+  _dominantSignalScore: number,
   usedTemplateIds: Set<string>,
-  usedRemateTexts: Set<string>,
+  _usedRemateTexts: Set<string>,
   matchId: string = '',
 ): string | null {
   const libKey = LABEL_TO_LIB_KEY[label];
   const contextKey = SUBTYPE_TO_CONTEXT[subtype];
-  const tone = resolveTone(label, dominantSignalScore);
 
-  const template = selectTemplate(libKey, contextKey, tone, usedTemplateIds, matchId);
-  if (!template) return null;
+  const text = selectTemplate(libKey, contextKey, usedTemplateIds, matchId);
+  if (!text) return null;
 
-  if (!passesBannedPhrases(template.text)) return null;
-
-  usedTemplateIds.add(template.id);
-
-  return maybeAppendRemate(template.text, tone, editorialRank, usedRemateTexts);
+  usedTemplateIds.add(text);
+  return text;
 }
 
 // ── Reasons library ────────────────────────────────────────────────────────────
 // Razones editoriales para el panel de detalle (voz rioplatense).
-// Separadas de la librería de templates — no están en el JSON expandido.
 
 const REASON_TEMPLATES: Record<RadarLabelKey, string[][]> = {
   EN_LA_MIRA: [
@@ -339,6 +240,8 @@ const REASON_TEMPLATES: Record<RadarLabelKey, string[][]> = {
     ['El cruce llega con bastante equilibrio y poco espacio para una diferencia amplia.'],
   ],
 };
+
+import type { RadarEvidenceTier } from './radar-types.js';
 
 /**
  * Selects reasons for a Radar card.
