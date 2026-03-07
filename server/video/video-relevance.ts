@@ -79,16 +79,17 @@ export function selectTopVideos(candidates: VideoCandidate[], n: number): VideoC
     .filter(({ score }) => score >= 0)
     .sort((a, b) => b.score - a.score);
 
-  // Deduplicar: por cada partido (mismo prefijo de título) solo el mejor score
-  const seen = new Set<string>();
+  // Deduplicar: primero por videoId exacto, luego por prefijo de título
+  const seenIds = new Set<string>();
+  const seenKeys = new Set<string>();
   const result: VideoCandidate[] = [];
   for (const { c } of scored) {
     const key = matchKey(c.title);
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(c);
-      if (result.length >= n) break;
-    }
+    if (seenIds.has(c.videoId) || seenKeys.has(key)) continue;
+    seenIds.add(c.videoId);
+    seenKeys.add(key);
+    result.push(c);
+    if (result.length >= n) break;
   }
   return result;
 }
