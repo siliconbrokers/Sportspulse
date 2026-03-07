@@ -31,7 +31,7 @@ export function FeaturedVideoCard({ highlight, accentColor, showLabel = true, co
 
   return (
     <div style={{
-      marginBottom: 20,
+      ...(compact ? { minWidth: 0 } : { marginBottom: 20 }),
       background: 'rgba(255,255,255,0.04)',
       border: `1px solid ${accentColor}33`,
       borderRadius: 10,

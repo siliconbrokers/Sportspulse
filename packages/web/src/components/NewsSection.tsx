@@ -102,7 +102,7 @@ function NewsLeagueBlock({
       {videoHighlights.length > 0 && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${videoCols}, 1fr)`,
+          gridTemplateColumns: `repeat(${videoCols}, minmax(0, 1fr))`,
           gap: isMobile ? 8 : 12,
           marginBottom: 20,
         }}>
