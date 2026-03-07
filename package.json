@@ -2,6 +2,7 @@
   "name": "sportpulse",
   "private": true,
   "scripts": {
+    "start": "tsx server/index.ts",
     "dev:api": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json server/index.ts",
     "dev:web": "pnpm --filter @sportpulse/web dev",
     "dev": "concurrently -n api,web -c blue,green \"pnpm dev:api\" \"pnpm dev:web\"",
@@ -34,11 +35,11 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.3.2",
     "prettier": "^3.8.1",
-    "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },
   "dependencies": {
-    "rss-parser": "^3.13.0"
+    "rss-parser": "^3.13.0",
+    "tsx": "^4.21.0"
   }
 }
