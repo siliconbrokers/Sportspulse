@@ -145,6 +145,8 @@ export function parseEvent(
       isTodayInPortalTz: false,
       isDebugVisible: debugMode,
       openUrl: raw.url,
+      homeCrestUrl: null,
+      awayCrestUrl: null,
     };
   }
 
@@ -183,6 +185,8 @@ export function parseEvent(
     isTodayInPortalTz,
     isDebugVisible: debugMode,
     openUrl: raw.url,
+    homeCrestUrl: null,   // resuelto por EventosService vía CrestResolver
+    awayCrestUrl: null,
   };
 }
 

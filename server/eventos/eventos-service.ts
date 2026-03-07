@@ -3,6 +3,8 @@ import type { ParsedEvent, EventosServiceConfig } from './types.js';
 import type { IEventSource } from './event-source.js';
 import { parseEvent, sortEvents } from './event-parser.js';
 
+export type CrestResolver = (teamName: string) => string | null;
+
 const DEFAULT_CONFIG: EventosServiceConfig = {
   sourceTimezoneOffsetMinutes: -300, // spec §12.4: UTC-5
   portalTimezone: 'America/Montevideo', // spec §12.3
@@ -24,6 +26,7 @@ export class EventosService {
   constructor(
     private readonly source: IEventSource,
     config: Partial<EventosServiceConfig> = {},
+    private readonly crestResolver?: CrestResolver,
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
@@ -41,25 +44,25 @@ export class EventosService {
     const rawEvents = await this.source.getEvents();
     const referenceDate = new Date();
 
-    const parsed = rawEvents.map((raw, i) =>
-      parseEvent(
+    const parsed = rawEvents.map((raw, i) => {
+      const ev = parseEvent(
         raw,
         i,
         referenceDate,
         this.config.sourceTimezoneOffsetMinutes,
         this.config.portalTimezone,
         this.config.debugMode,
-      ),
-    );
+      );
+      // Enriquecer con escudos del DataSource canónico
+      ev.homeCrestUrl = ev.homeTeam && this.crestResolver ? this.crestResolver(ev.homeTeam) : null;
+      ev.awayCrestUrl = ev.awayTeam && this.crestResolver ? this.crestResolver(ev.awayTeam) : null;
+      return ev;
+    });
 
     const sorted = sortEvents(parsed);
     const fetchedAtUtc = new Date().toISOString();
 
-    this.cache = {
-      events: sorted,
-      fetchedAtUtc,
-      expiresAtMs: now + CACHE_TTL_MS,
-    };
+    this.cache = { events: sorted, fetchedAtUtc, expiresAtMs: now + CACHE_TTL_MS };
 
     // spec §18.2 — telemetría event_list_loaded
     const byLeague: Record<string, number> = {};
@@ -68,11 +71,7 @@ export class EventosService {
       if (ev.normalizedLeague === 'EXCLUIDA') { excluded++; continue; }
       byLeague[ev.normalizedLeague] = (byLeague[ev.normalizedLeague] ?? 0) + 1;
     }
-    console.log('[Eventos] event_list_loaded', {
-      total: rawEvents.length,
-      byLeague,
-      excluded,
-    });
+    console.log('[Eventos] event_list_loaded', { total: rawEvents.length, byLeague, excluded });
 
     return { events: sorted, fetchedAtUtc, debugMode: this.config.debugMode };
   }

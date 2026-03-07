@@ -34,6 +34,11 @@ export interface ParsedEvent {
   isDebugVisible: boolean;
 
   openUrl: string | null;
+
+  /** URL del escudo del equipo local (resuelto desde el DataSource canónico) */
+  homeCrestUrl: string | null;
+  /** URL del escudo del equipo visitante */
+  awayCrestUrl: string | null;
 }
 
 export interface RawEvent {

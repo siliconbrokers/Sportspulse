@@ -20,3 +20,17 @@ coverage/
 
 # Logs
 *.log
+
+# Runtime cache (matchday file cache — generado en ejecución, no versionar)
+cache/
+
+# Runtime data
+data/
+
+# Google Docs shortcuts
+*.gdoc
+*.gsheet
+*.gslides
+
+# Claude local config
+.claude/settings.local.json

@@ -121,6 +121,8 @@ export interface IEventosService {
       isTodayInPortalTz: boolean;
       isDebugVisible: boolean;
       openUrl: string | null;
+      homeCrestUrl: string | null;
+      awayCrestUrl: string | null;
     }>;
     fetchedAtUtc: string;
     debugMode: boolean;
