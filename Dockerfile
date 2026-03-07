@@ -1,0 +1,35 @@
+FROM node:22-alpine
+
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+# Instalar dependencias (solo manifests primero para cache)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/shared/package.json       ./packages/shared/
+COPY packages/canonical/package.json    ./packages/canonical/
+COPY packages/signals/package.json      ./packages/signals/
+COPY packages/scoring/package.json      ./packages/scoring/
+COPY packages/layout/package.json       ./packages/layout/
+COPY packages/snapshot/package.json     ./packages/snapshot/
+COPY packages/api/package.json          ./packages/api/
+
+RUN pnpm install --frozen-lockfile
+
+# Copiar fuentes (sin packages/web)
+COPY tsconfig*.json ./
+COPY packages/shared    ./packages/shared
+COPY packages/canonical ./packages/canonical
+COPY packages/signals   ./packages/signals
+COPY packages/scoring   ./packages/scoring
+COPY packages/layout    ./packages/layout
+COPY packages/snapshot  ./packages/snapshot
+COPY packages/api       ./packages/api
+COPY server             ./server
+
+# Compilar solo el backend
+RUN pnpm --filter !@sportpulse/web -r build
+
+EXPOSE 3000
+
+CMD ["pnpm", "start"]
