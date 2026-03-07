@@ -35,7 +35,7 @@ function SkeletonVideo() {
   );
 }
 
-function VideoLeagueBlock({ block, isMobile }: { block: VideoBlock; isMobile: boolean }) {
+function VideoLeagueBlock({ block, isMobile, isTablet }: { block: VideoBlock; isMobile: boolean; isTablet: boolean }) {
   const accent = LEAGUE_ACCENT[block.leagueKey] ?? '#64748b';
   const label = LEAGUE_LABEL[block.leagueKey] ?? block.leagueKey;
   // Guard: compatibilidad con respuesta antigua del servidor
@@ -63,11 +63,11 @@ function VideoLeagueBlock({ block, isMobile }: { block: VideoBlock; isMobile: bo
       {highlights.length > 0 ? (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(highlights.length, 3)}, 1fr)`,
-          gap: 16,
+          gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+          gap: isMobile ? 8 : 12,
         }}>
           {highlights.map((h) => (
-            <FeaturedVideoCard key={h.id} highlight={h} accentColor={accent} />
+            <FeaturedVideoCard key={h.id} highlight={h} accentColor={accent} showLabel={false} compact />
           ))}
         </div>
       ) : (
@@ -90,6 +90,7 @@ interface VideoSectionProps {
 export function VideoSection({ feed, loading, error }: VideoSectionProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
+  const isTablet = breakpoint === 'tablet';
   const cols = isMobile ? 1 : 2;
 
   if (loading) {
@@ -127,6 +128,7 @@ export function VideoSection({ feed, loading, error }: VideoSectionProps) {
           key={block.leagueKey}
           block={block}
           isMobile={isMobile}
+          isTablet={isTablet}
         />
       ))}
     </div>
