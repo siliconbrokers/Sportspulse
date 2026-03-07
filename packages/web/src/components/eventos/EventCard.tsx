@@ -1,7 +1,7 @@
 // spec §13.3 — card de evento con badge, hora, equipos, botones DIRECT y EMBED_TEST
 import { useState } from 'react';
 import type { ParsedEvent } from '../../hooks/use-events.js';
-import { openEventDirect, openEventEmbedTest } from '../../hooks/use-events.js';
+import { openEventDirect } from '../../hooks/use-events.js';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
   EN_VIVO: { label: 'EN VIVO', bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
@@ -136,8 +136,8 @@ export function EventCard({ event, accentColor, isMobile }: EventCardProps) {
         <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? ''} size={crestSize} />
       </div>
 
-      {/* Botones — spec §13.3 + §15.4 */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+      {/* Botón principal — spec §13.3 modo DIRECT (sin sandbox: el proveedor lo bloquea) */}
+      <div style={{ display: 'flex', gap: 8 }}>
         <button
           onClick={() => openEventDirect(event)}
           style={{
@@ -148,17 +148,6 @@ export function EventCard({ event, accentColor, isMobile }: EventCardProps) {
           }}
         >
           Ver partido
-        </button>
-        {/* spec §15.3 EMBED_TEST */}
-        <button
-          onClick={() => openEventEmbedTest(event)}
-          style={{
-            ...btnStyle,
-            background: 'transparent',
-            color: accentColor,
-          }}
-        >
-          Abrir prueba
         </button>
       </div>
     </div>
