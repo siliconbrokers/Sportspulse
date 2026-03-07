@@ -21,10 +21,12 @@ interface FeaturedVideoCardProps {
   highlight: LeagueVideoHighlight;
   accentColor: string;
   showLabel?: boolean;
+  /** Modo compacto: botón de play pequeño, padding reducido, título en 1 línea */
+  compact?: boolean;
 }
 
 // spec §17.3 + §18: facade — no iframe en carga, solo al hacer click
-export function FeaturedVideoCard({ highlight, accentColor, showLabel = true }: FeaturedVideoCardProps) {
+export function FeaturedVideoCard({ highlight, accentColor, showLabel = true, compact = false }: FeaturedVideoCardProps) {
   const [playing, setPlaying] = useState(false);
 
   return (
@@ -86,16 +88,16 @@ export function FeaturedVideoCard({ highlight, accentColor, showLabel = true }: 
               onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,0,0,0.35)'; }}
             >
               <div style={{
-                width: 52, height: 52, borderRadius: '50%',
+                width: compact ? 36 : 52, height: compact ? 36 : 52, borderRadius: '50%',
                 background: 'rgba(255,255,255,0.92)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
               }}>
                 <div style={{
                   width: 0, height: 0, borderStyle: 'solid',
-                  borderWidth: '9px 0 9px 18px',
+                  borderWidth: compact ? '6px 0 6px 12px' : '9px 0 9px 18px',
                   borderColor: 'transparent transparent transparent #1a1a2e',
-                  marginLeft: 4,
+                  marginLeft: compact ? 2 : 4,
                 }} />
               </div>
             </div>
@@ -104,17 +106,23 @@ export function FeaturedVideoCard({ highlight, accentColor, showLabel = true }: 
       </div>
 
       {/* Metadata */}
-      <div style={{ padding: '10px 14px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ padding: compact ? '7px 10px 9px' : '10px 14px 12px', display: 'flex', flexDirection: 'column', gap: 3 }}>
         <div style={{
-          fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: 'rgba(255,255,255,0.9)',
-          overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          fontSize: compact ? 12 : 13, fontWeight: 600, lineHeight: 1.35, color: 'rgba(255,255,255,0.9)',
+          overflow: 'hidden', display: '-webkit-box',
+          WebkitLineClamp: compact ? 1 : 2,
+          WebkitBoxOrient: 'vertical',
         }}>
           {highlight.title}
         </div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', display: 'flex', gap: 5, alignItems: 'center' }}>
-          <span style={{ fontWeight: 500, color: 'rgba(255,255,255,0.5)' }}>{highlight.channelTitle}</span>
-          <span style={{ opacity: 0.5 }}>·</span>
-          <span>{formatDateTime(highlight.publishedAtUtc)}</span>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 500, color: 'rgba(255,255,255,0.45)' }}>{highlight.channelTitle}</span>
+          {!compact && (
+            <>
+              <span style={{ opacity: 0.5 }}>·</span>
+              <span>{formatDateTime(highlight.publishedAtUtc)}</span>
+            </>
+          )}
           {!playing && (
             <>
               <span style={{ opacity: 0.5 }}>·</span>
@@ -125,7 +133,7 @@ export function FeaturedVideoCard({ highlight, accentColor, showLabel = true }: 
                 style={{ color: accentColor, textDecoration: 'none', fontWeight: 500 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                Ver en YouTube
+                YouTube
               </a>
             </>
           )}

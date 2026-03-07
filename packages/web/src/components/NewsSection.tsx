@@ -65,7 +65,8 @@ function NewsLeagueBlock({
   const accent = LEAGUE_ACCENT[block.leagueKey] ?? '#64748b';
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
-  const videoCols = isMobile ? 1 : 2;
+  // Desktop: 4 en fila; tablet: 2x2; mobile: 2x2 compacto
+  const videoCols = breakpoint === 'desktop' ? 4 : 2;
 
   return (
     <div style={{ marginBottom: 44 }}>
@@ -102,11 +103,11 @@ function NewsLeagueBlock({
         <div style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${videoCols}, 1fr)`,
-          gap: 16,
+          gap: isMobile ? 8 : 12,
           marginBottom: 20,
         }}>
-          {videoHighlights.map((h, i) => (
-            <FeaturedVideoCard key={h.id} highlight={h} accentColor={accent} showLabel={i === 0} />
+          {videoHighlights.map((h) => (
+            <FeaturedVideoCard key={h.id} highlight={h} accentColor={accent} showLabel={false} compact />
           ))}
         </div>
       )}
