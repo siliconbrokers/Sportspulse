@@ -65,49 +65,51 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
     leagueKey: 'EPL',
     channelId: 'UCG5qGWdu8nIRZqJ_GgDwQ-w', // Premier League oficial (9.3M subs)
     extraChannelIds: [
-      'UCNAf1k0yIjyGu3k9BwAg3lg', // Sky Sports Football — cubre EPL ampliamente; puede geo-bloquear en UY (filtrado por región)
+      'UCNAf1k0yIjyGu3k9BwAg3lg', // Sky Sports Football — puede geo-bloquear en UY, filtrado por región
     ],
     channelLabel: 'Premier League',
     enabled: true,
     fallbackSearchTerms: [
       'Premier League highlights matchday goals',
-      'EPL goals matchday highlights',
+      'EPL goals highlights matchweek',
       'Premier League resumen goles jornada',
       'Premier League best goals this week',
       'premier league match highlights goals scored',
+      'EPL matchday review all goals highlights',
+      'premier league goals this week compilation',
     ],
     titleRequiredTerms: [
       'premier league', 'epl', 'matchweek', 'match week',
       'man city', 'man utd', 'manchester', 'manchester city', 'manchester united',
-      'liverpool', 'arsenal', 'chelsea', 'tottenham',
+      'liverpool', 'arsenal', 'chelsea', 'tottenham', 'spurs',
       'newcastle', 'aston villa', 'brighton', 'west ham',
       'brentford', 'fulham', 'everton', 'crystal palace',
       'wolves', 'wolverhampton', 'bournemouth', 'leicester',
-      'ipswich', 'southampton', 'nottingham forest',
+      'ipswich', 'southampton', 'nottingham forest', 'nottm forest',
     ],
   },
   BUN: {
     leagueKey: 'BUN',
     channelId: 'UC6UL29enLNe4mqwTfAyeNuw', // Bundesliga oficial (5.5M subs)
-    extraChannelIds: [
-      'UCbfnHqxXrkBu3o-7d5LQTOQ', // Bundesliga EN — canal oficial en inglés (highlights internacionales)
-    ],
+    // Sin canal extra por ahora — el canal oficial es de alta calidad y la búsqueda libre complementa
     channelLabel: 'Bundesliga',
     enabled: true,
     fallbackSearchTerms: [
       'Bundesliga Highlights Spieltag Tore',
-      'Bundesliga Zusammenfassung Spieltag',
+      'Bundesliga Zusammenfassung Spieltag goals',
       'Bundesliga highlights goals matchday',
       'Bundesliga resumen goles jornada',
-      'Bundesliga best goals this week spieltag',
+      'Bundesliga best goals this week spieltag highlights',
+      'Bundesliga matchday all goals highlights compilation',
+      'Bundesliga Spieltag Tore Zusammenfassung alle',
     ],
     titleRequiredTerms: [
       'bundesliga', 'spieltag', 'dfl',
-      'Bayern', 'Bayern München', 'Dortmund', 'BVB', 'Leverkusen',
+      'Bayern', 'Bayern München', 'Dortmund', 'BVB', 'Leverkusen', 'Bayer',
       'wolfsburg', 'rb leipzig', 'leipzig', 'gladbach', 'mönchengladbach',
       'hoffenheim', 'freiburg', 'eintracht', 'frankfurt',
       'mainz', 'augsburg', 'bochum', 'werder', 'bremen',
-      'köln', 'koln', 'heidenheim', 'stuttgart', 'st pauli',
+      'köln', 'koln', 'heidenheim', 'stuttgart', 'st pauli', 'kiel',
     ],
   },
 };

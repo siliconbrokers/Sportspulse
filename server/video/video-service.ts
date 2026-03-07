@@ -1,7 +1,7 @@
 import { VIDEO_SOURCES } from './video-sources-config.js';
 import type { LeagueKey } from './video-sources-config.js';
 import { fetchChannelUploads, searchYouTubeVideos, fetchVideoAvailability } from './youtube-client.js';
-import { isWithin48Hours, isBlockedByPolitics, isAvailableInRegion } from './video-filters.js';
+import { isWithinVideoWindow, isBlockedByPolitics, isAvailableInRegion } from './video-filters.js';
 import { selectTopVideos } from './video-relevance.js';
 import { playlistItemToCandidate, searchItemToCandidate, toHighlight } from './video-normalizer.js';
 import type { LeagueVideoHighlight } from './video-normalizer.js';
@@ -47,40 +47,37 @@ export class VideoService {
       return { leagueKey, highlights: [] };
     }
 
-    // Estrategia principal — uploads del canal (omitido si searchOnly=true)
+    let highlights: LeagueVideoHighlight[] = [];
+
+    // Paso 1 — uploads del canal (omitido si searchOnly=true)
     if (!config.searchOnly) {
-      let channelHighlights: LeagueVideoHighlight[] = [];
       try {
-        channelHighlights = await this.resolveFromChannel(leagueKey);
-      } catch (channelErr) {
-        const msg = channelErr instanceof Error ? channelErr.message : String(channelErr);
-        console.warn(`[VideoService] ${leagueKey}: channel error, trying fallback — ${msg.slice(0, 80)}`);
-      }
-
-      if (channelHighlights.length > 0) {
-        this.cache.set(leagueKey, channelHighlights);
-        console.log(`[VideoService] ${leagueKey}: found ${channelHighlights.length} videos`);
-        return { leagueKey, highlights: channelHighlights };
+        highlights = await this.resolveFromChannel(leagueKey);
+        console.log(`[VideoService] ${leagueKey}: channel → ${highlights.length} videos`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[VideoService] ${leagueKey}: channel error — ${msg.slice(0, 80)}`);
       }
     }
 
-    // Búsqueda libre — throttle via TTL de caché para searchOnly; límite diario para fallback normal
-    const canSearch = config.searchOnly || this.cache.canUseFallback(leagueKey);
-    try {
-      if (canSearch) {
-        if (!config.searchOnly) this.cache.markFallbackUsed(leagueKey);
-        const searchHighlights = await this.resolveFromSearch(leagueKey);
-        this.cache.set(leagueKey, searchHighlights);
-        console.log(`[VideoService] ${leagueKey}: search found ${searchHighlights.length} videos`);
-        return { leagueKey, highlights: searchHighlights };
+    // Paso 2 — búsqueda libre para completar slots que el canal no llenó
+    // La frecuencia queda regulada por el TTL de caché (45 min), no por límite diario
+    if (highlights.length < MAX_VIDEOS_PER_LEAGUE) {
+      try {
+        const seenIds = new Set(highlights.map((h) => h.videoId));
+        const needed = MAX_VIDEOS_PER_LEAGUE - highlights.length;
+        const searchResults = await this.resolveFromSearch(leagueKey);
+        const additional = searchResults.filter((h) => !seenIds.has(h.videoId)).slice(0, needed);
+        highlights = [...highlights, ...additional];
+        console.log(`[VideoService] ${leagueKey}: search added ${additional.length} → total ${highlights.length}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[VideoService] ${leagueKey}: search error — ${msg}`);
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[VideoService] ${leagueKey}: search error — ${msg}`);
     }
 
-    this.cache.set(leagueKey, []);
-    return { leagueKey, highlights: [] };
+    this.cache.set(leagueKey, highlights);
+    return { leagueKey, highlights };
   }
 
   /**
@@ -149,7 +146,7 @@ export class VideoService {
         const candidates = items
           .map(playlistItemToCandidate)
           .filter((c): c is NonNullable<typeof c> => c !== null)
-          .filter((c) => isWithin48Hours(c.publishedAtUtc))
+          .filter((c) => isWithinVideoWindow(c.publishedAtUtc))
           .filter((c) => !isBlockedByPolitics(c.title));
         for (const c of candidates) {
           seenIds.add(c.videoId);
@@ -169,7 +166,7 @@ export class VideoService {
           .map(playlistItemToCandidate)
           .filter((c): c is NonNullable<typeof c> => c !== null)
           .filter((c) => !seenIds.has(c.videoId))
-          .filter((c) => isWithin48Hours(c.publishedAtUtc))
+          .filter((c) => isWithinVideoWindow(c.publishedAtUtc))
           .filter((c) => !isBlockedByPolitics(c.title))
           .filter((c) => matchesLeague(c.title));
         for (const c of candidates) {
@@ -191,7 +188,7 @@ export class VideoService {
 
   private async resolveFromSearch(leagueKey: LeagueKey): Promise<LeagueVideoHighlight[]> {
     const config = VIDEO_SOURCES[leagueKey];
-    const publishedAfter = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const publishedAfter = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
     const requiredTerms = config.titleRequiredTerms.map((t) => t.toLowerCase());
 
     const matchesLeague = (title: string): boolean => {

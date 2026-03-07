@@ -46,12 +46,18 @@ export function isBlockedByPolitics(title: string): boolean {
   return false;
 }
 
-export function isWithin48Hours(publishedAtUtc: string): boolean {
+// 96h: cubre lunes–miércoles si la jornada fue el fin de semana (highlights tardan 24-72h en publicarse)
+const VIDEO_WINDOW_HOURS = 96;
+
+export function isWithinVideoWindow(publishedAtUtc: string): boolean {
   const pub = new Date(publishedAtUtc);
   if (isNaN(pub.getTime())) return false;
-  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const cutoff = new Date(Date.now() - VIDEO_WINDOW_HOURS * 60 * 60 * 1000);
   return pub >= cutoff && pub <= new Date();
 }
+
+/** @deprecated use isWithinVideoWindow */
+export const isWithin48Hours = isWithinVideoWindow;
 
 export function isTodayInMontevideo(publishedAtUtc: string): boolean {
   const pub = new Date(publishedAtUtc);
