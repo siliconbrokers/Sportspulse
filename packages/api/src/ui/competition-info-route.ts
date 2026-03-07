@@ -22,8 +22,13 @@ export function competitionInfoRoute(deps: AppDependencies): FastifyPluginAsync 
         }
 
         const seasonId = deps.dataSource.getSeasonId(competitionId);
+
+        // Datos aún no cargados (startup en progreso) — devolver defaults sin cachear
         if (!seasonId) {
-          throw new AppError(ErrorCode.NOT_FOUND, `Competition not found: ${competitionId}`, 404);
+          reply
+            .header('Cache-Control', 'no-cache')
+            .send({ currentMatchday: null, lastPlayedMatchday: null, totalMatchdays: 38 });
+          return;
         }
 
         const currentMatchday = deps.dataSource.getCurrentMatchday?.(competitionId);

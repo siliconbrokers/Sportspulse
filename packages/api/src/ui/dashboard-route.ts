@@ -23,11 +23,20 @@ export function dashboardRoute(deps: AppDependencies): FastifyPluginAsync {
 
         const seasonId = deps.dataSource.getSeasonId(params.competitionId);
         if (!seasonId) {
-          throw new AppError(
-            ErrorCode.NOT_FOUND,
-            `Competition not found: ${params.competitionId}`,
-            404,
-          );
+          // Datos aún no cargados en startup — respuesta vacía sin cachear
+          reply.header('Cache-Control', 'no-cache').send({
+            header: {
+              competitionName: '',
+              matchday: params.matchday,
+              buildNowUtc: new Date().toISOString(),
+              snapshotSchemaVersion: 2,
+            },
+            tiles: [],
+            matchCards: [],
+            warnings: [],
+            layoutAlgorithmVersion: 1,
+          });
+          return;
         }
 
         const teams = deps.dataSource.getTeams(params.competitionId);
