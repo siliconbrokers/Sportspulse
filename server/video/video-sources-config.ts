@@ -26,11 +26,11 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
     enabled: true,
     // searchOnly: false → intenta AUFTV primero, si no alcanza cae a búsqueda libre
     fallbackSearchTerms: [
-      'resumen goles Primera División Uruguay',
-      'GolTV resumen Uruguay Primera División goles',
-      'Peñarol Nacional resumen goles clausura apertura',
-      'highlights Primera División Uruguay fecha goles',
-      'goles resumen Campeonato Uruguayo fecha',
+      'resumen goles Primera División Uruguay apertura clausura',
+      'Peñarol Nacional resumen goles apertura clausura Uruguay',
+      'ESPN resumen goles Primera División Uruguay',
+      'highlights goles Campeonato Uruguayo fecha resumen',
+      'DirecTV Sports resumen goles Uruguay Primera División',
     ],
     titleRequiredTerms: [
       'uruguay', 'uruguayo', 'uruguaya',
