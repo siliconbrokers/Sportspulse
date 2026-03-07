@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { LeagueVideoHighlight } from '../hooks/use-videos.js';
 
 const PLACEHOLDER = '/placeholder-news.png';
@@ -22,9 +22,92 @@ interface FeaturedVideoCardProps {
   accentColor: string;
 }
 
+// YouTube IFrame API error codes that indicate the video can't be played
+const YT_UNPLAYABLE_ERRORS = new Set([100, 101, 150]);
+
 // spec §17.3 + §18: facade — no iframe en carga, solo al hacer click
 export function FeaturedVideoCard({ highlight, accentColor }: FeaturedVideoCardProps) {
   const [playing, setPlaying] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Listen for YouTube IFrame API postMessage errors
+  useEffect(() => {
+    if (!playing) return;
+
+    function handleMessage(e: MessageEvent) {
+      // YouTube sends JSON strings from its iframe origin
+      if (typeof e.data !== 'string') return;
+      try {
+        const msg = JSON.parse(e.data);
+        // error event: {"event":"error","info":150}
+        if (msg.event === 'error' && YT_UNPLAYABLE_ERRORS.has(msg.info)) {
+          setBlocked(true);
+          setPlaying(false);
+        }
+      } catch {
+        // ignore non-JSON messages
+      }
+    }
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [playing]);
+
+  if (blocked) {
+    return (
+      <div style={{
+        marginBottom: 20,
+        background: 'rgba(255,255,255,0.04)',
+        border: `1px solid ${accentColor}33`,
+        borderRadius: 10,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '6px 12px',
+          background: `${accentColor}18`,
+          borderBottom: `1px solid ${accentColor}22`,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 0.5,
+          color: accentColor,
+          textTransform: 'uppercase',
+        }}>
+          Video destacado
+        </div>
+        <div style={{
+          padding: '20px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          alignItems: 'flex-start',
+        }}>
+          <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+            Este video no está disponible en tu región.
+          </p>
+          <a
+            href={highlight.videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: accentColor,
+              textDecoration: 'none',
+              padding: '6px 12px',
+              border: `1px solid ${accentColor}55`,
+              borderRadius: 6,
+            }}
+          >
+            Ver en YouTube →
+          </a>
+          <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+            {highlight.title}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -54,8 +137,10 @@ export function FeaturedVideoCard({ highlight, accentColor }: FeaturedVideoCardP
       <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', background: '#000' }}>
         {playing ? (
           // spec §18: lazy load — solo monta iframe después del click
+          // enablejsapi=1 permite recibir postMessage de errores del player
           <iframe
-            src={`${highlight.embedUrl}&autoplay=1`}
+            ref={iframeRef}
+            src={`${highlight.embedUrl}&autoplay=1&enablejsapi=1`}
             title={highlight.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
