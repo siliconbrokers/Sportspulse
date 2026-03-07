@@ -59,3 +59,37 @@ export function isTodayInMontevideo(publishedAtUtc: string): boolean {
   const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Montevideo' });
   return fmt.format(pub) === fmt.format(new Date()) && pub <= new Date();
 }
+
+/**
+ * Returns true if the video is available in the given region.
+ * Uses the availability data from videos.list (contentDetails.regionRestriction).
+ *
+ * - If embeddable === false → blocked
+ * - If blockedRegions includes regionCode (case-insensitive) → blocked
+ * - If allowedRegions is non-empty and doesn't include regionCode → blocked
+ * - Otherwise → available
+ */
+import type { YtVideoAvailability } from './youtube-client.js';
+
+export function isAvailableInRegion(
+  availability: YtVideoAvailability | undefined,
+  regionCode: string,
+): boolean {
+  if (!availability) return true; // unknown → optimistic, let it through
+  if (!availability.embeddable) return false;
+
+  const region = regionCode.toUpperCase();
+
+  if (availability.blockedRegions.map((r) => r.toUpperCase()).includes(region)) {
+    return false;
+  }
+
+  if (
+    availability.allowedRegions.length > 0 &&
+    !availability.allowedRegions.map((r) => r.toUpperCase()).includes(region)
+  ) {
+    return false;
+  }
+
+  return true;
+}

@@ -1,5 +1,5 @@
 // YouTube Data API v3 — thin client
-// Quota costs: playlistItems.list = 1 unit; search.list = 100 units
+// Quota costs: playlistItems.list = 1 unit; search.list = 100 units; videos.list = 1 unit
 
 const YT_BASE = 'https://www.googleapis.com/youtube/v3';
 
@@ -93,4 +93,67 @@ export async function searchYouTubeVideos(
 
 export function extractThumbnail(thumbnails: YtSnippet['thumbnails']): string | null {
   return thumbnails.high?.url ?? thumbnails.medium?.url ?? thumbnails.default?.url ?? null;
+}
+
+// ── videos.list — region availability check (1 unit per batch, up to 50 IDs) ──
+
+export interface YtVideoAvailability {
+  videoId: string;
+  embeddable: boolean;
+  /** Regions where this video is explicitly blocked */
+  blockedRegions: string[];
+  /** If non-empty, video is ONLY available in these regions */
+  allowedRegions: string[];
+}
+
+/**
+ * Batch-checks availability of up to 50 video IDs.
+ * Uses contentDetails.regionRestriction + status.embeddable.
+ * Costs 1 quota unit per call.
+ */
+export async function fetchVideoAvailability(
+  videoIds: string[],
+  apiKey: string,
+): Promise<Map<string, YtVideoAvailability>> {
+  if (videoIds.length === 0) return new Map();
+
+  const params = new URLSearchParams({
+    part: 'contentDetails,status',
+    id: videoIds.slice(0, 50).join(','),
+    key: apiKey,
+  });
+
+  const res = await fetch(`${YT_BASE}/videos?${params}`, {
+    headers: { 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`YouTube videos.list error ${res.status}: ${body.slice(0, 200)}`);
+  }
+
+  const data = await res.json() as {
+    items?: Array<{
+      id: string;
+      status?: { embeddable?: boolean };
+      contentDetails?: {
+        regionRestriction?: {
+          blocked?: string[];
+          allowed?: string[];
+        };
+      };
+    }>;
+  };
+
+  const result = new Map<string, YtVideoAvailability>();
+  for (const item of data.items ?? []) {
+    result.set(item.id, {
+      videoId: item.id,
+      embeddable: item.status?.embeddable !== false,
+      blockedRegions: item.contentDetails?.regionRestriction?.blocked ?? [],
+      allowedRegions: item.contentDetails?.regionRestriction?.allowed ?? [],
+    });
+  }
+  return result;
 }

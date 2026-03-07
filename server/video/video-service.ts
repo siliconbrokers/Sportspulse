@@ -1,15 +1,19 @@
 import { VIDEO_SOURCES } from './video-sources-config.js';
 import type { LeagueKey } from './video-sources-config.js';
-import { fetchChannelUploads, searchYouTubeVideos } from './youtube-client.js';
-import { isWithin48Hours, isBlockedByPolitics } from './video-filters.js';
+import { fetchChannelUploads, searchYouTubeVideos, fetchVideoAvailability } from './youtube-client.js';
+import { isWithin48Hours, isBlockedByPolitics, isAvailableInRegion } from './video-filters.js';
 import { selectTopVideos } from './video-relevance.js';
 import { playlistItemToCandidate, searchItemToCandidate, toHighlight } from './video-normalizer.js';
 import type { LeagueVideoHighlight } from './video-normalizer.js';
 import { VideoCache } from './video-cache.js';
+import type { VideoCandidate } from './video-relevance.js';
 
 const LEAGUE_ORDER: LeagueKey[] = ['URU', 'LL', 'EPL', 'BUN'];
 
 const MAX_VIDEOS_PER_LEAGUE = 3;
+
+// Default region for availability checks. Can be overridden via YOUTUBE_REGION_CODE env var.
+const REGION_CODE = process.env.YOUTUBE_REGION_CODE ?? 'UY';
 
 export interface VideoBlock {
   leagueKey: LeagueKey;
@@ -76,6 +80,37 @@ export class VideoService {
     return { leagueKey, highlights: [] };
   }
 
+  /**
+   * Batch-checks video availability for the configured region and filters out
+   * unavailable or non-embeddable videos. Falls back gracefully if the API call fails.
+   */
+  private async filterByRegion(candidates: VideoCandidate[]): Promise<VideoCandidate[]> {
+    if (candidates.length === 0) return [];
+
+    let availabilityMap;
+    try {
+      availabilityMap = await fetchVideoAvailability(
+        candidates.map((c) => c.videoId),
+        this.youtubeApiKey,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[VideoService] region check failed, skipping filter — ${msg.slice(0, 80)}`);
+      return candidates; // optimistic fallback: return all if check fails
+    }
+
+    const filtered = candidates.filter((c) => {
+      const avail = availabilityMap.get(c.videoId);
+      const ok = isAvailableInRegion(avail, REGION_CODE);
+      if (!ok) {
+        console.log(`[VideoService] Filtered out video ${c.videoId} (not available in ${REGION_CODE}): "${c.title.slice(0, 60)}"`);
+      }
+      return ok;
+    });
+
+    return filtered;
+  }
+
   private async resolveFromChannel(leagueKey: LeagueKey): Promise<LeagueVideoHighlight[]> {
     const config = VIDEO_SOURCES[leagueKey];
     const items = await fetchChannelUploads(config.channelId, this.youtubeApiKey, 20);
@@ -86,7 +121,9 @@ export class VideoService {
       .filter((c) => isWithin48Hours(c.publishedAtUtc))
       .filter((c) => !isBlockedByPolitics(c.title));
 
-    return selectTopVideos(candidates, MAX_VIDEOS_PER_LEAGUE)
+    const available = await this.filterByRegion(candidates);
+
+    return selectTopVideos(available, MAX_VIDEOS_PER_LEAGUE)
       .map((c) => toHighlight(c, leagueKey, config.channelLabel));
   }
 
@@ -111,7 +148,9 @@ export class VideoService {
       allCandidates.push(...candidates);
     }
 
-    return selectTopVideos(allCandidates, MAX_VIDEOS_PER_LEAGUE)
+    const available = await this.filterByRegion(allCandidates);
+
+    return selectTopVideos(available, MAX_VIDEOS_PER_LEAGUE)
       .map((c) => toHighlight(c, leagueKey, 'YouTube'));
   }
 }
