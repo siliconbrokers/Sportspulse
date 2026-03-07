@@ -24,8 +24,23 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
     channelId: 'UC0jQd1_qQAT4an-dDaG1Sww', // AUFTV — canal oficial de la AUF (137K subs)
     channelLabel: 'AUFTV',
     enabled: true,
-    fallbackSearchTerms: ['AUFTV resumen partido Campeonato Uruguayo', 'Peñarol Nacional goles apertura clausura'],
-    titleRequiredTerms: ['uruguay', 'uruguayo', 'uruguaya', 'peñarol', 'nacional', 'auftv', 'apertura', 'clausura', 'campeonato'],
+    // searchOnly: false → intenta AUFTV primero, si no alcanza cae a búsqueda libre
+    fallbackSearchTerms: [
+      'resumen goles Primera División Uruguay',
+      'GolTV resumen Uruguay Primera División goles',
+      'Peñarol Nacional resumen goles clausura apertura',
+      'highlights Primera División Uruguay fecha goles',
+      'goles resumen Campeonato Uruguayo fecha',
+    ],
+    titleRequiredTerms: [
+      'uruguay', 'uruguayo', 'uruguaya',
+      'peñarol', 'nacional', 'auftv',
+      'apertura', 'clausura', 'campeonato',
+      'primera división', 'primera division',
+      'goltv',
+      'danubio', 'defensor', 'wanderers',
+      'plaza colonia', 'rentistas', 'boston river',
+    ],
   },
   LL: {
     leagueKey: 'LL',
