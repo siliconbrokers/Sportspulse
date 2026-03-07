@@ -111,8 +111,9 @@ function TileContent({ card, crestSize, showForm }: { card: MatchCardDTO; crestS
   const scoreSize = crestSize <= 28 ? 15 : 18;
   const pad = crestSize <= 28 ? '8px 10px' : '10px 12px';
 
-  const homeForm = showForm ? card.home.formChip : undefined;
-  const awayForm = showForm ? card.away.formChip : undefined;
+  const isFinished = card.status === 'FINISHED';
+  const homeForm = showForm && !isFinished ? card.home.formChip : undefined;
+  const awayForm = showForm && !isFinished ? card.away.formChip : undefined;
 
   return (
     <div

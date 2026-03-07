@@ -160,6 +160,7 @@ async function buildRadarSnapshot(input: BuildRadarInput): Promise<RadarServiceR
       ev.dominantSignalScore,
       usedTemplateIds,
       usedRemateIds,
+      ev.candidate.matchId,
     );
     const reasons = selectReasons(ev.labelKey, evidenceTier, usedTexts);
 

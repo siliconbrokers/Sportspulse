@@ -189,11 +189,20 @@ function resolveTone(label: RadarLabelKey, dominantSignalScore: number): ToneLev
 
 // ── Template selection ─────────────────────────────────────────────────────────
 
+function hashSeed(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
 function selectTemplate(
   libKey: string,
   contextKey: string,
   tone: ToneLevel,
   usedTemplateIds: Set<string>,
+  seed: string = '',
 ): LibraryTemplate | null {
   const label = copyLib.labels[libKey];
   if (!label) return null;
@@ -207,9 +216,13 @@ function selectTemplate(
     tone === 'picante'  ? ['picante', 'venenoso', 'sobrio'] :
                           ['sobrio', 'picante', 'venenoso'];
 
+  const offset = hashSeed(seed);
+
   for (const t of toneOrder) {
-    const candidate = ctx.templates.find((tmpl) => tmpl.tone === t && !usedTemplateIds.has(tmpl.id));
-    if (candidate) return candidate;
+    const matching = ctx.templates.filter((tmpl) => tmpl.tone === t && !usedTemplateIds.has(tmpl.id));
+    if (matching.length > 0) {
+      return matching[offset % matching.length];
+    }
   }
 
   // All used — fallback to any tone-matching (no rotation block)
@@ -274,12 +287,13 @@ export function renderPreMatchText(
   dominantSignalScore: number,
   usedTemplateIds: Set<string>,
   usedRemateTexts: Set<string>,
+  matchId: string = '',
 ): string | null {
   const libKey = LABEL_TO_LIB_KEY[label];
   const contextKey = SUBTYPE_TO_CONTEXT[subtype];
   const tone = resolveTone(label, dominantSignalScore);
 
-  const template = selectTemplate(libKey, contextKey, tone, usedTemplateIds);
+  const template = selectTemplate(libKey, contextKey, tone, usedTemplateIds, matchId);
   if (!template) return null;
 
   if (!passesBannedPhrases(template.text)) return null;

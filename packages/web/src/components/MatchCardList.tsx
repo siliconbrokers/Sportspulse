@@ -201,7 +201,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
               teamId={card.home.teamId}
               name={card.home.name}
               crestUrl={card.home.crestUrl}
-              formChip={showForm ? card.home.formChip : undefined}
+              formChip={showForm && card.status !== 'FINISHED' ? card.home.formChip : undefined}
               align="left"
             />
             <div
@@ -225,7 +225,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
               teamId={card.away.teamId}
               name={card.away.name}
               crestUrl={card.away.crestUrl}
-              formChip={showForm ? card.away.formChip : undefined}
+              formChip={showForm && card.status !== 'FINISHED' ? card.away.formChip : undefined}
               align="right"
             />
           </div>
