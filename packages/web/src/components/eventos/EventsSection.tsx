@@ -2,6 +2,7 @@
 import type { EventosFeed, ParsedEvent } from '../../hooks/use-events.js';
 import { EventCard } from './EventCard.js';
 import { DebugTable } from './DebugTable.js';
+import { AdBlockerBanner } from './AdBlockerBanner.js';
 import { useWindowWidth } from '../../hooks/use-window-width.js';
 
 const ACCENT: Record<string, string> = {
@@ -130,6 +131,7 @@ export function EventsSection({ feed, loading, error }: EventsSectionProps) {
   return (
     <div>
       {header}
+      <AdBlockerBanner isMobile={isMobile} />
 
       {/* spec §13.3 — bloque principal: Uruguay */}
       <LeagueBlock
