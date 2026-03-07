@@ -36,35 +36,24 @@ export interface EventosFeed {
 }
 
 // spec §18.2 — telemetría mínima (console.log estructurado en V1)
-function trackEventOpen(event: ParsedEvent, mode: 'DIRECT' | 'EMBED_TEST') {
+function trackEventOpen(eventId: string, league: string, mode: 'DIRECT' | 'EMBED_TEST') {
   console.log('[Eventos] event_open_clicked', {
-    event_id: event.id,
-    normalized_league: event.normalizedLeague,
+    event_id: eventId,
+    normalized_league: league,
     open_mode: mode,
-    source_url: event.openUrl,
     timestamp: new Date().toISOString(),
   });
 }
 
+// Abre en nueva pestaña con URL del portal (la URL del proveedor permanece server-side)
 export function openEventDirect(event: ParsedEvent) {
-  trackEventOpen(event, 'DIRECT');
-  if (event.openUrl) {
-    window.open(event.openUrl, '_blank', 'noopener,noreferrer');
-  }
+  trackEventOpen(event.id, event.normalizedLeague, 'DIRECT');
+  window.open(`/eventos/ver?id=${encodeURIComponent(event.id)}&mode=direct`, '_blank', 'noopener');
 }
 
 export function openEventEmbedTest(event: ParsedEvent) {
-  trackEventOpen(event, 'EMBED_TEST');
-  const params = new URLSearchParams({
-    id: event.id,
-    url: event.openUrl ?? '',
-    home: event.homeTeam ?? '',
-    away: event.awayTeam ?? '',
-    league: event.normalizedLeague,
-    status: event.normalizedStatus,
-    time: event.startsAtPortalTz ?? '',
-  });
-  window.open(`/eventos/player-test?${params.toString()}`, '_blank', 'noopener');
+  trackEventOpen(event.id, event.normalizedLeague, 'EMBED_TEST');
+  window.open(`/eventos/ver?id=${encodeURIComponent(event.id)}&mode=embed`, '_blank', 'noopener');
 }
 
 export function useEvents(enabled: boolean) {
@@ -113,6 +102,42 @@ export function useEvents(enabled: boolean) {
 
     return () => controller.abort();
   }, [enabled]);
+
+  return { data, loading, error };
+}
+
+// Carga un evento individual por ID — la openUrl viene del servidor, nunca del query param
+export function useEventById(id: string | null) {
+  const [data, setData] = useState<ParsedEvent | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+
+    fetch(`/api/ui/eventos/event/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<ParsedEvent>;
+      })
+      .then((event) => {
+        if (!controller.signal.aborted) {
+          setData(event);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'Error');
+          setLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [id]);
 
   return { data, loading, error };
 }

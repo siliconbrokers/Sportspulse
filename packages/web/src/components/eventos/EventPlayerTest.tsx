@@ -1,16 +1,7 @@
 // spec §16 — página interna de prueba de reproducción
-// spec §17 — iframe sandboxed para aislar player externo
-import { useState, useEffect, useRef } from 'react';
-
-interface PlayerParams {
-  id: string;
-  url: string;
-  home: string;
-  away: string;
-  league: string;
-  status: string;
-  time: string;
-}
+// La URL del proveedor se obtiene del servidor por ID — nunca se expone en query params ni en UI
+import { useState, useRef } from 'react';
+import { useEventById } from '../../hooks/use-events.js';
 
 const LEAGUE_LABEL: Record<string, string> = {
   URUGUAY_PRIMERA: 'Primera División Uruguay',
@@ -21,7 +12,13 @@ const LEAGUE_LABEL: Record<string, string> = {
   EXCLUIDA: 'Excluida',
 };
 
-function formatTime(isoStr: string): string {
+function readParams(): { id: string; mode: 'direct' | 'embed' } {
+  const p = new URLSearchParams(window.location.search);
+  const mode = p.get('mode') === 'direct' ? 'direct' : 'embed';
+  return { id: p.get('id') ?? '', mode };
+}
+
+function formatTime(isoStr: string | null): string {
   if (!isoStr) return '—';
   try {
     return new Date(isoStr).toLocaleTimeString('es-UY', {
@@ -34,60 +31,61 @@ function formatTime(isoStr: string): string {
   }
 }
 
-function readParams(): PlayerParams {
-  const p = new URLSearchParams(window.location.search);
-  return {
-    id: p.get('id') ?? '',
-    url: p.get('url') ?? '',
-    home: p.get('home') ?? '?',
-    away: p.get('away') ?? '?',
-    league: p.get('league') ?? 'OTRA',
-    status: p.get('status') ?? 'DESCONOCIDO',
-    time: p.get('time') ?? '',
-  };
-}
-
 export function EventPlayerTest() {
-  const [params] = useState<PlayerParams>(readParams);
+  const [{ id, mode }] = useState(readParams);
   const [iframeError, setIframeError] = useState(false);
   const [loadStart] = useState(Date.now());
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const hasUrl = Boolean(params.url);
+  // La URL del stream solo existe en el objeto event, nunca en la query string ni en el DOM visible
+  const { data: event, loading, error } = useEventById(id || null);
 
-  useEffect(() => {
-    if (!hasUrl) {
-      setIframeError(true);
-    }
-  }, [hasUrl]);
+  const hasUrl = Boolean(event?.openUrl);
 
   function handleIframeLoad() {
-    // spec §18.2 — event_player_loaded
-    const duration = Date.now() - loadStart;
     console.log('[Eventos] event_player_loaded', {
-      event_id: params.id,
-      open_mode: 'EMBED_TEST',
+      event_id: id,
+      open_mode: mode === 'direct' ? 'DIRECT' : 'EMBED_TEST',
       success: true,
-      load_duration_ms: duration,
+      load_duration_ms: Date.now() - loadStart,
     });
   }
 
   function handleIframeError() {
     setIframeError(true);
     console.log('[Eventos] event_player_failed', {
-      event_id: params.id,
-      open_mode: 'EMBED_TEST',
+      event_id: id,
+      open_mode: mode === 'direct' ? 'DIRECT' : 'EMBED_TEST',
       reason: 'iframe_load_error',
     });
   }
 
+  // Abre el origen directamente en la misma pestaña (fallback cuando iframe falla)
   function openOrigin() {
-    if (params.url) {
-      window.open(params.url, '_blank', 'noopener,noreferrer');
+    if (event?.openUrl) {
+      window.location.href = event.openUrl;
     }
   }
 
-  const leagueLabel = LEAGUE_LABEL[params.league] ?? params.league;
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Cargando...</span>
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
+          {error ?? 'Evento no encontrado'}
+        </span>
+      </div>
+    );
+  }
+
+  const leagueLabel = LEAGUE_LABEL[event.normalizedLeague] ?? event.normalizedLeague;
 
   return (
     <div style={{
@@ -95,9 +93,8 @@ export function EventPlayerTest() {
       backgroundColor: '#0f172a',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       color: '#fff',
-      padding: 0,
     }}>
-      {/* Header */}
+      {/* Header — sin ninguna referencia a URLs externas */}
       <div style={{
         padding: '12px 20px',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
@@ -107,82 +104,62 @@ export function EventPlayerTest() {
         background: 'rgba(255,255,255,0.03)',
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* spec §16.3 — título del evento */}
           <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#fff' }}>
-            {params.home} vs {params.away}
+            {event.homeTeam ?? '?'} vs {event.awayTeam ?? '?'}
           </h1>
           <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
-            {/* spec §16.3 — liga normalizada */}
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
               {leagueLabel}
             </span>
-            {/* spec §16.3 — hora local */}
-            {params.time && (
+            {event.startsAtPortalTz && (
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
-                {formatTime(params.time)} (UY)
+                {formatTime(event.startsAtPortalTz)} (UY)
               </span>
             )}
-            {/* spec §16.3 — estado */}
             <span style={{
               fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-              background: params.status === 'EN_VIVO'
+              background: event.normalizedStatus === 'EN_VIVO'
                 ? 'rgba(239,68,68,0.15)'
                 : 'rgba(100,116,139,0.15)',
-              color: params.status === 'EN_VIVO' ? '#ef4444' : '#94a3b8',
+              color: event.normalizedStatus === 'EN_VIVO' ? '#ef4444' : '#94a3b8',
             }}>
-              {params.status}
+              {event.normalizedStatus}
             </span>
           </div>
         </div>
 
-        {/* spec §16.3 — botón Abrir origen */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={openOrigin}
-            disabled={!hasUrl}
-            style={{
-              background: '#3b82f6',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: hasUrl ? 'pointer' : 'not-allowed',
-              opacity: hasUrl ? 1 : 0.5,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Abrir origen
-          </button>
-          <button
-            onClick={() => window.close()}
-            style={{
-              background: 'transparent',
-              color: 'rgba(255,255,255,0.5)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 6,
-              padding: '6px 12px',
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
-          >
-            Cerrar
-          </button>
-        </div>
+        <button
+          onClick={() => window.close()}
+          style={{
+            background: 'transparent',
+            color: 'rgba(255,255,255,0.5)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: 6,
+            padding: '6px 12px',
+            fontSize: 12,
+            cursor: 'pointer',
+          }}
+        >
+          Cerrar
+        </button>
       </div>
-
-      {/* spec §16.3 — fuente externa */}
-      {params.url && (
-        <div style={{ padding: '6px 20px', background: 'rgba(0,0,0,0.2)', fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>
-          Fuente: <span style={{ fontFamily: 'monospace' }}>{params.url}</span>
-        </div>
-      )}
 
       {/* Player area */}
       <div style={{ padding: '16px 20px' }}>
-        {iframeError ? (
-          /* spec §16.3 + §17.7 — fallback si player no funciona */
+        {!hasUrl ? (
+          <div style={{
+            background: 'rgba(100,116,139,0.1)',
+            border: '1px solid rgba(100,116,139,0.2)',
+            borderRadius: 10,
+            padding: 24,
+            textAlign: 'center',
+          }}>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+              No hay reproducción disponible para este evento.
+            </p>
+          </div>
+        ) : iframeError ? (
+          /* spec §17.7 — fallback si el player no funciona bajo sandbox */
           <div style={{
             background: 'rgba(239,68,68,0.08)',
             border: '1px solid rgba(239,68,68,0.2)',
@@ -192,15 +169,13 @@ export function EventPlayerTest() {
           }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
             <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', margin: '0 0 6px' }}>
-              El reproductor no pudo cargarse en modo sandbox.
+              El reproductor no pudo cargarse.
             </p>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '0 0 16px' }}>
-              El player externo puede requerir permisos de navegación no habilitados en modo prueba.
+              Podés intentar abrirlo directamente.
             </p>
-            {/* spec §17.7 — botón Abrir origen en nueva pestaña */}
             <button
               onClick={openOrigin}
-              disabled={!hasUrl}
               style={{
                 background: '#3b82f6',
                 color: '#fff',
@@ -209,21 +184,19 @@ export function EventPlayerTest() {
                 padding: '8px 20px',
                 fontSize: 13,
                 fontWeight: 600,
-                cursor: hasUrl ? 'pointer' : 'not-allowed',
-                opacity: hasUrl ? 1 : 0.5,
+                cursor: 'pointer',
               }}
             >
-              Abrir origen en nueva pestaña
+              Abrir en esta pestaña
             </button>
           </div>
         ) : (
           <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
-            {/* spec §17.3-17.4 — iframe sandboxed restrictivo */}
+            {/* spec §17.3-17.4 — iframe sandboxed; src viene del servidor, no de query params */}
             <iframe
               ref={iframeRef}
-              src={params.url}
-              title={`${params.home} vs ${params.away}`}
-              // spec §17.4 — sandbox restrictivo: sin allow-popups ni allow-top-navigation
+              src={event.openUrl!}
+              title={`${event.homeTeam} vs ${event.awayTeam}`}
               sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
               allow="autoplay; fullscreen"
               referrerPolicy="no-referrer"
@@ -240,14 +213,6 @@ export function EventPlayerTest() {
               }}
             />
           </div>
-        )}
-
-        {/* Nota técnica */}
-        {!iframeError && (
-          <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', marginTop: 10, textAlign: 'center' }}>
-            Modo prueba — iframe con sandbox restrictivo (sin popups ni navegación de top-level).
-            Si el player no funciona, usá "Abrir origen".
-          </p>
         )}
       </div>
     </div>

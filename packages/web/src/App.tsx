@@ -16,9 +16,10 @@ import { competitionDisplayName } from './utils/labels.js';
 
 type ViewMode = 'radar' | 'partidos' | 'standings' | 'noticias' | 'eventos';
 
-// spec §16 — detectar si la ruta actual es el player de prueba
+// spec §16 — detectar si la ruta actual es el player de reproducción
 function isPlayerTestRoute(): boolean {
-  return window.location.pathname.startsWith('/eventos/player-test');
+  const p = window.location.pathname;
+  return p.startsWith('/eventos/player-test') || p.startsWith('/eventos/ver');
 }
 
 const COMPETITIONS = [
