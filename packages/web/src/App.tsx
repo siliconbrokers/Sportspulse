@@ -7,9 +7,8 @@ import { useCompetitionInfo } from './hooks/use-competition-info.js';
 import { useTeamDetail } from './hooks/use-team-detail.js';
 import { useWindowWidth } from './hooks/use-window-width.js';
 import { useTeamsPlayingToday } from './hooks/use-teams-playing-today.js';
-import { useNews } from './hooks/use-news.js';
 import { useVideos } from './hooks/use-videos.js';
-import { NewsSection } from './components/NewsSection.js';
+import { VideoSection } from './components/VideoSection.js';
 import { competitionDisplayName } from './utils/labels.js';
 
 type ViewMode = 'radar' | 'partidos' | 'standings' | 'noticias';
@@ -33,8 +32,7 @@ export function App() {
     view === 'standings' ? (compInfo?.currentMatchday ?? null) : null,
     'America/Montevideo',
   );
-  const { data: newsFeed, loading: newsLoading, error: newsError } = useNews(view === 'noticias');
-  const { data: videoFeed } = useVideos(view === 'noticias');
+  const { data: videoFeed, loading: videoLoading, error: videoError } = useVideos(view === 'noticias');
   const { data: standingsTeamDetail } = useTeamDetail(
     competitionId,
     view === 'standings' ? standingsFocusId : null,
@@ -101,7 +99,7 @@ export function App() {
             { id: 'radar', label: '📡 Radar' },
             { id: 'partidos', label: '⚽ Partidos' },
             { id: 'standings', label: '📊 Tabla' },
-            { id: 'noticias', label: '📰 Noticias' },
+            { id: 'noticias', label: '📹 Videos' },
           ] as { id: ViewMode; label: string }[]).map((v) => (
             <button
               key={v.id}
@@ -172,7 +170,7 @@ export function App() {
         />
       ) : view === 'noticias' ? (
         <div style={{ padding: 16 }}>
-          <NewsSection feed={newsFeed} loading={newsLoading} error={newsError} videoFeed={videoFeed} />
+          <VideoSection feed={videoFeed} loading={videoLoading} error={videoError} />
         </div>
       ) : (
         <div style={{ padding: 16 }}>
