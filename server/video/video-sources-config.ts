@@ -2,7 +2,13 @@ export type LeagueKey = 'URU' | 'LL' | 'EPL' | 'BUN';
 
 export interface LeagueVideoSourceConfig {
   leagueKey: LeagueKey;
-  channelId: string;   // YouTube channel ID (UCxxxxx...). Ignorado si searchOnly=true
+  channelId: string;   // Canal principal (UCxxxxx...). Ignorado si searchOnly=true
+  /**
+   * Canales adicionales a consultar en orden, después del canal principal.
+   * Para canales multi-deporte se aplica titleRequiredTerms automáticamente.
+   * Si un canal devuelve geo-blocking, el filtro de región lo descarta sin romper el flujo.
+   */
+  extraChannelIds?: string[];
   channelLabel: string;
   enabled: boolean;
   /**
@@ -58,17 +64,50 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
   EPL: {
     leagueKey: 'EPL',
     channelId: 'UCG5qGWdu8nIRZqJ_GgDwQ-w', // Premier League oficial (9.3M subs)
+    extraChannelIds: [
+      'UCNAf1k0yIjyGu3k9BwAg3lg', // Sky Sports Football — cubre EPL ampliamente; puede geo-bloquear en UY (filtrado por región)
+    ],
     channelLabel: 'Premier League',
     enabled: true,
-    fallbackSearchTerms: ['Premier League highlights matchday goals', 'EPL goals matchday highlights'],
-    titleRequiredTerms: ['premier league', 'epl', 'man city', 'man utd', 'manchester', 'liverpool', 'arsenal', 'chelsea', 'tottenham'],
+    fallbackSearchTerms: [
+      'Premier League highlights matchday goals',
+      'EPL goals matchday highlights',
+      'Premier League resumen goles jornada',
+      'Premier League best goals this week',
+      'premier league match highlights goals scored',
+    ],
+    titleRequiredTerms: [
+      'premier league', 'epl', 'matchweek', 'match week',
+      'man city', 'man utd', 'manchester', 'manchester city', 'manchester united',
+      'liverpool', 'arsenal', 'chelsea', 'tottenham',
+      'newcastle', 'aston villa', 'brighton', 'west ham',
+      'brentford', 'fulham', 'everton', 'crystal palace',
+      'wolves', 'wolverhampton', 'bournemouth', 'leicester',
+      'ipswich', 'southampton', 'nottingham forest',
+    ],
   },
   BUN: {
     leagueKey: 'BUN',
     channelId: 'UC6UL29enLNe4mqwTfAyeNuw', // Bundesliga oficial (5.5M subs)
+    extraChannelIds: [
+      'UCbfnHqxXrkBu3o-7d5LQTOQ', // Bundesliga EN — canal oficial en inglés (highlights internacionales)
+    ],
     channelLabel: 'Bundesliga',
     enabled: true,
-    fallbackSearchTerms: ['Bundesliga Highlights Spieltag Tore', 'Bundesliga Zusammenfassung Spieltag'],
-    titleRequiredTerms: ['bundesliga', 'spieltag', 'dfl', 'Bayern', 'Dortmund', 'Leverkusen'],
+    fallbackSearchTerms: [
+      'Bundesliga Highlights Spieltag Tore',
+      'Bundesliga Zusammenfassung Spieltag',
+      'Bundesliga highlights goals matchday',
+      'Bundesliga resumen goles jornada',
+      'Bundesliga best goals this week spieltag',
+    ],
+    titleRequiredTerms: [
+      'bundesliga', 'spieltag', 'dfl',
+      'Bayern', 'Bayern München', 'Dortmund', 'BVB', 'Leverkusen',
+      'wolfsburg', 'rb leipzig', 'leipzig', 'gladbach', 'mönchengladbach',
+      'hoffenheim', 'freiburg', 'eintracht', 'frankfurt',
+      'mainz', 'augsburg', 'bochum', 'werder', 'bremen',
+      'köln', 'koln', 'heidenheim', 'stuttgart', 'st pauli',
+    ],
   },
 };

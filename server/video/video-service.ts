@@ -130,15 +130,60 @@ export class VideoService {
 
   private async resolveFromChannel(leagueKey: LeagueKey): Promise<LeagueVideoHighlight[]> {
     const config = VIDEO_SOURCES[leagueKey];
-    const items = await fetchChannelUploads(config.channelId, this.youtubeApiKey, 20);
+    const extraIds = config.extraChannelIds ?? [];
 
-    const candidates = items
-      .map(playlistItemToCandidate)
-      .filter((c): c is NonNullable<typeof c> => c !== null)
-      .filter((c) => isWithin48Hours(c.publishedAtUtc))
-      .filter((c) => !isBlockedByPolitics(c.title));
+    // Filtro de liga — se aplica a canales extra (multi-deporte); el canal principal es monotemático
+    const requiredTerms = config.titleRequiredTerms.map((t) => t.toLowerCase());
+    const matchesLeague = (title: string): boolean => {
+      const lower = title.toLowerCase();
+      return requiredTerms.some((t) => lower.includes(t));
+    };
 
-    const available = await this.filterByRegion(candidates);
+    const seenIds = new Set<string>();
+    const allCandidates: VideoCandidate[] = [];
+
+    // Canal principal — sin filtro de liga (es el canal oficial de la competición)
+    if (config.channelId) {
+      try {
+        const items = await fetchChannelUploads(config.channelId, this.youtubeApiKey, 20);
+        const candidates = items
+          .map(playlistItemToCandidate)
+          .filter((c): c is NonNullable<typeof c> => c !== null)
+          .filter((c) => isWithin48Hours(c.publishedAtUtc))
+          .filter((c) => !isBlockedByPolitics(c.title));
+        for (const c of candidates) {
+          seenIds.add(c.videoId);
+          allCandidates.push(c);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[VideoService] ${leagueKey}: primary channel error — ${msg.slice(0, 80)}`);
+      }
+    }
+
+    // Canales adicionales — se aplica filtro de liga; si están geo-bloqueados la región los descarta
+    for (const channelId of extraIds) {
+      try {
+        const items = await fetchChannelUploads(channelId, this.youtubeApiKey, 20);
+        const candidates = items
+          .map(playlistItemToCandidate)
+          .filter((c): c is NonNullable<typeof c> => c !== null)
+          .filter((c) => !seenIds.has(c.videoId))
+          .filter((c) => isWithin48Hours(c.publishedAtUtc))
+          .filter((c) => !isBlockedByPolitics(c.title))
+          .filter((c) => matchesLeague(c.title));
+        for (const c of candidates) {
+          seenIds.add(c.videoId);
+          allCandidates.push(c);
+        }
+        console.log(`[VideoService] ${leagueKey}: extra channel ${channelId} → ${candidates.length} candidates`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[VideoService] ${leagueKey}: extra channel ${channelId} error — ${msg.slice(0, 80)}`);
+      }
+    }
+
+    const available = await this.filterByRegion(allCandidates);
 
     return selectTopVideos(available, MAX_VIDEOS_PER_LEAGUE)
       .map((c) => toHighlight(c, leagueKey, config.channelLabel));
