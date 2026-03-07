@@ -47,10 +47,19 @@ function trackEventOpen(eventId: string, league: string, mode: 'DIRECT' | 'EMBED
   });
 }
 
-// Abre en nueva pestaña con URL del portal (la URL del proveedor permanece server-side)
+// Abre en ventana popup (sin barra de favoritos, sin pestañas, sin extensiones visibles).
+// La URL del proveedor permanece server-side; la URL visible es solo /eventos/ver?id=...
+// Nota: los browsers modernos no permiten ocultar la barra de URL (restricción de seguridad).
 export function openEventDirect(event: ParsedEvent) {
   trackEventOpen(event.id, event.normalizedLeague, 'DIRECT');
-  window.open(`/eventos/ver?id=${encodeURIComponent(event.id)}&mode=direct`, '_blank', 'noopener');
+  const url = `/eventos/ver?id=${encodeURIComponent(event.id)}&mode=direct`;
+  // Dimensiones: 90% de la pantalla del usuario, centrado
+  const w = Math.min(Math.round(window.screen.width * 0.9), 1440);
+  const h = Math.min(Math.round(window.screen.height * 0.9), 900);
+  const left = Math.round((window.screen.width - w) / 2);
+  const top = Math.round((window.screen.height - h) / 2);
+  const features = `popup,width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes,noopener`;
+  window.open(url, 'sportpulse_player', features);
 }
 
 export function openEventEmbedTest(event: ParsedEvent) {
