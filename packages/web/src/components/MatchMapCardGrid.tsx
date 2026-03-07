@@ -95,6 +95,15 @@ function formColor(kind?: string): string {
   }
 }
 
+function isEffectivelyLive(card: MatchCardDTO): boolean {
+  if (card.status === 'LIVE') return true;
+  if (card.status === 'SCHEDULED' && card.kickoffUtc) {
+    const mins = (Date.now() - new Date(card.kickoffUtc).getTime()) / 60000;
+    return mins >= 0 && mins <= 110;
+  }
+  return false;
+}
+
 function TileContent({ card, crestSize, showForm }: { card: MatchCardDTO; crestSize: number; showForm: boolean }) {
   const homeName = card.home.name || '—';
   const awayName = card.away.name || '—';
@@ -170,7 +179,7 @@ function TileContent({ card, crestSize, showForm }: { card: MatchCardDTO; crestS
             textAlign: 'center',
           }}
         >
-          {card.status === 'FINISHED' && card.scoreHome != null && card.scoreAway != null
+          {(card.status === 'FINISHED' || isEffectivelyLive(card)) && card.scoreHome != null && card.scoreAway != null
             ? `${card.scoreHome}-${card.scoreAway}`
             : 'vs'}
         </span>

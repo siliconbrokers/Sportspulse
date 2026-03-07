@@ -146,6 +146,14 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
           return hours >= 0 && hours < 24;
         })();
 
+        const isEffectivelyLive = card.status === 'LIVE' || (
+          card.status === 'SCHEDULED' && !!card.kickoffUtc &&
+          (() => {
+            const mins = (Date.now() - new Date(card.kickoffUtc!).getTime()) / 60000;
+            return mins >= 0 && mins <= 110;
+          })()
+        );
+
         return (
         <div
           key={card.matchId}
@@ -203,7 +211,7 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
                 minWidth: 48,
               }}
             >
-              {card.status === 'FINISHED' && card.scoreHome != null && card.scoreAway != null ? (
+              {(card.status === 'FINISHED' || isEffectivelyLive) && card.scoreHome != null && card.scoreAway != null ? (
                 <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: 2 }}>
                   {card.scoreHome} - {card.scoreAway}
                 </span>
@@ -222,26 +230,6 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
             />
           </div>
 
-          {/* Explain line — reemplaza la parte de tiempo con chip en vivo (buildNowUtc ≠ now) */}
-          {card.explainLine && card.status !== 'FINISHED' && showForm && (
-            <div
-              style={{
-                fontSize: 11,
-                color: 'rgba(255,255,255,0.3)',
-                textAlign: 'center',
-                borderTop: '1px solid rgba(255,255,255,0.06)',
-                paddingTop: 8,
-              }}
-            >
-              {(() => {
-                const raw = card.explainLine.text.replace(/^Porque:\s*/i, '');
-                const plusIdx = raw.indexOf(' + ');
-                const formPart = plusIdx >= 0 ? raw.slice(plusIdx + 3) : '';
-                const liveLabel = computeLiveTimeChip(card.status, card.kickoffUtc).label;
-                return formPart ? `${liveLabel} + ${formPart}` : liveLabel;
-              })()}
-            </div>
-          )}
         </div>
         );
       })}

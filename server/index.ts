@@ -2,6 +2,8 @@ import { buildApp } from '@sportpulse/api';
 import { FootballDataSource } from './football-data-source.js';
 import { TheSportsDbSource, SPORTSDB_PROVIDER_KEY } from './the-sports-db-source.js';
 import { RoutingDataSource } from './routing-data-source.js';
+import { NewsService } from './news/index.js';
+import { VideoService } from './video/index.js';
 import {
   SnapshotService,
   InMemorySnapshotStore,
@@ -60,13 +62,38 @@ async function main() {
     { competitionId: UY_COMPETITION_ID, providerKey: SPORTSDB_PROVIDER_KEY, source: sportsDbSource },
   ]);
 
+  // News service — demand-pull, cached per league (30-60 min TTL)
+  const GNEWS_API_KEY = process.env.SERPAPI_KEY ?? process.env.GNEWS_API_KEY ?? '';
+  if (!GNEWS_API_KEY) {
+    console.warn('[NewsService] SERPAPI_KEY not set — league news will return empty blocks');
+  }
+
+  // Video service — YouTube Data API v3, cached 45 min
+  const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY ?? '';
+  if (!YOUTUBE_API_KEY) {
+    console.warn('[VideoService] YOUTUBE_API_KEY not set — video highlights will be disabled');
+  }
+  const videoService = new VideoService(YOUTUBE_API_KEY);
+
+  const standingsProvider = {
+    getTop5TeamNames(competitionId: string): string[] {
+      return (dataSource.getStandings?.(competitionId) ?? [])
+        .slice(0, 5)
+        .map((s) => s.teamName);
+    },
+    getLastPlayedMatchday(competitionId: string): number | undefined {
+      return dataSource.getLastPlayedMatchday?.(competitionId);
+    },
+  };
+  const newsService = new NewsService(GNEWS_API_KEY, standingsProvider);
+
   const snapshotService = new SnapshotService({
     store: new InMemorySnapshotStore(),
     defaultPolicy: MVP_POLICY,
     defaultContainer: DEFAULT_CONTAINER,
   });
 
-  const app = buildApp({ snapshotService, dataSource });
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService });
 
   // Periodic refresh every 10 minutes
   setInterval(async () => {
@@ -88,7 +115,7 @@ async function main() {
     } catch (err) {
       console.error(`Refresh failed for Liga Uruguaya:`, err);
     }
-  }, 10 * 60 * 1000);
+  }, 5 * 60 * 1000);
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`SportsPulse API running at http://localhost:${PORT}`);

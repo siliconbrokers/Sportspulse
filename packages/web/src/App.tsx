@@ -7,9 +7,12 @@ import { useCompetitionInfo } from './hooks/use-competition-info.js';
 import { useTeamDetail } from './hooks/use-team-detail.js';
 import { useWindowWidth } from './hooks/use-window-width.js';
 import { useTeamsPlayingToday } from './hooks/use-teams-playing-today.js';
+import { useNews } from './hooks/use-news.js';
+import { useVideos } from './hooks/use-videos.js';
+import { NewsSection } from './components/NewsSection.js';
 import { competitionDisplayName } from './utils/labels.js';
 
-type ViewMode = 'treemap' | 'partidos' | 'standings';
+type ViewMode = 'treemap' | 'partidos' | 'standings' | 'noticias';
 
 const COMPETITIONS = [
   { id: 'comp:football-data:PD', code: 'PD' },
@@ -30,6 +33,8 @@ export function App() {
     view === 'standings' ? (compInfo?.currentMatchday ?? null) : null,
     'America/Montevideo',
   );
+  const { data: newsFeed, loading: newsLoading, error: newsError } = useNews(view === 'noticias');
+  const { data: videoFeed } = useVideos(view === 'noticias');
   const { data: standingsTeamDetail } = useTeamDetail(
     competitionId,
     view === 'standings' ? standingsFocusId : null,
@@ -92,22 +97,27 @@ export function App() {
           style={{ height: isMobile ? 36 : 56, width: 'auto', cursor: 'pointer' }}
         />
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-          {(['treemap', 'partidos', 'standings'] as const).map((v) => (
+          {([
+            { id: 'treemap', label: 'Mapa' },
+            { id: 'partidos', label: 'Partidos' },
+            { id: 'standings', label: 'Tabla' },
+            { id: 'noticias', label: 'Noticias' },
+          ] as { id: ViewMode; label: string }[]).map((v) => (
             <button
-              key={v}
-              onClick={() => setView(v)}
+              key={v.id}
+              onClick={() => setView(v.id)}
               style={{
-                backgroundColor: view === v ? 'rgba(255,255,255,0.15)' : 'transparent',
+                backgroundColor: view === v.id ? 'rgba(255,255,255,0.15)' : 'transparent',
                 color: '#fff',
                 border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: 6,
                 padding: isMobile ? '5px 10px' : '6px 12px',
-                fontSize: isMobile ? 12 : 12,
+                fontSize: 12,
                 cursor: 'pointer',
-                fontWeight: view === v ? 700 : 400,
+                fontWeight: view === v.id ? 700 : 400,
               }}
             >
-              {v === 'treemap' ? 'Mapa' : v === 'partidos' ? 'Partidos' : 'Tabla'}
+              {v.label}
             </button>
           ))}
         </div>
@@ -160,6 +170,10 @@ export function App() {
           timezone="America/Montevideo"
           viewMode={view}
         />
+      ) : view === 'noticias' ? (
+        <div style={{ padding: 16 }}>
+          <NewsSection feed={newsFeed} loading={newsLoading} error={newsError} videoFeed={videoFeed} />
+        </div>
       ) : (
         <div style={{ padding: 16 }}>
           {standingsLoading && <div style={{ color: '#fff', opacity: 0.5 }}>Cargando tabla...</div>}

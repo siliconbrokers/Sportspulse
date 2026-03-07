@@ -261,7 +261,8 @@ export class TheSportsDbSource implements DataSource {
 
   private getCached(): CachedData | null {
     if (!this.cache) return null;
-    if (Date.now() - this.cache.fetchedAt > CACHE_TTL_MS) return null;
+    // Always return cached data even if stale — the periodic setInterval handles
+    // refreshes. Stale data is far better than returning null → empty arrays.
     return this.cache;
   }
 

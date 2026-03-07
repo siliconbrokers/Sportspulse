@@ -193,17 +193,20 @@ export function buildMatchCards(
   const teamMap = new Map<string, Team>(allTeams.map((t) => [t.teamId, t]));
 
   // When a matchday is given: show all matches of that matchday (any status).
-  // Otherwise: show only LIVE or future SCHEDULED matches.
+  // Otherwise: show LIVE, future SCHEDULED, or heuristically-live SCHEDULED
+  // (kickoff in the past within 110 min — API may lag behind real status).
   const relevant =
     matchday !== undefined
       ? matches.filter((m) => m.matchday === matchday)
-      : matches.filter(
-          (m) =>
-            m.status === EventStatus.IN_PROGRESS ||
-            (m.status === EventStatus.SCHEDULED &&
-              m.startTimeUtc !== null &&
-              m.startTimeUtc > buildNowUtc),
-        );
+      : matches.filter((m) => {
+          if (m.status === EventStatus.IN_PROGRESS) return true;
+          if (m.status === EventStatus.SCHEDULED && m.startTimeUtc !== null) {
+            const diffMs = new Date(m.startTimeUtc).getTime() - new Date(buildNowUtc).getTime();
+            // Future match OR kickoff within last 110 min (heuristically live)
+            return diffMs > 0 || diffMs >= -(110 * 60 * 1000);
+          }
+          return false;
+        });
 
   // ── Pass 1: build intermediate cards (without tileHints) ──────────────────
 
@@ -229,6 +232,10 @@ export function buildMatchCards(
     }
 
     const isFinished = match.status === EventStatus.FINISHED;
+    // Heurístico: si el kickoff ya pasó y no han pasado más de 110 min, el partido
+    // probablemente está en juego aunque la API aún no actualizó el status.
+    const isHeuristicallyLive =
+      !isLive && !isFinished && hours !== null && hours < 0 && hours > -110 / 60;
     const timeChip = isFinished
       ? { icon: '✅', label: 'Finalizado', level: 'INFO' as const, kind: 'TIME_FINISHED' }
       : mapTimeChipFromHours(hours, isLive);
@@ -264,8 +271,8 @@ export function buildMatchCards(
       matchId: match.matchId,
       kickoffUtc: match.startTimeUtc ?? undefined,
       status: toCardStatus(match.status),
-      scoreHome: isFinished ? match.scoreHome : undefined,
-      scoreAway: isFinished ? match.scoreAway : undefined,
+      scoreHome: isFinished || isLive || isHeuristicallyLive ? match.scoreHome : undefined,
+      scoreAway: isFinished || isLive || isHeuristicallyLive ? match.scoreAway : undefined,
       timeChip,
       home: {
         teamId: match.homeTeamId,

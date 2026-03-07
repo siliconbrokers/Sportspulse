@@ -28,7 +28,13 @@ export function computeLiveTimeChip(
   const hours = diffMs / (1000 * 60 * 60);
 
   if (hours <= 0) {
-    return { icon: '⏱️', label: 'Ya empezó', level: 'WARN' };
+    const minutesPast = -diffMs / (1000 * 60);
+    if (minutesPast > 110) {
+      // El partido probablemente terminó pero el backend aún no actualizó el estado.
+      return { icon: '🕐', label: 'Resultado pendiente', level: 'INFO' };
+    }
+    // Dentro de los 110 minutos: el partido está en juego
+    return { icon: '🔴', label: 'En juego', level: 'HOT' };
   }
   if (hours < 1) {
     const mins = Math.ceil(hours * 60);

@@ -177,10 +177,11 @@ export class FootballDataSource implements DataSource {
   }
 
   private getCached(compId: string): CachedData | undefined {
-    const cached = this.cache.get(compId);
-    if (!cached) return undefined;
-    if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) return undefined;
-    return cached;
+    // Always return cached data even if stale — the periodic setInterval
+    // handles refreshes. Returning undefined (→ empty arrays) would cause
+    // the snapshot to be built with no teams when the TTL happens to expire
+    // between refresh cycles.
+    return this.cache.get(compId);
   }
 
   private async apiGet<T>(path: string): Promise<T> {

@@ -61,10 +61,15 @@ export class SnapshotService {
       input.matchday,
     );
 
-    // 1. Cache hit
-    if (this.store.has(key)) {
-      return { snapshot: this.store.get(key)!, source: 'cache' };
+    // 1. Cache hit — snapshot within TTL, return immediately
+    const cached = this.store.get(key);
+    if (cached) {
+      return { snapshot: cached, source: 'cache' };
     }
+
+    // Capture any existing snapshot (even expired) BEFORE the build attempt.
+    // This is the stale fallback available if the fresh build fails.
+    const staleSnapshot = this.store.getStale(key);
 
     // 2. Try fresh build
     try {
@@ -84,14 +89,13 @@ export class SnapshotService {
       this.store.set(key, snapshot);
       return { snapshot, source: 'fresh' };
     } catch (err) {
-      // 3. Stale fallback
-      if (this.store.has(key)) {
-        const stale = this.store.get(key)!;
-        // Inject STALE_DATA warning
+      // 3. Stale fallback — serve the expired snapshot with a warning rather than a 503
+      if (staleSnapshot) {
+        console.warn(`[SnapshotService] Build failed, serving stale snapshot for key=${key}`);
         const withWarning: DashboardSnapshotDTO = {
-          ...stale,
+          ...staleSnapshot,
           warnings: [
-            ...stale.warnings,
+            ...staleSnapshot.warnings,
             {
               code: 'STALE_DATA',
               severity: 'WARN',
@@ -102,7 +106,7 @@ export class SnapshotService {
         return { snapshot: withWarning, source: 'stale_fallback' };
       }
 
-      // 4. No cache, no build -> throw
+      // 4. No data at all — throw 503
       throw new SnapshotBuildFailed('Snapshot build failed and no cached version available', err);
     }
   }

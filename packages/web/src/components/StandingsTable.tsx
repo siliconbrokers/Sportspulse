@@ -108,13 +108,12 @@ export function StandingsTable({ standings, onTeamClick, competitionId, teamsPla
               return (
                 <tr
                   key={row.teamId}
-                  className={playsToday ? 'standings-row--today' : undefined}
                   onClick={() => onTeamClick(row.teamId)}
                   style={{
                     cursor: 'pointer',
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
                     borderLeft: zone ? `4px solid ${zone.color}` : '4px solid transparent',
-                    backgroundColor: playsToday ? undefined : (i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent'),
+                    backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent'; }}

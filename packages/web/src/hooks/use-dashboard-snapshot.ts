@@ -18,54 +18,72 @@ export function useDashboardSnapshot(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<string | null>(null);
+  // Incrementar trigger dispara un refetch manual sin cambiar los otros deps
+  const [trigger, setTrigger] = useState(0);
 
-  const fetchSnapshot = useCallback(async () => {
+  const refetch = useCallback(() => setTrigger((t) => t + 1), []);
+
+  useEffect(() => {
     if (matchday === null) return;
+
+    // AbortController cancela la request anterior cuando competitionId/matchday cambia
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
 
-    try {
-      const params = new URLSearchParams({
-        competitionId,
-        matchday: String(matchday),
-        timezone,
+    const params = new URLSearchParams({
+      competitionId,
+      matchday: String(matchday),
+      timezone,
+    });
+
+    fetch(`/api/ui/dashboard?${params}`, { signal: controller.signal })
+      .then(async (res) => {
+        const snapshotSource = res.headers.get('X-Snapshot-Source');
+        setSource(snapshotSource);
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          const msg = body?.error?.message;
+          if (res.status === 400) throw new Error(msg || 'Invalid request');
+          if (res.status === 404) throw new Error(msg || 'Competition not found');
+          if (res.status === 503) throw new Error(msg || 'Service temporarily unavailable');
+          throw new Error(msg || 'Something went wrong');
+        }
+        return res.json() as Promise<DashboardSnapshotDTO>;
+      })
+      .then((json) => {
+        setData(json);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setError(err instanceof Error ? err.message : 'Something went wrong');
+        setData(null);
+      })
+      .finally(() => {
+        // Solo apagar loading si esta request no fue abortada
+        if (!controller.signal.aborted) setLoading(false);
       });
-      const res = await fetch(`/api/ui/dashboard?${params}`);
 
-      const snapshotSource = res.headers.get('X-Snapshot-Source');
-      setSource(snapshotSource);
+    return () => controller.abort();
+  }, [competitionId, matchday, timezone, trigger]);
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        const msg = body?.error?.message;
-        if (res.status === 400) throw new Error(msg || 'Invalid request');
-        if (res.status === 404) throw new Error(msg || 'Competition not found');
-        if (res.status === 503) throw new Error(msg || 'Service temporarily unavailable');
-        throw new Error(msg || 'Something went wrong');
-      }
-
-      const json = await res.json();
-      setData(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [competitionId, matchday, timezone]);
-
-  useEffect(() => {
-    fetchSnapshot();
-  }, [fetchSnapshot]);
-
-  // Auto-refresh every 1 hour
+  // Auto-refresh adaptivo: 60s si hay partido LIVE, 2min si hay partido en <10min, 1h si no
   useEffect(() => {
     if (!data) return;
-    const interval = setInterval(() => {
-      fetchSnapshot();
-    }, 3_600_000);
-    return () => clearInterval(interval);
-  }, [data, fetchSnapshot]);
 
-  return { data, loading, error, source, refetch: fetchSnapshot };
+    const now = Date.now();
+    const hasLive = data.matchCards.some((m) => m.status === 'LIVE');
+    const hasImminent = data.matchCards.some((m) => {
+      if (m.status !== 'SCHEDULED' || !m.kickoffUtc) return false;
+      const diff = new Date(m.kickoffUtc).getTime() - now;
+      return diff >= 0 && diff <= 10 * 60 * 1000;
+    });
+
+    const intervalMs = hasLive ? 60_000 : hasImminent ? 2 * 60_000 : 3_600_000;
+    const interval = setInterval(() => setTrigger((t) => t + 1), intervalMs);
+    return () => clearInterval(interval);
+  }, [data]);
+
+  return { data, loading, error, source, refetch };
 }

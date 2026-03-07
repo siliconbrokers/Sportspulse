@@ -57,4 +57,43 @@ describe('InMemorySnapshotStore', () => {
     store.set('key-1', snap2);
     expect(store.get('key-1')).toBe(snap2);
   });
+
+  it('get() returns undefined after TTL expires', () => {
+    const store = new InMemorySnapshotStore(1); // 1ms TTL
+    const snap = makeFakeSnapshot('key-exp');
+    store.set('key-exp', snap);
+    // Wait for TTL to pass
+    return new Promise<void>((resolve) =>
+      setTimeout(() => {
+        expect(store.get('key-exp')).toBeUndefined();
+        resolve();
+      }, 5),
+    );
+  });
+
+  it('getStale() returns data even after TTL expires', () => {
+    const store = new InMemorySnapshotStore(1); // 1ms TTL
+    const snap = makeFakeSnapshot('key-stale');
+    store.set('key-stale', snap);
+    return new Promise<void>((resolve) =>
+      setTimeout(() => {
+        expect(store.getStale('key-stale')).toBe(snap);
+        resolve();
+      }, 5),
+    );
+  });
+
+  it('has() returns false after TTL expires but does NOT delete the entry', () => {
+    const store = new InMemorySnapshotStore(1); // 1ms TTL
+    const snap = makeFakeSnapshot('key-has');
+    store.set('key-has', snap);
+    return new Promise<void>((resolve) =>
+      setTimeout(() => {
+        expect(store.has('key-has')).toBe(false);
+        // Entry still recoverable via getStale
+        expect(store.getStale('key-has')).toBe(snap);
+        resolve();
+      }, 5),
+    );
+  });
 });

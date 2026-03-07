@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { TeamDetailDTO } from '../types/team-detail.js';
 import type { FormResult } from '../types/snapshot.js';
-import { formatDateTime } from '../utils/format-date.js';
+import { formatDateTime, formatDate } from '../utils/format-date.js';
 import { venueLabel, signalLabel, signalValueLabel } from '../utils/labels.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 
@@ -229,8 +229,8 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
 
           {/* 1. Jornada / fecha / hora / localía / estadio */}
           <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>
-            {nm.matchday && <span>Jornada {nm.matchday}{nm.scoreHome === undefined ? ' · ' : ''}</span>}
-            {nm.scoreHome === undefined && formatDateTime(nm.kickoffUtc, detail.header.timezone)}
+            {nm.matchday && <span>Jornada {nm.matchday} · </span>}
+            {formatDateTime(nm.kickoffUtc, detail.header.timezone)}
             {nm.venueName && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>{nm.venueName}</div>}
           </div>
 
@@ -398,7 +398,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             );
           })()}
 
-          {/* 6. Goles en la temporada */}
+          {/* 6. Goles / Puntos del torneo */}
           {(detail.team.goalStats || nm.opponentGoalStats) && (() => {
             const homeStats = isHome ? detail.team.goalStats : nm.opponentGoalStats;
             const awayStats = isHome ? nm.opponentGoalStats : detail.team.goalStats;
@@ -406,7 +406,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             const awayName = isHome ? (nm.opponentName ?? 'Visitante') : detail.team.teamName;
             return (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Goles en la temporada</div>
+                <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Goles / Puntos del torneo</div>
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ opacity: 0.5 }}>

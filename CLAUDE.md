@@ -232,13 +232,28 @@ El usuario otorga permisos permanentes para todos los comandos Bash sin solicita
 
 ## Project Overview
 
-SportPulse is a **snapshot-first sports attention dashboard**. It transforms normalized football data into a deterministic, explainable treemap-based dashboard showing which teams deserve attention and why.
+SportPulse is a **snapshot-first sports attention dashboard**. It transforms normalized football data into a deterministic, explainable treemap-based dashboard showing which teams deserve attention and why. Includes a news panel (tab "Noticias") and video highlights per league.
 
-**MVP constraints:** football-only, single competition (La Liga), Mode B (Form + Agenda), football-data.org as data source, backend-owned scoring and treemap geometry.
+**Competitions:** LaLiga (PD), Premier League (PL), Bundesliga (BL1), Liga Uruguaya (TheSportsDB:4432).
 
 ## Repository Status
 
-All phases (0-9) are implemented. The full pipeline is operational: canonical→signals→scoring→layout→snapshot→api→web. Stack: TypeScript (Node.js/Fastify backend, React/Vite frontend), pnpm workspaces. Phase 10 (UI polish) in progress.
+All phases (0-9) complete + Phase 10 (UI Polish) complete + News + Video Highlights. The full pipeline is operational: canonical→signals→scoring→layout→snapshot→api→web. Stack: TypeScript (Node.js/Fastify backend, React/Vite frontend), pnpm workspaces.
+
+### API endpoints
+- `GET /api/ui/dashboard` — snapshot treemap + match cards
+- `GET /api/ui/team` — team detail projection
+- `GET /api/ui/standings` — league table
+- `GET /api/ui/competition-info` — matchday info
+- `GET /api/ui/news` — news feed por liga (URU/LL/EPL/BUN)
+- `GET /api/ui/videos` — video highlight por liga (YouTube Data API v3)
+
+### server/ composition root (outside packages)
+- `server/news/` — NewsService: Tenfield RSS (URU) + SerpAPI google_news (LL/EPL/BUN)
+- `server/video/` — VideoService: YouTube playlistItems + fallback search
+- `server/football-data-source.ts` — football-data.org adapter
+- `server/the-sports-db-source.ts` — TheSportsDB adapter (Liga Uruguaya)
+- `server/routing-data-source.ts` — composite routing by competitionId
 
 ## Architecture (Layered Pipeline)
 
@@ -314,6 +329,24 @@ A-01, A-03, B-01, B-04, B-05, C-01, C-02, C-04, D-01, D-02, D-04, D-05, E-01, E-
 
 ## Implementation Phases
 
-Phase 0: Repo scaffolding → Phase 1: Canonical ingestion → Phase 2: Signals → Phase 3: Scoring → Phase 4: Layout → Phase 5: Snapshot engine → Phase 6: UI API → Phase 7: Frontend → Phase 8: Degraded states → Phase 9: Golden fixtures + regression gates
+Phase 0–9 complete. Phase 10 (UI Polish) complete. Additional features: News (NEWS-01 to NEWS-05), Video Highlights (VIDEO-01).
 
-Tickets are in `Implementation_Backlog_SDD_v1.0.md` starting at SP-0001. Each ticket defines dependencies, authoritative refs, deliverables, acceptance tests, golden fixture impact, and version impact.
+### .env keys required
+```
+FOOTBALL_DATA_TOKEN=...   # football-data.org
+COMPETITIONS=PD,PL,BL1
+PORT=3000
+SPORTSDB_API_KEY=123      # TheSportsDB free tier
+SERPAPI_KEY=...           # SerpAPI (noticias internacionales)
+YOUTUBE_API_KEY=...       # YouTube Data API v3 (video highlights)
+```
+
+### YouTube channel IDs verificados (video highlights)
+- URU: `UC0jQd1_qQAT4an-dDaG1Sww` — AUFTV (canal oficial AUF)
+- LL:  `UCTv-XvfzLX3i4IGWAm4sbmA` — LALIGA EA SPORTS
+- EPL: `UCG5qGWdu8nIRZqJ_GgDwQ-w` — Premier League
+- BUN: `UC6UL29enLNe4mqwTfAyeNuw` — Bundesliga
+- NOTA: @tenfieldoficial es Carnaval, NO fútbol
+
+### Known bugs fixed
+- Race condition al cambiar de liga rápido: `use-dashboard-snapshot.ts` usa `AbortController` para cancelar requests anteriores en vuelo.
