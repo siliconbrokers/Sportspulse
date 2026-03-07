@@ -81,29 +81,43 @@ export class VideoService {
   }
 
   /**
-   * Batch-checks video availability for the configured region and filters out
-   * unavailable or non-embeddable videos. Falls back gracefully if the API call fails.
+   * Batch-checks video availability via videos.list and filters out unavailable videos.
+   *
+   * Key insight: if a video ID is NOT returned by the API, YouTube itself considered
+   * it unavailable (deleted, private, or geo-blocked via content-ID). We treat missing
+   * entries as blocked — not as "probably fine".
+   *
+   * Falls back to returning all candidates only if the API call itself fails.
    */
   private async filterByRegion(candidates: VideoCandidate[]): Promise<VideoCandidate[]> {
     if (candidates.length === 0) return [];
 
-    let availabilityMap;
+    let availabilityMap = new Map<string, import('./youtube-client.js').YtVideoAvailability>();
+    let apiCallSucceeded = false;
     try {
       availabilityMap = await fetchVideoAvailability(
         candidates.map((c) => c.videoId),
         this.youtubeApiKey,
       );
+      apiCallSucceeded = true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[VideoService] region check failed, skipping filter — ${msg.slice(0, 80)}`);
-      return candidates; // optimistic fallback: return all if check fails
+      console.warn(`[VideoService] region check failed, passing all through — ${msg.slice(0, 80)}`);
+      return candidates;
     }
 
     const filtered = candidates.filter((c) => {
       const avail = availabilityMap.get(c.videoId);
+
+      // Video not returned by YouTube API at all → treat as unavailable
+      if (apiCallSucceeded && !avail) {
+        console.log(`[VideoService] Filtered out ${c.videoId} (not in API response — likely geo-blocked): "${c.title.slice(0, 55)}"`);
+        return false;
+      }
+
       const ok = isAvailableInRegion(avail, REGION_CODE);
       if (!ok) {
-        console.log(`[VideoService] Filtered out video ${c.videoId} (not available in ${REGION_CODE}): "${c.title.slice(0, 60)}"`);
+        console.log(`[VideoService] Filtered out ${c.videoId} (region ${REGION_CODE} blocked): "${c.title.slice(0, 55)}"`);
       }
       return ok;
     });
