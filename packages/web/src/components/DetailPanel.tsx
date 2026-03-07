@@ -98,51 +98,96 @@ interface MatchProbs {
   hasData: boolean;
 }
 
-function formPts(form: FormResult[]): number {
-  return form.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
+// ── Poisson + Dixon-Coles model ───────────────────────────────────────────────
+
+/** P(X = k) for Poisson distribution with mean λ */
+function poissonPmf(lambda: number, k: number): number {
+  if (lambda <= 0) return k === 0 ? 1 : 0;
+  let logP = -lambda + k * Math.log(lambda);
+  for (let i = 1; i <= k; i++) logP -= Math.log(i);
+  return Math.exp(logP);
 }
 
+/**
+ * Dixon-Coles τ correction factor for low-scoring scorelines.
+ * Corrects the systematic under-prediction of 0-0, 1-0, 0-1, 1-1.
+ * ρ ≈ -0.13 (empirically validated in the original D-C paper).
+ */
+function tau(h: number, a: number, lh: number, la: number, rho: number): number {
+  if (h === 0 && a === 0) return 1 - lh * la * rho;
+  if (h === 0 && a === 1) return 1 + lh * rho;
+  if (h === 1 && a === 0) return 1 + la * rho;
+  if (h === 1 && a === 1) return 1 - rho;
+  return 1;
+}
+
+type GoalStats = { playedGames: number; lambdaAttack: number; lambdaDefense: number };
+
+/**
+ * Poisson + Dixon-Coles match probability model.
+ *
+ * Uses time-decay weighted λ values (pre-computed on backend, ξ=0.006/day).
+ * Applies Dixon-Coles τ correction on low-scoring scorelines (0-0, 1-0, 0-1, 1-1).
+ *
+ * λ_home = (team_venue_lambdaAttack + opp_venue_lambdaDefense) / 2
+ * λ_away = (opp_venue_lambdaAttack  + team_venue_lambdaDefense) / 2
+ */
 function computeProbs(
-  teamVenuePoints: number | undefined,
-  oppVenuePoints: number | undefined,
-  teamForm: FormResult[],
-  oppForm: FormResult[],
   teamIsHome: boolean,
+  teamHomeGS: GoalStats | undefined,
+  teamAwayGS: GoalStats | undefined,
+  teamGS:     GoalStats | undefined,
+  oppHomeGS:  GoalStats | undefined,
+  oppAwayGS:  GoalStats | undefined,
+  oppGS:      GoalStats | undefined,
 ): MatchProbs {
-  const hasVenue = teamVenuePoints !== undefined && oppVenuePoints !== undefined;
-  const hasForm = teamForm.length > 0 || oppForm.length > 0;
-  if (!hasVenue && !hasForm) return { homeWin: 0, draw: 0, awayWin: 0, hasData: false };
+  const MIN_GAMES = 3;
+  const MAX_GOALS = 7;
+  const DC_RHO    = -0.13; // Dixon-Coles correlation parameter
 
-  // Base strength from venue-specific season points (0 if no data)
-  const teamBase = teamVenuePoints ?? 0;
-  const oppBase = oppVenuePoints ?? 0;
+  // Use venue-specific stats when enough games played, fall back to season totals
+  const teamVenueGS = teamIsHome
+    ? (teamHomeGS && teamHomeGS.playedGames >= MIN_GAMES ? teamHomeGS : teamGS)
+    : (teamAwayGS && teamAwayGS.playedGames >= MIN_GAMES ? teamAwayGS : teamGS);
 
-  // Form momentum (0-15 range normalized to 0-1)
-  const teamFormScore = teamForm.length > 0 ? formPts(teamForm) / 15 : 0.5;
-  const oppFormScore = oppForm.length > 0 ? formPts(oppForm) / 15 : 0.5;
+  const oppVenueGS = teamIsHome
+    ? (oppAwayGS && oppAwayGS.playedGames >= MIN_GAMES ? oppAwayGS : oppGS)
+    : (oppHomeGS && oppHomeGS.playedGames >= MIN_GAMES ? oppHomeGS : oppGS);
 
-  // Combine: 60% venue pts weight, 40% form weight
-  const total = teamBase + oppBase;
-  const teamStrength = total > 0
-    ? (teamBase / total) * 0.6 + teamFormScore * 0.4
-    : 0.5 * 0.6 + teamFormScore * 0.4;
-  const oppStrength = total > 0
-    ? (oppBase / total) * 0.6 + oppFormScore * 0.4
-    : 0.5 * 0.6 + oppFormScore * 0.4;
+  if (!teamVenueGS || teamVenueGS.playedGames < MIN_GAMES ||
+      !oppVenueGS  || oppVenueGS.playedGames  < MIN_GAMES) {
+    return { homeWin: 0, draw: 0, awayWin: 0, hasData: false };
+  }
 
-  // Draw probability: higher when teams are balanced, min 15%
-  const balance = 1 - Math.abs(teamStrength - oppStrength) * 2;
-  const drawProb = Math.max(0.15, Math.min(0.35, balance * 0.30));
+  // λ = average of team's decay-weighted attack rate and opponent's decay-weighted defense rate
+  const lambdaTeam = (teamVenueGS.lambdaAttack + oppVenueGS.lambdaDefense) / 2;
+  const lambdaOpp  = (oppVenueGS.lambdaAttack  + teamVenueGS.lambdaDefense) / 2;
 
-  // Split remaining between win/loss proportionally
-  const remaining = 1 - drawProb;
-  const sumStr = teamStrength + oppStrength || 1;
-  const teamWinProb = (teamStrength / sumStr) * remaining;
-  const oppWinProb = (oppStrength / sumStr) * remaining;
+  const lambdaHome = teamIsHome ? lambdaTeam : lambdaOpp;
+  const lambdaAway = teamIsHome ? lambdaOpp  : lambdaTeam;
 
-  return teamIsHome
-    ? { homeWin: teamWinProb, draw: drawProb, awayWin: oppWinProb, hasData: true }
-    : { homeWin: oppWinProb, draw: drawProb, awayWin: teamWinProb, hasData: true };
+  let pHomeWin = 0;
+  let pDraw    = 0;
+  let pAwayWin = 0;
+
+  for (let h = 0; h <= MAX_GOALS; h++) {
+    const ph = poissonPmf(lambdaHome, h);
+    for (let a = 0; a <= MAX_GOALS; a++) {
+      // Dixon-Coles correction on low-scoring scorelines
+      const p = ph * poissonPmf(lambdaAway, a) * tau(h, a, lambdaHome, lambdaAway, DC_RHO);
+      if (h > a) pHomeWin += p;
+      else if (h === a) pDraw += p;
+      else pAwayWin += p;
+    }
+  }
+
+  const total = pHomeWin + pDraw + pAwayWin || 1;
+  return {
+    homeWin: pHomeWin / total,
+    draw:    pDraw    / total,
+    awayWin: pAwayWin / total,
+    hasData: true,
+  };
 }
 
 function pct(v: number): string {
@@ -294,14 +339,16 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             );
           })()}
 
-          {/* 3. Estimación heurística */}
+          {/* 3. Probabilidades Poisson */}
           {nm.scoreHome === undefined && (() => {
-            const teamVenuePts = isHome ? detail.team.homeGoalStats?.points : detail.team.awayGoalStats?.points;
-            const oppVenuePts = isHome ? nm.opponentAwayGoalStats?.points : nm.opponentHomeGoalStats?.points;
             const probs = computeProbs(
-              teamVenuePts, oppVenuePts,
-              detail.team.recentForm ?? [], nm.opponentRecentForm ?? [],
               isHome,
+              detail.team.homeGoalStats,
+              detail.team.awayGoalStats,
+              detail.team.goalStats,
+              nm.opponentHomeGoalStats,
+              nm.opponentAwayGoalStats,
+              nm.opponentGoalStats,
             );
             if (!probs.hasData) return null;
             const homeName = isHome ? detail.team.teamName : (nm.opponentName ?? 'Local');
@@ -312,16 +359,19 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             });
             return (
               <div data-testid="match-estimate" style={{ marginBottom: 16, padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ textAlign: 'left', minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                  Pronóstico
+                </div>
+                <div style={{ display: 'flex', marginBottom: 8 }}>
+                  <div style={{ width: `${Math.round(probs.homeWin * 100)}%`, textAlign: 'left', overflow: 'hidden' }}>
                     <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.homeWin)}</div>
                     <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeName}</div>
                   </div>
-                  <div style={{ textAlign: 'center', flexShrink: 0, paddingInline: 8 }}>
+                  <div style={{ width: `${Math.round(probs.draw * 100)}%`, textAlign: 'center', overflow: 'hidden', flexShrink: 0 }}>
                     <div style={{ fontSize: 18, fontWeight: 800, color: '#6b7280' }}>{pct(probs.draw)}</div>
                     <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
                   </div>
-                  <div style={{ textAlign: 'right', minWidth: 0, flex: 1 }}>
+                  <div style={{ width: `${Math.round(probs.awayWin * 100)}%`, textAlign: 'right', overflow: 'hidden' }}>
                     <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.awayWin)}</div>
                     <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayName}</div>
                   </div>
@@ -330,9 +380,6 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                   <div style={barStyle(probs.homeWin, '#22c55e')} />
                   <div style={barStyle(probs.draw, '#6b7280')} />
                   <div style={barStyle(probs.awayWin, '#ef4444')} />
-                </div>
-                <div style={{ fontSize: 10, opacity: 0.35, marginTop: 8, textAlign: 'center' }}>
-                  Estimación heurística · forma reciente + rendimiento por localía
                 </div>
               </div>
             );
