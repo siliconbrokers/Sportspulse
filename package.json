@@ -38,6 +38,9 @@
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "rss-parser": "^3.13.0",
     "tsx": "^4.21.0"
