@@ -12,6 +12,7 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@fastify/static": "^9.0.0",
     "@sportpulse/shared": "workspace:*",
     "@sportpulse/snapshot": "workspace:*",
     "fastify": "^5.0.0"

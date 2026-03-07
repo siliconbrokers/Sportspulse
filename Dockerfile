@@ -13,10 +13,11 @@ COPY packages/scoring/package.json      ./packages/scoring/
 COPY packages/layout/package.json       ./packages/layout/
 COPY packages/snapshot/package.json     ./packages/snapshot/
 COPY packages/api/package.json          ./packages/api/
+COPY packages/web/package.json          ./packages/web/
 
 RUN pnpm install --frozen-lockfile
 
-# Copiar fuentes (sin packages/web)
+# Copiar todas las fuentes
 COPY tsconfig*.json ./
 COPY packages/shared    ./packages/shared
 COPY packages/canonical ./packages/canonical
@@ -25,10 +26,11 @@ COPY packages/scoring   ./packages/scoring
 COPY packages/layout    ./packages/layout
 COPY packages/snapshot  ./packages/snapshot
 COPY packages/api       ./packages/api
+COPY packages/web       ./packages/web
 COPY server             ./server
 
-# Compilar solo el backend
-RUN pnpm --filter !@sportpulse/web -r build
+# Compilar todo (backend + frontend)
+RUN pnpm -r build
 
 EXPOSE 3000
 
