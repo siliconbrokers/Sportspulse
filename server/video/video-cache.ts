@@ -2,7 +2,7 @@ import type { LeagueKey } from './video-sources-config.js';
 import type { LeagueVideoHighlight } from './video-normalizer.js';
 
 interface CacheEntry {
-  highlight: LeagueVideoHighlight | null;
+  highlights: LeagueVideoHighlight[];
   fetchedAtUtc: string;
   error?: string;
 }
@@ -29,9 +29,9 @@ export class VideoCache {
     return entry;
   }
 
-  set(leagueKey: LeagueKey, highlight: LeagueVideoHighlight | null, error?: string): void {
+  set(leagueKey: LeagueKey, highlights: LeagueVideoHighlight[], error?: string): void {
     this.store.set(leagueKey, {
-      highlight,
+      highlights,
       fetchedAtUtc: new Date().toISOString(),
       error,
     });

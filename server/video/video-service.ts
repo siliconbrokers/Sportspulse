@@ -2,16 +2,18 @@ import { VIDEO_SOURCES } from './video-sources-config.js';
 import type { LeagueKey } from './video-sources-config.js';
 import { fetchChannelUploads, searchYouTubeVideos } from './youtube-client.js';
 import { isWithin48Hours, isBlockedByPolitics } from './video-filters.js';
-import { selectBestVideo } from './video-relevance.js';
+import { selectTopVideos } from './video-relevance.js';
 import { playlistItemToCandidate, searchItemToCandidate, toHighlight } from './video-normalizer.js';
 import type { LeagueVideoHighlight } from './video-normalizer.js';
 import { VideoCache } from './video-cache.js';
 
 const LEAGUE_ORDER: LeagueKey[] = ['URU', 'LL', 'EPL', 'BUN'];
 
+const MAX_VIDEOS_PER_LEAGUE = 3;
+
 export interface VideoBlock {
   leagueKey: LeagueKey;
-  highlight: LeagueVideoHighlight | null;
+  highlights: LeagueVideoHighlight[];
   error?: string;
 }
 
@@ -26,65 +28,57 @@ export class VideoService {
   constructor(private readonly youtubeApiKey: string) {}
 
   async getVideoFeed(): Promise<VideoFeedDTO> {
-    const blocks: VideoBlock[] = [];
-    for (const leagueKey of LEAGUE_ORDER) {
-      blocks.push(await this.getBlock(leagueKey));
-    }
+    const blocks = await Promise.all(LEAGUE_ORDER.map((k) => this.getBlock(k)));
     return { blocks, fetchedAtUtc: new Date().toISOString() };
   }
 
   private async getBlock(leagueKey: LeagueKey): Promise<VideoBlock> {
     const cached = this.cache.get(leagueKey);
     if (cached) {
-      return { leagueKey, highlight: cached.highlight, error: cached.error };
+      return { leagueKey, highlights: cached.highlights, error: cached.error };
     }
 
     const config = VIDEO_SOURCES[leagueKey];
     if (!config.enabled || !this.youtubeApiKey) {
-      return { leagueKey, highlight: null };
+      return { leagueKey, highlights: [] };
     }
 
-    // spec §6.1: estrategia principal — uploads del canal
-    let channelHighlight: LeagueVideoHighlight | null = null;
+    // Estrategia principal — uploads del canal
+    let channelHighlights: LeagueVideoHighlight[] = [];
     try {
-      channelHighlight = await this.resolveFromChannel(leagueKey);
+      channelHighlights = await this.resolveFromChannel(leagueKey);
     } catch (channelErr) {
       const msg = channelErr instanceof Error ? channelErr.message : String(channelErr);
       console.warn(`[VideoService] ${leagueKey}: channel error, trying fallback — ${msg.slice(0, 80)}`);
     }
 
-    if (channelHighlight) {
-      this.cache.set(leagueKey, channelHighlight);
-      console.log(`[VideoService] ${leagueKey}: found "${channelHighlight.title}"`);
-      return { leagueKey, highlight: channelHighlight };
+    if (channelHighlights.length > 0) {
+      this.cache.set(leagueKey, channelHighlights);
+      console.log(`[VideoService] ${leagueKey}: found ${channelHighlights.length} videos`);
+      return { leagueKey, highlights: channelHighlights };
     }
 
-    // spec §6.2: fallback — búsqueda libre si canal no devolvió resultado
+    // Fallback — búsqueda libre si canal no devolvió resultados
     try {
       if (this.cache.canUseFallback(leagueKey)) {
         this.cache.markFallbackUsed(leagueKey);
-        const fallbackHighlight = await this.resolveFromSearch(leagueKey);
-        this.cache.set(leagueKey, fallbackHighlight);
-        if (fallbackHighlight) {
-          console.log(`[VideoService] ${leagueKey}: fallback found "${fallbackHighlight.title}"`);
-        } else {
-          console.log(`[VideoService] ${leagueKey}: no video found`);
-        }
-        return { leagueKey, highlight: fallbackHighlight };
+        const fallbackHighlights = await this.resolveFromSearch(leagueKey);
+        this.cache.set(leagueKey, fallbackHighlights);
+        console.log(`[VideoService] ${leagueKey}: fallback found ${fallbackHighlights.length} videos`);
+        return { leagueKey, highlights: fallbackHighlights };
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[VideoService] ${leagueKey}: fallback error — ${msg}`);
     }
 
-    // spec §5: no hay video válido → null
-    this.cache.set(leagueKey, null);
-    return { leagueKey, highlight: null };
+    this.cache.set(leagueKey, []);
+    return { leagueKey, highlights: [] };
   }
 
-  private async resolveFromChannel(leagueKey: LeagueKey): Promise<LeagueVideoHighlight | null> {
+  private async resolveFromChannel(leagueKey: LeagueKey): Promise<LeagueVideoHighlight[]> {
     const config = VIDEO_SOURCES[leagueKey];
-    const items = await fetchChannelUploads(config.channelId, this.youtubeApiKey, 15);
+    const items = await fetchChannelUploads(config.channelId, this.youtubeApiKey, 20);
 
     const candidates = items
       .map(playlistItemToCandidate)
@@ -92,12 +86,11 @@ export class VideoService {
       .filter((c) => isWithin48Hours(c.publishedAtUtc))
       .filter((c) => !isBlockedByPolitics(c.title));
 
-    const best = selectBestVideo(candidates);
-    if (!best) return null;
-    return toHighlight(best, leagueKey, config.channelLabel);
+    return selectTopVideos(candidates, MAX_VIDEOS_PER_LEAGUE)
+      .map((c) => toHighlight(c, leagueKey, config.channelLabel));
   }
 
-  private async resolveFromSearch(leagueKey: LeagueKey): Promise<LeagueVideoHighlight | null> {
+  private async resolveFromSearch(leagueKey: LeagueKey): Promise<LeagueVideoHighlight[]> {
     const config = VIDEO_SOURCES[leagueKey];
     const publishedAfter = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     const requiredTerms = config.titleRequiredTerms.map((t) => t.toLowerCase());
@@ -107,7 +100,7 @@ export class VideoService {
       return requiredTerms.some((t) => lower.includes(t));
     };
 
-    let best = null;
+    const allCandidates = [];
     for (const query of config.fallbackSearchTerms) {
       const items = await searchYouTubeVideos(query, this.youtubeApiKey, publishedAfter, 5);
       const candidates = items
@@ -115,15 +108,10 @@ export class VideoService {
         .filter((c): c is NonNullable<typeof c> => c !== null)
         .filter((c) => !isBlockedByPolitics(c.title))
         .filter((c) => matchesLeague(c.title));
-
-      const candidate = selectBestVideo(candidates);
-      if (candidate) {
-        best = candidate;
-        break;
-      }
+      allCandidates.push(...candidates);
     }
 
-    if (!best) return null;
-    return toHighlight(best, leagueKey, 'YouTube');
+    return selectTopVideos(allCandidates, MAX_VIDEOS_PER_LEAGUE)
+      .map((c) => toHighlight(c, leagueKey, 'YouTube'));
   }
 }

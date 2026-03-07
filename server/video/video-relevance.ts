@@ -64,16 +64,15 @@ export function scoreCandidate(candidate: VideoCandidate): number {
 
 // Returns best candidate (score >= 0) or null
 export function selectBestVideo(candidates: VideoCandidate[]): VideoCandidate | null {
-  let best: VideoCandidate | null = null;
-  let bestScore = -1; // threshold: must be >= 0
+  return selectTopVideos(candidates, 1)[0] ?? null;
+}
 
-  for (const c of candidates) {
-    const s = scoreCandidate(c);
-    if (s > bestScore) {
-      bestScore = s;
-      best = c;
-    }
-  }
-
-  return bestScore >= 0 ? best : null;
+// Returns top N candidates sorted by score descending (score >= 0)
+export function selectTopVideos(candidates: VideoCandidate[], n: number): VideoCandidate[] {
+  return candidates
+    .map((c) => ({ c, score: scoreCandidate(c) }))
+    .filter(({ score }) => score >= 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, n)
+    .map(({ c }) => c);
 }

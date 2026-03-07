@@ -51,10 +51,23 @@ function VideoLeagueBlock({ block, isMobile }: { block: VideoBlock; isMobile: bo
         }}>
           {label}
         </h3>
+        {block.highlights.length > 0 && (
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+            {block.highlights.length} {block.highlights.length === 1 ? 'video' : 'videos'}
+          </span>
+        )}
       </div>
 
-      {block.highlight ? (
-        <FeaturedVideoCard highlight={block.highlight} accentColor={accent} />
+      {block.highlights.length > 0 ? (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(block.highlights.length, 3)}, 1fr)`,
+          gap: 16,
+        }}>
+          {block.highlights.map((h) => (
+            <FeaturedVideoCard key={h.id} highlight={h} accentColor={accent} />
+          ))}
+        </div>
       ) : (
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', margin: 0, paddingLeft: 13 }}>
           {block.error
@@ -106,20 +119,14 @@ export function VideoSection({ feed, loading, error }: VideoSectionProps) {
     .filter(Boolean) as VideoBlock[];
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 32 }}>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gap: 24,
-      }}>
-        {orderedBlocks.map((block) => (
-          <VideoLeagueBlock
-            key={block.leagueKey}
-            block={block}
-            isMobile={isMobile}
-          />
-        ))}
-      </div>
+    <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 32 }}>
+      {orderedBlocks.map((block) => (
+        <VideoLeagueBlock
+          key={block.leagueKey}
+          block={block}
+          isMobile={isMobile}
+        />
+      ))}
     </div>
   );
 }

@@ -15,7 +15,7 @@ export interface LeagueVideoHighlight {
 
 export interface VideoBlock {
   leagueKey: string;
-  highlight: LeagueVideoHighlight | null;
+  highlights: LeagueVideoHighlight[];
   error?: string;
 }
 
