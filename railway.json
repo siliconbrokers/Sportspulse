@@ -6,7 +6,6 @@
   },
   "deploy": {
     "startCommand": "pnpm start",
-    "healthcheckPath": "/api/ui/competition-info?competitionId=comp%3Afootball-data%3APD",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
