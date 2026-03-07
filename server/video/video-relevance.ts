@@ -67,12 +67,28 @@ export function selectBestVideo(candidates: VideoCandidate[]): VideoCandidate | 
   return selectTopVideos(candidates, 1)[0] ?? null;
 }
 
-// Returns top N candidates sorted by score descending (score >= 0)
+/** Extrae el segmento de partido de un título (antes del primer | o —) */
+function matchKey(title: string): string {
+  return norm(title.split(/[|—–]/)[0]).slice(0, 40);
+}
+
+// Returns top N candidates sorted by score descending (score >= 0), deduplicated by match
 export function selectTopVideos(candidates: VideoCandidate[], n: number): VideoCandidate[] {
-  return candidates
+  const scored = candidates
     .map((c) => ({ c, score: scoreCandidate(c) }))
     .filter(({ score }) => score >= 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, n)
-    .map(({ c }) => c);
+    .sort((a, b) => b.score - a.score);
+
+  // Deduplicar: por cada partido (mismo prefijo de título) solo el mejor score
+  const seen = new Set<string>();
+  const result: VideoCandidate[] = [];
+  for (const { c } of scored) {
+    const key = matchKey(c.title);
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(c);
+      if (result.length >= n) break;
+    }
+  }
+  return result;
 }
