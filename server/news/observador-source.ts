@@ -57,7 +57,7 @@ export async function fetchObservadorNews(): Promise<NewsHeadline[]> {
         ['content:encoded', 'content:encoded'],
       ],
     },
-    timeout: 20000,
+    timeout: 8000,
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; SportsPulse/1.0; +https://sportspulse.app)',
     },

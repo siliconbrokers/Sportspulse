@@ -43,10 +43,7 @@ export class NewsService {
   ) {}
 
   async getNewsFeed(): Promise<NewsFeedDTO> {
-    const blocks: NewsLeagueBlock[] = [];
-    for (const leagueKey of LEAGUE_ORDER) {
-      blocks.push(await this.getBlock(leagueKey));
-    }
+    const blocks = await Promise.all(LEAGUE_ORDER.map((k) => this.getBlock(k)));
     return { blocks, fetchedAtUtc: new Date().toISOString() };
   }
 

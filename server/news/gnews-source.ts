@@ -92,7 +92,14 @@ export async function fetchGNewsLeague(
 
   const url = `https://serpapi.com/search.json?${params.toString()}`;
   const t0 = Date.now();
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
   const elapsed = Date.now() - t0;
 
   if (!res.ok) {
