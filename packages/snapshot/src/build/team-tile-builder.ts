@@ -177,6 +177,13 @@ function extractRecentForm(
   });
 }
 
+/**
+ * Exponential decay constant: ξ = 0.006 per day → half-life ≈ 115 days.
+ * Matches played 4 months ago weight roughly half of a match played today.
+ */
+const DECAY_XI = 0.006;
+const MS_PER_DAY = 86_400_000;
+
 function extractGoalStats(
   teamId: string,
   matches: readonly Match[],
@@ -186,6 +193,14 @@ function extractGoalStats(
   let goalsFor = 0;
   let goalsAgainst = 0;
   let points = 0;
+  let playedGames = 0;
+
+  // Decay-weighted accumulators
+  let wSumAttack = 0;
+  let wSumDefense = 0;
+  let wTotal = 0;
+
+  const buildMs = new Date(buildNowUtc).getTime();
 
   for (const m of matches) {
     if (
@@ -207,10 +222,30 @@ function extractGoalStats(
     const oppScore = isHome ? m.scoreAway : m.scoreHome;
     goalsFor += teamScore;
     goalsAgainst += oppScore;
+    playedGames += 1;
 
     if (teamScore > oppScore) points += 3;
     else if (teamScore === oppScore) points += 1;
+
+    // Exponential decay weight: w = exp(-ξ * days_ago)
+    const daysAgo = (buildMs - new Date(m.startTimeUtc).getTime()) / MS_PER_DAY;
+    const w = Math.exp(-DECAY_XI * daysAgo);
+    wSumAttack += teamScore * w;
+    wSumDefense += oppScore * w;
+    wTotal += w;
   }
 
-  return { goalsFor, goalsAgainst, goalDifference: goalsFor - goalsAgainst, points };
+  // Weighted average goals per game; fall back to simple rate if no data
+  const lambdaAttack = wTotal > 0 ? wSumAttack / wTotal : 0;
+  const lambdaDefense = wTotal > 0 ? wSumDefense / wTotal : 0;
+
+  return {
+    goalsFor,
+    goalsAgainst,
+    goalDifference: goalsFor - goalsAgainst,
+    points,
+    playedGames,
+    lambdaAttack,
+    lambdaDefense,
+  };
 }

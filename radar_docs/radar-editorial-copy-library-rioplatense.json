@@ -1,0 +1,767 @@
+{
+  "schema_version": 1,
+  "library_name": "radar_editorial_copy_rioplatense",
+  "module": "radar_sportpulse",
+  "locale_targets": [
+    "es-UY",
+    "es-AR"
+  ],
+  "purpose": "Librería de copy editorial futbolero rioplatense para Radar SportPulse, orientada a producto y lista para desarrollo.",
+  "voice_policy": {
+    "tone_goal": "Futbolero rioplatense, con picante, malicia y algo de humor negro medido, siempre apoyado por datos reales.",
+    "must_have": [
+      "dato implícito o explícito",
+      "lectura clara del partido",
+      "remate con color futbolero"
+    ],
+    "must_not_have": [
+      "copy corporativo o académico",
+      "promesas de resultado",
+      "lenguaje de apuestas",
+      "frases vacías de oficina",
+      "humor absurdo que tape la lectura del partido"
+    ],
+    "banned_phrases": [
+      "contexto competitivo",
+      "dinámica reciente",
+      "contexto de jornada",
+      "atención natural",
+      "la previa sugiere",
+      "cruce con peso relativo",
+      "partido con contexto",
+      "vale la pena seguirlo"
+    ]
+  },
+  "selection_engine": {
+    "tone_levels": [
+      "sobrio",
+      "picante",
+      "venenoso"
+    ],
+    "default_tone_by_label": {
+      "senal_de_alerta": "picante",
+      "partido_enganoso": "picante",
+      "partido_abierto": "picante",
+      "duelo_cerrado": "picante",
+      "bajo_el_radar": "picante",
+      "cruce_pesado": "sobrio"
+    },
+    "rotation_rules": {
+      "block_same_template_within_same_matchday": true,
+      "block_same_template_within_last_n_generated": 12,
+      "prefer_different_context_if_same_label_repeats": true,
+      "allow_remate_injection": true,
+      "max_remate_usage_ratio": 0.35
+    },
+    "render_rules": {
+      "can_use_one_or_two_sentences": true,
+      "prefer_single_sentence": false,
+      "allow_team_names": false,
+      "allow_numbers": true,
+      "verdict_logic_is_separate": true
+    }
+  },
+  "labels": {
+    "senal_de_alerta": {
+      "ui_label": "Señal de alerta",
+      "verdict_enabled": true,
+      "contexts": [
+        {
+          "key": "favorite_defense_soft",
+          "description": "El favorito llega mejor, pero viene regalando atrás.",
+          "templates": [
+            {
+              "id": "alerta_def_01",
+              "tone": "sobrio",
+              "text": "Está arriba, sí, pero atrás viene dando ventajas y eso hoy lo puede complicar."
+            },
+            {
+              "id": "alerta_def_02",
+              "tone": "picante",
+              "text": "Parece favorito, pero no viene tan firme como para confiarse."
+            },
+            {
+              "id": "alerta_def_03",
+              "tone": "picante",
+              "text": "Tiene la chapa, sí, pero atrás viene haciendo agua y eso en estos partidos pesa."
+            },
+            {
+              "id": "alerta_def_04",
+              "tone": "venenoso",
+              "text": "Está arriba, pero atrás viene defendiendo como si cobrara por error."
+            },
+            {
+              "id": "alerta_def_05",
+              "tone": "venenoso",
+              "text": "Tiene cartel de favorito y defensa de puerta giratoria; si repite la función, la puede pasar mal."
+            },
+            {
+              "id": "alerta_def_06",
+              "tone": "picante",
+              "text": "En la tabla manda; atrás, bastante menos. Y eso hoy le puede traer lío."
+            }
+          ]
+        },
+        {
+          "key": "favorite_false_solidity",
+          "description": "La tabla le da respaldo, pero la sensación de control no aparece.",
+          "templates": [
+            {
+              "id": "alerta_sol_01",
+              "tone": "sobrio",
+              "text": "Llega mejor parado, sí, pero no transmite esa paz del que viene firme."
+            },
+            {
+              "id": "alerta_sol_02",
+              "tone": "picante",
+              "text": "Tiene con qué ganarlo, pero no está para mirar a nadie de arriba."
+            },
+            {
+              "id": "alerta_sol_03",
+              "tone": "picante",
+              "text": "Lo dan por favorito, pero no viene con pinta de noche tranquila."
+            },
+            {
+              "id": "alerta_sol_04",
+              "tone": "venenoso",
+              "text": "La tabla lo acomoda; el partido, por ahora, no le cree demasiado."
+            },
+            {
+              "id": "alerta_sol_05",
+              "tone": "venenoso",
+              "text": "Lo empuja el papel, pero la sensación es de favorito incómodo y medio nervioso."
+            },
+            {
+              "id": "alerta_sol_06",
+              "tone": "picante",
+              "text": "Tiene más nombre de candidato que calma de equipo sólido."
+            }
+          ]
+        },
+        {
+          "key": "underdog_can_bite",
+          "description": "El rival tiene con qué ensuciarle la noche al favorito.",
+          "templates": [
+            {
+              "id": "alerta_riv_01",
+              "tone": "sobrio",
+              "text": "Parece favorito claro, pero enfrente hay más resistencia de la que sugiere la tabla."
+            },
+            {
+              "id": "alerta_riv_02",
+              "tone": "picante",
+              "text": "Llega mejor, sí, pero del otro lado hay uno que no parece dispuesto a entregarse."
+            },
+            {
+              "id": "alerta_riv_03",
+              "tone": "picante",
+              "text": "En la previa parece arriba, aunque enfrente tiene un rival de esos que ensucian partidos."
+            },
+            {
+              "id": "alerta_riv_04",
+              "tone": "venenoso",
+              "text": "Lo dan por favorito, pero del otro lado hay material como para arruinarle la noche."
+            },
+            {
+              "id": "alerta_riv_05",
+              "tone": "venenoso",
+              "text": "Parece tenerla controlada, pero enfrente hay más veneno del que indica el cartel."
+            },
+            {
+              "id": "alerta_riv_06",
+              "tone": "picante",
+              "text": "Está arriba en la previa, pero no da la sensación de poder mandar sin sufrir."
+            }
+          ]
+        }
+      ]
+    },
+    "partido_enganoso": {
+      "ui_label": "Partido engañoso",
+      "verdict_enabled": true,
+      "contexts": [
+        {
+          "key": "table_lies",
+          "description": "La tabla o el cartel exageran una diferencia que no parece tan real.",
+          "templates": [
+            {
+              "id": "eng_tab_01",
+              "tone": "sobrio",
+              "text": "La tabla lo pinta más fácil de lo que realmente parece."
+            },
+            {
+              "id": "eng_tab_02",
+              "tone": "picante",
+              "text": "La tabla lo quiere vender servido, pero este partido viene más bravo de lo que aparenta."
+            },
+            {
+              "id": "eng_tab_03",
+              "tone": "picante",
+              "text": "Parece desparejo, pero no hay tanta distancia como te quiere vender el cartel."
+            },
+            {
+              "id": "eng_tab_04",
+              "tone": "venenoso",
+              "text": "La tabla lo maquilla lindo, pero abajo hay olor a trampa."
+            },
+            {
+              "id": "eng_tab_05",
+              "tone": "venenoso",
+              "text": "Lo pintan cómodo y el partido tiene toda la pinta de reírse en la cara de esa idea."
+            },
+            {
+              "id": "eng_tab_06",
+              "tone": "picante",
+              "text": "Hay diferencia, sí, pero no da sensación de trámite ni ahí."
+            }
+          ]
+        },
+        {
+          "key": "surface_vs_form",
+          "description": "La forma reciente contradice la lectura superficial.",
+          "templates": [
+            {
+              "id": "eng_form_01",
+              "tone": "sobrio",
+              "text": "A simple vista parece claro; cuando mirás el momento de ambos, no tanto."
+            },
+            {
+              "id": "eng_form_02",
+              "tone": "picante",
+              "text": "Lo ves de afuera y parece resuelto; lo mirás bien y empieza a hacer ruido."
+            },
+            {
+              "id": "eng_form_03",
+              "tone": "picante",
+              "text": "La foto del partido dice una cosa; el momento reciente, otra bastante menos prolija."
+            },
+            {
+              "id": "eng_form_04",
+              "tone": "venenoso",
+              "text": "Parece partido de libreto, ideal para quedar pagando si alguien entra confiado."
+            },
+            {
+              "id": "eng_form_05",
+              "tone": "venenoso",
+              "text": "Se ve prolijo desde lejos; de cerca tiene barro hasta las rodillas."
+            },
+            {
+              "id": "eng_form_06",
+              "tone": "picante",
+              "text": "No lo compren tan fácil, porque el momento reciente lo vuelve bastante más traicionero."
+            }
+          ]
+        },
+        {
+          "key": "comfortable_favorite_is_fake",
+          "description": "El supuesto favorito no parece tener un partido cómodo.",
+          "templates": [
+            {
+              "id": "eng_comf_01",
+              "tone": "sobrio",
+              "text": "Hay un favorito visible, pero no un partido cómodo."
+            },
+            {
+              "id": "eng_comf_02",
+              "tone": "picante",
+              "text": "Parece partido para firmarlo rápido; ideal para que después alguno quede como un salame."
+            },
+            {
+              "id": "eng_comf_03",
+              "tone": "picante",
+              "text": "Lo venden como trámite y tiene pinta de embarrarse rápido."
+            },
+            {
+              "id": "eng_comf_04",
+              "tone": "venenoso",
+              "text": "Está disfrazado de sencillo y no convence ni al utilero."
+            },
+            {
+              "id": "eng_comf_05",
+              "tone": "venenoso",
+              "text": "Parece resuelto antes de arrancar, señal bastante clásica de que puede no estar resuelto un carajo."
+            },
+            {
+              "id": "eng_comf_06",
+              "tone": "picante",
+              "text": "No lo den por cocinado, porque este partido todavía está medio crudo."
+            }
+          ]
+        }
+      ]
+    },
+    "partido_abierto": {
+      "ui_label": "Partido abierto",
+      "verdict_enabled": true,
+      "contexts": [
+        {
+          "key": "both_score_and_concede",
+          "description": "Los dos hacen goles y también regalan atrás.",
+          "templates": [
+            {
+              "id": "abi_gol_01",
+              "tone": "sobrio",
+              "text": "Los dos vienen marcando y dejando espacios; cuesta verlo cerrado."
+            },
+            {
+              "id": "abi_gol_02",
+              "tone": "picante",
+              "text": "Los dos tienen gol y los dos dejan vivir: acá puede haber lío."
+            },
+            {
+              "id": "abi_gol_03",
+              "tone": "picante",
+              "text": "Llegan con gol y con huecos; si esto se rompe temprano, puede volverse de ida y vuelta."
+            },
+            {
+              "id": "abi_gol_04",
+              "tone": "venenoso",
+              "text": "Los dos pegan arriba y regalan abajo: combo ideal para el despiole."
+            },
+            {
+              "id": "abi_gol_05",
+              "tone": "venenoso",
+              "text": "Ninguno se muestra muy firme atrás y eso suele terminar en festival o velorio."
+            },
+            {
+              "id": "abi_gol_06",
+              "tone": "picante",
+              "text": "Acá el cero no parece demasiado cómodo."
+            }
+          ]
+        },
+        {
+          "key": "early_goal_chaos",
+          "description": "Un gol temprano puede romper el partido del todo.",
+          "templates": [
+            {
+              "id": "abi_caos_01",
+              "tone": "sobrio",
+              "text": "Si se abre temprano, este partido puede agarrar ritmo enseguida."
+            },
+            {
+              "id": "abi_caos_02",
+              "tone": "picante",
+              "text": "Si cae uno al principio, esto se puede poner lindo de verdad."
+            },
+            {
+              "id": "abi_caos_03",
+              "tone": "picante",
+              "text": "Con un gol rápido, esto puede salir disparado para cualquier lado."
+            },
+            {
+              "id": "abi_caos_04",
+              "tone": "venenoso",
+              "text": "Si esto se abre temprano, puede terminar en un tiroteo futbolero."
+            },
+            {
+              "id": "abi_caos_05",
+              "tone": "venenoso",
+              "text": "Si uno pega primero, el otro puede salir con la cordura en la guantera."
+            },
+            {
+              "id": "abi_caos_06",
+              "tone": "picante",
+              "text": "Tiene pinta de esos partidos que se van de las manos si aparece un gol temprano."
+            }
+          ]
+        },
+        {
+          "key": "arcos_hot",
+          "description": "Se percibe clima de llegadas y movimiento en ambos arcos.",
+          "templates": [
+            {
+              "id": "abi_arc_01",
+              "tone": "sobrio",
+              "text": "Hay bastantes señales de movimiento en las dos áreas."
+            },
+            {
+              "id": "abi_arc_02",
+              "tone": "picante",
+              "text": "Hay olor a arcos calientes."
+            },
+            {
+              "id": "abi_arc_03",
+              "tone": "picante",
+              "text": "Está para partido movido, de esos que no te dejan pestañear."
+            },
+            {
+              "id": "abi_arc_04",
+              "tone": "venenoso",
+              "text": "Partido de arcos calientes y defensas con problemas espirituales."
+            },
+            {
+              "id": "abi_arc_05",
+              "tone": "venenoso",
+              "text": "No parece partido de candado; parece partido de extintor."
+            },
+            {
+              "id": "abi_arc_06",
+              "tone": "picante",
+              "text": "Si agarra envión, puede terminar palo por palo."
+            }
+          ]
+        }
+      ]
+    },
+    "duelo_cerrado": {
+      "ui_label": "Duelo cerrado",
+      "verdict_enabled": true,
+      "contexts": [
+        {
+          "key": "little_goal",
+          "description": "Poco gol reciente y sensación de margen corto.",
+          "templates": [
+            {
+              "id": "cer_gol_01",
+              "tone": "sobrio",
+              "text": "No vienen sobrados arriba y cuesta imaginar un partido suelto."
+            },
+            {
+              "id": "cer_gol_02",
+              "tone": "picante",
+              "text": "Los dos llegan cortos de gol; pinta de partido duro y apretado."
+            },
+            {
+              "id": "cer_gol_03",
+              "tone": "picante",
+              "text": "No sobra fuego de ningún lado y eso suele achicar todo."
+            },
+            {
+              "id": "cer_gol_04",
+              "tone": "venenoso",
+              "text": "Si acá aparece un gol, capaz hay que conservarlo en formol."
+            },
+            {
+              "id": "cer_gol_05",
+              "tone": "venenoso",
+              "text": "No viene para festival; viene para trabajo sucio."
+            },
+            {
+              "id": "cer_gol_06",
+              "tone": "picante",
+              "text": "Esto huele a partido corto y de pocas ventanas."
+            }
+          ]
+        },
+        {
+          "key": "bad_mood_match",
+          "description": "Partido áspero, trabado y de detalle.",
+          "templates": [
+            {
+              "id": "cer_asp_01",
+              "tone": "sobrio",
+              "text": "Se perfila como un partido trabado y de poco margen."
+            },
+            {
+              "id": "cer_asp_02",
+              "tone": "picante",
+              "text": "Huele a duelo trabado, de esos que se ganan con una uña."
+            },
+            {
+              "id": "cer_asp_03",
+              "tone": "picante",
+              "text": "Pinta de partido áspero, de los que se juegan con los dientes apretados."
+            },
+            {
+              "id": "cer_asp_04",
+              "tone": "venenoso",
+              "text": "Tiene cara de partido corto y alma de trámite miserable."
+            },
+            {
+              "id": "cer_asp_05",
+              "tone": "venenoso",
+              "text": "Pinta de duelo duro, de esos que envejecen a cualquiera."
+            },
+            {
+              "id": "cer_asp_06",
+              "tone": "picante",
+              "text": "Acá cualquiera regala caro."
+            }
+          ]
+        },
+        {
+          "key": "one_goal_can_kill_it",
+          "description": "Sensación de que un gol puede definir todo.",
+          "templates": [
+            {
+              "id": "cer_uno_01",
+              "tone": "sobrio",
+              "text": "Da la sensación de que un gol puede pesar muchísimo."
+            },
+            {
+              "id": "cer_uno_02",
+              "tone": "picante",
+              "text": "Acá un gol puede valer media vida."
+            },
+            {
+              "id": "cer_uno_03",
+              "tone": "picante",
+              "text": "Tiene pinta de esos partidos donde el primero que pega, reza."
+            },
+            {
+              "id": "cer_uno_04",
+              "tone": "venenoso",
+              "text": "Acá un gol puede pesar más que una herencia mal repartida."
+            },
+            {
+              "id": "cer_uno_05",
+              "tone": "venenoso",
+              "text": "Está para que el primero que pegue, rece y esconda la pelota."
+            },
+            {
+              "id": "cer_uno_06",
+              "tone": "picante",
+              "text": "No parece noche de remontadas alegres: parece noche de aguantar lo que venga."
+            }
+          ]
+        }
+      ]
+    },
+    "bajo_el_radar": {
+      "ui_label": "Bajo el radar",
+      "verdict_enabled": false,
+      "contexts": [
+        {
+          "key": "silent_but_spicy",
+          "description": "No es de los grandes focos, pero viene cargado.",
+          "templates": [
+            {
+              "id": "radar_spi_01",
+              "tone": "sobrio",
+              "text": "No es el que más foco tiene, pero trae bastante más de lo que parece."
+            },
+            {
+              "id": "radar_spi_02",
+              "tone": "picante",
+              "text": "No vende tanto, pero puede estar más picante que varios de arriba."
+            },
+            {
+              "id": "radar_spi_03",
+              "tone": "picante",
+              "text": "Pasa medio tapado, aunque viene con cositas como para no perderlo de vista."
+            },
+            {
+              "id": "radar_spi_04",
+              "tone": "venenoso",
+              "text": "No tiene marquesina, pero sí bastante veneno."
+            },
+            {
+              "id": "radar_spi_05",
+              "tone": "venenoso",
+              "text": "Pasa calladito y tiene pinta de arruinarle la noche a más de uno."
+            },
+            {
+              "id": "radar_spi_06",
+              "tone": "picante",
+              "text": "No hace ruido de entrada, pero puede dejar tema para rato."
+            }
+          ]
+        },
+        {
+          "key": "can_steal_the_conversation",
+          "description": "Puede terminar siendo más comentado que otros partidos grandes.",
+          "templates": [
+            {
+              "id": "radar_hab_01",
+              "tone": "sobrio",
+              "text": "No es de los partidos más visibles, pero puede terminar dando bastante que hablar."
+            },
+            {
+              "id": "radar_hab_02",
+              "tone": "picante",
+              "text": "Lo van a mirar pocos de entrada y capaz después lo comentan todos."
+            },
+            {
+              "id": "radar_hab_03",
+              "tone": "picante",
+              "text": "No entra por nombre, entra por lo que puede pasar."
+            },
+            {
+              "id": "radar_hab_04",
+              "tone": "venenoso",
+              "text": "No se roba la previa, aunque puede robarse toda la charla después."
+            },
+            {
+              "id": "radar_hab_05",
+              "tone": "venenoso",
+              "text": "Parece relleno y puede terminar mordiendo."
+            },
+            {
+              "id": "radar_hab_06",
+              "tone": "picante",
+              "text": "Está medio escondido y puede terminar metiéndose por la ventana."
+            }
+          ]
+        },
+        {
+          "key": "quiet_poison",
+          "description": "Apariencia calma, pero peligro latente.",
+          "templates": [
+            {
+              "id": "radar_ven_01",
+              "tone": "sobrio",
+              "text": "No parece gran cosa a primera vista, pero no conviene ignorarlo."
+            },
+            {
+              "id": "radar_ven_02",
+              "tone": "picante",
+              "text": "No grita de entrada, pero viene con bastante pimienta."
+            },
+            {
+              "id": "radar_ven_03",
+              "tone": "picante",
+              "text": "Pasa por abajo del radar y ahí mismo puede estar su peligro."
+            },
+            {
+              "id": "radar_ven_04",
+              "tone": "venenoso",
+              "text": "No tiene mucho cartel y quizá por eso viene con más mala idea."
+            },
+            {
+              "id": "radar_ven_05",
+              "tone": "venenoso",
+              "text": "Viene callado, que en fútbol suele ser mala señal."
+            },
+            {
+              "id": "radar_ven_06",
+              "tone": "picante",
+              "text": "No tiene banda de sonido, pero sí cara de problema."
+            }
+          ]
+        }
+      ]
+    },
+    "cruce_pesado": {
+      "ui_label": "Cruce pesado",
+      "verdict_enabled": false,
+      "contexts": [
+        {
+          "key": "table_can_move",
+          "description": "Partido con impacto real sobre la jornada y la tabla.",
+          "templates": [
+            {
+              "id": "pes_tab_01",
+              "tone": "sobrio",
+              "text": "Acá hay puntos que pueden mover bastante la fecha."
+            },
+            {
+              "id": "pes_tab_02",
+              "tone": "picante",
+              "text": "Este puede sacudir la jornada bastante más de lo que parece."
+            },
+            {
+              "id": "pes_tab_03",
+              "tone": "picante",
+              "text": "Lo que pase acá puede desordenar varias cuentas."
+            },
+            {
+              "id": "pes_tab_04",
+              "tone": "venenoso",
+              "text": "Este puede dejar media tabla patas para arriba y unas cuantas caras largas."
+            },
+            {
+              "id": "pes_tab_05",
+              "tone": "venenoso",
+              "text": "Acá no se juegan solo puntos; se juegan nervios, paciencia y algo de salud mental."
+            },
+            {
+              "id": "pes_tab_06",
+              "tone": "picante",
+              "text": "Lo que salga acá puede hacer volar más de una calculadora."
+            }
+          ]
+        },
+        {
+          "key": "pressure_match",
+          "description": "Se percibe peso y presión en el partido.",
+          "templates": [
+            {
+              "id": "pes_pre_01",
+              "tone": "sobrio",
+              "text": "Es un partido con peso real dentro de la jornada."
+            },
+            {
+              "id": "pes_pre_02",
+              "tone": "picante",
+              "text": "Acá hay puntos pesados y se nota."
+            },
+            {
+              "id": "pes_pre_03",
+              "tone": "picante",
+              "text": "No es uno más: tiene pinta de partido bisagra."
+            },
+            {
+              "id": "pes_pre_04",
+              "tone": "venenoso",
+              "text": "Tiene olor a noche importante y a presión mal disimulada."
+            },
+            {
+              "id": "pes_pre_05",
+              "tone": "venenoso",
+              "text": "Partido de esos que dejan eco, sonrisa larga o cara de entierro."
+            },
+            {
+              "id": "pes_pre_06",
+              "tone": "picante",
+              "text": "Acá se juega con la pelota y también con la presión."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "remate_fragments": {
+    "generic": [
+      {
+        "id": "rem_gen_01",
+        "tone": "picante",
+        "text": "Y eso en fútbol casi nunca sale gratis."
+      },
+      {
+        "id": "rem_gen_02",
+        "tone": "venenoso",
+        "text": "Y cuando se rompe, se rompe de verdad."
+      },
+      {
+        "id": "rem_gen_03",
+        "tone": "venenoso",
+        "text": "Y ahí empieza el verdadero problema."
+      },
+      {
+        "id": "rem_gen_04",
+        "tone": "picante",
+        "text": "Y después no hay tabla que te salve la cara."
+      },
+      {
+        "id": "rem_gen_05",
+        "tone": "venenoso",
+        "text": "Y de ahí al velorio hay un paso."
+      }
+    ],
+    "partido_abierto": [
+      {
+        "id": "rem_abi_01",
+        "tone": "picante",
+        "text": "Y si agarra ritmo, no lo frena nadie."
+      },
+      {
+        "id": "rem_abi_02",
+        "tone": "venenoso",
+        "text": "Y ahí el partido se prende fuego solo."
+      }
+    ],
+    "duelo_cerrado": [
+      {
+        "id": "rem_cer_01",
+        "tone": "picante",
+        "text": "Y ahí cualquier error puede condenar la noche."
+      },
+      {
+        "id": "rem_cer_02",
+        "tone": "venenoso",
+        "text": "Y en ese terreno, cualquiera sangra."
+      }
+    ]
+  }
+}

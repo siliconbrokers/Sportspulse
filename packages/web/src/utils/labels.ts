@@ -4,15 +4,15 @@
 
 /** Competition code → display name */
 const COMPETITION_NAMES: Record<string, string> = {
-  PD: 'La Liga',
-  PL: 'Premier League',
-  BL1: 'Bundesliga',
-  SA: 'Serie A',
-  FL1: 'Ligue 1',
-  CL: 'Champions League',
-  EC: 'Euro Cup',
-  WC: 'World Cup',
-  '4432': 'Liga Uruguaya',
+  PD: '🇪🇸 La Liga',
+  PL: '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League',
+  BL1: '🇩🇪 Bundesliga',
+  SA: '🇮🇹 Serie A',
+  FL1: '🇫🇷 Ligue 1',
+  CL: '🇪🇺 Champions League',
+  EC: '🇪🇺 Euro Cup',
+  WC: '🌍 World Cup',
+  '4432': '🇺🇾 Liga Uruguaya',
 };
 
 export function competitionDisplayName(competitionId: string): string {

@@ -44,9 +44,67 @@ export interface IVideoService {
   }>;
 }
 
+export interface RadarLiveMatchData {
+  matchId: string;
+  status: string;
+  scoreHome: number | null;
+  scoreAway: number | null;
+  startTimeUtc: string | null;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeTeamCrest?: string;
+  awayTeamCrest?: string;
+}
+
+export interface RadarIndexDTO {
+  schemaVersion: number;
+  module: string;
+  competitionKey: string;
+  seasonKey: string;
+  matchday: number;
+  radarKey: string;
+  sectionTitle: string;
+  sectionSubtitle: string;
+  moduleState: string;
+  evidenceTier: string;
+  dataQuality: string;
+  policyVersion: number;
+  generatedAt: string;
+  updatedAt: string;
+  cardsCount: number;
+  cards: Array<{
+    matchId: string;
+    editorialRank: number;
+    editorialState: string;
+    labelKey: string;
+    labelText: string;
+    preMatchText: string;
+    hasVerdict: boolean;
+    verdict: string | null;
+    verdictTitle: string | null;
+    verdictText: string | null;
+    detailFile: string;
+  }>;
+}
+
+export interface IRadarService {
+  getRadar(
+    competitionId: string,
+    matchday: number,
+    buildNowUtc: string,
+  ): Promise<{
+    index: RadarIndexDTO | null;
+    liveData: RadarLiveMatchData[];
+    state: 'ok' | 'empty' | 'unavailable';
+  }>;
+}
+
 export interface AppDependencies {
   snapshotService: SnapshotService;
   dataSource: DataSource;
   newsService: INewsService;
   videoService?: IVideoService;
+  radarService?: IRadarService;
 }

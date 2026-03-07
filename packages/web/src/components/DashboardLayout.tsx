@@ -1,24 +1,24 @@
 import { useDashboardSnapshot } from '../hooks/use-dashboard-snapshot.js';
 import { useTeamDetail } from '../hooks/use-team-detail.js';
 import { useUrlState } from '../hooks/use-url-state.js';
+import { useRadar } from '../hooks/use-radar.js';
 import { DashboardHeader } from './DashboardHeader.js';
 import { WarningBanner } from './WarningBanner.js';
 import { MatchCardList } from './MatchCardList.js';
-import { MatchMapCardGrid } from './MatchMapCardGrid.js';
 import { DetailPanel } from './DetailPanel.js';
 import { LoadingSkeleton } from './LoadingSkeleton.js';
-import { EmptyState } from './EmptyState.js';
 import { ErrorState } from './ErrorState.js';
+import { RadarSection } from './radar/RadarSection.js';
 
 interface DashboardLayoutProps {
   competitionId: string;
   matchday: number | null;
   currentMatchday: number | null;
   timezone: string;
-  viewMode?: 'treemap' | 'partidos';
+  viewMode?: 'radar' | 'partidos';
 }
 
-export function DashboardLayout({ competitionId, matchday, currentMatchday, timezone, viewMode = 'treemap' }: DashboardLayoutProps) {
+export function DashboardLayout({ competitionId, matchday, currentMatchday, timezone, viewMode = 'radar' }: DashboardLayoutProps) {
   const { data, loading, error, source, refetch } = useDashboardSnapshot(
     competitionId,
     matchday,
@@ -26,6 +26,7 @@ export function DashboardLayout({ competitionId, matchday, currentMatchday, time
   );
   const { focus, setFocus } = useUrlState();
   const { data: teamDetail } = useTeamDetail(competitionId, focus, matchday, timezone);
+  const { data: radarData, loading: radarLoading } = useRadar(competitionId, matchday);
 
   if (matchday === null || loading) {
     return (
@@ -49,20 +50,19 @@ export function DashboardLayout({ competitionId, matchday, currentMatchday, time
     <div data-testid="dashboard-layout">
       <DashboardHeader header={data.header} warnings={data.warnings} source={source} />
       <WarningBanner warnings={data.warnings} />
-      {viewMode === 'partidos' ? (
+      {viewMode === 'radar' ? (
+        <div style={{ padding: 16 }}>
+          <RadarSection
+            data={radarData}
+            loading={radarLoading}
+            onViewMatch={(matchId) => setFocus(matchId === focus ? null : matchId)}
+          />
+        </div>
+      ) : (
         <MatchCardList
           matchCards={data.matchCards ?? []}
           onSelectTeam={(id) => setFocus(id === focus ? null : id)}
           focusedTeamId={focus}
-          showForm={matchday === currentMatchday}
-        />
-      ) : (data.matchCards ?? []).length === 0 ? (
-        <EmptyState />
-      ) : (
-        <MatchMapCardGrid
-          matchCards={data.matchCards ?? []}
-          focusedTeamId={focus}
-          onSelectTeam={(id) => setFocus(id === focus ? null : id)}
           showForm={matchday === currentMatchday}
         />
       )}

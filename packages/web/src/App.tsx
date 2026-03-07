@@ -12,7 +12,7 @@ import { useVideos } from './hooks/use-videos.js';
 import { NewsSection } from './components/NewsSection.js';
 import { competitionDisplayName } from './utils/labels.js';
 
-type ViewMode = 'treemap' | 'partidos' | 'standings' | 'noticias';
+type ViewMode = 'radar' | 'partidos' | 'standings' | 'noticias';
 
 const COMPETITIONS = [
   { id: 'comp:football-data:PD', code: 'PD' },
@@ -24,7 +24,7 @@ const COMPETITIONS = [
 export function App() {
   const [competitionId, setCompetitionId] = useState(COMPETITIONS[0].id);
   const [matchday, setMatchday] = useState<number | null>(null);
-  const [view, setView] = useState<ViewMode>('treemap');
+  const [view, setView] = useState<ViewMode>('radar');
   const [standingsFocusId, setStandingsFocusId] = useState<string | null>(null);
   const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(competitionId);
   const { data: standings, loading: standingsLoading } = useStandings(competitionId, view === 'standings');
@@ -93,15 +93,15 @@ export function App() {
         <img
           src="/logo.png"
           alt="SportsPulse"
-          onClick={() => setView('treemap')}
+          onClick={() => setView('radar')}
           style={{ height: isMobile ? 36 : 56, width: 'auto', cursor: 'pointer' }}
         />
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           {([
-            { id: 'treemap', label: 'Mapa' },
-            { id: 'partidos', label: 'Partidos' },
-            { id: 'standings', label: 'Tabla' },
-            { id: 'noticias', label: 'Noticias' },
+            { id: 'radar', label: '📡 Radar' },
+            { id: 'partidos', label: '⚽ Partidos' },
+            { id: 'standings', label: '📊 Tabla' },
+            { id: 'noticias', label: '📰 Noticias' },
           ] as { id: ViewMode; label: string }[]).map((v) => (
             <button
               key={v.id}
@@ -145,7 +145,7 @@ export function App() {
             value={matchday ?? ''}
             onChange={(e) => {
               setMatchday(Number(e.target.value));
-              if (view === 'standings') setView('treemap');
+              if (view === 'standings') setView('radar');
             }}
             disabled={compInfoLoading || !compInfo}
             style={{ ...selectStyle, opacity: compInfoLoading ? 0.5 : 1 }}
@@ -162,7 +162,7 @@ export function App() {
           </select>
         </div>
       </div>
-      {view === 'treemap' || view === 'partidos' ? (
+      {view === 'radar' || view === 'partidos' ? (
         <DashboardLayout
           competitionId={competitionId}
           matchday={matchday}

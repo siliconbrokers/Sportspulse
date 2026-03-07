@@ -7,6 +7,7 @@ import { standingsRoute } from './ui/standings-route.js';
 import { competitionInfoRoute } from './ui/competition-info-route.js';
 import { newsRoute } from './ui/news-route.js';
 import { videosRoute } from './ui/videos-route.js';
+import { radarRoute } from './ui/radar-route.js';
 import type { AppDependencies } from './ui/types.js';
 
 export function buildApp(deps: AppDependencies): FastifyInstance {
@@ -19,6 +20,7 @@ export function buildApp(deps: AppDependencies): FastifyInstance {
   app.register(competitionInfoRoute(deps));
   app.register(newsRoute(deps));
   app.register(videosRoute(deps));
+  app.register(radarRoute(deps));
 
   return app;
 }

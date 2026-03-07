@@ -47,6 +47,9 @@ export interface GoalStatsDTO {
   goalsAgainst: number;
   goalDifference: number;
   points: number;
+  playedGames: number;
+  lambdaAttack: number;
+  lambdaDefense: number;
 }
 
 export interface NextMatchDTO {

@@ -10,6 +10,11 @@ export interface GoalStatsDTO {
   goalsAgainst: number;
   goalDifference: number;
   points: number;
+  playedGames: number;
+  /** Time-decay weighted average goals scored per game (ξ=0.006/day, half-life ~115d) */
+  lambdaAttack: number;
+  /** Time-decay weighted average goals conceded per game (ξ=0.006/day, half-life ~115d) */
+  lambdaDefense: number;
 }
 
 export interface NextMatchDTO {

@@ -4,6 +4,7 @@ import { TheSportsDbSource, SPORTSDB_PROVIDER_KEY } from './the-sports-db-source
 import { RoutingDataSource } from './routing-data-source.js';
 import { NewsService } from './news/index.js';
 import { VideoService } from './video/index.js';
+import { RadarApiAdapter } from './radar/index.js';
 import {
   SnapshotService,
   InMemorySnapshotStore,
@@ -93,7 +94,9 @@ async function main() {
     defaultContainer: DEFAULT_CONTAINER,
   });
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService });
+  const radarService = new RadarApiAdapter(dataSource);
+
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService });
 
   // Periodic refresh every 10 minutes
   setInterval(async () => {
