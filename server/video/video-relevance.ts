@@ -13,6 +13,17 @@ const POSITIVE_TERMS = [
   'fecha',
 ];
 
+/**
+ * Al menos uno de estos términos debe aparecer en el título.
+ * Si ninguno está presente, el video se descarta aunque tenga buen score.
+ * Garantiza que solo pasen resúmenes de partido, goles o highlights reales.
+ */
+const STRONG_MATCH_TERMS = [
+  'resumen', 'goles', 'goals', 'highlights', 'highlight',
+  'zusammenfassung', 'show de goles', 'todos los goles',
+  'result', 'score',
+];
+
 const NEGATIVE_TERMS = [
   'live', 'en vivo',
   'promo', 'institucional', 'bienvenido', 'welcome',
@@ -68,6 +79,10 @@ export function scoreCandidate(candidate: VideoCandidate): number {
   for (const term of CONTENT_TYPE_BLOCKLIST) {
     if (title.includes(norm(term))) return -100;
   }
+
+  // Require at least one strong match term — filters out news previews, announcements, etc.
+  const hasStrongTerm = STRONG_MATCH_TERMS.some((t) => title.includes(norm(t)));
+  if (!hasStrongTerm) return -100;
 
   let score = 0;
 
