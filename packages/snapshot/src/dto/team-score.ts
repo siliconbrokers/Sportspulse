@@ -33,6 +33,8 @@ export interface NextMatchDTO {
   venue?: 'HOME' | 'AWAY' | 'NEUTRAL' | 'UNKNOWN';
   scoreHome?: number | null;
   scoreAway?: number | null;
+  /** Canonical match status: 'SCHEDULED' | 'IN_PROGRESS' | 'FINISHED' | 'POSTPONED' | 'CANCELED' */
+  matchStatus?: string;
 }
 
 export interface TeamScoreDTO {

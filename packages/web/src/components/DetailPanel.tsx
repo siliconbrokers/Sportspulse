@@ -208,6 +208,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
 
   const nm = detail.nextMatch;
   const isHome = nm?.venue === 'HOME';
+  const isLive = nm?.matchStatus === 'IN_PROGRESS';
 
   return (
     <aside
@@ -232,7 +233,7 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
       {/* Botón cerrar + título */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
-          {nm ? (nm.scoreHome === undefined ? 'Próximo partido' : 'Último partido') : ''}
+          {nm ? (isLive ? 'En juego' : nm.scoreHome === undefined ? 'Próximo partido' : 'Último partido') : ''}
         </span>
         <button
           data-testid="close-detail"
@@ -308,10 +309,17 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                 </div>
                 {played ? (
                   <div style={{ textAlign: 'center', flexShrink: 0, width: 72 }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 2, lineHeight: 1 }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 2, lineHeight: 1, color: isLive ? '#f97316' : undefined }}>
                       {homeScore ?? '-'} <span style={{ opacity: 0.4, fontSize: 16 }}>-</span> {awayScore ?? '-'}
                     </div>
-                    <div style={{ fontSize: 10, opacity: 0.4, marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Final</div>
+                    {isLive ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 4 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block', animation: 'pulse 1.4s infinite' }} />
+                        <span style={{ fontSize: 10, color: '#ef4444', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>En juego</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 10, opacity: 0.4, marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Final</div>
+                    )}
                   </div>
                 ) : (
                   <span style={{ fontSize: 16, fontWeight: 700, opacity: 0.4, flexShrink: 0, width: 40, textAlign: 'center', display: 'block' }}>vs</span>
@@ -339,8 +347,8 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             );
           })()}
 
-          {/* 3. Probabilidades Poisson */}
-          {nm.scoreHome === undefined && (() => {
+          {/* 3. Probabilidades Poisson — solo en partidos futuros (oculto si live o finalizado) */}
+          {nm.scoreHome === undefined && !isLive && (() => {
             const probs = computeProbs(
               isHome,
               detail.team.homeGoalStats,

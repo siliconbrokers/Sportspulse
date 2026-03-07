@@ -68,6 +68,7 @@ export interface NextMatchDTO {
   venue?: 'HOME' | 'AWAY' | 'NEUTRAL' | 'UNKNOWN';
   scoreHome?: number | null;
   scoreAway?: number | null;
+  matchStatus?: string;
 }
 
 export interface ContributionDTO {

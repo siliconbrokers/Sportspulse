@@ -141,8 +141,15 @@ function extractNextMatch(
     opponentAwayGoalStats: extractGoalStats(opponentId, matches, buildNowUtc, 'AWAY'),
     venueName: homeTeam?.venueName,
     venue: isHome ? 'HOME' : 'AWAY',
-    scoreHome: target.status === EventStatus.FINISHED ? target.scoreHome : undefined,
-    scoreAway: target.status === EventStatus.FINISHED ? target.scoreAway : undefined,
+    scoreHome:
+      target.status === EventStatus.FINISHED || target.status === EventStatus.IN_PROGRESS
+        ? target.scoreHome
+        : undefined,
+    scoreAway:
+      target.status === EventStatus.FINISHED || target.status === EventStatus.IN_PROGRESS
+        ? target.scoreAway
+        : undefined,
+    matchStatus: target.status,
   };
 }
 
