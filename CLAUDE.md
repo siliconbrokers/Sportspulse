@@ -10,6 +10,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## UI — Reglas de presentación de datos
+
+- **No repetir datos ya expresados en la misma vista.** Si un dato (resultado, score, fecha, etc.) ya se muestra claramente en la ficha del partido, no volver a mostrarlo en otro módulo de la misma pantalla (ej: cuadro de pronóstico, sección de estadísticas, etc.).
+- Esta regla aplica especialmente al panel de detalle del partido (`DetailPanel`): cada dato se muestra una sola vez, en el lugar más prominente y natural.
+
+---
+
 ## Git & Deploy — Reglas CRÍTICAS
 
 - **NUNCA hacer `git push` sin que el usuario lo pida explícitamente.** El push despliega a producción automáticamente (Render). Un push no autorizado puede romper el ambiente productivo.

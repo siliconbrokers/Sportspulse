@@ -199,12 +199,6 @@ function PredictionDetailModule({
         </>
       )}
 
-      {/* Final result (only FINISHED) */}
-      {isFinished && predictionOutcome?.actualResult && (
-        <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-          Resultado final: {predictionOutcome.actualResult.home} – {predictionOutcome.actualResult.away}
-        </div>
-      )}
     </div>
   );
 }
