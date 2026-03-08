@@ -8,7 +8,7 @@ import {
   matchId as canonicalMatchId,
 } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
-import { checkMatchdayCache, persistMatchdayCache, logCache, buildCachePath } from './matchday-cache.js';
+import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, logCache, buildCachePath } from './matchday-cache.js';
 
 // ── Provider key ─────────────────────────────────────────────────────────────
 
@@ -280,6 +280,9 @@ export class TheSportsDbSource implements DataSource {
         `teams=${teams.length}, matches=${allMatches.length}, ` +
         `currentMatchday=${currentMatchday ?? 'none'} (${elapsed}ms)`,
     );
+
+    // Persist teams to disk for recovery after rate-limit restarts
+    persistTeamsCache(SPORTSDB_PROVIDER_KEY, this.leagueId, teams);
 
     this.cache = {
       teams,

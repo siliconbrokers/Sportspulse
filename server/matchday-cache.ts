@@ -8,7 +8,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { Match } from '@sportpulse/canonical';
+import type { Match, Team } from '@sportpulse/canonical';
 
 // ── Types (§9) ────────────────────────────────────────────────────────────────
 
@@ -269,6 +269,40 @@ export function checkMatchdayCache(
 
   logCache({ event: 'CACHE_HIT', provider, competitionId, season, matchday, cachePath, status: meta.status, retrievedAt: meta.retrievedAt });
   return { hit: true, matches: raw.data.matches };
+}
+
+// ── Teams file cache ──────────────────────────────────────────────────────────
+// Stores canonical Team[] on disk so server restarts can recover team data
+// without needing a fresh API call (TTL matches in-memory TTL: 7 days).
+
+const TEAMS_CACHE_TTL_S = 7 * 24 * 3600; // 7 days
+
+function teamsFilePath(provider: string, competitionId: string): string {
+  return path.join(CACHE_BASE, provider, competitionId, 'teams.json');
+}
+
+export function persistTeamsCache(provider: string, competitionId: string, teams: Team[]): void {
+  const filePath = teamsFilePath(provider, competitionId);
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const tmp = `${filePath}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ retrievedAt: new Date().toISOString(), teams }, null, 0));
+    fs.renameSync(tmp, filePath);
+  } catch {
+    // Non-fatal — next successful API call will overwrite
+  }
+}
+
+export function loadTeamsCache(provider: string, competitionId: string): Team[] | null {
+  const filePath = teamsFilePath(provider, competitionId);
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) as { retrievedAt: string; teams: Team[] };
+    const ageS = (Date.now() - new Date(raw.retrievedAt).getTime()) / 1000;
+    if (ageS > TEAMS_CACHE_TTL_S) return null; // stale
+    return raw.teams;
+  } catch {
+    return null;
+  }
 }
 
 /**

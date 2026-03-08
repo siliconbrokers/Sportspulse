@@ -2,6 +2,7 @@ import type { Team, Match } from '@sportpulse/canonical';
 import {
   normalizeIngestion,
   competitionId as canonicalCompId,
+  seasonId as canonicalSeasonId,
   teamId as canonicalTeamId,
   matchId as canonicalMatchId,
   mapMatch as mapFDMatch,
@@ -13,7 +14,7 @@ import type {
   FDMatchResponse,
 } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
-import { checkMatchdayCache, persistMatchdayCache, logCache, buildCachePath } from './matchday-cache.js';
+import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, logCache, buildCachePath } from './matchday-cache.js';
 
 interface FDStandingsResponse {
   standings: Array<{
@@ -192,16 +193,29 @@ export class FootballDataSource implements DataSource {
     }
 
     // ── Phase 1B: teams (TTL 7 days) ─────────────────────────────────────────
+    // Resolution priority: in-memory TTL hit → API → disk file cache → in-memory stale
     const teamsStale = !prevCache || (nowMs - prevCache.teamsFetchedAt) > TEAMS_TTL_MS;
     let fdTeams: { teams: FDTeamResponse[] } | null = null;
+    // Teams from disk cache used as fallback when API fails on first load
+    let diskFallbackTeams: Team[] | null = null;
     if (teamsStale) {
       try {
         fdTeams = await this.apiGet<{ teams: FDTeamResponse[] }>(`/competitions/${competitionCode}/teams`);
         console.log(`[FootballDataSource] teams fetched ${competitionCode}: ${fdTeams.teams.length}`);
       } catch (err) {
         logCache({ event: 'CACHE_API_ERROR', ...logCtxBase });
-        if (!prevCache) throw err;
-        console.warn(`[FootballDataSource] teams fetch failed for ${competitionCode}, reusing cached`);
+        if (!prevCache) {
+          // First load with no in-memory cache: try disk file cache
+          diskFallbackTeams = loadTeamsCache(PROVIDER_KEY, competitionCode);
+          if (diskFallbackTeams) {
+            console.warn(`[FootballDataSource] teams API failed ${competitionCode}, using disk cache (${diskFallbackTeams.length} teams)`);
+          } else {
+            console.warn(`[FootballDataSource] teams API failed ${competitionCode}, no disk cache — aborting`);
+            throw err;
+          }
+        } else {
+          console.warn(`[FootballDataSource] teams fetch failed for ${competitionCode}, reusing in-memory cached`);
+        }
       }
     } else {
       console.log(`[FootballDataSource] teams SKIP ${competitionCode}: within 7-day TTL`);
@@ -266,7 +280,7 @@ export class FootballDataSource implements DataSource {
     const skippedIds: string[] = [];
 
     if (fdTeams && fdComp) {
-      // Full normalization path
+      // Full normalization path: fresh comp + fresh teams from API
       const result = normalizeIngestion(fdComp, fdTeams.teams, fdMatches, nowUtc);
       normalizedMatches = result.matches;
       normalizedTeams = result.teams;
@@ -275,14 +289,19 @@ export class FootballDataSource implements DataSource {
         console.warn(`[FootballDataSource] Skipped ${result.skippedMatchIds.length} unresolvable matches`);
       }
       skippedIds.push(...result.skippedMatchIds);
+      // Persist teams to disk for future recovery after rate-limit restarts
+      persistTeamsCache(PROVIDER_KEY, competitionCode, normalizedTeams);
     } else {
-      // Incremental path: teams from cache, comp info optional
-      // Reconstruct team ID map from cached canonical teams (providerTeamId → canonicalTeamId)
-      const cachedTeams = prevCache?.teams ?? [];
+      // Incremental / fallback path: teams from in-memory cache or disk fallback
+      // Reconstruct team ID map from canonical teams (providerTeamId → canonicalTeamId)
+      const cachedTeams = prevCache?.teams ?? diskFallbackTeams ?? [];
       const teamIdMap = new Map<string, string>(
-        cachedTeams.map((t) => [t.providerTeamId!, t.teamId]),
+        cachedTeams.filter((t) => t.providerTeamId).map((t) => [t.providerTeamId!, t.teamId]),
       );
-      const seasId = prevCache!.seasonId!;
+      // seasonId: use prevCache if available, otherwise derive from fdComp (disk fallback on first load)
+      const seasId = prevCache?.seasonId
+        ?? (fdComp?.currentSeason ? canonicalSeasonId(PROVIDER_KEY, String(fdComp.currentSeason.id)) : undefined)
+        ?? '';
       normalizedMatches = [];
       for (const fd of fdMatches) {
         const mId = canonicalMatchId(PROVIDER_KEY, String(fd.id));
@@ -294,7 +313,7 @@ export class FootballDataSource implements DataSource {
         }
       }
       normalizedTeams = cachedTeams; // unchanged
-      normalizedSeasonId = prevCache?.seasonId;
+      normalizedSeasonId = seasId || prevCache?.seasonId;
       if (skippedIds.length > 0) {
         console.warn(`[FootballDataSource] Skipped ${skippedIds.length} unresolvable matches (incremental)`);
       }
