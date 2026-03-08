@@ -3,6 +3,8 @@ import {
   normalizeIngestion,
   competitionId as canonicalCompId,
   teamId as canonicalTeamId,
+  matchId as canonicalMatchId,
+  mapMatch as mapFDMatch,
   PROVIDER_KEY,
 } from '@sportpulse/canonical';
 import type {
@@ -42,6 +44,12 @@ interface CachedData {
   season: string | undefined; // raw season string for file cache paths (e.g. "2025-26")
   currentMatchday: number | undefined;
   fetchedAt: number;
+  /** Timestamp of last competition metadata fetch (TTL: 7 days). */
+  compInfoFetchedAt: number;
+  /** Timestamp of last teams fetch (TTL: 7 days). */
+  teamsFetchedAt: number;
+  /** Whether a full-season matches fetch has been performed at least once. */
+  fullSeasonFetched: boolean;
 }
 
 /** Derives a human-readable season string from start/end dates. */
@@ -52,7 +60,13 @@ function deriveSeason(startDate: string, endDate?: string): string {
   return ey > sy ? `${sy}-${String(ey).slice(2)}` : String(sy);
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+/** TTL for competition metadata and teams (7 days — essentially immutable within a season). */
+const COMP_INFO_TTL_MS = 7 * 24 * 3600_000;
+const TEAMS_TTL_MS     = 7 * 24 * 3600_000;
+
+/** Window for incremental match refresh: past 2 days + next 7 days. */
+const WINDOW_PAST_DAYS   = 2;
+const WINDOW_FUTURE_DAYS = 7;
 
 /**
  * DataSource implementation backed by football-data.org API v4.
@@ -136,11 +150,18 @@ export class FootballDataSource implements DataSource {
   /**
    * Pre-fetches and caches data for a competition code (e.g., 'PD' for La Liga).
    * Must be called before getTeams/getMatches/getSeasonId will return data.
+   *
+   * Optimization strategy (per spec §6, §9, §10):
+   *   - Competition info + teams: TTL 7 days (nearly immutable within a season)
+   *   - Matches: full-season fetch on first load, then incremental date-range window
+   *     (last 2 days + next 7 days) merged into the existing in-memory map
+   *   - Standings: only re-fetched when finishedCount increases
    */
   async fetchCompetition(competitionCode: string): Promise<void> {
     const compId = canonicalCompId(PROVIDER_KEY, competitionCode);
     const prevCache = this.cache.get(compId);
-    const nowUtc = new Date().toISOString();
+    const nowMs = Date.now();
+    const nowUtc = new Date(nowMs).toISOString();
 
     // §15.1 – log API fetch intent
     const logCtxBase = {
@@ -154,63 +175,171 @@ export class FootballDataSource implements DataSource {
     };
     logCache({ event: 'CACHE_API_FETCH', ...logCtxBase });
 
-    // Phase 1: fetch competition metadata, teams and matches (always needed)
-    let fdComp: FDCompetitionResponse;
-    let fdTeams: { teams: FDTeamResponse[] };
-    let fdMatchesResp: { matches: FDMatchResponse[]; resultSet?: { count: number } };
+    // ── Phase 1A: competition metadata (TTL 7 days) ───────────────────────────
+    const compInfoStale = !prevCache || (nowMs - prevCache.compInfoFetchedAt) > COMP_INFO_TTL_MS;
+    let fdComp: FDCompetitionResponse | null = null;
+    if (compInfoStale) {
+      try {
+        fdComp = await this.apiGet<FDCompetitionResponse>(`/competitions/${competitionCode}`);
+        console.log(`[FootballDataSource] comp-info fetched ${competitionCode}`);
+      } catch (err) {
+        logCache({ event: 'CACHE_API_ERROR', ...logCtxBase });
+        if (!prevCache) throw err; // no fallback on first load
+        console.warn(`[FootballDataSource] comp-info fetch failed for ${competitionCode}, reusing cached`);
+      }
+    } else {
+      console.log(`[FootballDataSource] comp-info SKIP ${competitionCode}: within 7-day TTL`);
+    }
 
+    // ── Phase 1B: teams (TTL 7 days) ─────────────────────────────────────────
+    const teamsStale = !prevCache || (nowMs - prevCache.teamsFetchedAt) > TEAMS_TTL_MS;
+    let fdTeams: { teams: FDTeamResponse[] } | null = null;
+    if (teamsStale) {
+      try {
+        fdTeams = await this.apiGet<{ teams: FDTeamResponse[] }>(`/competitions/${competitionCode}/teams`);
+        console.log(`[FootballDataSource] teams fetched ${competitionCode}: ${fdTeams.teams.length}`);
+      } catch (err) {
+        logCache({ event: 'CACHE_API_ERROR', ...logCtxBase });
+        if (!prevCache) throw err;
+        console.warn(`[FootballDataSource] teams fetch failed for ${competitionCode}, reusing cached`);
+      }
+    } else {
+      console.log(`[FootballDataSource] teams SKIP ${competitionCode}: within 7-day TTL`);
+    }
+
+    // We need at least competition metadata to derive season string.
+    // On the very first load, fdComp must be non-null (thrown above if it fails).
+    // On subsequent refreshes where TTL hasn't expired, derive season from prevCache.
+    const season = fdComp
+      ? deriveSeason(
+          fdComp.currentSeason?.startDate ?? String(new Date().getFullYear()),
+          fdComp.currentSeason?.endDate,
+        )
+      : prevCache!.season!;
+
+    // ── Phase 2: matches ──────────────────────────────────────────────────────
+    // First load → full season fetch. Subsequent refreshes → date-range window only,
+    // then merge into the existing in-memory map.
+    const isFirstLoad = !prevCache?.fullSeasonFetched;
+
+    let fdMatchesResp: { matches: FDMatchResponse[]; resultSet?: { count: number } };
     try {
-      [fdComp, fdTeams, fdMatchesResp] = await Promise.all([
-        this.apiGet<FDCompetitionResponse>(`/competitions/${competitionCode}`),
-        this.apiGet<{ teams: FDTeamResponse[] }>(`/competitions/${competitionCode}/teams`),
-        this.apiGet<{ matches: FDMatchResponse[]; resultSet?: { count: number } }>(`/competitions/${competitionCode}/matches`),
-      ]);
+      if (isFirstLoad) {
+        fdMatchesResp = await this.apiGet<{ matches: FDMatchResponse[]; resultSet?: { count: number } }>(
+          `/competitions/${competitionCode}/matches`,
+        );
+        console.log(`[FootballDataSource] full-season fetch ${competitionCode}: ${fdMatchesResp.matches.length} matches`);
+      } else {
+        // Incremental: only the mutable window
+        const dateFrom = new Date(nowMs - WINDOW_PAST_DAYS   * 86400_000).toISOString().slice(0, 10);
+        const dateTo   = new Date(nowMs + WINDOW_FUTURE_DAYS * 86400_000).toISOString().slice(0, 10);
+        fdMatchesResp = await this.apiGet<{ matches: FDMatchResponse[]; resultSet?: { count: number } }>(
+          `/competitions/${competitionCode}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`,
+        );
+        console.log(`[FootballDataSource] window fetch ${competitionCode} [${dateFrom}..${dateTo}]: ${fdMatchesResp.matches.length} matches`);
+      }
     } catch (err) {
       logCache({ event: 'CACHE_API_ERROR', ...logCtxBase });
-      throw err;
+      if (!prevCache) throw err;
+      console.warn(`[FootballDataSource] matches fetch failed for ${competitionCode}, reusing cached`);
+      // Use prevCache data entirely — nothing to merge
+      const prevFinishedCount = prevCache.standingsFinishedCount;
+      this.cache.set(compId, { ...prevCache, fetchedAt: nowMs });
+      console.log(`[FootballDataSource] ${competitionCode}: serving cached data (fetch error)`);
+      void prevFinishedCount; // suppress unused warning
+      return;
     }
 
     const fdMatches = fdMatchesResp.matches;
-    const result = normalizeIngestion(fdComp, fdTeams.teams, fdMatches, nowUtc);
 
     // Extract currentMatchday from the first match's season data
-    const currentMatchday = (fdMatches[0] as { season?: { currentMatchday?: number } })?.season?.currentMatchday;
-    const season = deriveSeason(
-      fdComp.currentSeason?.startDate ?? String(new Date().getFullYear()),
-      fdComp.currentSeason?.endDate,
-    );
+    const currentMatchday = (fdMatches[0] as { season?: { currentMatchday?: number } })?.season?.currentMatchday
+      ?? prevCache?.currentMatchday;
 
-    if (result.skippedMatchIds.length > 0) {
-      console.warn(`[FootballDataSource] Skipped ${result.skippedMatchIds.length} unresolvable matches`);
+    // Normalize matches.
+    // If we have fresh teams from the API, use the full normalizeIngestion pipeline.
+    // If teams are from cache (TTL not expired), build the team ID map from the cached
+    // canonical teams and call mapMatch directly — no need for raw FDTeamResponse.
+    let normalizedMatches: Match[];
+    let normalizedTeams: Team[];
+    let normalizedSeasonId: string | undefined;
+    const skippedIds: string[] = [];
+
+    if (fdTeams && fdComp) {
+      // Full normalization path
+      const result = normalizeIngestion(fdComp, fdTeams.teams, fdMatches, nowUtc);
+      normalizedMatches = result.matches;
+      normalizedTeams = result.teams;
+      normalizedSeasonId = result.season?.seasonId;
+      if (result.skippedMatchIds.length > 0) {
+        console.warn(`[FootballDataSource] Skipped ${result.skippedMatchIds.length} unresolvable matches`);
+      }
+      skippedIds.push(...result.skippedMatchIds);
+    } else {
+      // Incremental path: teams from cache, comp info optional
+      // Reconstruct team ID map from cached canonical teams (providerTeamId → canonicalTeamId)
+      const cachedTeams = prevCache?.teams ?? [];
+      const teamIdMap = new Map<string, string>(
+        cachedTeams.map((t) => [t.providerTeamId!, t.teamId]),
+      );
+      const seasId = prevCache!.seasonId!;
+      normalizedMatches = [];
+      for (const fd of fdMatches) {
+        const mId = canonicalMatchId(PROVIDER_KEY, String(fd.id));
+        const m = mapFDMatch(fd, mId, seasId, teamIdMap, nowUtc);
+        if (m) {
+          normalizedMatches.push(m);
+        } else {
+          skippedIds.push(String(fd.id));
+        }
+      }
+      normalizedTeams = cachedTeams; // unchanged
+      normalizedSeasonId = prevCache?.seasonId;
+      if (skippedIds.length > 0) {
+        console.warn(`[FootballDataSource] Skipped ${skippedIds.length} unresolvable matches (incremental)`);
+      }
     }
 
     // §15.1 – per-matchday cache flow: check → validate → reuse if valid → otherwise persist
     const matchesByMatchday = new Map<number, Match[]>();
-    for (const m of result.matches) {
+    for (const m of normalizedMatches) {
       if (m.matchday === undefined) continue;
       const group = matchesByMatchday.get(m.matchday) ?? [];
       group.push(m);
       matchesByMatchday.set(m.matchday, group);
     }
 
-    const allMatches: Match[] = [];
+    const windowMatches: Match[] = [];
     for (const [md, apiMatches] of matchesByMatchday) {
       const cached = checkMatchdayCache(PROVIDER_KEY, competitionCode, season, md);
       if (cached.hit) {
-        allMatches.push(...cached.matches);
+        windowMatches.push(...cached.matches);
       } else {
-        allMatches.push(...apiMatches);
+        windowMatches.push(...apiMatches);
         persistMatchdayCache(PROVIDER_KEY, competitionCode, season, md, apiMatches);
       }
     }
-    // Matches without a matchday number are not cached per-matchday
-    for (const m of result.matches) {
-      if (m.matchday === undefined) allMatches.push(m);
+    for (const m of normalizedMatches) {
+      if (m.matchday === undefined) windowMatches.push(m);
     }
 
-    // Phase 2: standings — only re-fetch from API when new matches have finished.
-    // The table only changes when a match reaches FINISHED status, so tracking
-    // the count of finished matches is sufficient to know when a refresh is needed.
+    // Merge window results into existing in-memory map.
+    // Historical matches (outside the window) stay intact from prevCache.
+    let allMatches: Match[];
+    if (isFirstLoad) {
+      allMatches = windowMatches;
+    } else {
+      // Build a map from the existing matches, overwrite with fresh window data
+      const matchMap = new Map<string, Match>(
+        (prevCache?.matches ?? []).map((m) => [m.matchId, m]),
+      );
+      for (const m of windowMatches) {
+        matchMap.set(m.matchId, m);
+      }
+      allMatches = [...matchMap.values()];
+    }
+
+    // ── Standings: only re-fetch when finishedCount increases ────────────────
     const finishedCount = allMatches.filter((m) => m.status === 'FINISHED').length;
     const prevFinishedCount = prevCache?.standingsFinishedCount ?? -1;
 
@@ -244,18 +373,22 @@ export class FootballDataSource implements DataSource {
     }
 
     this.cache.set(compId, {
-      teams: result.teams,
+      teams: normalizedTeams,
       matches: allMatches,
       standings,
       standingsFinishedCount: finishedCount,
-      seasonId: result.season?.seasonId,
+      seasonId: normalizedSeasonId ?? prevCache?.seasonId,
       season,
       currentMatchday,
-      fetchedAt: Date.now(),
+      fetchedAt: nowMs,
+      compInfoFetchedAt: fdComp ? nowMs : (prevCache?.compInfoFetchedAt ?? 0),
+      teamsFetchedAt: fdTeams ? nowMs : (prevCache?.teamsFetchedAt ?? 0),
+      fullSeasonFetched: true,
     });
 
     console.log(
-      `[FootballDataSource] Fetched ${competitionCode}: ${result.teams.length} teams, ${allMatches.length} matches`,
+      `[FootballDataSource] Fetched ${competitionCode}: ${allMatches.length} matches total` +
+      ` (window=${windowMatches.length}, teams=${fdTeams ? normalizedTeams.length : 'cached'})`,
     );
   }
 

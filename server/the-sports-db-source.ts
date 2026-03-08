@@ -150,7 +150,9 @@ export class TheSportsDbSource implements DataSource {
       0,
     );
 
-    const extraRoundNumbers = Array.from({ length: 6 }, (_, i) => maxSeasonRound + 1 + i);
+    // Fetch 2 extra rounds ahead (reduced from 6; TheSportsDB publishes fixtures
+    // at most 1-2 rounds in advance, so 6 was speculative waste — spec §10 / Phase 3).
+    const extraRoundNumbers = Array.from({ length: 2 }, (_, i) => maxSeasonRound + 1 + i);
     const extraRoundResults = await Promise.all(
       extraRoundNumbers.map((r) =>
         this.apiGet<{ events: SDBEvent[] | null }>(
