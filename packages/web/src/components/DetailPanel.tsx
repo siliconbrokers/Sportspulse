@@ -173,22 +173,24 @@ function PredictionDetailModule({
       {/* Probability bar */}
       {winnerVal && (
         <>
-          {/* Text row: 3 equal columns so percentages never get clipped */}
+          {/* Text row: anchos proporcionales para alinear con la barra,
+               sin overflow:hidden en el contenedor para que el número
+               nunca se recorte. Font 13px cabe en cualquier segmento. */}
           <div style={{ display: 'flex', marginBottom: 6 }}>
-            <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 800 }}>{pct(winnerVal.probHome)}</div>
+            <div style={{ width: `${Math.round(winnerVal.probHome * 100)}%`, textAlign: 'left' }}>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>{pct(winnerVal.probHome)}</div>
               <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeamName}</div>
             </div>
-            <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#6b7280' }}>{pct(winnerVal.probDraw)}</div>
+            <div style={{ width: `${Math.round(winnerVal.probDraw * 100)}%`, textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#6b7280' }}>{pct(winnerVal.probDraw)}</div>
               <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
             </div>
-            <div style={{ flex: 1, textAlign: 'right', minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 800 }}>{pct(winnerVal.probAway)}</div>
+            <div style={{ width: `${Math.round(winnerVal.probAway * 100)}%`, textAlign: 'right' }}>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>{pct(winnerVal.probAway)}</div>
               <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeamName}</div>
             </div>
           </div>
-          {/* Color bar: uses proportional widths */}
+          {/* Color bar: usa anchos proporcionales */}
           <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden' }}>
             <div style={barStyle(winnerVal.probHome, '#22c55e')} />
             <div style={barStyle(winnerVal.probDraw, '#6b7280')} />
