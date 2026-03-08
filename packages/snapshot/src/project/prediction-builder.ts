@@ -4,6 +4,9 @@ const MIN_GAMES = 3;
 const MAX_GOALS = 7;
 const DC_RHO = -0.13;
 const HOME_ADVANTAGE = 1.15;
+/** Predict DRAW when probDraw ≥ threshold AND ≥ ratio × max(probHome, probAway). */
+const DRAW_THRESHOLD = 0.31;
+const DRAW_RATIO = 0.75;
 
 /** P(X = k) for Poisson distribution with mean λ */
 function poissonPmf(lambda: number, k: number): number {
@@ -128,15 +131,16 @@ export function buildPrediction(
   let winner: 'HOME' | 'AWAY' | 'DRAW';
   let label: string;
 
-  if (probs.homeWin >= probs.draw && probs.homeWin >= probs.awayWin) {
-    winner = 'HOME';
-    label = `Ganador: ${isHome ? teamName : opponentName}`;
-  } else if (probs.awayWin >= probs.draw) {
-    winner = 'AWAY';
-    label = `Ganador: ${isHome ? opponentName : teamName}`;
-  } else {
+  const maxOther = Math.max(probs.homeWin, probs.awayWin);
+  if (probs.draw >= DRAW_THRESHOLD && probs.draw >= maxOther * DRAW_RATIO) {
     winner = 'DRAW';
     label = 'Empate favorecido';
+  } else if (probs.homeWin >= probs.awayWin) {
+    winner = 'HOME';
+    label = `Ganador: ${isHome ? teamName : opponentName}`;
+  } else {
+    winner = 'AWAY';
+    label = `Ganador: ${isHome ? opponentName : teamName}`;
   }
 
   // Confidence based on margin over second-best outcome
