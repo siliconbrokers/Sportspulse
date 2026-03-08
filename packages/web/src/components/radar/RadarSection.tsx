@@ -92,12 +92,9 @@ export function RadarSection({ data, loading, onViewMatch }: RadarSectionProps) 
     data.liveData.map((ld) => [ld.matchId, ld]),
   );
 
-  // Responsive column count: spec §6 — desktop 3, tablet 2, mobile 1
-  const colCount = isMobile
-    ? 1
-    : isTablet
-    ? Math.min(cards.length, 2)
-    : Math.min(cards.length, 3);
+  // Responsive column count: spec §6 — desktop 3, tablet/mobile 1
+  // Tablet (640-1023px) también muestra 1 columna para cubrir phones en landscape y tablets en portrait.
+  const colCount = isMobile || isTablet ? 1 : Math.min(cards.length, 3);
 
   return (
     <div style={{ marginBottom: 24 }}>
@@ -106,15 +103,18 @@ export function RadarSection({ data, loading, onViewMatch }: RadarSectionProps) 
         display: 'grid',
         gridTemplateColumns: `repeat(${colCount}, 1fr)`,
         gap: isMobile ? 12 : 16,
+        width: '100%',
+        boxSizing: 'border-box',
       }}>
         {cards.map((card) => (
-          <RadarCard
-            key={card.matchId}
-            card={card}
-            live={liveMap.get(card.matchId) ?? null}
-            matchday={data.index?.matchday}
-            onViewMatch={onViewMatch}
-          />
+          <div key={card.matchId} style={{ minWidth: 0 }}>
+            <RadarCard
+              card={card}
+              live={liveMap.get(card.matchId) ?? null}
+              matchday={data.index?.matchday}
+              onViewMatch={onViewMatch}
+            />
+          </div>
         ))}
       </div>
     </div>

@@ -65,9 +65,20 @@ interface EventCardProps {
   event: ParsedEvent;
   accentColor: string;
   isMobile: boolean;
+  signalLabel?: string;
+  altUrl?: string;
 }
 
-export function EventCard({ event, accentColor, isMobile }: EventCardProps) {
+function openAltUrl(url: string) {
+  const w = Math.min(Math.round(window.screen.width * 0.9), 1440);
+  const h = Math.min(Math.round(window.screen.height * 0.9), 900);
+  const left = Math.round((window.screen.width - w) / 2);
+  const top = Math.round((window.screen.height - h) / 2);
+  const features = `popup,width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes,noopener`;
+  window.open(url, 'sportpulse_player_alt', features);
+}
+
+export function EventCard({ event, accentColor, isMobile, signalLabel, altUrl }: EventCardProps) {
   const status = STATUS_CONFIG[event.normalizedStatus] ?? STATUS_CONFIG.DESCONOCIDO;
   const leagueLabel = LEAGUE_LABEL[event.normalizedLeague] ?? event.normalizedLeague;
   const leagueLogo = LEAGUE_LOGO[event.normalizedLeague] ?? null;
@@ -104,6 +115,17 @@ export function EventCard({ event, accentColor, isMobile }: EventCardProps) {
         }}>
           {status.label}
         </span>
+        {signalLabel && (
+          <span style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+            padding: '2px 7px', borderRadius: 4,
+            background: 'rgba(255,255,255,0.07)',
+            color: 'rgba(255,255,255,0.45)',
+            border: '1px solid rgba(255,255,255,0.12)',
+          }}>
+            {signalLabel}
+          </span>
+        )}
         {/* spec §19.6 — hora convertida a zona del portal */}
         <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
           {timeStr} (UY)
@@ -139,7 +161,7 @@ export function EventCard({ event, accentColor, isMobile }: EventCardProps) {
       {/* Botón principal — spec §13.3 modo DIRECT (sin sandbox: el proveedor lo bloquea) */}
       <div style={{ display: 'flex', gap: 8 }}>
         <button
-          onClick={() => openEventDirect(event)}
+          onClick={() => altUrl ? openAltUrl(altUrl) : openEventDirect(event)}
           style={{
             ...btnStyle,
             background: accentColor,

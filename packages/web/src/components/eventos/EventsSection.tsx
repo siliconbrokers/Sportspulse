@@ -133,15 +133,41 @@ export function EventsSection({ feed, loading, error }: EventsSectionProps) {
       {header}
       <AdBlockerBanner isMobile={isMobile} />
 
-      {/* spec §13.3 — bloque principal: Uruguay */}
-      <LeagueBlock
-        title="Fútbol uruguayo hoy"
-        events={uruguayEvents}
-        accent={ACCENT.URUGUAY_PRIMERA}
-        isMobile={isMobile}
-        cols={cols}
-        emptyMessage="No hay partidos uruguayos disponibles hoy."
-      />
+      {/* spec §13.3 — bloque principal: Uruguay (Señal 1 + Señal 2 por partido) */}
+      <div style={{ marginBottom: 32 }}>
+        <SectionHeader accent={ACCENT.URUGUAY_PRIMERA} title="Fútbol uruguayo hoy" count={uruguayEvents.length} />
+        <div style={{ marginTop: 14 }}>
+          {uruguayEvents.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', margin: 0, paddingLeft: 13 }}>
+              No hay partidos uruguayos disponibles hoy.
+            </p>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+              gap: isMobile ? 10 : 12,
+            }}>
+              {uruguayEvents.flatMap((ev) => [
+                <EventCard
+                  key={`${ev.id}-s1`}
+                  event={ev}
+                  accentColor={ACCENT.URUGUAY_PRIMERA}
+                  isMobile={isMobile}
+                  signalLabel="Señal 1"
+                />,
+                <EventCard
+                  key={`${ev.id}-s2`}
+                  event={ev}
+                  accentColor={ACCENT.URUGUAY_PRIMERA}
+                  isMobile={isMobile}
+                  signalLabel="Señal 2"
+                  altUrl="https://www.livegoal.futbolandres.xyz/p/vtv.html"
+                />,
+              ])}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* spec §13.4 — lista compacta de otras ligas */}
       {otherLeagueEvents.length > 0 && (
