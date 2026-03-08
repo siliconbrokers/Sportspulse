@@ -31,6 +31,16 @@
   100% { transform: scale(1);   opacity: 1; }
 }
 
+@keyframes live-dot-pulse {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(0.82); }
+}
+
+.live-icon-pulse {
+  display: inline-block;
+  animation: live-dot-pulse 1.4s ease-in-out infinite;
+}
+
 /* ── Tile base ────────────────────────────────────────────────────────────── */
 
 .mm-tile {
@@ -208,6 +218,9 @@
     animation: none;
   }
   .mm-tile__badge {
+    animation: none;
+  }
+  .live-icon-pulse {
     animation: none;
   }
   .mm-tile::after {

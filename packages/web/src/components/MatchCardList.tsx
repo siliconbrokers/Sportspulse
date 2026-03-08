@@ -193,10 +193,14 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
           {/* Time chip — calculado en cliente para no depender del cache del backend */}
           {(() => {
             const tc = computeLiveTimeChip(card.status, card.kickoffUtc);
+            const isLiveIcon = tc.icon === '🔴';
             return (
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <span style={chipStyle(tc.level)}>
-                  {tc.icon} {tc.label}
+                  {isLiveIcon
+                    ? <span className="live-icon-pulse">{tc.icon}</span>
+                    : tc.icon}{' '}
+                  {tc.label}
                 </span>
               </div>
             );
@@ -222,6 +226,10 @@ export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showFor
               {(card.status === 'FINISHED' || isEffectivelyLive) && card.scoreHome != null && card.scoreAway != null ? (
                 <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: 2 }}>
                   {card.scoreHome} - {card.scoreAway}
+                </span>
+              ) : isEffectivelyLive ? (
+                <span style={{ fontSize: 20, fontWeight: 800, color: 'rgba(251,146,60,0.9)', letterSpacing: 3 }}>
+                  - -
                 </span>
               ) : (
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.35)' }}>

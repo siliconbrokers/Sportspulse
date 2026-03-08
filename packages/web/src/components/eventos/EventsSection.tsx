@@ -147,23 +147,18 @@ export function EventsSection({ feed, loading, error }: EventsSectionProps) {
               gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
               gap: isMobile ? 10 : 12,
             }}>
-              {uruguayEvents.flatMap((ev) => [
+              {uruguayEvents.map((ev) => (
                 <EventCard
-                  key={`${ev.id}-s1`}
+                  key={ev.id}
                   event={ev}
                   accentColor={ACCENT.URUGUAY_PRIMERA}
                   isMobile={isMobile}
-                  signalLabel="Señal 1"
-                />,
-                <EventCard
-                  key={`${ev.id}-s2`}
-                  event={ev}
-                  accentColor={ACCENT.URUGUAY_PRIMERA}
-                  isMobile={isMobile}
-                  signalLabel="Señal 2"
-                  altUrl="https://www.livegoal.futbolandres.xyz/p/vtv.html"
-                />,
-              ])}
+                  signals={[
+                    { label: 'Señal 1' },
+                    { label: 'Señal 2', altUrl: 'https://www.livegoal.futbolandres.xyz/p/vtv.html' },
+                  ]}
+                />
+              ))}
             </div>
           )}
         </div>

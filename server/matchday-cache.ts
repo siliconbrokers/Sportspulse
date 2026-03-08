@@ -61,7 +61,9 @@ export function buildCachePath(
 
 // ── Status resolution (§11) ───────────────────────────────────────────────────
 
-const LIVE_STATUSES = new Set(['LIVE', 'IN_PLAY', 'PAUSED']);
+// Canonical Match.status values that represent an in-progress match.
+// classifyStatus() maps all provider live variants to IN_PROGRESS.
+const LIVE_STATUSES = new Set(['IN_PROGRESS']);
 
 /** Derives the global matchday status from the set of match statuses. §11.1 */
 export function resolveGlobalStatus(matches: Match[]): MatchdayStatus {
@@ -73,8 +75,10 @@ export function resolveGlobalStatus(matches: Match[]): MatchdayStatus {
 
   if (!hasLive && !hasScheduled && matches.every(m => m.status === 'FINISHED')) return 'finished';
   if (!hasLive && !hasFinished  && matches.every(m => m.status === 'SCHEDULED')) return 'scheduled';
-  if (hasLive && !hasFinished && !hasScheduled) return 'live';
-  if (hasLive || hasFinished || hasScheduled) return 'mixed';
+  // Any live match → use live TTL regardless of other statuses in the matchday.
+  // Previously this fell into 'mixed' (5min TTL) which caused stale scores during live matches.
+  if (hasLive) return 'live';
+  if (hasFinished || hasScheduled) return 'mixed';
   return 'unknown';
 }
 
@@ -338,6 +342,100 @@ export function loadTeamsCache(provider: string, competitionId: string): Team[] 
   } catch {
     return null;
   }
+}
+
+// ── Comp-info file cache ───────────────────────────────────────────────────────
+// Stores season string and seasonId so comp-info API is not called on every restart.
+
+export interface CompInfoCacheDoc {
+  retrievedAt: string;
+  season: string;   // human-readable, e.g. "2025-26"
+  seasonId: string; // canonical, e.g. "season:football-data:2341"
+}
+
+const COMP_INFO_CACHE_TTL_S = 7 * 24 * 3600; // matches in-memory COMP_INFO_TTL_MS
+
+function compInfoFilePath(provider: string, competitionId: string): string {
+  return path.join(CACHE_BASE, provider, competitionId, 'comp-info.json');
+}
+
+export function persistCompInfoCache(
+  provider: string,
+  competitionId: string,
+  info: Omit<CompInfoCacheDoc, 'retrievedAt'>,
+): void {
+  const filePath = compInfoFilePath(provider, competitionId);
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const tmp = `${filePath}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ retrievedAt: new Date().toISOString(), ...info }, null, 0));
+    fs.renameSync(tmp, filePath);
+  } catch {
+    // Non-fatal
+  }
+}
+
+export function loadCompInfoCache(
+  provider: string,
+  competitionId: string,
+): CompInfoCacheDoc | null {
+  const filePath = compInfoFilePath(provider, competitionId);
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) as CompInfoCacheDoc;
+    const ageS = (Date.now() - new Date(raw.retrievedAt).getTime()) / 1000;
+    if (ageS > COMP_INFO_CACHE_TTL_S) return null; // stale
+    if (!raw.season || !raw.seasonId) return null;  // invalid
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
+/** Returns true if at least one matchday JSON file exists for the given season directory. */
+export function hasMatchdayCacheForSeason(
+  provider: string,
+  competitionId: string,
+  season: string,
+): boolean {
+  const seasonDir = path.join(CACHE_BASE, provider, competitionId, season);
+  try {
+    const files = fs.readdirSync(seasonDir);
+    return files.some((f) => f.startsWith('matchday-') && f.endsWith('.json'));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Loads all matches from every matchday JSON file for a given season.
+ * Used to reconstruct the in-memory match history after a server restart,
+ * avoiding a full-season API fetch when files already exist on disk.
+ * No TTL check — freshness is handled by the subsequent window fetch merge.
+ */
+export function loadAllMatchdaysForSeason(
+  provider: string,
+  competitionId: string,
+  season: string,
+): Match[] {
+  const seasonDir = path.join(CACHE_BASE, provider, competitionId, season);
+  const result: Match[] = [];
+  try {
+    const files = fs.readdirSync(seasonDir);
+    for (const file of files) {
+      if (!file.startsWith('matchday-') || !file.endsWith('.json')) continue;
+      const filePath = path.join(seasonDir, file);
+      const raw = readCacheFile(filePath) as Record<string, unknown> | null;
+      if (!raw) continue;
+      const data = raw['data'] as Record<string, unknown> | undefined;
+      if (!data) continue;
+      const matches = data['matches'];
+      if (!Array.isArray(matches)) continue;
+      result.push(...(matches as Match[]));
+    }
+  } catch {
+    // Directory doesn't exist or unreadable — return empty
+  }
+  return result;
 }
 
 /**

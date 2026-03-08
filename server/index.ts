@@ -1,11 +1,18 @@
 import { buildApp } from '@sportpulse/api';
 import { FootballDataSource } from './football-data-source.js';
+import { FootballDataTournamentSource, WC_PROVIDER_KEY } from './football-data-tournament-source.js';
 import { TheSportsDbSource, SPORTSDB_PROVIDER_KEY } from './the-sports-db-source.js';
+import { OpenLigaDBSource, OPENLIGADB_PROVIDER_KEY } from './openligadb-source.js';
+import { CrestCache } from './crest-cache.js';
+import { ApiFootballSource } from './api-football-source.js';
 import { RoutingDataSource } from './routing-data-source.js';
 import { NewsService } from './news/index.js';
 import { VideoService } from './video/index.js';
 import { RadarApiAdapter } from './radar/index.js';
 import { EventosService, buildEventSource } from './eventos/index.js';
+import { MatchEventsService } from './match-events-service.js';
+import { IncidentService } from './incidents/incident-service.js';
+import type { MatchCoreInput } from './incidents/types.js';
 import {
   SnapshotService,
   InMemorySnapshotStore,
@@ -19,6 +26,8 @@ if (!API_TOKEN) {
 }
 
 const COMPETITION_CODES = (process.env.COMPETITIONS ?? 'PD').split(',');
+// BL1 is served by OpenLigaDB — exclude it from football-data.org competition list
+const FD_COMPETITION_CODES = COMPETITION_CODES.filter((c) => c !== 'BL1');
 const PORT = Number(process.env.PORT ?? 3000);
 
 // TheSportsDB — Liga Uruguaya
@@ -26,6 +35,10 @@ const SPORTSDB_API_KEY = process.env.SPORTSDB_API_KEY ?? '123';
 const UY_LEAGUE_ID = '4432';
 const UY_LEAGUE_NAME = 'Uruguayan Primera Division';
 const UY_COMPETITION_ID = `comp:${SPORTSDB_PROVIDER_KEY}:${UY_LEAGUE_ID}`;
+
+// OpenLigaDB — Bundesliga
+const OLG_LEAGUE = 'bl1';
+const OLG_COMPETITION_ID = `comp:${OPENLIGADB_PROVIDER_KEY}:${OLG_LEAGUE}`;
 
 const DEFAULT_CONTAINER = {
   width: 1200,
@@ -37,16 +50,16 @@ const DEFAULT_CONTAINER = {
 async function main() {
   const fdSource = new FootballDataSource(API_TOKEN);
 
-  console.log(`Fetching competitions: ${COMPETITION_CODES.join(', ')}...`);
-  for (let i = 0; i < COMPETITION_CODES.length; i++) {
-    const code = COMPETITION_CODES[i];
+  console.log(`Fetching competitions from football-data.org: ${FD_COMPETITION_CODES.join(', ')}...`);
+  for (let i = 0; i < FD_COMPETITION_CODES.length; i++) {
+    const code = FD_COMPETITION_CODES[i];
     try {
       await fdSource.fetchCompetition(code);
     } catch (err) {
       console.error(`Failed to fetch ${code}:`, err);
     }
     // Respect football-data.org rate limit (10 req/min): wait between fetches
-    if (i < COMPETITION_CODES.length - 1) {
+    if (i < FD_COMPETITION_CODES.length - 1) {
       await new Promise((r) => setTimeout(r, 7000));
     }
   }
@@ -59,9 +72,30 @@ async function main() {
     console.error(`Failed to fetch Liga Uruguaya from TheSportsDB:`, err);
   }
 
-  // Routing: Liga Uruguaya → TheSportsDB, everything else → football-data.org
+  // OpenLigaDB — Bundesliga (no auth required)
+  const openLigaDbSource = new OpenLigaDBSource(OLG_LEAGUE, '1. Bundesliga');
+  try {
+    await openLigaDbSource.fetchSeason();
+  } catch (err) {
+    console.error('Failed to fetch Bundesliga from OpenLigaDB:', err);
+  }
+
+  // Football-data.org — Copa del Mundo 2026 (torneo con grupos + eliminatorias)
+  const wcSource = new FootballDataTournamentSource(API_TOKEN, 'WC');
+  const WC_COMPETITION_ID = wcSource.competitionId; // 'comp:football-data-wc:WC'
+  try {
+    // Rate limit: esperar antes de hacer las 3 llamadas del torneo
+    await new Promise<void>((r) => setTimeout(r, 7000));
+    await wcSource.fetchTournament();
+  } catch (err) {
+    console.error('Failed to fetch Copa del Mundo 2026 from football-data.org:', err);
+  }
+
+  // Routing: Liga Uruguaya → TheSportsDB, BL1 → OpenLigaDB, WC → wcSource, resto → football-data.org
   const dataSource = new RoutingDataSource(fdSource, [
     { competitionId: UY_COMPETITION_ID, providerKey: SPORTSDB_PROVIDER_KEY, source: sportsDbSource },
+    { competitionId: OLG_COMPETITION_ID, providerKey: OPENLIGADB_PROVIDER_KEY, source: openLigaDbSource },
+    { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
   ]);
 
   // News service — demand-pull, cached per league (30-60 min TTL)
@@ -102,8 +136,8 @@ async function main() {
   const EVENTOS_DEBUG = process.env.EVENTOS_DEBUG === 'true';
 
   // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy)
-  const FD_COMP_IDS = COMPETITION_CODES.map((c) => `comp:football-data:${c}`);
-  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID];
+  const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`);
+  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, OLG_COMPETITION_ID];
   function normTeamName(s: string) {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   }
@@ -129,7 +163,23 @@ async function main() {
     resolveCrest,
   );
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService });
+  const AF_KEY_FOR_INCIDENTS = process.env.APIFOOTBALL_KEY ?? '';
+  const incidentService = new IncidentService(AF_KEY_FOR_INCIDENTS);
+
+  const matchEventsService = new MatchEventsService(SPORTSDB_API_KEY, dataSource);
+  // OpenLigaDB handles its own goal events natively (BL1)
+  matchEventsService.registerProvider(OPENLIGADB_PROVIDER_KEY, openLigaDbSource);
+  // API-Football handles post-match goal events for PD, PL, URU (disk-cached, 1 req/match)
+  if (AF_KEY_FOR_INCIDENTS) {
+    const apiFootballSource = new ApiFootballSource(AF_KEY_FOR_INCIDENTS, dataSource);
+    matchEventsService.registerProvider('football-data', apiFootballSource);
+    matchEventsService.registerProvider('thesportsdb', apiFootballSource);
+    console.log('[ApiFootballSource] registered for football-data + thesportsdb');
+  } else {
+    console.warn('[ApiFootballSource] APIFOOTBALL_KEY not set — PD/PL/URU goal events disabled');
+  }
+
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: wcSource });
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
   // Refresh interval adapts to match state. Only polls when data can change.
@@ -197,12 +247,16 @@ async function main() {
 
   function getAllMatchSnapshots(): MatchSnapshot[] {
     const all: MatchSnapshot[] = [];
-    for (const code of COMPETITION_CODES) {
+    for (const code of FD_COMPETITION_CODES) {
       const seasonId = dataSource.getSeasonId(`comp:football-data:${code}`);
       if (seasonId) all.push(...dataSource.getMatches(seasonId));
     }
     const uySeasonId = dataSource.getSeasonId(UY_COMPETITION_ID);
     if (uySeasonId) all.push(...dataSource.getMatches(uySeasonId));
+    const olgSeasonId = dataSource.getSeasonId(OLG_COMPETITION_ID);
+    if (olgSeasonId) all.push(...dataSource.getMatches(olgSeasonId));
+    const wcSeasonId = wcSource.getSeasonId(WC_COMPETITION_ID);
+    if (wcSeasonId) all.push(...wcSource.getMatches(wcSeasonId));
     return all;
   }
 
@@ -213,14 +267,14 @@ async function main() {
   }
 
   async function runRefresh(): Promise<void> {
-    for (let i = 0; i < COMPETITION_CODES.length; i++) {
-      const code = COMPETITION_CODES[i];
+    for (let i = 0; i < FD_COMPETITION_CODES.length; i++) {
+      const code = FD_COMPETITION_CODES[i];
       try {
         await fdSource.fetchCompetition(code);
       } catch (err) {
         console.error(`Refresh failed for ${code}:`, err);
       }
-      if (i < COMPETITION_CODES.length - 1) {
+      if (i < FD_COMPETITION_CODES.length - 1) {
         await new Promise<void>((r) => setTimeout(r, 7000));
       }
     }
@@ -228,6 +282,16 @@ async function main() {
       await sportsDbSource.fetchSeason();
     } catch (err) {
       console.error('Refresh failed for Liga Uruguaya:', err);
+    }
+    try {
+      await openLigaDbSource.fetchSeason();
+    } catch (err) {
+      console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
+    }
+    try {
+      await wcSource.fetchTournament();
+    } catch (err) {
+      console.error('Refresh failed for Copa del Mundo 2026:', err);
     }
   }
 
@@ -250,6 +314,83 @@ async function main() {
   }
 
   scheduleNextRefresh();
+
+  // ── GET /api/ui/match/:matchId/incidents ────────────────────────────────────
+  // Devuelve snapshot de incidentes (goles, tarjetas, sustituciones) para un partido.
+  // El frontend pasa los datos del match core como query params.
+  // Nunca rompe la UI: en caso de fallo retorna { events: [] } (AC-7).
+  app.get('/api/ui/match/:matchId/incidents', async (req, reply) => {
+    const { matchId: rawMatchId } = req.params as { matchId: string };
+    const matchId = decodeURIComponent(rawMatchId);
+    const q = req.query as Record<string, string>;
+
+    // Normalize canonical EventStatus → IncidentMatchStatus.
+    // The frontend sends canonical values (IN_PROGRESS, FINISHED, SCHEDULED, TBD, etc.)
+    // but shouldScrapeIncidents expects LIVE | HT | FINISHED | SCHEDULED.
+    const rawStatus = q.status ?? 'SCHEDULED';
+    const status: MatchCoreInput['status'] =
+      rawStatus === 'FINISHED' ? 'FINISHED'
+      : rawStatus === 'IN_PROGRESS' || rawStatus === 'LIVE' || rawStatus === 'PAUSED' ? 'LIVE'
+      : 'SCHEDULED';
+    const homeScore  = parseInt(q.homeScore  ?? '0', 10);
+    const awayScore  = parseInt(q.awayScore  ?? '0', 10);
+    const matchday   = q.matchday ? parseInt(q.matchday, 10) : undefined;
+
+    const matchCore: MatchCoreInput = {
+      matchId,
+      status,
+      homeScore:     isNaN(homeScore) ? 0 : homeScore,
+      awayScore:     isNaN(awayScore) ? 0 : awayScore,
+      competitionId: q.competitionId ?? '',
+      kickoffUtc:    q.kickoffUtc    ?? '',
+      homeTeamName:  q.homeTeamName  ?? '',
+      awayTeamName:  q.awayTeamName  ?? '',
+      matchday,
+    };
+
+    // Partido no empezado → no hay incidentes
+    if (status === 'SCHEDULED') {
+      return reply.code(204).send();
+    }
+
+    try {
+      const snapshot = await incidentService.get(matchCore);
+      if (!snapshot) {
+        return reply
+          .header('Cache-Control', 'no-store')
+          .send({ matchId, events: [], snapshotType: null });
+      }
+      return reply
+        .header('Cache-Control', snapshot.isFinal ? 'public, max-age=3600' : 'no-store')
+        .send(snapshot);
+    } catch (err) {
+      console.error('[incidents endpoint] Unexpected error:', err);
+      return reply.send({ matchId, events: [], snapshotType: null });
+    }
+  });
+
+  // Serve cached crest images at /api/crests/:filename
+  app.get('/api/crests/:filename', async (req, reply) => {
+    const { filename } = req.params as { filename: string };
+    // Basic safety: only allow simple filenames, no path traversal
+    if (!/^[\w.-]+$/.test(filename)) {
+      return reply.code(400).send({ error: 'Invalid filename' });
+    }
+    const { promises: fs } = await import('node:fs');
+    const path = await import('node:path');
+    const filePath = path.join(CrestCache.cacheDir, filename);
+    try {
+      const buf = await fs.readFile(filePath);
+      const ext = filename.split('.').pop()?.toLowerCase();
+      const ct = ext === 'svg' ? 'image/svg+xml' : ext === 'png' ? 'image/png' : 'image/jpeg';
+      return reply
+        .header('Content-Type', ct)
+        .header('Cache-Control', 'public, max-age=604800') // 7 days
+        .send(buf);
+    } catch {
+      return reply.code(404).send({ error: 'Not found' });
+    }
+  });
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`SportsPulse API running at http://localhost:${PORT}`);

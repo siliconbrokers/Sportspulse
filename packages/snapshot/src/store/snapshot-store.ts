@@ -5,7 +5,8 @@ export interface SnapshotStore {
   get(key: string): DashboardSnapshotDTO | undefined;
   /** Returns the snapshot regardless of TTL (for stale fallback). */
   getStale(key: string): DashboardSnapshotDTO | undefined;
-  set(key: string, snapshot: DashboardSnapshotDTO): void;
+  /** @param ttlMs — optional override; defaults to store's configured TTL. */
+  set(key: string, snapshot: DashboardSnapshotDTO, ttlMs?: number): void;
   has(key: string): boolean;
 }
 
@@ -37,8 +38,8 @@ export class InMemorySnapshotStore implements SnapshotStore {
     return this.cache.get(key)?.snapshot;
   }
 
-  set(key: string, snapshot: DashboardSnapshotDTO): void {
-    this.cache.set(key, { snapshot, expiresAt: Date.now() + this.ttlMs });
+  set(key: string, snapshot: DashboardSnapshotDTO, ttlMs?: number): void {
+    this.cache.set(key, { snapshot, expiresAt: Date.now() + (ttlMs ?? this.ttlMs) });
   }
 
   /** True only if entry exists AND is within TTL. Does NOT delete expired entries. */

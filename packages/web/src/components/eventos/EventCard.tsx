@@ -61,12 +61,16 @@ function CrestImg({ src, alt, size }: CrestImgProps) {
   );
 }
 
+export interface EventSignal {
+  label: string;
+  altUrl?: string;
+}
+
 interface EventCardProps {
   event: ParsedEvent;
   accentColor: string;
   isMobile: boolean;
-  signalLabel?: string;
-  altUrl?: string;
+  signals?: EventSignal[];
 }
 
 function openAltUrl(url: string) {
@@ -78,7 +82,7 @@ function openAltUrl(url: string) {
   window.open(url, 'sportpulse_player_alt', features);
 }
 
-export function EventCard({ event, accentColor, isMobile, signalLabel, altUrl }: EventCardProps) {
+export function EventCard({ event, accentColor, isMobile, signals }: EventCardProps) {
   const status = STATUS_CONFIG[event.normalizedStatus] ?? STATUS_CONFIG.DESCONOCIDO;
   const leagueLabel = LEAGUE_LABEL[event.normalizedLeague] ?? event.normalizedLeague;
   const leagueLogo = LEAGUE_LOGO[event.normalizedLeague] ?? null;
@@ -115,17 +119,6 @@ export function EventCard({ event, accentColor, isMobile, signalLabel, altUrl }:
         }}>
           {status.label}
         </span>
-        {signalLabel && (
-          <span style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-            padding: '2px 7px', borderRadius: 4,
-            background: 'rgba(255,255,255,0.07)',
-            color: 'rgba(255,255,255,0.45)',
-            border: '1px solid rgba(255,255,255,0.12)',
-          }}>
-            {signalLabel}
-          </span>
-        )}
         {/* spec §19.6 — hora convertida a zona del portal */}
         <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
           {timeStr} (UY)
@@ -158,19 +151,26 @@ export function EventCard({ event, accentColor, isMobile, signalLabel, altUrl }:
         <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? ''} size={crestSize} />
       </div>
 
-      {/* Botón principal — spec §13.3 modo DIRECT (sin sandbox: el proveedor lo bloquea) */}
+      {/* Botones de señal — spec §13.3 modo DIRECT */}
       <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          onClick={() => altUrl ? openAltUrl(altUrl) : openEventDirect(event)}
-          style={{
-            ...btnStyle,
-            background: accentColor,
-            color: '#fff',
-            border: 'none',
-          }}
-        >
-          Ver partido
-        </button>
+        {signals && signals.length > 0 ? (
+          signals.map((sig) => (
+            <button
+              key={sig.label}
+              onClick={() => sig.altUrl ? openAltUrl(sig.altUrl) : openEventDirect(event)}
+              style={{ ...btnStyle, background: accentColor, color: '#fff', border: 'none' }}
+            >
+              {sig.label}
+            </button>
+          ))
+        ) : (
+          <button
+            onClick={() => openEventDirect(event)}
+            style={{ ...btnStyle, background: accentColor, color: '#fff', border: 'none' }}
+          >
+            Ver partido
+          </button>
+        )}
       </div>
     </div>
   );

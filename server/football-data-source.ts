@@ -13,8 +13,8 @@ import type {
   FDTeamResponse,
   FDMatchResponse,
 } from '@sportpulse/canonical';
-import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
-import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, persistStandingsCache, loadStandingsCache, logCache, buildCachePath } from './matchday-cache.js';
+import type { DataSource, StandingEntry, MatchGoalEventDTO } from '@sportpulse/snapshot';
+import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, persistStandingsCache, loadStandingsCache, logCache, buildCachePath, persistCompInfoCache, loadCompInfoCache, hasMatchdayCacheForSeason, loadAllMatchdaysForSeason } from './matchday-cache.js';
 
 interface FDStandingsResponse {
   standings: Array<{
@@ -79,6 +79,7 @@ export class FootballDataSource implements DataSource {
   private readonly apiToken: string;
   private readonly baseUrl: string;
   private cache = new Map<string, CachedData>();
+  private readonly goalsCache = new Map<string, MatchGoalEventDTO[]>();
 
   constructor(apiToken: string, baseUrl = 'https://api.football-data.org/v4') {
     this.apiToken = apiToken;
@@ -164,40 +165,68 @@ export class FootballDataSource implements DataSource {
     const nowMs = Date.now();
     const nowUtc = new Date(nowMs).toISOString();
 
-    // §15.1 – log API fetch intent
+    // ── Phase 1A: comp-info → season + seasonId ───────────────────────────────
+    // Priority: in-memory (7d TTL) → disk cache (7d TTL) → API call
+    const compInfoInMemoryFresh = prevCache && (nowMs - prevCache.compInfoFetchedAt) <= COMP_INFO_TTL_MS;
+    let fdComp: FDCompetitionResponse | null = null;
+    let season: string;
+    let resolvedSeasonId: string;
+    let compInfoFetchedAt: number;
+
+    if (compInfoInMemoryFresh) {
+      season = prevCache!.season!;
+      resolvedSeasonId = prevCache!.seasonId ?? '';
+      compInfoFetchedAt = prevCache!.compInfoFetchedAt;
+      console.log(`[FootballDataSource] comp-info SKIP ${competitionCode}: in-memory TTL`);
+    } else {
+      const diskCompInfo = loadCompInfoCache(PROVIDER_KEY, competitionCode);
+      if (diskCompInfo) {
+        season = diskCompInfo.season;
+        resolvedSeasonId = diskCompInfo.seasonId;
+        compInfoFetchedAt = nowMs; // reset in-memory TTL from disk load
+        console.log(`[FootballDataSource] comp-info SKIP ${competitionCode}: disk cache (season=${season})`);
+      } else {
+        // Must call API
+        try {
+          fdComp = await this.apiGet<FDCompetitionResponse>(`/competitions/${competitionCode}`);
+          season = deriveSeason(
+            fdComp.currentSeason?.startDate ?? String(new Date().getFullYear()),
+            fdComp.currentSeason?.endDate,
+          );
+          resolvedSeasonId = fdComp.currentSeason
+            ? canonicalSeasonId(PROVIDER_KEY, String(fdComp.currentSeason.id))
+            : '';
+          compInfoFetchedAt = nowMs;
+          persistCompInfoCache(PROVIDER_KEY, competitionCode, { season, seasonId: resolvedSeasonId });
+          console.log(`[FootballDataSource] comp-info fetched ${competitionCode} → season=${season}`);
+        } catch (err) {
+          const logCtxErr = {
+            provider: PROVIDER_KEY, competitionId: competitionCode,
+            season: prevCache?.season ?? '?', matchday: 0,
+            cachePath: buildCachePath(PROVIDER_KEY, competitionCode, prevCache?.season ?? '?', 0),
+          };
+          logCache({ event: 'CACHE_API_ERROR', ...logCtxErr });
+          if (!prevCache) throw err;
+          console.warn(`[FootballDataSource] comp-info fetch failed for ${competitionCode}, reusing cached`);
+          season = prevCache.season!;
+          resolvedSeasonId = prevCache.seasonId ?? '';
+          compInfoFetchedAt = prevCache.compInfoFetchedAt;
+        }
+      }
+    }
+
     const logCtxBase = {
       provider: PROVIDER_KEY,
       competitionId: competitionCode,
-      season: prevCache?.season ?? '?',
+      season,
       matchday: prevCache?.currentMatchday ?? 0,
-      cachePath: prevCache?.season && prevCache?.currentMatchday !== undefined
-        ? buildCachePath(PROVIDER_KEY, competitionCode, prevCache.season, prevCache.currentMatchday)
-        : buildCachePath(PROVIDER_KEY, competitionCode, '?', 0),
+      cachePath: prevCache?.currentMatchday !== undefined
+        ? buildCachePath(PROVIDER_KEY, competitionCode, season, prevCache.currentMatchday)
+        : buildCachePath(PROVIDER_KEY, competitionCode, season, 0),
     };
     logCache({ event: 'CACHE_API_FETCH', ...logCtxBase });
 
-    // ── Phase 1A: competition metadata (TTL 7 days) ───────────────────────────
-    const compInfoStale = !prevCache || (nowMs - prevCache.compInfoFetchedAt) > COMP_INFO_TTL_MS;
-    let fdComp: FDCompetitionResponse | null = null;
-    if (compInfoStale) {
-      try {
-        fdComp = await this.apiGet<FDCompetitionResponse>(`/competitions/${competitionCode}`);
-        console.log(`[FootballDataSource] comp-info fetched ${competitionCode}`);
-      } catch (err) {
-        logCache({ event: 'CACHE_API_ERROR', ...logCtxBase });
-        if (!prevCache) throw err; // no fallback on first load
-        console.warn(`[FootballDataSource] comp-info fetch failed for ${competitionCode}, reusing cached`);
-      }
-    } else {
-      console.log(`[FootballDataSource] comp-info SKIP ${competitionCode}: within 7-day TTL`);
-    }
-
     // ── Phase 1B: teams (TTL 7 days) ─────────────────────────────────────────
-    // Resolution priority:
-    //   1. In-memory cache within TTL  → skip API
-    //   2. Disk file cache within TTL  → skip API (avoids rate limit on restart)
-    //   3. API call
-    //   4. In-memory stale / disk stale → warn, continue
     const teamsInMemoryFresh = prevCache && (nowMs - prevCache.teamsFetchedAt) <= TEAMS_TTL_MS;
     let fdTeams: { teams: FDTeamResponse[] } | null = null;
     let diskFallbackTeams: Team[] | null = null;
@@ -205,13 +234,11 @@ export class FootballDataSource implements DataSource {
     if (teamsInMemoryFresh) {
       console.log(`[FootballDataSource] teams SKIP ${competitionCode}: within 7-day in-memory TTL`);
     } else {
-      // Check disk cache first — if fresh, skip API call entirely (saves rate limit budget)
       const diskTeams = loadTeamsCache(PROVIDER_KEY, competitionCode);
       if (diskTeams) {
         diskFallbackTeams = diskTeams;
         console.log(`[FootballDataSource] teams SKIP ${competitionCode}: loaded from disk cache (${diskTeams.length} teams)`);
       } else {
-        // Disk stale or absent — must call API
         try {
           fdTeams = await this.apiGet<{ teams: FDTeamResponse[] }>(`/competitions/${competitionCode}/teams`);
           console.log(`[FootballDataSource] teams fetched ${competitionCode}: ${fdTeams.teams.length}`);
@@ -226,20 +253,14 @@ export class FootballDataSource implements DataSource {
       }
     }
 
-    // We need at least competition metadata to derive season string.
-    // On the very first load, fdComp must be non-null (thrown above if it fails).
-    // On subsequent refreshes where TTL hasn't expired, derive season from prevCache.
-    const season = fdComp
-      ? deriveSeason(
-          fdComp.currentSeason?.startDate ?? String(new Date().getFullYear()),
-          fdComp.currentSeason?.endDate,
-        )
-      : prevCache!.season!;
-
     // ── Phase 2: matches ──────────────────────────────────────────────────────
-    // First load → full season fetch. Subsequent refreshes → date-range window only,
-    // then merge into the existing in-memory map.
-    const isFirstLoad = !prevCache?.fullSeasonFetched;
+    // isFirstLoad: true only if we have no matchday files on disk AND no in-memory history.
+    // On restart with warm disk cache: isFirstLoad=false → use incremental window.
+    const isFirstLoad = !prevCache?.fullSeasonFetched && !hasMatchdayCacheForSeason(PROVIDER_KEY, competitionCode, season);
+
+    // Base matches: in-memory → disk matchday files → empty (first load)
+    const baseMatches: Match[] = prevCache?.matches ??
+      (isFirstLoad ? [] : loadAllMatchdaysForSeason(PROVIDER_KEY, competitionCode, season));
 
     let fdMatchesResp: { matches: FDMatchResponse[]; resultSet?: { count: number } };
     try {
@@ -249,7 +270,6 @@ export class FootballDataSource implements DataSource {
         );
         console.log(`[FootballDataSource] full-season fetch ${competitionCode}: ${fdMatchesResp.matches.length} matches`);
       } else {
-        // Incremental: only the mutable window
         const dateFrom = new Date(nowMs - WINDOW_PAST_DAYS   * 86400_000).toISOString().slice(0, 10);
         const dateTo   = new Date(nowMs + WINDOW_FUTURE_DAYS * 86400_000).toISOString().slice(0, 10);
         fdMatchesResp = await this.apiGet<{ matches: FDMatchResponse[]; resultSet?: { count: number } }>(
@@ -259,54 +279,40 @@ export class FootballDataSource implements DataSource {
       }
     } catch (err) {
       logCache({ event: 'CACHE_API_ERROR', ...logCtxBase });
-      if (!prevCache) throw err;
+      if (!prevCache && baseMatches.length === 0) throw err;
       console.warn(`[FootballDataSource] matches fetch failed for ${competitionCode}, reusing cached`);
-      // Use prevCache data entirely — nothing to merge
-      const prevFinishedCount = prevCache.standingsFinishedCount;
-      this.cache.set(compId, { ...prevCache, fetchedAt: nowMs });
-      console.log(`[FootballDataSource] ${competitionCode}: serving cached data (fetch error)`);
-      void prevFinishedCount; // suppress unused warning
+      this.cache.set(compId, { ...prevCache!, fetchedAt: nowMs });
       return;
     }
 
     const fdMatches = fdMatchesResp.matches;
 
-    // Extract currentMatchday from the first match's season data
+    // Extract currentMatchday from match season metadata
     const currentMatchday = (fdMatches[0] as { season?: { currentMatchday?: number } })?.season?.currentMatchday
       ?? prevCache?.currentMatchday;
 
-    // Normalize matches.
-    // If we have fresh teams from the API, use the full normalizeIngestion pipeline.
-    // If teams are from cache (TTL not expired), build the team ID map from the cached
-    // canonical teams and call mapMatch directly — no need for raw FDTeamResponse.
+    // Normalize matches
     let normalizedMatches: Match[];
     let normalizedTeams: Team[];
-    let normalizedSeasonId: string | undefined;
     const skippedIds: string[] = [];
 
     if (fdTeams && fdComp) {
-      // Full normalization path: fresh comp + fresh teams from API
+      // Full normalization: fresh comp + fresh teams from API
       const result = normalizeIngestion(fdComp, fdTeams.teams, fdMatches, nowUtc);
       normalizedMatches = result.matches;
       normalizedTeams = result.teams;
-      normalizedSeasonId = result.season?.seasonId;
       if (result.skippedMatchIds.length > 0) {
         console.warn(`[FootballDataSource] Skipped ${result.skippedMatchIds.length} unresolvable matches`);
       }
       skippedIds.push(...result.skippedMatchIds);
-      // Persist teams to disk for future recovery after rate-limit restarts
       persistTeamsCache(PROVIDER_KEY, competitionCode, normalizedTeams);
     } else {
-      // Incremental / fallback path: teams from in-memory cache or disk fallback
-      // Reconstruct team ID map from canonical teams (providerTeamId → canonicalTeamId)
+      // Incremental / fallback: teams from in-memory or disk cache
       const cachedTeams = prevCache?.teams ?? diskFallbackTeams ?? [];
       const teamIdMap = new Map<string, string>(
         cachedTeams.filter((t) => t.providerTeamId).map((t) => [t.providerTeamId!, t.teamId]),
       );
-      // seasonId: use prevCache if available, otherwise derive from fdComp (disk fallback on first load)
-      const seasId = prevCache?.seasonId
-        ?? (fdComp?.currentSeason ? canonicalSeasonId(PROVIDER_KEY, String(fdComp.currentSeason.id)) : undefined)
-        ?? '';
+      const seasId = resolvedSeasonId || prevCache?.seasonId || '';
       normalizedMatches = [];
       for (const fd of fdMatches) {
         const mId = canonicalMatchId(PROVIDER_KEY, String(fd.id));
@@ -317,14 +323,13 @@ export class FootballDataSource implements DataSource {
           skippedIds.push(String(fd.id));
         }
       }
-      normalizedTeams = cachedTeams; // unchanged
-      normalizedSeasonId = seasId || prevCache?.seasonId;
+      normalizedTeams = cachedTeams;
       if (skippedIds.length > 0) {
         console.warn(`[FootballDataSource] Skipped ${skippedIds.length} unresolvable matches (incremental)`);
       }
     }
 
-    // §15.1 – per-matchday cache flow: check → validate → reuse if valid → otherwise persist
+    // Per-matchday cache flow
     const matchesByMatchday = new Map<number, Match[]>();
     for (const m of normalizedMatches) {
       if (m.matchday === undefined) continue;
@@ -335,35 +340,28 @@ export class FootballDataSource implements DataSource {
 
     const windowMatches: Match[] = [];
     for (const [md, apiMatches] of matchesByMatchday) {
-      const cached = checkMatchdayCache(PROVIDER_KEY, competitionCode, season, md);
-      if (cached.hit) {
-        windowMatches.push(...cached.matches);
-      } else {
-        windowMatches.push(...apiMatches);
-        persistMatchdayCache(PROVIDER_KEY, competitionCode, season, md, apiMatches);
-      }
+      // Always use fresh API data when we just fetched it — never discard live scores.
+      // The cache is only used when we have NO fresh data (API failed, startup from disk).
+      windowMatches.push(...apiMatches);
+      persistMatchdayCache(PROVIDER_KEY, competitionCode, season, md, apiMatches);
     }
     for (const m of normalizedMatches) {
       if (m.matchday === undefined) windowMatches.push(m);
     }
 
-    // Merge window results into existing in-memory map.
-    // Historical matches (outside the window) stay intact from prevCache.
+    // Merge window results into base matches
     let allMatches: Match[];
     if (isFirstLoad) {
       allMatches = windowMatches;
     } else {
-      // Build a map from the existing matches, overwrite with fresh window data
-      const matchMap = new Map<string, Match>(
-        (prevCache?.matches ?? []).map((m) => [m.matchId, m]),
-      );
+      const matchMap = new Map<string, Match>(baseMatches.map((m) => [m.matchId, m]));
       for (const m of windowMatches) {
         matchMap.set(m.matchId, m);
       }
       allMatches = [...matchMap.values()];
     }
 
-    // ── Standings: only re-fetch when finishedCount increases ────────────────
+    // Standings: only re-fetch when finishedCount increases
     const finishedCount = allMatches.filter((m) => m.status === 'FINISHED').length;
     const prevFinishedCount = prevCache?.standingsFinishedCount ?? -1;
 
@@ -373,12 +371,9 @@ export class FootballDataSource implements DataSource {
       console.log(
         `[FootballDataSource] Standings refresh ${competitionCode}: finished ${prevFinishedCount}→${finishedCount}`,
       );
-      // Load disk cache — if fresh enough (1 day) AND we have no major finishedCount change,
-      // we can skip the API call. On major change (new finished matches), always refetch.
       const finishedCountChanged = finishedCount !== prevFinishedCount && prevFinishedCount !== -1;
       const diskStandings = finishedCountChanged ? null : loadStandingsCache(PROVIDER_KEY, competitionCode);
       if (diskStandings && standings.length === 0) {
-        // First load: disk cache is fresh enough, skip API call
         standings = diskStandings;
         console.log(`[FootballDataSource] Standings loaded from disk cache ${competitionCode} (${standings.length} rows, skipping API)`);
       } else {
@@ -387,7 +382,6 @@ export class FootballDataSource implements DataSource {
           fdStandings = await this.apiGet<FDStandingsResponse>(`/competitions/${competitionCode}/standings`);
         } catch (err) {
           console.warn(`[FootballDataSource] Standings API failed for ${competitionCode}:`, (err as Error).message);
-          // API failed: try disk cache as fallback
           const fallback = loadStandingsCache(PROVIDER_KEY, competitionCode);
           if (fallback) {
             standings = fallback;
@@ -427,11 +421,11 @@ export class FootballDataSource implements DataSource {
       matches: allMatches,
       standings,
       standingsFinishedCount: finishedCount,
-      seasonId: normalizedSeasonId ?? prevCache?.seasonId,
+      seasonId: resolvedSeasonId || prevCache?.seasonId,
       season,
       currentMatchday,
       fetchedAt: nowMs,
-      compInfoFetchedAt: fdComp ? nowMs : (prevCache?.compInfoFetchedAt ?? 0),
+      compInfoFetchedAt,
       teamsFetchedAt: fdTeams ? nowMs : (prevCache?.teamsFetchedAt ?? 0),
       fullSeasonFetched: true,
     });
@@ -440,6 +434,52 @@ export class FootballDataSource implements DataSource {
       `[FootballDataSource] Fetched ${competitionCode}: ${allMatches.length} matches total` +
       ` (window=${windowMatches.length}, teams=${fdTeams ? normalizedTeams.length : 'cached'})`,
     );
+  }
+
+  async getMatchGoals(canonicalMatchId: string): Promise<MatchGoalEventDTO[]> {
+    // Extract providerMatchId from "match:football-data:12345"
+    const parts = canonicalMatchId.split(':');
+    if (parts[1] !== PROVIDER_KEY) return [];
+    const providerMatchId = parts[2];
+    if (!providerMatchId) return [];
+
+    // FINISHED matches are immutable — cache indefinitely
+    if (this.goalsCache.has(providerMatchId)) {
+      return this.goalsCache.get(providerMatchId)!;
+    }
+
+    interface FDGoal {
+      minute: number;
+      injuryTime: number | null;
+      type: string;
+      team: { id: number };
+      scorer?: { name: string } | null;
+    }
+    interface FDMatchDetail {
+      homeTeam: { id: number };
+      awayTeam: { id: number };
+      goals: FDGoal[] | null;
+    }
+
+    let detail: FDMatchDetail;
+    try {
+      detail = await this.apiGet<FDMatchDetail>(`/matches/${providerMatchId}`);
+    } catch (err) {
+      console.warn(`[FootballDataSource] getMatchGoals: failed to fetch match ${providerMatchId}:`, err);
+      return [];
+    }
+
+    const goals: MatchGoalEventDTO[] = (detail.goals ?? []).map((g) => ({
+      minute: g.minute,
+      ...(g.injuryTime != null ? { injuryTime: g.injuryTime } : {}),
+      type: g.type === 'OWN_GOAL' ? 'OWN_GOAL' : g.type === 'PENALTY' ? 'PENALTY' : 'GOAL',
+      team: g.team.id === detail.homeTeam.id ? ('HOME' as const) : ('AWAY' as const),
+      ...(g.scorer?.name ? { scorerName: g.scorer.name } : {}),
+    }));
+
+    this.goalsCache.set(providerMatchId, goals);
+    console.log(`[FootballDataSource] getMatchGoals: match ${providerMatchId} → ${goals.length} goals cached`);
+    return goals;
   }
 
   private getCached(compId: string): CachedData | undefined {

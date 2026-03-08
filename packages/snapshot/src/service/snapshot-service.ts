@@ -86,7 +86,10 @@ export class SnapshotService {
         matchday: input.matchday,
       });
 
-      this.store.set(key, snapshot);
+      // Use a short TTL when there's a live match so scores update quickly.
+      const hasLive = snapshot.matchCards?.some((c) => c.status === 'LIVE');
+      const ttlMs = hasLive ? 60_000 : 5 * 60_000;
+      this.store.set(key, snapshot, ttlMs);
       return { snapshot, source: 'fresh' };
     } catch (err) {
       // 3. Stale fallback — serve the expired snapshot with a warning rather than a 503
