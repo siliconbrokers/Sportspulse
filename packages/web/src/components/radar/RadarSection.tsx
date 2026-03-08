@@ -24,6 +24,7 @@ export function RadarSection({ data, loading, onViewMatch }: RadarSectionProps) 
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
   const isTablet = breakpoint === 'tablet';
+  // isTablet used below for layout decision
 
   // Section header
   const header = (
@@ -92,29 +93,30 @@ export function RadarSection({ data, loading, onViewMatch }: RadarSectionProps) 
     data.liveData.map((ld) => [ld.matchId, ld]),
   );
 
-  // Responsive column count: spec §6 — desktop 3, tablet/mobile 1
-  // Tablet (640-1023px) también muestra 1 columna para cubrir phones en landscape y tablets en portrait.
-  const colCount = isMobile || isTablet ? 1 : Math.min(cards.length, 3);
+  const isDesktop = !isMobile && !isTablet;
 
   return (
     <div style={{ marginBottom: 24 }}>
       {header}
-      <div style={{
+      {/* Mobile/tablet: flex column (una tarjeta por fila, garantizado) */}
+      {/* Desktop: grid 3 columnas */}
+      <div style={isDesktop ? {
         display: 'grid',
-        gridTemplateColumns: `repeat(${colCount}, 1fr)`,
-        gap: isMobile ? 12 : 16,
-        width: '100%',
-        boxSizing: 'border-box',
+        gridTemplateColumns: `repeat(${Math.min(cards.length, 3)}, 1fr)`,
+        gap: 16,
+      } : {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
       }}>
         {cards.map((card) => (
-          <div key={card.matchId} style={{ minWidth: 0 }}>
-            <RadarCard
-              card={card}
-              live={liveMap.get(card.matchId) ?? null}
-              matchday={data.index?.matchday}
-              onViewMatch={onViewMatch}
-            />
-          </div>
+          <RadarCard
+            key={card.matchId}
+            card={card}
+            live={liveMap.get(card.matchId) ?? null}
+            matchday={data.index?.matchday}
+            onViewMatch={onViewMatch}
+          />
         ))}
       </div>
     </div>

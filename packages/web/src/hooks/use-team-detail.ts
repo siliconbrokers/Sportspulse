@@ -16,6 +16,7 @@ export function useTeamDetail(
   const [data, setData] = useState<TeamDetailDTO | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trigger, setTrigger] = useState(0);
 
   useEffect(() => {
     if (!teamId || matchday === null) {
@@ -26,7 +27,8 @@ export function useTeamDetail(
     }
 
     let cancelled = false;
-    setLoading(true);
+    // Solo mostrar spinner en el fetch inicial (trigger === 0), no en re-fetches silenciosos
+    if (trigger === 0) setLoading(true);
     setError(null);
 
     const params = new URLSearchParams({
@@ -60,7 +62,20 @@ export function useTeamDetail(
     return () => {
       cancelled = true;
     };
-  }, [competitionId, teamId, matchday, timezone]);
+  }, [competitionId, teamId, matchday, timezone, trigger]);
+
+  // Polling adaptativo: 60s cuando el partido está IN_PROGRESS
+  useEffect(() => {
+    const matchStatus = data?.nextMatch?.matchStatus;
+    if (matchStatus !== 'IN_PROGRESS') return;
+    const interval = setInterval(() => setTrigger((t) => t + 1), 60_000);
+    return () => clearInterval(interval);
+  }, [data?.nextMatch?.matchStatus]);
+
+  // Reset trigger cuando cambia el equipo o la jornada
+  useEffect(() => {
+    setTrigger(0);
+  }, [teamId, matchday]);
 
   return { data, loading, error };
 }
