@@ -159,13 +159,14 @@ export class RadarApiAdapter {
 
 // ── Poisson + Dixon-Coles probability model ───────────────────────────────────
 
-const DECAY_XI    = 0.006;  // exponential decay per day, half-life ≈ 115d
-const MS_PER_DAY  = 86_400_000;
-const MIN_GAMES   = 2;      // minimum games to trust a split (venue or total)
-const MAX_GOALS   = 7;      // scoreline grid up to 7-7
-const DC_RHO      = -0.13;  // Dixon-Coles low-score correlation parameter
+const DECAY_XI       = 0.006;   // exponential decay per day, half-life ≈ 115d
+const MS_PER_DAY     = 86_400_000;
+const MIN_GAMES      = 2;       // minimum games to trust a split (venue or total)
+const MAX_GOALS      = 7;       // scoreline grid up to 7-7
+const DC_RHO         = -0.13;   // Dixon-Coles low-score correlation parameter
+const HOME_ADVANTAGE = 1.15;    // applied to λ_home only when falling back to season totals
 
-interface TeamLambdas { attack: number; defense: number; games: number }
+interface TeamLambdas { attack: number; defense: number; games: number; venueSplit: boolean }
 
 /** Compute time-decay weighted attack/defense rates for a team, optionally filtered by venue. */
 function computeTeamLambdas(
@@ -218,8 +219,8 @@ function resolveTeamLambdas(
   venue: 'HOME' | 'AWAY',
 ): TeamLambdas {
   const venueLambdas = computeTeamLambdas(teamId, matches, buildNowUtc, venue);
-  if (venueLambdas.games >= MIN_GAMES) return venueLambdas;
-  return computeTeamLambdas(teamId, matches, buildNowUtc); // season totals fallback
+  if (venueLambdas.games >= MIN_GAMES) return { ...venueLambdas, venueSplit: true };
+  return { ...computeTeamLambdas(teamId, matches, buildNowUtc), venueSplit: false };
 }
 
 function poissonPmf(lambda: number, k: number): number {
@@ -244,8 +245,11 @@ function computeMatchProbs(
 ): { homeWin: number; draw: number; awayWin: number } | null {
   if (homeLambdas.games < MIN_GAMES || awayLambdas.games < MIN_GAMES) return null;
 
-  const lh = (homeLambdas.attack  + awayLambdas.defense) / 2;
-  const la = (awayLambdas.attack  + homeLambdas.defense) / 2;
+  let lh = (homeLambdas.attack  + awayLambdas.defense) / 2;
+  let la = (awayLambdas.attack  + homeLambdas.defense) / 2;
+  if (!homeLambdas.venueSplit || !awayLambdas.venueSplit) {
+    lh *= HOME_ADVANTAGE;
+  }
 
   let hw = 0, dr = 0, aw = 0;
   for (let h = 0; h <= MAX_GOALS; h++) {

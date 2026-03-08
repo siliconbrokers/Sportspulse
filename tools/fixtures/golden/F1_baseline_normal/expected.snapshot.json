@@ -177,11 +177,11 @@
           "label": "Ganador: FC Barcelona",
           "value": {
             "winner": "AWAY",
-            "probHome": 0.29238715804660353,
-            "probDraw": 0.2916556260348827,
-            "probAway": 0.41595721591851376
+            "probHome": 0.3383075442785222,
+            "probDraw": 0.28321384398332633,
+            "probAway": 0.37847861173815156
           },
-          "confidence": "medium",
+          "confidence": "low",
           "generatedAt": "2026-03-04T11:00:00Z"
         },
         "predictionOutcome": {
@@ -360,11 +360,11 @@
           "label": "Ganador: FC Barcelona",
           "value": {
             "winner": "AWAY",
-            "probHome": 0.29238715804660353,
-            "probDraw": 0.2916556260348827,
-            "probAway": 0.41595721591851376
+            "probHome": 0.3383075442785222,
+            "probDraw": 0.28321384398332633,
+            "probAway": 0.37847861173815156
           },
-          "confidence": "medium",
+          "confidence": "low",
           "generatedAt": "2026-03-04T11:00:00Z"
         },
         "predictionOutcome": {
@@ -543,11 +543,11 @@
           "label": "Ganador: Atletico Madrid",
           "value": {
             "winner": "HOME",
-            "probHome": 0.4379816022408742,
-            "probDraw": 0.33935468022829385,
-            "probAway": 0.22266371753083192
+            "probHome": 0.4901212980762581,
+            "probDraw": 0.314343180480715,
+            "probAway": 0.19553552144302688
           },
-          "confidence": "low",
+          "confidence": "medium",
           "generatedAt": "2026-03-04T11:00:00Z"
         },
         "predictionOutcome": {
@@ -726,11 +726,11 @@
           "label": "Ganador: Atletico Madrid",
           "value": {
             "winner": "HOME",
-            "probHome": 0.4379816022408742,
-            "probDraw": 0.33935468022829385,
-            "probAway": 0.22266371753083192
+            "probHome": 0.4901212980762581,
+            "probDraw": 0.314343180480715,
+            "probAway": 0.19553552144302688
           },
-          "confidence": "low",
+          "confidence": "medium",
           "generatedAt": "2026-03-04T11:00:00Z"
         },
         "predictionOutcome": {

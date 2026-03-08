@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Gestión de Tareas — Regla obligatoria
+
+- **Cada vez que el usuario pide una funcionalidad nueva** (no una corrección de bug), crear automáticamente una tarea con `TaskCreate` ANTES de implementar, con subject descriptivo, description con contexto y criterios de aceptación, y metadata con `tier` y `agent`.
+- Al terminar la implementación, marcar la tarea como `completed` con `TaskUpdate`.
+- Las correcciones de bugs simples no requieren tarea, pero sí las features, mejoras de UX y cambios de comportamiento solicitados explícitamente.
+
+---
+
 ## Git & Deploy — Reglas CRÍTICAS
 
 - **NUNCA hacer `git push` sin que el usuario lo pida explícitamente.** El push despliega a producción automáticamente (Render). Un push no autorizado puede romper el ambiente productivo.

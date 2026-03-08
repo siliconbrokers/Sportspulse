@@ -3,6 +3,7 @@ import type { GoalStatsDTO, PredictionDTO } from '../dto/team-score.js';
 const MIN_GAMES = 3;
 const MAX_GOALS = 7;
 const DC_RHO = -0.13;
+const HOME_ADVANTAGE = 1.15;
 
 /** P(X = k) for Poisson distribution with mean λ */
 function poissonPmf(lambda: number, k: number): number {
@@ -68,8 +69,21 @@ function computeProbs(
 
   const lambdaTeam = (teamVenueGS.lambdaAttack + oppVenueGS.lambdaDefense) / 2;
   const lambdaOpp = (oppVenueGS.lambdaAttack + teamVenueGS.lambdaDefense) / 2;
-  const lambdaHome = isHome ? lambdaTeam : lambdaOpp;
-  const lambdaAway = isHome ? lambdaOpp : lambdaTeam;
+
+  // Detect whether each side used venue-split stats (home advantage already captured)
+  // or fell back to season totals (home advantage must be applied explicitly)
+  const teamUsedVenueSplit = isHome
+    ? !!(teamHomeGS && teamHomeGS.playedGames >= MIN_GAMES)
+    : !!(teamAwayGS && teamAwayGS.playedGames >= MIN_GAMES);
+  const oppUsedVenueSplit = isHome
+    ? !!(oppAwayGS && oppAwayGS.playedGames >= MIN_GAMES)
+    : !!(oppHomeGS && oppHomeGS.playedGames >= MIN_GAMES);
+
+  let lambdaHome = isHome ? lambdaTeam : lambdaOpp;
+  let lambdaAway = isHome ? lambdaOpp : lambdaTeam;
+  if (!teamUsedVenueSplit || !oppUsedVenueSplit) {
+    lambdaHome *= HOME_ADVANTAGE;
+  }
 
   let pHomeWin = 0,
     pDraw = 0,

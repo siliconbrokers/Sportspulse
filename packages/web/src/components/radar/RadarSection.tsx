@@ -88,10 +88,14 @@ export function RadarSection({ data, loading, onViewMatch }: RadarSectionProps) 
     );
   }
 
-  const cards = data.index.cards;
   const liveMap = new Map<string, RadarLiveMatchData>(
     data.liveData.map((ld) => [ld.matchId, ld]),
   );
+  const cards = [...data.index.cards].sort((a, b) => {
+    const ta = liveMap.get(a.matchId)?.startTimeUtc ?? '';
+    const tb = liveMap.get(b.matchId)?.startTimeUtc ?? '';
+    return ta < tb ? -1 : ta > tb ? 1 : 0;
+  });
 
   const isDesktop = !isMobile && !isTablet;
 
