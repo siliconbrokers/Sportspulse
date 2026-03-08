@@ -14,7 +14,7 @@ import type {
   FDMatchResponse,
 } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
-import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, logCache, buildCachePath } from './matchday-cache.js';
+import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, persistStandingsCache, loadStandingsCache, logCache, buildCachePath } from './matchday-cache.js';
 
 interface FDStandingsResponse {
   standings: Array<{
@@ -193,32 +193,37 @@ export class FootballDataSource implements DataSource {
     }
 
     // ── Phase 1B: teams (TTL 7 days) ─────────────────────────────────────────
-    // Resolution priority: in-memory TTL hit → API → disk file cache → in-memory stale
-    const teamsStale = !prevCache || (nowMs - prevCache.teamsFetchedAt) > TEAMS_TTL_MS;
+    // Resolution priority:
+    //   1. In-memory cache within TTL  → skip API
+    //   2. Disk file cache within TTL  → skip API (avoids rate limit on restart)
+    //   3. API call
+    //   4. In-memory stale / disk stale → warn, continue
+    const teamsInMemoryFresh = prevCache && (nowMs - prevCache.teamsFetchedAt) <= TEAMS_TTL_MS;
     let fdTeams: { teams: FDTeamResponse[] } | null = null;
-    // Teams from disk cache used as fallback when API fails on first load
     let diskFallbackTeams: Team[] | null = null;
-    if (teamsStale) {
-      try {
-        fdTeams = await this.apiGet<{ teams: FDTeamResponse[] }>(`/competitions/${competitionCode}/teams`);
-        console.log(`[FootballDataSource] teams fetched ${competitionCode}: ${fdTeams.teams.length}`);
-      } catch (err) {
-        logCache({ event: 'CACHE_API_ERROR', ...logCtxBase });
-        if (!prevCache) {
-          // First load with no in-memory cache: try disk file cache
-          diskFallbackTeams = loadTeamsCache(PROVIDER_KEY, competitionCode);
-          if (diskFallbackTeams) {
-            console.warn(`[FootballDataSource] teams API failed ${competitionCode}, using disk cache (${diskFallbackTeams.length} teams)`);
-          } else {
-            console.warn(`[FootballDataSource] teams API failed ${competitionCode}, no disk cache — aborting`);
+
+    if (teamsInMemoryFresh) {
+      console.log(`[FootballDataSource] teams SKIP ${competitionCode}: within 7-day in-memory TTL`);
+    } else {
+      // Check disk cache first — if fresh, skip API call entirely (saves rate limit budget)
+      const diskTeams = loadTeamsCache(PROVIDER_KEY, competitionCode);
+      if (diskTeams) {
+        diskFallbackTeams = diskTeams;
+        console.log(`[FootballDataSource] teams SKIP ${competitionCode}: loaded from disk cache (${diskTeams.length} teams)`);
+      } else {
+        // Disk stale or absent — must call API
+        try {
+          fdTeams = await this.apiGet<{ teams: FDTeamResponse[] }>(`/competitions/${competitionCode}/teams`);
+          console.log(`[FootballDataSource] teams fetched ${competitionCode}: ${fdTeams.teams.length}`);
+        } catch (err) {
+          logCache({ event: 'CACHE_API_ERROR', ...logCtxBase });
+          if (!prevCache) {
+            console.warn(`[FootballDataSource] teams API failed ${competitionCode}, no fallback — aborting`);
             throw err;
           }
-        } else {
           console.warn(`[FootballDataSource] teams fetch failed for ${competitionCode}, reusing in-memory cached`);
         }
       }
-    } else {
-      console.log(`[FootballDataSource] teams SKIP ${competitionCode}: within 7-day TTL`);
     }
 
     // We need at least competition metadata to derive season string.
@@ -363,28 +368,54 @@ export class FootballDataSource implements DataSource {
     const prevFinishedCount = prevCache?.standingsFinishedCount ?? -1;
 
     let standings: StandingEntry[] = prevCache?.standings ?? [];
-    if (finishedCount !== prevFinishedCount || standings.length === 0) {
+    const standingsNeedRefresh = finishedCount !== prevFinishedCount || standings.length === 0;
+    if (standingsNeedRefresh) {
       console.log(
         `[FootballDataSource] Standings refresh ${competitionCode}: finished ${prevFinishedCount}→${finishedCount}`,
       );
-      const fdStandings = await this.apiGet<FDStandingsResponse>(
-        `/competitions/${competitionCode}/standings`,
-      ).catch(() => null);
-      const totalTable = fdStandings?.standings?.find((s) => s.type === 'TOTAL');
-      standings = (totalTable?.table ?? []).map((row) => ({
-        position: row.position,
-        teamId: canonicalTeamId(PROVIDER_KEY, String(row.team.id)),
-        teamName: row.team.name,
-        crestUrl: row.team.crest || undefined,
-        playedGames: row.playedGames,
-        won: row.won,
-        draw: row.draw,
-        lost: row.lost,
-        goalsFor: row.goalsFor,
-        goalsAgainst: row.goalsAgainst,
-        goalDifference: row.goalDifference,
-        points: row.points,
-      }));
+      // Load disk cache — if fresh enough (1 day) AND we have no major finishedCount change,
+      // we can skip the API call. On major change (new finished matches), always refetch.
+      const finishedCountChanged = finishedCount !== prevFinishedCount && prevFinishedCount !== -1;
+      const diskStandings = finishedCountChanged ? null : loadStandingsCache(PROVIDER_KEY, competitionCode);
+      if (diskStandings && standings.length === 0) {
+        // First load: disk cache is fresh enough, skip API call
+        standings = diskStandings;
+        console.log(`[FootballDataSource] Standings loaded from disk cache ${competitionCode} (${standings.length} rows, skipping API)`);
+      } else {
+        let fdStandings: FDStandingsResponse | null = null;
+        try {
+          fdStandings = await this.apiGet<FDStandingsResponse>(`/competitions/${competitionCode}/standings`);
+        } catch (err) {
+          console.warn(`[FootballDataSource] Standings API failed for ${competitionCode}:`, (err as Error).message);
+          // API failed: try disk cache as fallback
+          const fallback = loadStandingsCache(PROVIDER_KEY, competitionCode);
+          if (fallback) {
+            standings = fallback;
+            console.warn(`[FootballDataSource] Standings loaded from disk fallback ${competitionCode} (${standings.length} rows)`);
+          }
+        }
+        if (fdStandings) {
+          const totalTable = fdStandings.standings?.find((s) => s.type === 'TOTAL');
+          const fetched = (totalTable?.table ?? []).map((row) => ({
+            position: row.position,
+            teamId: canonicalTeamId(PROVIDER_KEY, String(row.team.id)),
+            teamName: row.team.name,
+            crestUrl: row.team.crest || undefined,
+            playedGames: row.playedGames,
+            won: row.won,
+            draw: row.draw,
+            lost: row.lost,
+            goalsFor: row.goalsFor,
+            goalsAgainst: row.goalsAgainst,
+            goalDifference: row.goalDifference,
+            points: row.points,
+          }));
+          if (fetched.length > 0) {
+            standings = fetched;
+            persistStandingsCache(PROVIDER_KEY, competitionCode, standings);
+          }
+        }
+      }
     } else {
       console.log(
         `[FootballDataSource] Standings SKIP ${competitionCode}: no new finished matches (${finishedCount})`,

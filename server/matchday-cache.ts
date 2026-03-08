@@ -281,6 +281,41 @@ function teamsFilePath(provider: string, competitionId: string): string {
   return path.join(CACHE_BASE, provider, competitionId, 'teams.json');
 }
 
+// ── Standings file cache ──────────────────────────────────────────────────────
+
+import type { StandingEntry } from '@sportpulse/snapshot';
+
+const STANDINGS_CACHE_TTL_S = 24 * 3600; // 1 day (standings change with matches)
+
+function standingsFilePath(provider: string, competitionId: string): string {
+  return path.join(CACHE_BASE, provider, competitionId, 'standings.json');
+}
+
+export function persistStandingsCache(provider: string, competitionId: string, standings: StandingEntry[]): void {
+  if (standings.length === 0) return; // never persist empty standings
+  const filePath = standingsFilePath(provider, competitionId);
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const tmp = `${filePath}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ retrievedAt: new Date().toISOString(), standings }, null, 0));
+    fs.renameSync(tmp, filePath);
+  } catch {
+    // Non-fatal
+  }
+}
+
+export function loadStandingsCache(provider: string, competitionId: string): StandingEntry[] | null {
+  const filePath = standingsFilePath(provider, competitionId);
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) as { retrievedAt: string; standings: StandingEntry[] };
+    const ageS = (Date.now() - new Date(raw.retrievedAt).getTime()) / 1000;
+    if (ageS > STANDINGS_CACHE_TTL_S) return null; // stale
+    return raw.standings;
+  } catch {
+    return null;
+  }
+}
+
 export function persistTeamsCache(provider: string, competitionId: string, teams: Team[]): void {
   const filePath = teamsFilePath(provider, competitionId);
   try {
