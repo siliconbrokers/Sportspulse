@@ -173,20 +173,22 @@ function PredictionDetailModule({
       {/* Probability bar */}
       {winnerVal && (
         <>
+          {/* Text row: 3 equal columns so percentages never get clipped */}
           <div style={{ display: 'flex', marginBottom: 6 }}>
-            <div style={{ width: `${Math.round(winnerVal.probHome * 100)}%`, textAlign: 'left', overflow: 'hidden' }}>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(winnerVal.probHome)}</div>
+            <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>{pct(winnerVal.probHome)}</div>
               <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeamName}</div>
             </div>
-            <div style={{ width: `${Math.round(winnerVal.probDraw * 100)}%`, textAlign: 'center', overflow: 'hidden', flexShrink: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: '#6b7280' }}>{pct(winnerVal.probDraw)}</div>
+            <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#6b7280' }}>{pct(winnerVal.probDraw)}</div>
               <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
             </div>
-            <div style={{ width: `${Math.round(winnerVal.probAway * 100)}%`, textAlign: 'right', overflow: 'hidden' }}>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(winnerVal.probAway)}</div>
+            <div style={{ flex: 1, textAlign: 'right', minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>{pct(winnerVal.probAway)}</div>
               <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeamName}</div>
             </div>
           </div>
+          {/* Color bar: uses proportional widths */}
           <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden' }}>
             <div style={barStyle(winnerVal.probHome, '#22c55e')} />
             <div style={barStyle(winnerVal.probDraw, '#6b7280')} />

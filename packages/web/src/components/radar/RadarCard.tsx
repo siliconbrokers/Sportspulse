@@ -276,16 +276,17 @@ export function RadarCard({ card, live, matchday, onViewMatch }: RadarCardProps)
           <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
             Pronóstico
           </div>
+          {/* Text row: 3 equal columns so percentages never get clipped */}
           <div style={{ display: 'flex', marginBottom: 5 }}>
-            <div style={{ width: `${Math.round(live.probHomeWin * 100)}%`, textAlign: 'left', overflow: 'hidden' }}>
+            <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>{Math.round(live.probHomeWin * 100)}%</div>
               {!isMobile && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeamName}</div>}
             </div>
-            <div style={{ width: `${Math.round(live.probDraw * 100)}%`, textAlign: 'center', overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>{Math.round(live.probDraw * 100)}%</div>
               {!isMobile && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>Empate</div>}
             </div>
-            <div style={{ width: `${Math.round(live.probAwayWin * 100)}%`, textAlign: 'right', overflow: 'hidden' }}>
+            <div style={{ flex: 1, textAlign: 'right', minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>{Math.round(live.probAwayWin * 100)}%</div>
               {!isMobile && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeamName}</div>}
             </div>
