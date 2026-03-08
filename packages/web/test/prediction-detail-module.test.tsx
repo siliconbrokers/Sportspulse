@@ -87,10 +87,11 @@ describe('PredictionDetailModule — badges por estado', () => {
 });
 
 describe('PredictionDetailModule — resultado final', () => {
-  it('FINISHED + actualResult → muestra resultado', () => {
+  // El score ya se muestra en la cabecera del partido — no se repite en el cuadro de pronóstico.
+  it('FINISHED + actualResult → NO muestra score en el cuadro de pronóstico', () => {
     const outcome: PredictionOutcomeDTO = { status: 'hit', actualResult: { home: 2, away: 1 } };
     render(<DetailPanel detail={makeDetail('FINISHED', basePrediction, outcome)} onClose={() => {}} />);
-    expect(screen.getByTestId('match-estimate').textContent).toContain('2 – 1');
+    expect(screen.getByTestId('match-estimate').textContent).not.toContain('2 – 1');
   });
 
   it('SCHEDULED → no muestra resultado final', () => {
