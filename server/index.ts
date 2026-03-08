@@ -131,9 +131,88 @@ async function main() {
 
   const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService });
 
-  // Periodic refresh every 10 minutes
-  setInterval(async () => {
-    // football-data.org (with rate limit delay between competitions)
+  // ── Smart scheduler ────────────────────────────────────────────────────────
+  // Refresh interval adapts to match state. Only polls when data can change.
+  //
+  // State machine (evaluated after every refresh):
+  //   LIVE            any IN_PROGRESS match             → 2 min
+  //   EXPECTED_LIVE   kickoff passed, not FINISHED yet:
+  //     < 100 min       normal match window             → 2 min
+  //     100–135 min     stoppage time / late end        → 5 min
+  //     135–200 min     VAR, injury, serious delay      → 10 min
+  //     200–380 min     likely suspended mid-game       → 30 min
+  //     > 380 min       pending official resolution     → 12 h
+  //   POST_MATCH      all FINISHED, kickoff < 150 min   → 10 min (score confirmation)
+  //   IDLE            no active match, next known       → sleep until kickoff − 30 min (max 12 h)
+  //   NO_MATCHES      no future matches in dataset      → 24 h
+
+  const MIN_MS = 60_000;
+  const HR_MS  = 60 * MIN_MS;
+
+  interface MatchSnapshot { status: string; startTimeUtc: string | null }
+
+  function computeRefreshDelayMs(matches: readonly MatchSnapshot[], nowMs: number): number {
+    // 1. API-confirmed live match
+    if (matches.some((m) => m.status === 'IN_PROGRESS')) return 2 * MIN_MS;
+
+    // 2. Kickoff has passed but match not yet finished (might be live with API lag,
+    //    in extra time, suspended, or heavily delayed)
+    const pastNotDone = matches.filter(
+      (m) => m.status !== 'FINISHED' && m.startTimeUtc &&
+             new Date(m.startTimeUtc).getTime() < nowMs,
+    );
+    if (pastNotDone.length > 0) {
+      const maxAgeMin = Math.max(
+        ...pastNotDone.map((m) => (nowMs - new Date(m.startTimeUtc!).getTime()) / MIN_MS),
+      );
+      if (maxAgeMin < 100) return 2  * MIN_MS;
+      if (maxAgeMin < 135) return 5  * MIN_MS;
+      if (maxAgeMin < 200) return 10 * MIN_MS;
+      if (maxAgeMin < 380) return 30 * MIN_MS;
+      return 12 * HR_MS; // suspended, pending official resolution
+    }
+
+    // 3. Post-match grace: at least one FINISHED match whose kickoff was < 150 min ago.
+    //    Gives time for the API to publish late score corrections.
+    const inGrace = matches.some(
+      (m) => m.status === 'FINISHED' && m.startTimeUtc &&
+             nowMs < new Date(m.startTimeUtc).getTime() + 150 * MIN_MS,
+    );
+    if (inGrace) return 10 * MIN_MS;
+
+    // 4. Sleep until 30 min before the next scheduled kickoff
+    const nextKickoffMs = matches
+      .filter((m) => m.status !== 'FINISHED' && m.startTimeUtc &&
+                     new Date(m.startTimeUtc).getTime() > nowMs)
+      .map((m) => new Date(m.startTimeUtc!).getTime())
+      .sort((a, b) => a - b)[0];
+    if (nextKickoffMs !== undefined) {
+      const delay = Math.max(nextKickoffMs - nowMs - 30 * MIN_MS, 5 * MIN_MS);
+      return Math.min(delay, 12 * HR_MS); // cap at 12 h in case of data anomaly
+    }
+
+    // 5. No future matches in dataset — re-check once per day for fixture updates
+    return 24 * HR_MS;
+  }
+
+  function getAllMatchSnapshots(): MatchSnapshot[] {
+    const all: MatchSnapshot[] = [];
+    for (const code of COMPETITION_CODES) {
+      const seasonId = dataSource.getSeasonId(`comp:football-data:${code}`);
+      if (seasonId) all.push(...dataSource.getMatches(seasonId));
+    }
+    const uySeasonId = dataSource.getSeasonId(UY_COMPETITION_ID);
+    if (uySeasonId) all.push(...dataSource.getMatches(uySeasonId));
+    return all;
+  }
+
+  function fmtDelay(ms: number): string {
+    if (ms < MIN_MS)  return `${Math.round(ms / 1000)}s`;
+    if (ms < HR_MS)   return `${Math.round(ms / MIN_MS)}min`;
+    return `${(ms / HR_MS).toFixed(1)}h`;
+  }
+
+  async function runRefresh(): Promise<void> {
     for (let i = 0; i < COMPETITION_CODES.length; i++) {
       const code = COMPETITION_CODES[i];
       try {
@@ -142,16 +221,35 @@ async function main() {
         console.error(`Refresh failed for ${code}:`, err);
       }
       if (i < COMPETITION_CODES.length - 1) {
-        await new Promise((r) => setTimeout(r, 7000));
+        await new Promise<void>((r) => setTimeout(r, 7000));
       }
     }
-    // TheSportsDB — Liga Uruguaya
     try {
       await sportsDbSource.fetchSeason();
     } catch (err) {
-      console.error(`Refresh failed for Liga Uruguaya:`, err);
+      console.error('Refresh failed for Liga Uruguaya:', err);
     }
-  }, 5 * 60 * 1000);
+  }
+
+  function scheduleNextRefresh(): void {
+    const matches = getAllMatchSnapshots();
+    const delayMs = computeRefreshDelayMs(matches, Date.now());
+    const live     = matches.filter((m) => m.status === 'IN_PROGRESS').length;
+    const pending  = matches.filter(
+      (m) => m.status !== 'FINISHED' && m.startTimeUtc &&
+             new Date(m.startTimeUtc).getTime() < Date.now(),
+    ).length;
+    console.log(
+      `[Scheduler] Next refresh in ${fmtDelay(delayMs)}` +
+      ` (live=${live}, pending=${pending})`,
+    );
+    setTimeout(async () => {
+      await runRefresh();
+      scheduleNextRefresh();
+    }, delayMs);
+  }
+
+  scheduleNextRefresh();
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`SportsPulse API running at http://localhost:${PORT}`);
