@@ -121,20 +121,18 @@ export class RadarApiAdapter {
       const homeTeam = teamMap.get(match.homeTeamId);
       const awayTeam = teamMap.get(match.awayTeamId);
 
-      // Compute Poisson+DC probabilities for scheduled matches
+      // Compute Poisson+DC probabilities for all match states
       let probHomeWin: number | undefined;
       let probDraw:    number | undefined;
       let probAwayWin: number | undefined;
 
-      if (match.status === EventStatus.SCHEDULED) {
-        const homeLambdas = resolveTeamLambdas(match.homeTeamId, matches, buildNowUtc, 'HOME');
-        const awayLambdas = resolveTeamLambdas(match.awayTeamId, matches, buildNowUtc, 'AWAY');
-        const probs = computeMatchProbs(homeLambdas, awayLambdas);
-        if (probs) {
-          probHomeWin = probs.homeWin;
-          probDraw    = probs.draw;
-          probAwayWin = probs.awayWin;
-        }
+      const homeLambdas = resolveTeamLambdas(match.homeTeamId, matches, buildNowUtc, 'HOME');
+      const awayLambdas = resolveTeamLambdas(match.awayTeamId, matches, buildNowUtc, 'AWAY');
+      const probs = computeMatchProbs(homeLambdas, awayLambdas);
+      if (probs) {
+        probHomeWin = probs.homeWin;
+        probDraw    = probs.draw;
+        probAwayWin = probs.awayWin;
       }
 
       liveData.push({

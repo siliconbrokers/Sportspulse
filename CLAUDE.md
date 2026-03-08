@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git & Deploy — Reglas CRÍTICAS
+
+- **NUNCA hacer `git push` sin que el usuario lo pida explícitamente.** El push despliega a producción automáticamente (Render). Un push no autorizado puede romper el ambiente productivo.
+- Solo hacer commit cuando el usuario lo pida. Solo hacer push cuando el usuario lo pida. Son dos pasos separados que requieren confirmación explícita cada uno.
+- Al terminar una tarea: hacer commit local si el usuario lo pidió, pero **detenerse ahí**. Informar al usuario y esperar instrucción de push.
+
+---
+
 ## Dev Server & Build — Reglas obligatorias
 
 - Después de cualquier cambio de backend (`packages/snapshot`, `packages/api`, `packages/scoring`, etc.) **siempre** correr `pnpm build` y luego reiniciar el dev server automáticamente — sin pedirle al usuario que lo haga.

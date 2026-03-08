@@ -139,7 +139,7 @@ export function EventsSection({ feed, loading, error }: EventsSectionProps) {
         <div style={{ marginTop: 14 }}>
           {uruguayEvents.length === 0 ? (
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', margin: 0, paddingLeft: 13 }}>
-              No hay partidos uruguayos disponibles hoy.
+              No hay partidos disponibles.
             </p>
           ) : (
             <div style={{

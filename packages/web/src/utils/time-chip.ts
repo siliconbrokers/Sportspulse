@@ -8,6 +8,25 @@ export interface LiveTimeChip {
   level: 'HOT' | 'OK' | 'INFO' | 'WARN' | 'UNKNOWN';
 }
 
+const TZ = 'America/Montevideo';
+
+function fmtTime(utc: string): string {
+  return new Intl.DateTimeFormat('es-UY', {
+    timeZone: TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(utc));
+}
+
+function fmtDate(utc: string): string {
+  return new Intl.DateTimeFormat('es-UY', {
+    timeZone: TZ,
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+  }).format(new Date(utc));
+}
+
 export function computeLiveTimeChip(
   status: string | undefined,
   kickoffUtc: string | undefined,
@@ -16,7 +35,8 @@ export function computeLiveTimeChip(
     return { icon: '🔴', label: 'En juego', level: 'HOT' };
   }
   if (status === 'FINISHED') {
-    return { icon: '✅', label: 'Finalizado', level: 'INFO' };
+    const dateStr = kickoffUtc ? ` · ${fmtDate(kickoffUtc)}` : '';
+    return { icon: '✅', label: `Finalizado${dateStr}`, level: 'INFO' };
   }
   if (!kickoffUtc) {
     return { icon: '⚠️', label: 'Sin fecha', level: 'UNKNOWN' };
@@ -26,28 +46,24 @@ export function computeLiveTimeChip(
   const kickoffMs = new Date(kickoffUtc).getTime();
   const diffMs = kickoffMs - nowMs;
   const hours = diffMs / (1000 * 60 * 60);
+  const time = fmtTime(kickoffUtc);
 
   if (hours <= 0) {
     const minutesPast = -diffMs / (1000 * 60);
     if (minutesPast > 110) {
-      // El partido probablemente terminó pero el backend aún no actualizó el estado.
       return { icon: '🕐', label: 'Resultado pendiente', level: 'INFO' };
     }
-    // Dentro de los 110 minutos: el partido está en juego
     return { icon: '🔴', label: 'En juego', level: 'HOT' };
   }
   if (hours < 1) {
     const mins = Math.ceil(hours * 60);
-    return { icon: '⏳', label: `Hoy · en ${mins} min`, level: 'HOT' };
+    return { icon: '⏳', label: `Hoy · ${time} (en ${mins} min)`, level: 'HOT' };
   }
   if (hours < 24) {
-    return { icon: '⏳', label: `Hoy · en ${Math.ceil(hours)} h`, level: 'HOT' };
+    return { icon: '⏳', label: `Hoy · ${time}`, level: 'HOT' };
   }
   if (hours < 48) {
-    return { icon: '⏳', label: `Mañana · en ${Math.ceil(hours)} h`, level: 'OK' };
+    return { icon: '⏳', label: `Mañana · ${time}`, level: 'OK' };
   }
-  if (hours <= 168) {
-    return { icon: '📅', label: `En ${Math.round(hours / 24)} días`, level: 'INFO' };
-  }
-  return { icon: '🗓️', label: `En ${Math.round(hours / 24)} días`, level: 'INFO' };
+  return { icon: '📅', label: `${fmtDate(kickoffUtc)} · ${time}`, level: 'INFO' };
 }

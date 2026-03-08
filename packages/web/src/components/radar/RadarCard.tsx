@@ -271,7 +271,7 @@ export function RadarCard({ card, live, matchday, onViewMatch }: RadarCardProps)
       )}
 
       {/* 6. Pronóstico Poisson+DC */}
-      {!isPostMatch && live?.probHomeWin !== undefined && live.probDraw !== undefined && live.probAwayWin !== undefined && (
+      {live?.probHomeWin !== undefined && live.probDraw !== undefined && live.probAwayWin !== undefined && (
         <div style={{ padding: '10px 14px 0' }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
             Pronóstico
