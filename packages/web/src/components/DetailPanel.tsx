@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { TeamDetailDTO } from '../types/team-detail.js';
-import type { FormResult } from '../types/snapshot.js';
+import type { FormResult, PredictionDTO, PredictionOutcomeDTO, PredictionOutcomeStatus } from '../types/snapshot.js';
 import { formatDateTime, formatDate } from '../utils/format-date.js';
 import { venueLabel, signalLabel, signalValueLabel } from '../utils/labels.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
@@ -91,107 +91,118 @@ function TeamCrest({ url, name }: { url?: string; name: string }) {
   );
 }
 
-interface MatchProbs {
-  homeWin: number;
-  draw: number;
-  awayWin: number;
-  hasData: boolean;
-}
-
-// ── Poisson + Dixon-Coles model ───────────────────────────────────────────────
-
-/** P(X = k) for Poisson distribution with mean λ */
-function poissonPmf(lambda: number, k: number): number {
-  if (lambda <= 0) return k === 0 ? 1 : 0;
-  let logP = -lambda + k * Math.log(lambda);
-  for (let i = 1; i <= k; i++) logP -= Math.log(i);
-  return Math.exp(logP);
-}
-
-/**
- * Dixon-Coles τ correction factor for low-scoring scorelines.
- * Corrects the systematic under-prediction of 0-0, 1-0, 0-1, 1-1.
- * ρ ≈ -0.13 (empirically validated in the original D-C paper).
- */
-function tau(h: number, a: number, lh: number, la: number, rho: number): number {
-  if (h === 0 && a === 0) return 1 - lh * la * rho;
-  if (h === 0 && a === 1) return 1 + lh * rho;
-  if (h === 1 && a === 0) return 1 + la * rho;
-  if (h === 1 && a === 1) return 1 - rho;
-  return 1;
-}
-
-type GoalStats = { playedGames: number; lambdaAttack: number; lambdaDefense: number };
-
-/**
- * Poisson + Dixon-Coles match probability model.
- *
- * Uses time-decay weighted λ values (pre-computed on backend, ξ=0.006/day).
- * Applies Dixon-Coles τ correction on low-scoring scorelines (0-0, 1-0, 0-1, 1-1).
- *
- * λ_home = (team_venue_lambdaAttack + opp_venue_lambdaDefense) / 2
- * λ_away = (opp_venue_lambdaAttack  + team_venue_lambdaDefense) / 2
- */
-function computeProbs(
-  teamIsHome: boolean,
-  teamHomeGS: GoalStats | undefined,
-  teamAwayGS: GoalStats | undefined,
-  teamGS:     GoalStats | undefined,
-  oppHomeGS:  GoalStats | undefined,
-  oppAwayGS:  GoalStats | undefined,
-  oppGS:      GoalStats | undefined,
-): MatchProbs {
-  const MIN_GAMES = 3;
-  const MAX_GOALS = 7;
-  const DC_RHO    = -0.13; // Dixon-Coles correlation parameter
-
-  // Use venue-specific stats when enough games played, fall back to season totals
-  const teamVenueGS = teamIsHome
-    ? (teamHomeGS && teamHomeGS.playedGames >= MIN_GAMES ? teamHomeGS : teamGS)
-    : (teamAwayGS && teamAwayGS.playedGames >= MIN_GAMES ? teamAwayGS : teamGS);
-
-  const oppVenueGS = teamIsHome
-    ? (oppAwayGS && oppAwayGS.playedGames >= MIN_GAMES ? oppAwayGS : oppGS)
-    : (oppHomeGS && oppHomeGS.playedGames >= MIN_GAMES ? oppHomeGS : oppGS);
-
-  if (!teamVenueGS || teamVenueGS.playedGames < MIN_GAMES ||
-      !oppVenueGS  || oppVenueGS.playedGames  < MIN_GAMES) {
-    return { homeWin: 0, draw: 0, awayWin: 0, hasData: false };
-  }
-
-  // λ = average of team's decay-weighted attack rate and opponent's decay-weighted defense rate
-  const lambdaTeam = (teamVenueGS.lambdaAttack + oppVenueGS.lambdaDefense) / 2;
-  const lambdaOpp  = (oppVenueGS.lambdaAttack  + teamVenueGS.lambdaDefense) / 2;
-
-  const lambdaHome = teamIsHome ? lambdaTeam : lambdaOpp;
-  const lambdaAway = teamIsHome ? lambdaOpp  : lambdaTeam;
-
-  let pHomeWin = 0;
-  let pDraw    = 0;
-  let pAwayWin = 0;
-
-  for (let h = 0; h <= MAX_GOALS; h++) {
-    const ph = poissonPmf(lambdaHome, h);
-    for (let a = 0; a <= MAX_GOALS; a++) {
-      // Dixon-Coles correction on low-scoring scorelines
-      const p = ph * poissonPmf(lambdaAway, a) * tau(h, a, lambdaHome, lambdaAway, DC_RHO);
-      if (h > a) pHomeWin += p;
-      else if (h === a) pDraw += p;
-      else pAwayWin += p;
-    }
-  }
-
-  const total = pHomeWin + pDraw + pAwayWin || 1;
-  return {
-    homeWin: pHomeWin / total,
-    draw:    pDraw    / total,
-    awayWin: pAwayWin / total,
-    hasData: true,
-  };
-}
-
 function pct(v: number): string {
   return `${Math.round(v * 100)}%`;
+}
+
+// ── PredictionDetailModule ────────────────────────────────────────────────────
+
+const OUTCOME_CONFIG: Record<PredictionOutcomeStatus, { label: string; color: string }> = {
+  pending:       { label: 'Pendiente',     color: '#6b7280' },
+  in_progress:   { label: 'En juego',      color: '#f97316' },
+  hit:           { label: 'Acertado',      color: '#22c55e' },
+  miss:          { label: 'Fallado',       color: '#ef4444' },
+  partial:       { label: 'Parcial',       color: '#eab308' },
+  not_evaluable: { label: 'No evaluable',  color: '#4b5563' },
+};
+
+interface PredictionDetailModuleProps {
+  matchStatus: string;
+  prediction: PredictionDTO;
+  predictionOutcome?: PredictionOutcomeDTO | null;
+  homeTeamName: string;
+  awayTeamName: string;
+}
+
+function PredictionDetailModule({
+  matchStatus,
+  prediction,
+  predictionOutcome,
+  homeTeamName,
+  awayTeamName,
+}: PredictionDetailModuleProps) {
+  // Badge config
+  const isInProgress = matchStatus === 'IN_PROGRESS';
+  const isFinished = matchStatus === 'FINISHED';
+  const outcomeStatus = predictionOutcome?.status ?? (isInProgress ? 'in_progress' : 'pending');
+  const badge = OUTCOME_CONFIG[outcomeStatus as PredictionOutcomeStatus] ?? OUTCOME_CONFIG.pending;
+
+  // Probability bar (only for winner type with probs in value)
+  const winnerVal =
+    prediction.type === 'winner' && typeof prediction.value === 'object' && prediction.value !== null
+      ? (prediction.value as { probHome: number; probDraw: number; probAway: number })
+      : null;
+
+  const barStyle = (pctVal: number, color: string): React.CSSProperties => ({
+    height: 6, borderRadius: 3, backgroundColor: color,
+    width: `${Math.round(pctVal * 100)}%`, transition: 'width 0.3s',
+  });
+
+  return (
+    <div data-testid="match-estimate" style={{
+      marginBottom: 16,
+      padding: '12px 16px',
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderRadius: 8,
+    }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Pronóstico
+        </div>
+        <span style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: 0.4,
+          padding: '2px 8px', borderRadius: 4,
+          backgroundColor: `${badge.color}22`,
+          color: badge.color,
+          border: `1px solid ${badge.color}44`,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+        }}>
+          {isInProgress && (
+            <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: badge.color, animation: 'pulse 1.4s infinite', flexShrink: 0 }} />
+          )}
+          {badge.label}
+        </span>
+      </div>
+
+      {/* Prediction label */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginBottom: winnerVal ? 8 : 0 }}>
+        {prediction.label}
+      </div>
+
+      {/* Probability bar */}
+      {winnerVal && (
+        <>
+          <div style={{ display: 'flex', marginBottom: 6 }}>
+            <div style={{ width: `${Math.round(winnerVal.probHome * 100)}%`, textAlign: 'left', overflow: 'hidden' }}>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(winnerVal.probHome)}</div>
+              <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeamName}</div>
+            </div>
+            <div style={{ width: `${Math.round(winnerVal.probDraw * 100)}%`, textAlign: 'center', overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#6b7280' }}>{pct(winnerVal.probDraw)}</div>
+              <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
+            </div>
+            <div style={{ width: `${Math.round(winnerVal.probAway * 100)}%`, textAlign: 'right', overflow: 'hidden' }}>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(winnerVal.probAway)}</div>
+              <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeamName}</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden' }}>
+            <div style={barStyle(winnerVal.probHome, '#22c55e')} />
+            <div style={barStyle(winnerVal.probDraw, '#6b7280')} />
+            <div style={barStyle(winnerVal.probAway, '#ef4444')} />
+          </div>
+        </>
+      )}
+
+      {/* Final result (only FINISHED) */}
+      {isFinished && predictionOutcome?.actualResult && (
+        <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
+          Resultado final: {predictionOutcome.actualResult.home} – {predictionOutcome.actualResult.away}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function DetailPanel({ detail, onClose }: DetailPanelProps) {
@@ -347,51 +358,16 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
             );
           })()}
 
-          {/* 3. Probabilidades Poisson — solo en partidos futuros (oculto si live o finalizado) */}
-          {nm.scoreHome === undefined && !isLive && (() => {
-            const probs = computeProbs(
-              isHome,
-              detail.team.homeGoalStats,
-              detail.team.awayGoalStats,
-              detail.team.goalStats,
-              nm.opponentHomeGoalStats,
-              nm.opponentAwayGoalStats,
-              nm.opponentGoalStats,
-            );
-            if (!probs.hasData) return null;
-            const homeName = isHome ? detail.team.teamName : (nm.opponentName ?? 'Local');
-            const awayName = isHome ? (nm.opponentName ?? 'Visitante') : detail.team.teamName;
-            const barStyle = (pctVal: number, color: string) => ({
-              height: 6, borderRadius: 3, backgroundColor: color,
-              width: `${Math.round(pctVal * 100)}%`, transition: 'width 0.3s',
-            });
-            return (
-              <div data-testid="match-estimate" style={{ marginBottom: 16, padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                  Pronóstico
-                </div>
-                <div style={{ display: 'flex', marginBottom: 8 }}>
-                  <div style={{ width: `${Math.round(probs.homeWin * 100)}%`, textAlign: 'left', overflow: 'hidden' }}>
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.homeWin)}</div>
-                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeName}</div>
-                  </div>
-                  <div style={{ width: `${Math.round(probs.draw * 100)}%`, textAlign: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: '#6b7280' }}>{pct(probs.draw)}</div>
-                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
-                  </div>
-                  <div style={{ width: `${Math.round(probs.awayWin * 100)}%`, textAlign: 'right', overflow: 'hidden' }}>
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>{pct(probs.awayWin)}</div>
-                    <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayName}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={barStyle(probs.homeWin, '#22c55e')} />
-                  <div style={barStyle(probs.draw, '#6b7280')} />
-                  <div style={barStyle(probs.awayWin, '#ef4444')} />
-                </div>
-              </div>
-            );
-          })()}
+          {/* 3. Pronóstico (modo-aware: scheduled/in_progress/finished) */}
+          {nm.prediction && (
+            <PredictionDetailModule
+              matchStatus={nm.matchStatus ?? 'SCHEDULED'}
+              prediction={nm.prediction}
+              predictionOutcome={nm.predictionOutcome}
+              homeTeamName={isHome ? detail.team.teamName : (nm.opponentName ?? 'Local')}
+              awayTeamName={isHome ? (nm.opponentName ?? 'Visitante') : detail.team.teamName}
+            />
+          )}
 
           {/* 4. Forma reciente de ambos */}
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>

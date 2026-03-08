@@ -5,6 +5,37 @@ import type { DisplayHintsDTO } from '../display-hints/display-hints-mapper.js';
 
 export type FormResult = 'W' | 'D' | 'L';
 
+export type PredictionType =
+  | 'winner'
+  | 'double_chance'
+  | 'both_teams_score'
+  | 'over_under'
+  | 'exact_score';
+
+export type PredictionOutcomeStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'hit'
+  | 'miss'
+  | 'partial'
+  | 'not_evaluable';
+
+export interface PredictionDTO {
+  type: PredictionType;
+  /** User-facing label, e.g. "Ganador: Real Madrid" */
+  label: string;
+  /** Structured evaluable value — shape depends on type */
+  value: string | number | Record<string, unknown>;
+  confidence?: 'low' | 'medium' | 'high' | null;
+  generatedAt: string;
+}
+
+export interface PredictionOutcomeDTO {
+  status: PredictionOutcomeStatus;
+  evaluatedAt?: string | null;
+  actualResult?: { home: number | null; away: number | null } | null;
+}
+
 export interface GoalStatsDTO {
   goalsFor: number;
   goalsAgainst: number;
@@ -35,6 +66,8 @@ export interface NextMatchDTO {
   scoreAway?: number | null;
   /** Canonical match status: 'SCHEDULED' | 'IN_PROGRESS' | 'FINISHED' | 'POSTPONED' | 'CANCELED' */
   matchStatus?: string;
+  prediction?: PredictionDTO;
+  predictionOutcome?: PredictionOutcomeDTO;
 }
 
 export interface TeamScoreDTO {

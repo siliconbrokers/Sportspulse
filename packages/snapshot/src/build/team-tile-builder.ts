@@ -7,6 +7,8 @@ import type { PolicyDefinition, ScoringResult } from '@sportpulse/scoring';
 import type { Rect } from '@sportpulse/layout';
 import type { TeamScoreDTO, NextMatchDTO, FormResult, GoalStatsDTO } from '../dto/team-score.js';
 import { WarningCollector } from '../warnings/warning-collector.js';
+import { buildPrediction } from '../project/prediction-builder.js';
+import { evaluatePrediction } from '../project/prediction-evaluator.js';
 
 export interface TeamTileData {
   tile: TeamScoreDTO;
@@ -61,6 +63,31 @@ export function buildTeamTile(
   const homeGoalStats = extractGoalStats(team.teamId, matches, buildNowUtc, 'HOME');
   const awayGoalStats = extractGoalStats(team.teamId, matches, buildNowUtc, 'AWAY');
   const nextMatch = extractNextMatch(team.teamId, allTeams, matches, buildNowUtc, matchday);
+
+  // Build prediction and evaluate outcome
+  if (nextMatch) {
+    const prediction = buildPrediction(
+      nextMatch.venue === 'HOME',
+      team.name,
+      nextMatch.opponentName ?? 'Rival',
+      homeGoalStats,
+      awayGoalStats,
+      goalStats,
+      nextMatch.opponentHomeGoalStats,
+      nextMatch.opponentAwayGoalStats,
+      nextMatch.opponentGoalStats,
+      buildNowUtc,
+    );
+    if (prediction) {
+      nextMatch.prediction = prediction;
+      nextMatch.predictionOutcome = evaluatePrediction(
+        prediction,
+        nextMatch.matchStatus ?? 'SCHEDULED',
+        nextMatch.scoreHome,
+        nextMatch.scoreAway,
+      );
+    }
+  }
 
   return {
     teamId: team.teamId,

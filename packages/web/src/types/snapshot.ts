@@ -42,6 +42,37 @@ export interface WarningDTO {
 
 export type FormResult = 'W' | 'D' | 'L';
 
+// ── Prediction types (mirror de packages/snapshot — no importar directamente) ──
+
+export type PredictionType =
+  | 'winner'
+  | 'double_chance'
+  | 'both_teams_score'
+  | 'over_under'
+  | 'exact_score';
+
+export type PredictionOutcomeStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'hit'
+  | 'miss'
+  | 'partial'
+  | 'not_evaluable';
+
+export interface PredictionDTO {
+  type: PredictionType;
+  label: string;
+  value: string | number | Record<string, unknown>;
+  confidence?: 'low' | 'medium' | 'high' | null;
+  generatedAt: string;
+}
+
+export interface PredictionOutcomeDTO {
+  status: PredictionOutcomeStatus;
+  evaluatedAt?: string | null;
+  actualResult?: { home: number | null; away: number | null } | null;
+}
+
 export interface GoalStatsDTO {
   goalsFor: number;
   goalsAgainst: number;
@@ -69,6 +100,8 @@ export interface NextMatchDTO {
   scoreHome?: number | null;
   scoreAway?: number | null;
   matchStatus?: string;
+  prediction?: PredictionDTO;
+  predictionOutcome?: PredictionOutcomeDTO;
 }
 
 export interface ContributionDTO {

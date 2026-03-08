@@ -1,7 +1,16 @@
 // DTOs
 export { SNAPSHOT_SCHEMA_VERSION } from './dto/snapshot-header.js';
 export type { SnapshotHeaderDTO, WarningDTO } from './dto/snapshot-header.js';
-export type { TeamScoreDTO, NextMatchDTO, FormResult, GoalStatsDTO } from './dto/team-score.js';
+export type {
+  TeamScoreDTO,
+  NextMatchDTO,
+  FormResult,
+  GoalStatsDTO,
+  PredictionDTO,
+  PredictionOutcomeDTO,
+  PredictionType,
+  PredictionOutcomeStatus,
+} from './dto/team-score.js';
 export type { DashboardSnapshotDTO } from './dto/dashboard-snapshot.js';
 
 // Warnings

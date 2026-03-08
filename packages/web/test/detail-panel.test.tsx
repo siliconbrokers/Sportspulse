@@ -50,30 +50,44 @@ describe('DetailPanel', () => {
   });
 
   it('renders match estimate with probabilities when form data available', () => {
+    const basePrediction = {
+      type: 'winner' as const,
+      label: 'Ganador: FC Barcelona',
+      value: { winner: 'HOME' as const, probHome: 0.55, probDraw: 0.25, probAway: 0.20 },
+      confidence: 'high' as const,
+      generatedAt: '2026-03-04T11:00:00Z',
+    };
     const withForm: TeamDetailDTO = {
       ...detail,
       team: {
         ...detail.team,
         recentForm: ['W', 'W', 'W', 'D', 'L'],
-        homeGoalStats: { goalsFor: 20, goalsAgainst: 8, goalDifference: 12, points: 30 },
+        homeGoalStats: { goalsFor: 20, goalsAgainst: 8, goalDifference: 12, points: 30, playedGames: 10, lambdaAttack: 2.0, lambdaDefense: 0.8 },
       },
       nextMatch: {
         ...detail.nextMatch!,
         opponentRecentForm: ['L', 'L', 'D', 'W', 'L'],
-        opponentAwayGoalStats: { goalsFor: 10, goalsAgainst: 15, goalDifference: -5, points: 10 },
+        opponentAwayGoalStats: { goalsFor: 10, goalsAgainst: 15, goalDifference: -5, points: 10, playedGames: 8, lambdaAttack: 1.2, lambdaDefense: 1.9 },
+        prediction: basePrediction,
       },
     };
     render(<DetailPanel detail={withForm} onClose={() => {}} />);
     expect(screen.getByTestId('match-estimate')).toBeInTheDocument();
-    // Stronger team (home pts 30 vs opp away pts 10) + better form → higher win%
     expect(screen.getByText('Empate')).toBeInTheDocument();
   });
 
   it('renders match estimate based on form only when no venue stats', () => {
+    const basePrediction = {
+      type: 'winner' as const,
+      label: 'Ganador: FC Barcelona',
+      value: { winner: 'HOME' as const, probHome: 0.45, probDraw: 0.30, probAway: 0.25 },
+      confidence: 'medium' as const,
+      generatedAt: '2026-03-04T11:00:00Z',
+    };
     const withForm: TeamDetailDTO = {
       ...detail,
       team: { ...detail.team, recentForm: ['W', 'D', 'L', 'W', 'D'] },
-      nextMatch: { ...detail.nextMatch!, venue: 'AWAY', opponentRecentForm: ['D', 'W', 'L', 'D', 'W'] },
+      nextMatch: { ...detail.nextMatch!, venue: 'AWAY', opponentRecentForm: ['D', 'W', 'L', 'D', 'W'], prediction: basePrediction },
     };
     render(<DetailPanel detail={withForm} onClose={() => {}} />);
     expect(screen.getByTestId('match-estimate')).toBeInTheDocument();

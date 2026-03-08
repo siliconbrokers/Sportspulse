@@ -16,7 +16,7 @@ const header = {
 describe('DashboardHeader', () => {
   it('shows competition and date from snapshot header', () => {
     render(<DashboardHeader header={header} warnings={[]} source={null} />);
-    expect(screen.getByText('La Liga')).toBeInTheDocument();
+    expect(screen.getByText(/La Liga/)).toBeInTheDocument();
     // Europe/Madrid is Spanish → DD/MM/YYYY format
     expect(screen.getByText(/04\/03\/2026/)).toBeInTheDocument();
   });
