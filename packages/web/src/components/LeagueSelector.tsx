@@ -4,6 +4,7 @@
  * Mobile: bottom sheet con overlay
  */
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, X } from 'lucide-react';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import { COMPETITION_META, getCompMeta } from '../utils/competition-meta.js';
@@ -226,8 +227,10 @@ export function LeagueSelector({ value, onChange, options }: LeagueSelectorProps
         </div>
       )}
 
-      {/* ── Bottom sheet (mobile) ─────────────────────────────────────────── */}
-      {isMobile && open && (
+      {/* ── Bottom sheet (mobile) — portal a document.body para escapar del
+           stacking context del header (backdrop-filter en iOS Safari crea un
+           nuevo containing block para position:fixed) ─────────────────────── */}
+      {isMobile && open && createPortal(
         <>
           {/* Overlay */}
           <div
@@ -237,7 +240,7 @@ export function LeagueSelector({ value, onChange, options }: LeagueSelectorProps
               inset: 0,
               background: 'rgba(0,0,0,0.6)',
               backdropFilter: 'blur(4px)',
-              zIndex: 200,
+              zIndex: 9998,
               animation: 'fadeIn 0.2s ease',
             }}
           />
@@ -248,7 +251,7 @@ export function LeagueSelector({ value, onChange, options }: LeagueSelectorProps
               left: 0,
               right: 0,
               bottom: 0,
-              zIndex: 201,
+              zIndex: 9999,
               background: 'var(--sp-surface)',
               borderTop: '1px solid var(--sp-border-8)',
               borderRadius: '1.5rem 1.5rem 0 0',
@@ -293,7 +296,8 @@ export function LeagueSelector({ value, onChange, options }: LeagueSelectorProps
               ))}
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );
