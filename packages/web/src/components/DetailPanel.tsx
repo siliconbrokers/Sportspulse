@@ -1089,6 +1089,17 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
     : '';
 
   return (
+    <>
+      {/* Overlay — solo desktop: cierra al hacer click fuera del panel */}
+      {!isMobile && (
+        <div
+          onClick={onClose}
+          style={{
+            position: 'fixed', inset: 0,
+            zIndex: 99,
+          }}
+        />
+      )}
     <aside
       data-testid="detail-panel"
       className="detail-panel"
@@ -1325,5 +1336,6 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
         </section>
       )}
     </aside>
+    </>
   );
 }
