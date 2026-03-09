@@ -1,4 +1,4 @@
-import type { SnapshotService, DataSource } from '@sportpulse/snapshot';
+import type { SnapshotService, DataSource, MatchGoalEventDTO } from '@sportpulse/snapshot';
 
 // Interfaz mínima para el servicio de noticias (evita importar server/ en packages/)
 export interface INewsService {
@@ -129,6 +129,15 @@ export interface IEventosService {
   }>;
 }
 
+export interface IMatchEventsService {
+  getMatchGoals(canonicalMatchId: string): Promise<MatchGoalEventDTO[]>;
+}
+
+export interface ITournamentSource {
+  getGroupView(competitionId: string): unknown | null;
+  getBracketView(competitionId: string): unknown | null;
+}
+
 export interface AppDependencies {
   snapshotService: SnapshotService;
   dataSource: DataSource;
@@ -136,4 +145,6 @@ export interface AppDependencies {
   videoService?: IVideoService;
   radarService?: IRadarService;
   eventosService?: IEventosService;
+  matchEventsService?: IMatchEventsService;
+  tournamentSource?: ITournamentSource;
 }

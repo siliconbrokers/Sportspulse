@@ -12,6 +12,9 @@ import { newsRoute } from './ui/news-route.js';
 import { videosRoute } from './ui/videos-route.js';
 import { radarRoute } from './ui/radar-route.js';
 import { eventosRoute } from './ui/eventos-route.js';
+import { groupStandingsRoute } from './ui/group-standings-route.js';
+import { bracketRoute } from './ui/bracket-route.js';
+import { scorersRoute } from './ui/scorers-route.js';
 import type { AppDependencies } from './ui/types.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -28,6 +31,9 @@ export function buildApp(deps: AppDependencies): FastifyInstance {
   app.register(videosRoute(deps));
   app.register(radarRoute(deps));
   app.register(eventosRoute(deps));
+  app.register(groupStandingsRoute(deps));
+  app.register(bracketRoute(deps));
+  app.register(scorersRoute(deps));
 
   // Servir el frontend React en producción
   const webDist = join(__dirname, '../../web/dist');

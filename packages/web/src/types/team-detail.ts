@@ -5,7 +5,10 @@ import type {
   SignalDTO,
   FormResult,
   GoalStatsDTO,
+  MatchGoalEventDTO,
 } from './snapshot.js';
+
+export type { MatchGoalEventDTO };
 
 export interface TeamDetailDTO {
   header: {

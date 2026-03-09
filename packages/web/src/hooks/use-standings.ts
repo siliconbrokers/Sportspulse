@@ -13,6 +13,10 @@ export interface StandingEntry {
   goalsAgainst: number;
   goalDifference: number;
   points: number;
+  /** Presente en standings de torneos con grupos. Undefined para ligas. */
+  groupId?: string;
+  /** Badge semántico que viene de la API. Solo visual, no es motor de clasificación. */
+  statusBadge?: string | null;
 }
 
 interface UseStandingsResult {

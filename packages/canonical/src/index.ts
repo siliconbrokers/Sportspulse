@@ -1,5 +1,25 @@
-export { Sport, CompetitionFormat, EventStatus, ParticipantRole } from './model/enums.js';
-export type { Competition, Season, Team, Match, MatchParticipant } from './model/entities.js';
+export {
+  Sport,
+  CompetitionFormat,
+  EventStatus,
+  ParticipantRole,
+  FormatFamily,
+  StageType,
+  StandingScope,
+  SlotRole,
+} from './model/enums.js';
+export type {
+  Competition,
+  Season,
+  Team,
+  Match,
+  MatchParticipant,
+  Stage,
+  Group,
+  StandingTable,
+  Tie,
+  TieSlot,
+} from './model/entities.js';
 
 // Lifecycle
 export { classifyStatus } from './lifecycle/classify-status.js';
@@ -23,12 +43,6 @@ export type {
 } from './ingest/football-data-types.js';
 
 // Normalization
-export {
-  canonicalId,
-  competitionId,
-  seasonId,
-  teamId,
-  matchId,
-} from './normalize/canonical-id.js';
+export { canonicalId, competitionId, seasonId, teamId, matchId } from './normalize/canonical-id.js';
 export { normalizeIngestion } from './normalize/normalize-ingestion.js';
 export type { NormalizationResult } from './normalize/normalize-ingestion.js';

@@ -61,18 +61,23 @@ export class VideoService {
     }
 
     // Paso 2 — búsqueda libre para completar slots que el canal no llenó
-    // La frecuencia queda regulada por el TTL de caché (45 min), no por límite diario
+    // Gated by per-league per-day limit (each search.list costs 100 YouTube API units)
     if (highlights.length < MAX_VIDEOS_PER_LEAGUE) {
-      try {
-        const seenIds = new Set(highlights.map((h) => h.videoId));
-        const needed = MAX_VIDEOS_PER_LEAGUE - highlights.length;
-        const searchResults = await this.resolveFromSearch(leagueKey);
-        const additional = searchResults.filter((h) => !seenIds.has(h.videoId)).slice(0, needed);
-        highlights = [...highlights, ...additional];
-        console.log(`[VideoService] ${leagueKey}: search added ${additional.length} → total ${highlights.length}`);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[VideoService] ${leagueKey}: search error — ${msg}`);
+      if (!this.cache.canUseFallback(leagueKey)) {
+        console.log(`[VideoService] ${leagueKey}: search skipped — daily fallback limit reached`);
+      } else {
+        try {
+          const seenIds = new Set(highlights.map((h) => h.videoId));
+          const needed = MAX_VIDEOS_PER_LEAGUE - highlights.length;
+          const searchResults = await this.resolveFromSearch(leagueKey);
+          const additional = searchResults.filter((h) => !seenIds.has(h.videoId)).slice(0, needed);
+          highlights = [...highlights, ...additional];
+          console.log(`[VideoService] ${leagueKey}: search added ${additional.length} → total ${highlights.length}`);
+          this.cache.markFallbackUsed(leagueKey);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[VideoService] ${leagueKey}: search error — ${msg}`);
+        }
       }
     }
 

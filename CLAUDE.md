@@ -307,7 +307,13 @@ shared → canonical → signals → scoring → layout → snapshot → api →
 
 **Todo código nuevo o modificado en `packages/web` debe ser responsive y funcionar correctamente en mobile.**
 
-Reglas obligatorias para cualquier tarea de frontend:
+### Principio rector: Mobile-First con Tailwind CSS
+
+- **Diseño Mobile-First siempre:** construir primero para pantallas pequeñas y escalar hacia desktop. Nunca al revés.
+- **Usar Tailwind CSS** para estilos de layout, spacing, tipografía y colores. Solo usar `style={{}}` inline cuando el valor sea dinámico (calculado en runtime, como gradientes con colores de datos).
+- **Tablas y grids manejables en mobile:** toda tabla (`<table>`) debe tener `overflow-x: auto` en su contenedor, ocultar columnas secundarias en mobile, y nunca causar scroll horizontal en la página. Todo grid debe usar `auto-fill` / `minmax()` o columnas explícitas adaptadas por breakpoint.
+
+### Reglas obligatorias para cualquier tarea de frontend:
 
 - Usar `useWindowWidth()` (hook disponible en `packages/web/src/hooks/use-window-width.ts`) para detectar breakpoint (`'mobile'` | `'desktop'`).
 - Ningún componente nuevo puede ignorar el caso `isMobile = breakpoint === 'mobile'`.

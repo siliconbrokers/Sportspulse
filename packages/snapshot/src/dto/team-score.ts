@@ -2,6 +2,7 @@ import type { Rect } from '@sportpulse/layout';
 import type { ContributionDTO } from '@sportpulse/scoring';
 import type { SignalDTO } from '@sportpulse/signals';
 import type { DisplayHintsDTO } from '../display-hints/display-hints-mapper.js';
+import type { MatchGoalEventDTO } from '../data/data-source.js';
 
 export type FormResult = 'W' | 'D' | 'L';
 
@@ -68,6 +69,8 @@ export interface NextMatchDTO {
   matchStatus?: string;
   prediction?: PredictionDTO;
   predictionOutcome?: PredictionOutcomeDTO;
+  /** Goals scored in this match — populated only for FINISHED matches. */
+  events?: MatchGoalEventDTO[];
 }
 
 export interface TeamScoreDTO {

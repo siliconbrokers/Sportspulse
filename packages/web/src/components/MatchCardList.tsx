@@ -1,7 +1,320 @@
-import { useState } from 'react';
+/**
+ * MatchCardList v2 — vista Partidos de la Jornada, Mobile-First
+ * Design System Premium: bento cards compactas, date pills, live neon
+ */
+import { useState, useMemo } from 'react';
 import type { MatchCardDTO } from '../types/snapshot.js';
 import { computeLiveTimeChip } from '../utils/time-chip.js';
 import './match-map.css';
+
+// ─── Utilidades de fecha ──────────────────────────────────────────────────────
+
+function toDateKey(utcStr: string): string {
+  return new Date(utcStr).toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+}
+
+function formatDatePill(dateKey: string): string {
+  const now = new Date();
+  const today = now.toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+  const yesterday = new Date(now.getTime() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+  const tomorrow = new Date(now.getTime() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+  if (dateKey === today) return 'Hoy';
+  if (dateKey === tomorrow) return 'Mañana';
+  if (dateKey === yesterday) return 'Ayer';
+  // e.g. "sáb. 14 mar."
+  const d = new Date(dateKey + 'T12:00:00');
+  return d.toLocaleDateString('es-UY', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function isEffLive(card: MatchCardDTO): boolean {
+  if (card.status === 'LIVE') return true;
+  if (card.status !== 'SCHEDULED' || !card.kickoffUtc) return false;
+  const mins = (Date.now() - new Date(card.kickoffUtc).getTime()) / 60000;
+  return mins >= 0 && mins <= 110;
+}
+
+// ─── Chip de forma ────────────────────────────────────────────────────────────
+
+function chipColors(level: string): [string, string] {
+  const map: Record<string, [string, string]> = {
+    HOT:     ['rgba(239,68,68,0.2)',   '#f87171'],
+    OK:      ['rgba(34,197,94,0.18)',  '#4ade80'],
+    WARN:    ['rgba(249,115,22,0.18)', '#fb923c'],
+    INFO:    ['rgba(255,255,255,0.07)','var(--sp-text-55)'],
+    UNKNOWN: ['rgba(255,255,255,0.05)','var(--sp-text-35)'],
+    ERROR:   ['rgba(239,68,68,0.12)',  '#f87171'],
+  };
+  return map[level] ?? map.INFO;
+}
+
+function FormChip({ icon, label, level }: { icon: string; label: string; level: string }) {
+  const [bg, color] = chipColors(level);
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 3,
+        fontSize: 10,
+        fontWeight: 600,
+        padding: '2px 6px',
+        borderRadius: 5,
+        background: bg,
+        color,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+      }}
+    >
+      {icon} {label}
+    </span>
+  );
+}
+
+// ─── Escudo con fallback ──────────────────────────────────────────────────────
+
+function Crest({ src, alt, size = 32 }: { src?: string; alt: string; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.07)',
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      width={size}
+      height={size}
+      onError={() => setFailed(true)}
+      style={{ objectFit: 'contain', flexShrink: 0 }}
+    />
+  );
+}
+
+// ─── Tarjeta compacta de partido ──────────────────────────────────────────────
+// Layout: cada equipo en su propia fila → nombre tiene espacio completo en mobile
+
+interface CardProps {
+  card: MatchCardDTO;
+  onSelectTeam?: (teamId: string) => void;
+  focusedTeamId?: string | null;
+  showForm: boolean;
+}
+
+function TeamRow({
+  card,
+  side,
+  showScore,
+  showDash,
+  live,
+  showForm,
+  isFocus,
+  isDimmed,
+  onSelect,
+}: {
+  card: MatchCardDTO;
+  side: 'home' | 'away';
+  showScore: boolean;
+  showDash: boolean;
+  live: boolean;
+  showForm: boolean;
+  isFocus: boolean;
+  isDimmed: boolean;
+  onSelect?: () => void;
+}) {
+  const team = side === 'home' ? card.home : card.away;
+  const score = side === 'home' ? card.scoreHome : card.scoreAway;
+  const displayName = team.shortName && team.shortName.length < team.name.length - 5
+    ? team.shortName : team.name;
+
+  return (
+    <div
+      onClick={onSelect}
+      className="flex items-center gap-2 w-full"
+      style={{
+        opacity: isDimmed ? 0.4 : 1,
+        transition: 'opacity 0.15s',
+        cursor: onSelect ? 'pointer' : 'default',
+        minWidth: 0,
+      }}
+    >
+      <Crest src={team.crestUrl} alt={team.name} size={28} />
+      <span
+        className="flex-1 text-sm font-semibold truncate"
+        style={{ color: isFocus ? 'var(--sp-primary)' : 'var(--sp-text-88)', minWidth: 0 }}
+      >
+        {displayName}
+      </span>
+      {showForm && card.status !== 'FINISHED' && team.formChip && (
+        <FormChip icon={team.formChip.icon} label={team.formChip.label} level={team.formChip.level} />
+      )}
+      {/* Score por equipo */}
+      <div className="flex-shrink-0 text-right" style={{ minWidth: 24 }}>
+        {showScore ? (
+          <span
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: live ? 'var(--sp-primary)' : 'var(--sp-text-88)',
+              textShadow: live ? '0 0 10px var(--sp-primary-40)' : 'none',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {score ?? '-'}
+          </span>
+        ) : showDash ? (
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'rgba(251,146,60,0.75)' }}>-</span>
+        ) : (
+          <span style={{ fontSize: 11, color: 'var(--sp-text-20)' }}>—</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
+  const [hovered, setHovered] = useState(false);
+  const live = isEffLive(card);
+  const tc = computeLiveTimeChip(card.status, card.kickoffUtc);
+  const isLiveIcon = tc.icon === '🔴';
+
+  const homeIsFocus = focusedTeamId === card.home.teamId;
+  const awayIsFocus = focusedTeamId === card.away.teamId;
+  const hasFocus = homeIsFocus || awayIsFocus;
+
+  const showScore = (card.status === 'FINISHED' || live) && card.scoreHome != null && card.scoreAway != null;
+  const showDash  = live && (card.scoreHome == null || card.scoreAway == null);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderRadius: '1rem',
+        border: live
+          ? '1.5px solid var(--sp-primary-40)'
+          : hovered
+            ? '1px solid var(--sp-border-8)'
+            : '1px solid var(--sp-border-5)',
+        background: live
+          ? 'var(--sp-primary-04)'
+          : hovered
+            ? 'var(--sp-surface)'
+            : 'var(--sp-surface-alpha)',
+        boxShadow: live ? '0 0 20px var(--sp-primary-10)' : 'none',
+        padding: '12px 14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        transition: 'border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease',
+      }}
+    >
+      {/* Badge de estado */}
+      <div className="flex items-center gap-2">
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            padding: '2px 8px',
+            borderRadius: 20,
+            background: live
+              ? 'var(--sp-primary-10)'
+              : 'rgba(255,255,255,0.05)',
+            color: live ? 'var(--sp-primary)' : 'var(--sp-text-35)',
+            border: live ? '1px solid var(--sp-primary-22)' : '1px solid transparent',
+          }}
+        >
+          {isLiveIcon
+            ? <span className="live-icon-pulse" style={{ fontSize: 8 }}>●</span>
+            : tc.icon}{' '}
+          {tc.label}
+        </span>
+      </div>
+
+      {/* Divisor */}
+      <div style={{ height: 1, background: 'var(--sp-border-4)' }} />
+
+      {/* Fila Local */}
+      <TeamRow
+        card={card} side="home"
+        showScore={showScore} showDash={showDash} live={live} showForm={showForm}
+        isFocus={homeIsFocus} isDimmed={hasFocus && !homeIsFocus}
+        onSelect={onSelectTeam ? () => onSelectTeam(card.home.teamId) : undefined}
+      />
+
+      {/* Separador visual entre equipos */}
+      <div style={{ height: 1, background: 'var(--sp-border-4)' }} />
+
+      {/* Fila Visitante */}
+      <TeamRow
+        card={card} side="away"
+        showScore={showScore} showDash={showDash} live={live} showForm={showForm}
+        isFocus={awayIsFocus} isDimmed={hasFocus && !awayIsFocus}
+        onSelect={onSelectTeam ? () => onSelectTeam(card.away.teamId) : undefined}
+      />
+    </div>
+  );
+}
+
+// ─── Date pill selector ───────────────────────────────────────────────────────
+
+function DatePills({
+  dates,
+  selected,
+  onChange,
+}: {
+  dates: string[];
+  selected: string | 'all';
+  onChange: (d: string | 'all') => void;
+}) {
+  if (dates.length < 2) return null;
+
+  return (
+    <div
+      className="flex gap-2 overflow-x-auto pb-1"
+      style={{ scrollbarWidth: 'none' }}
+    >
+      {dates.map((d) => {
+        const active = selected === d;
+        return (
+          <button
+            key={d}
+            onClick={() => onChange(d)}
+            className="flex-shrink-0 text-xs font-semibold px-4 rounded-xl transition-all"
+            style={{
+              minHeight: 36,
+              border: active
+                ? '1px solid var(--sp-primary-40)'
+                : '1px solid var(--sp-border-8)',
+              background: active
+                ? 'var(--sp-primary-12)'
+                : 'var(--sp-surface-alpha)',
+              color: active ? 'var(--sp-primary)' : 'var(--sp-text-55)',
+              letterSpacing: active ? '0.01em' : undefined,
+              textShadow: active ? '0 0 10px var(--sp-primary-40)' : 'none',
+            }}
+          >
+            {formatDatePill(d)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 
 interface MatchCardListProps {
   matchCards: MatchCardDTO[];
@@ -10,246 +323,74 @@ interface MatchCardListProps {
   showForm?: boolean;
 }
 
-function chipStyle(level: string): React.CSSProperties {
-  const colors: Record<string, string> = {
-    HOT: 'rgba(239,68,68,0.25)',
-    OK: 'rgba(34,197,94,0.2)',
-    WARN: 'rgba(249,115,22,0.2)',
-    INFO: 'rgba(255,255,255,0.08)',
-    UNKNOWN: 'rgba(255,255,255,0.06)',
-    ERROR: 'rgba(239,68,68,0.15)',
-  };
-  return {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 3,
-    fontSize: 11,
-    padding: '2px 7px',
-    borderRadius: 5,
-    backgroundColor: colors[level] ?? colors.INFO,
-    color: 'rgba(255,255,255,0.85)',
-    whiteSpace: 'nowrap' as const,
-    flexShrink: 0,
-  };
-}
-
-function TeamSide({
-  name,
-  shortName,
-  crestUrl,
-  formChip,
-  align,
-}: {
-  teamId: string;
-  name: string;
-  shortName?: string;
-  crestUrl?: string;
-  formChip?: MatchCardDTO['home']['formChip'];
-  align: 'left' | 'right';
-}) {
-  const isRight = align === 'right';
-  // Use shortName when meaningfully shorter (more than 5 chars difference)
-  const displayName = shortName && shortName.length < name.length - 5 ? shortName : name;
-  return (
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: isRight ? 'flex-end' : 'flex-start',
-        gap: 5,
-        minWidth: 0,
-        pointerEvents: 'none',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          flexDirection: isRight ? 'row-reverse' : 'row',
-          minWidth: 0,
-          overflow: 'hidden',
-          width: '100%',
-        }}
-      >
-        {crestUrl ? (
-          <img
-            src={crestUrl}
-            alt={name}
-            style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }}
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.08)',
-              flexShrink: 0,
-            }}
-          />
-        )}
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: '#fff',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            minWidth: 0,
-          }}
-        >
-          {displayName}
-        </span>
-      </div>
-      {formChip && (
-        <span style={chipStyle(formChip.level)}>
-          {formChip.icon} {formChip.label}
-        </span>
-      )}
-    </div>
-  );
-}
-
 export function MatchCardList({ matchCards, onSelectTeam, focusedTeamId, showForm = false }: MatchCardListProps) {
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // Extraer fechas únicas de las tarjetas con kickoffUtc
+  const dates = useMemo(() => {
+    const keys = new Set<string>();
+    for (const c of matchCards) {
+      if (c.kickoffUtc) keys.add(toDateKey(c.kickoffUtc));
+    }
+    return Array.from(keys).sort();
+  }, [matchCards]);
+
+  // Seleccionar fecha inicial: hoy si existe, si no la primera
+  const defaultDate = useMemo(() => {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+    return dates.includes(today) ? today : (dates[0] ?? 'all');
+  }, [dates]);
+
+  const [selectedDate, setSelectedDate] = useState<string | 'all'>(defaultDate);
+
+  // Filtrar tarjetas por fecha seleccionada
+  const visible = useMemo(() => {
+    if (selectedDate === 'all' || dates.length < 2) return matchCards;
+    return matchCards.filter(
+      (c) => c.kickoffUtc ? toDateKey(c.kickoffUtc) === selectedDate : false
+    );
+  }, [matchCards, selectedDate, dates]);
 
   if (matchCards.length === 0) {
     return (
       <div
-        style={{
-          color: 'rgba(255,255,255,0.4)',
-          textAlign: 'center',
-          padding: '48px 16px',
-          fontSize: 14,
-        }}
+        className="text-center py-12 text-sm"
+        style={{ color: 'var(--sp-text-35)' }}
       >
-        No hay partidos próximos
+        No hay partidos para esta jornada
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        padding: '16px 16px',
-        maxWidth: 680,
-        margin: '0 auto',
-      }}
-    >
-      {matchCards.map((card) => {
-        const isToday = (() => {
-          if (card.status === 'LIVE' || card.status === 'FINISHED') return false;
-          if (!card.kickoffUtc) return false;
-          const hours = (new Date(card.kickoffUtc).getTime() - Date.now()) / (1000 * 60 * 60);
-          return hours >= 0 && hours < 24;
-        })();
+    <div className="w-full flex flex-col gap-4 px-4 py-4 max-w-3xl mx-auto overflow-x-hidden" style={{ boxSizing: 'border-box' }}>
+      {/* Date pills — solo si hay múltiples fechas */}
+      {dates.length > 1 && (
+        <DatePills
+          dates={dates}
+          selected={selectedDate}
+          onChange={setSelectedDate}
+        />
+      )}
 
-        const isEffectivelyLive = card.status === 'LIVE' || (
-          card.status === 'SCHEDULED' && !!card.kickoffUtc &&
-          (() => {
-            const mins = (Date.now() - new Date(card.kickoffUtc!).getTime()) / 60000;
-            return mins >= 0 && mins <= 110;
-          })()
-        );
-
-        return (
+      {visible.length === 0 ? (
         <div
-          key={card.matchId}
-          className={isToday ? 'mm-tile--today' : undefined}
-          onMouseEnter={() => setHoveredId(card.matchId)}
-          onMouseLeave={() => setHoveredId(null)}
-          onClick={onSelectTeam ? (e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const teamId = (e.clientX - rect.left) < rect.width / 2
-              ? card.home.teamId
-              : card.away.teamId;
-            onSelectTeam(teamId);
-          } : undefined}
-          style={{
-            backgroundColor: hoveredId === card.matchId
-              ? 'rgba(255,255,255,0.09)'
-              : 'rgba(255,255,255,0.05)',
-            border: hoveredId === card.matchId
-              ? '1px solid rgba(255,255,255,0.2)'
-              : '1px solid rgba(255,255,255,0.09)',
-            borderRadius: 12,
-            padding: '12px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-            cursor: onSelectTeam ? 'pointer' : undefined,
-            transition: 'background-color 0.18s ease, border-color 0.18s ease',
-          }}
+          className="text-center py-8 text-sm rounded-2xl"
+          style={{ color: 'var(--sp-text-35)', background: 'var(--sp-surface-alpha)', border: '1px solid var(--sp-border-5)' }}
         >
-          {/* Time chip — calculado en cliente para no depender del cache del backend */}
-          {(() => {
-            const tc = computeLiveTimeChip(card.status, card.kickoffUtc);
-            const isLiveIcon = tc.icon === '🔴';
-            return (
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <span style={chipStyle(tc.level)}>
-                  {isLiveIcon
-                    ? <span className="live-icon-pulse">{tc.icon}</span>
-                    : tc.icon}{' '}
-                  {tc.label}
-                </span>
-              </div>
-            );
-          })()}
-
-          {/* Teams row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <TeamSide
-              teamId={card.home.teamId}
-              name={card.home.name}
-              shortName={card.home.shortName}
-              crestUrl={card.home.crestUrl}
-              formChip={showForm && card.status !== 'FINISHED' ? card.home.formChip : undefined}
-              align="left"
-            />
-            <div
-              style={{
-                flexShrink: 0,
-                textAlign: 'center',
-                minWidth: 48,
-              }}
-            >
-              {(card.status === 'FINISHED' || isEffectivelyLive) && card.scoreHome != null && card.scoreAway != null ? (
-                <span style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: 2 }}>
-                  {card.scoreHome} - {card.scoreAway}
-                </span>
-              ) : isEffectivelyLive ? (
-                <span style={{ fontSize: 20, fontWeight: 800, color: 'rgba(251,146,60,0.9)', letterSpacing: 3 }}>
-                  - -
-                </span>
-              ) : (
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.35)' }}>
-                  vs
-                </span>
-              )}
-            </div>
-            <TeamSide
-              teamId={card.away.teamId}
-              name={card.away.name}
-              shortName={card.away.shortName}
-              crestUrl={card.away.crestUrl}
-              formChip={showForm && card.status !== 'FINISHED' ? card.away.formChip : undefined}
-              align="right"
-            />
-          </div>
-
+          Sin partidos este día
         </div>
-        );
-      })}
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {visible.map((card) => (
+            <MatchCard
+              key={card.matchId}
+              card={card}
+              onSelectTeam={onSelectTeam}
+              focusedTeamId={focusedTeamId}
+              showForm={showForm}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

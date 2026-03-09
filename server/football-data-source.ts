@@ -13,7 +13,7 @@ import type {
   FDTeamResponse,
   FDMatchResponse,
 } from '@sportpulse/canonical';
-import type { DataSource, StandingEntry, MatchGoalEventDTO } from '@sportpulse/snapshot';
+import type { DataSource, StandingEntry, MatchGoalEventDTO, TopScorerEntry } from '@sportpulse/snapshot';
 import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, persistStandingsCache, loadStandingsCache, logCache, buildCachePath, persistCompInfoCache, loadCompInfoCache, hasMatchdayCacheForSeason, loadAllMatchdaysForSeason } from './matchday-cache.js';
 
 interface FDStandingsResponse {
@@ -30,6 +30,7 @@ interface FDStandingsResponse {
       goalsAgainst: number;
       goalDifference: number;
       points: number;
+      form?: string | null;
     }>;
   }>;
 }
@@ -75,11 +76,24 @@ const WINDOW_FUTURE_DAYS = 7;
  * Fetches competition, teams, and matches, normalizes through the
  * canonical pipeline, and caches results in memory.
  */
+interface FDScorersResponse {
+  scorers: Array<{
+    player: { id: number; name: string };
+    team: { id: number; name: string; crest: string };
+    playedMatches: number;
+    goals: number;
+    assists: number | null;
+    penalties: number | null;
+  }>;
+}
+
 export class FootballDataSource implements DataSource {
   private readonly apiToken: string;
   private readonly baseUrl: string;
   private cache = new Map<string, CachedData>();
   private readonly goalsCache = new Map<string, MatchGoalEventDTO[]>();
+  private readonly scorersCache = new Map<string, { data: TopScorerEntry[]; fetchedAt: number }>();
+  private static readonly SCORERS_TTL_MS = 60 * 60_000; // 1 hora
 
   constructor(apiToken: string, baseUrl = 'https://api.football-data.org/v4') {
     this.apiToken = apiToken;
@@ -403,6 +417,7 @@ export class FootballDataSource implements DataSource {
             goalsAgainst: row.goalsAgainst,
             goalDifference: row.goalDifference,
             points: row.points,
+            form: row.form ?? null,
           }));
           if (fetched.length > 0) {
             standings = fetched;
@@ -480,6 +495,33 @@ export class FootballDataSource implements DataSource {
     this.goalsCache.set(providerMatchId, goals);
     console.log(`[FootballDataSource] getMatchGoals: match ${providerMatchId} → ${goals.length} goals cached`);
     return goals;
+  }
+
+  async getTopScorers(compId: string): Promise<TopScorerEntry[]> {
+    const cached = this.scorersCache.get(compId);
+    if (cached && Date.now() - cached.fetchedAt < FootballDataSource.SCORERS_TTL_MS) {
+      return cached.data;
+    }
+    // Extract competition code from canonical compId: "comp:football-data:PD" → "PD"
+    const parts = compId.split(':');
+    const code = parts[parts.length - 1];
+    try {
+      const res = await this.apiGet<FDScorersResponse>(`/competitions/${code}/scorers?limit=10`);
+      const data: TopScorerEntry[] = (res.scorers ?? []).slice(0, 5).map((s, i) => ({
+        rank: i + 1,
+        playerName: s.player.name,
+        teamName: s.team.name,
+        teamCrestUrl: s.team.crest ?? null,
+        goals: s.goals ?? 0,
+        assists: s.assists ?? 0,
+        penalties: s.penalties ?? 0,
+      }));
+      this.scorersCache.set(compId, { data, fetchedAt: Date.now() });
+      return data;
+    } catch (err) {
+      console.warn(`[FootballDataSource] scorers fetch failed for ${code}:`, (err as Error).message);
+      return this.scorersCache.get(compId)?.data ?? [];
+    }
   }
 
   private getCached(compId: string): CachedData | undefined {

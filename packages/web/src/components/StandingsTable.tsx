@@ -1,70 +1,219 @@
+/**
+ * LeagueTableV2 — Bento Inmersivo
+ * bg-brand-dark · rounded-bento · sticky header · Forma 24px neon · Legend inline
+ */
 import type { StandingEntry } from '../hooks/use-standings.js';
-import './match-map.css';
+import { useWindowWidth } from '../hooks/use-window-width.js';
 
+// ─── Zonas de clasificación ───────────────────────────────────────────────────
 type ZoneType = 'ucl' | 'uel' | 'uecl' | 'playoff' | 'relegation' | null;
 
 interface Zone {
   from: number;
   to: number;
   type: ZoneType;
+  emoji: string;
   label: string;
   color: string;
 }
 
 const ZONE_CONFIGS: Record<string, Zone[]> = {
-  // La Liga (20 equipos)
   'comp:football-data:PD': [
-    { from: 1, to: 4, type: 'ucl',       label: 'Champions League', color: '#3b82f6' },
-    { from: 5, to: 6, type: 'uel',       label: 'Europa League',    color: '#f97316' },
-    { from: 7, to: 7, type: 'uecl',      label: 'Conference League',color: '#14b8a6' },
-    { from: 18, to: 20, type: 'relegation', label: 'Descenso',      color: '#ef4444' },
+    { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
+    { from: 5,  to: 6,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
+    { from: 7,  to: 7,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
+    { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
   ],
-  // Premier League (20 equipos)
   'comp:football-data:PL': [
-    { from: 1, to: 4, type: 'ucl',       label: 'Champions League', color: '#3b82f6' },
-    { from: 5, to: 5, type: 'uel',       label: 'Europa League',    color: '#f97316' },
-    { from: 6, to: 6, type: 'uecl',      label: 'Conference League',color: '#14b8a6' },
-    { from: 18, to: 20, type: 'relegation', label: 'Descenso',      color: '#ef4444' },
+    { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
+    { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
+    { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
+    { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
   ],
-  // Bundesliga (18 equipos)
+  'comp:openligadb:bl1': [
+    { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
+    { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
+    { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
+    { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: '#eab308' },
+    { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+  ],
   'comp:football-data:BL1': [
-    { from: 1, to: 4, type: 'ucl',       label: 'Champions League', color: '#3b82f6' },
-    { from: 5, to: 5, type: 'uel',       label: 'Europa League',    color: '#f97316' },
-    { from: 6, to: 6, type: 'uecl',      label: 'Conference League',color: '#14b8a6' },
-    { from: 16, to: 16, type: 'playoff', label: 'Playoff descenso', color: '#eab308' },
-    { from: 17, to: 18, type: 'relegation', label: 'Descenso',      color: '#ef4444' },
+    { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
+    { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
+    { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
+    { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: '#eab308' },
+    { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
   ],
-  // Serie A (20 equipos)
-  'comp:football-data:SA': [
-    { from: 1, to: 4, type: 'ucl',       label: 'Champions League', color: '#3b82f6' },
-    { from: 5, to: 6, type: 'uel',       label: 'Europa League',    color: '#f97316' },
-    { from: 7, to: 7, type: 'uecl',      label: 'Conference League',color: '#14b8a6' },
-    { from: 18, to: 20, type: 'relegation', label: 'Descenso',      color: '#ef4444' },
-  ],
-  // Ligue 1 (18 equipos)
-  'comp:football-data:FL1': [
-    { from: 1, to: 3, type: 'ucl',       label: 'Champions League', color: '#3b82f6' },
-    { from: 4, to: 5, type: 'uel',       label: 'Europa League',    color: '#f97316' },
-    { from: 6, to: 6, type: 'uecl',      label: 'Conference League',color: '#14b8a6' },
-    { from: 16, to: 16, type: 'playoff', label: 'Playoff descenso', color: '#eab308' },
-    { from: 17, to: 18, type: 'relegation', label: 'Descenso',      color: '#ef4444' },
-  ],
-  // Liga Uruguaya — Primera División
   'comp:thesportsdb:4432': [
-    { from: 1, to: 1, type: 'ucl',       label: 'Copa Libertadores', color: '#3b82f6' },
-    { from: 2, to: 5, type: 'uel',       label: 'Copa Sudamericana', color: '#f97316' },
+    { from: 1, to: 1, type: 'ucl', emoji: '🔵', label: 'Copa Libertadores', color: '#00E0FF' },
+    { from: 2, to: 5, type: 'uel', emoji: '🟠', label: 'Copa Sudamericana', color: '#F97316' },
   ],
 };
 
 function getZone(competitionId: string, position: number): Zone | null {
+  return (ZONE_CONFIGS[competitionId] ?? []).find(
+    (z) => position >= z.from && position <= z.to,
+  ) ?? null;
+}
+
+// ─── Forma reciente — círculos 24px ───────────────────────────────────────────
+function FormCircle({ result, size = 24 }: { result: string; size?: number }) {
+  const key = result.trim().toUpperCase();
+  const fontSize = size <= 18 ? 8 : 10;
+  const base: React.CSSProperties = { width: size, height: size, fontSize, fontWeight: 700, flexShrink: 0, letterSpacing: 0 };
+
+  if (key === 'W') {
+    return (
+      <div
+        title="Victoria"
+        className="flex items-center justify-center rounded-full border border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
+        style={{ ...base, boxShadow: '0 0 8px rgba(16,185,129,0.35)' }}
+      >
+        G
+      </div>
+    );
+  }
+
+  if (key === 'D') {
+    return (
+      <div
+        title="Empate"
+        className="flex items-center justify-center rounded-full border border-white/10 bg-slate-500/20 text-slate-400"
+        style={base}
+      >
+        E
+      </div>
+    );
+  }
+
+  if (key === 'L') {
+    return (
+      <div
+        title="Derrota"
+        className="flex items-center justify-center rounded-full border border-rose-500/50 bg-rose-500/20 text-rose-400"
+        style={{ ...base, boxShadow: '0 0 8px rgba(239,68,68,0.3)' }}
+      >
+        P
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function FormBadges({ form, isMobile }: { form?: string | null; isMobile: boolean }) {
+  if (!form) {
+    return (
+      <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11 }}>—</span>
+    );
+  }
+
+  // Mobile: últimos 3 resultados con círculos de 18px para ahorrar espacio
+  // Desktop: últimos 5 resultados con círculos de 24px
+  const results = form.split(',').slice(isMobile ? -3 : -5);
+  const circleSize = isMobile ? 18 : 24;
+
+  return (
+    <div style={{ display: 'flex', gap: isMobile ? 2 : 4, justifyContent: 'center', alignItems: 'center' }}>
+      {results.map((r, i) => (
+        <FormCircle key={i} result={r} size={circleSize} />
+      ))}
+    </div>
+  );
+}
+
+// ─── Leyenda inline ──────────────────────────────────────────────────────────
+function Legend({ competitionId }: { competitionId: string }) {
   const zones = ZONE_CONFIGS[competitionId] ?? [];
-  return zones.find((z) => position >= z.from && position <= z.to) ?? null;
+  if (zones.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        borderTop: '1px solid var(--sp-border-5)',
+        padding: '12px 20px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '6px 20px',
+        alignItems: 'center',
+      }}
+    >
+      {zones.map((z, i) => (
+        <span key={z.type} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          {i > 0 && (
+            <span style={{ color: 'rgba(255,255,255,0.15)', marginRight: 4, fontSize: 10 }}>|</span>
+          )}
+          <span style={{ fontSize: 13 }}>{z.emoji}</span>
+          <span
+            style={{
+              fontSize: 10,
+              color: 'var(--sp-secondary)',
+              letterSpacing: '0.03em',
+              lineHeight: 1.6,
+            }}
+          >
+            {z.label}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
-function getActiveLegend(competitionId: string): Zone[] {
-  return ZONE_CONFIGS[competitionId] ?? [];
+// ─── Columna Pts — header especial ───────────────────────────────────────────
+function PtsHeader({ mobile }: { mobile: boolean }) {
+  return (
+    <th
+      style={{
+        padding: mobile ? '10px 3px' : '12px 10px',
+        textAlign: 'center',
+        fontSize: 10,
+        fontWeight: 800,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        color: 'var(--sp-primary)',
+        whiteSpace: 'nowrap',
+        minWidth: mobile ? 36 : 48,
+        textShadow: '0 0 10px var(--sp-primary-40)',
+      }}
+    >
+      PTS
+    </th>
+  );
 }
 
+function ColHeader({
+  children,
+  left,
+  narrow,
+  mobile,
+}: {
+  children: React.ReactNode;
+  left?: boolean;
+  narrow?: boolean;
+  mobile?: boolean;
+}) {
+  return (
+    <th
+      style={{
+        padding: mobile ? '10px 3px' : '12px 6px',
+        textAlign: left ? 'left' : 'center',
+        paddingLeft: left ? (mobile ? 6 : 12) : (mobile ? 3 : 6),
+        fontSize: 10,
+        fontWeight: 500,
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        color: 'var(--sp-text-35)',
+        width: narrow ? (mobile ? 26 : 36) : undefined,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </th>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 interface StandingsTableProps {
   standings: StandingEntry[];
   onTeamClick: (teamId: string) => void;
@@ -72,79 +221,232 @@ interface StandingsTableProps {
   teamsPlayingToday?: Set<string>;
 }
 
-export function StandingsTable({ standings, onTeamClick, competitionId, teamsPlayingToday }: StandingsTableProps) {
-  const legend = getActiveLegend(competitionId);
+export function StandingsTable({
+  standings,
+  onTeamClick,
+  competitionId,
+  teamsPlayingToday,
+}: StandingsTableProps) {
+  const { breakpoint } = useWindowWidth();
+  const isMobile = breakpoint === 'mobile';
+  const hasForm = standings.some((r) => !!r.form);
+  const showForm = hasForm; // visible en mobile (compacto 3 círculos) y desktop (5 círculos)
 
   return (
-    <div>
-      <div style={{ overflowX: 'auto' }}>
+    // Contenedor Bento: fondo brand-dark, bordes 1.5rem, borde sutil
+    // overflow: clip (no hidden) para preservar borderRadius sin cortar el scroll interno
+    <div
+      data-testid="standings-table"
+      style={{
+        background: 'var(--sp-bg)',
+        borderRadius: '1.5rem',
+        border: '1px solid var(--sp-border)',
+        overflow: 'clip',
+        transition: 'background 0.2s ease',
+      }}
+    >
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as never }}>
         <table
-          data-testid="standings-table"
           style={{
             width: '100%',
             borderCollapse: 'collapse',
-            fontSize: 13,
+            fontSize: isMobile ? 12 : 13,
             color: '#fff',
+            // Mobile: columnas reducidas caben sin scroll — no forzar max-content
+            minWidth: isMobile ? undefined : 600,
           }}
         >
+          {/* ── Sticky header con backdrop-blur ──────────────────────────── */}
           <thead>
-            <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.15)' }}>
-              <th style={thStyle}>#</th>
-              <th style={{ ...thStyle, textAlign: 'left', paddingLeft: 8 }}>Equipo</th>
-              <th style={thStyle}>PJ</th>
-              <th style={thStyle}>G</th>
-              <th style={thStyle}>E</th>
-              <th style={thStyle}>P</th>
-              <th style={thStyle}>GF</th>
-              <th style={thStyle}>GC</th>
-              <th style={thStyle}>DG</th>
-              <th style={{ ...thStyle, fontWeight: 700 }}>Pts</th>
+            <tr
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                background: 'var(--sp-header)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                borderBottom: '1px solid var(--sp-border-8)',
+              }}
+            >
+              <ColHeader narrow mobile={isMobile}>#</ColHeader>
+              <ColHeader left mobile={isMobile}>EQUIPO</ColHeader>
+              <ColHeader mobile={isMobile}>PJ</ColHeader>
+              {/* Mobile: solo DG. Desktop: G, E, P, GF, GC, DG */}
+              {isMobile ? (
+                <ColHeader mobile>DG</ColHeader>
+              ) : (
+                <>
+                  <ColHeader>G</ColHeader>
+                  <ColHeader>E</ColHeader>
+                  <ColHeader>P</ColHeader>
+                  <ColHeader>GF</ColHeader>
+                  <ColHeader>GC</ColHeader>
+                  <ColHeader>DG</ColHeader>
+                </>
+              )}
+              {showForm && (
+                <th
+                  style={{
+                    padding: isMobile ? '10px 4px' : '12px 8px',
+                    textAlign: 'center',
+                    fontSize: 10,
+                    fontWeight: 500,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: 'rgba(255,255,255,0.35)',
+                    // Mobile: 3 círculos × 18px + 2×2px gaps = 58px → 64px
+                    // Desktop: 5 círculos × 24px + 4×4px gaps = 136px → 145px
+                    minWidth: isMobile ? 64 : 145,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  FORMA
+                </th>
+              )}
+              <PtsHeader mobile={isMobile} />
             </tr>
           </thead>
+
+          {/* ── Filas ───────────────────────────────────────────────────── */}
           <tbody>
             {standings.map((row, i) => {
               const zone = getZone(competitionId, row.position);
               const playsToday = teamsPlayingToday?.has(row.teamId) ?? false;
+              const isEven = i % 2 === 0;
+
               return (
                 <tr
                   key={row.teamId}
                   onClick={() => onTeamClick(row.teamId)}
                   style={{
                     cursor: 'pointer',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderBottom: '1px solid rgba(255,255,255,0.04)',
                     borderLeft: zone ? `4px solid ${zone.color}` : '4px solid transparent',
-                    backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
+                    background: isEven ? 'var(--sp-row-even)' : 'transparent',
+                    transition: 'background 0.12s ease',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent'; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--sp-row-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = isEven
+                      ? 'rgba(255,255,255,0.015)'
+                      : 'transparent';
+                  }}
                 >
-                  <td style={{ ...tdStyle, fontWeight: 700, opacity: 0.6 }}>{row.position}</td>
-                  <td style={{ ...tdStyle, textAlign: 'left', paddingLeft: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {/* # */}
+                  <td style={{ ...cellStyle(isMobile), width: isMobile ? 26 : 36, fontSize: 11, color: 'var(--sp-text-40)', fontWeight: 600 }}>
+                    {row.position}
+                  </td>
+
+                  {/* Equipo */}
+                  <td style={{ ...cellStyle(isMobile), textAlign: 'left', paddingLeft: isMobile ? 6 : 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 8, minWidth: 0 }}>
                       {row.crestUrl && (
                         <img
                           src={row.crestUrl}
                           alt=""
-                          style={{ width: 20, height: 20, objectFit: 'contain' }}
+                          style={{ width: isMobile ? 18 : 22, height: isMobile ? 18 : 22, objectFit: 'contain', flexShrink: 0 }}
                         />
                       )}
-                      <span style={{ fontWeight: 500 }}>{row.teamName}</span>
+                      <span
+                        style={{
+                          fontWeight: 500,
+                          color: playsToday ? 'var(--sp-primary)' : 'var(--sp-text-88)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          maxWidth: isMobile ? 90 : 190,
+                          fontSize: isMobile ? 12 : 13,
+                        }}
+                      >
+                        {row.teamName}
+                      </span>
+                      {playsToday && (
+                        <span
+                          title="Juega hoy"
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: '#00E0FF',
+                            boxShadow: '0 0 6px #00E0FF',
+                            flexShrink: 0,
+                            animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
+                          }}
+                        />
+                      )}
                     </div>
                   </td>
-                  <td style={tdStyle}>{row.playedGames}</td>
-                  <td style={tdStyle}>{row.won}</td>
-                  <td style={tdStyle}>{row.draw}</td>
-                  <td style={tdStyle}>{row.lost}</td>
-                  <td style={tdStyle}>{row.goalsFor}</td>
-                  <td style={tdStyle}>{row.goalsAgainst}</td>
-                  <td style={{
-                    ...tdStyle,
-                    fontWeight: 600,
-                    color: row.goalDifference > 0 ? '#22c55e' : row.goalDifference < 0 ? '#ef4444' : '#6b7280',
-                  }}>
-                    {row.goalDifference > 0 ? '+' : ''}{row.goalDifference}
+
+                  {/* PJ */}
+                  <td style={cellStyle(isMobile)}>{row.playedGames}</td>
+
+                  {/* Stats: mobile → solo DG | desktop → G E P GF GC DG */}
+                  {isMobile ? (
+                    <td
+                      style={{
+                        ...cellStyle(isMobile),
+                        fontWeight: 600,
+                        fontSize: 12,
+                        color:
+                          row.goalDifference > 0
+                            ? '#4ade80'
+                            : row.goalDifference < 0
+                              ? '#f87171'
+                              : 'rgba(255,255,255,0.35)',
+                      }}
+                    >
+                      {row.goalDifference > 0 ? '+' : ''}
+                      {row.goalDifference}
+                    </td>
+                  ) : (
+                    <>
+                      <td style={cell}>{row.won}</td>
+                      <td style={cell}>{row.draw}</td>
+                      <td style={cell}>{row.lost}</td>
+                      <td style={cell}>{row.goalsFor}</td>
+                      <td style={cell}>{row.goalsAgainst}</td>
+                      <td
+                        style={{
+                          ...cell,
+                          fontWeight: 600,
+                          color:
+                            row.goalDifference > 0
+                              ? '#4ade80'
+                              : row.goalDifference < 0
+                                ? '#f87171'
+                                : 'rgba(255,255,255,0.35)',
+                        }}
+                      >
+                        {row.goalDifference > 0 ? '+' : ''}
+                        {row.goalDifference}
+                      </td>
+                    </>
+                  )}
+
+                  {/* FORMA */}
+                  {showForm && (
+                    <td style={{ ...cellStyle(isMobile), paddingLeft: isMobile ? 2 : 4, paddingRight: isMobile ? 2 : 4 }}>
+                      <FormBadges form={row.form} isMobile={isMobile} />
+                    </td>
+                  )}
+
+                  {/* PTS — protagonista visual */}
+                  <td
+                    style={{
+                      ...cellStyle(isMobile),
+                      fontWeight: 900,
+                      fontSize: isMobile ? 13 : 15,
+                      color: 'var(--sp-primary)',
+                      letterSpacing: '-0.02em',
+                      textShadow: '0 0 12px var(--sp-primary-40)',
+                      minWidth: isMobile ? 36 : 48,
+                    }}
+                  >
+                    {row.points}
                   </td>
-                  <td style={{ ...tdStyle, fontWeight: 700 }}>{row.points}</td>
                 </tr>
               );
             })}
@@ -152,32 +454,18 @@ export function StandingsTable({ standings, onTeamClick, competitionId, teamsPla
         </table>
       </div>
 
-      {/* Legend */}
-      {legend.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', marginTop: 12, paddingLeft: 4 }}>
-          {legend.map((z) => (
-            <div key={z.type} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: z.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{z.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Leyenda al pie */}
+      <Legend competitionId={competitionId} />
     </div>
   );
 }
 
-const thStyle: React.CSSProperties = {
-  padding: '8px 6px',
-  textAlign: 'center',
-  fontSize: 11,
-  opacity: 0.6,
-  fontWeight: 400,
-  textTransform: 'uppercase',
-  letterSpacing: 0.5,
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '8px 6px',
-  textAlign: 'center',
-};
+function cellStyle(mobile: boolean): React.CSSProperties {
+  return {
+    padding: mobile ? '9px 3px' : '10px 6px',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+  };
+}
+// Alias para desktop — mantener compatibilidad con usos existentes que pasan isMobile
+const cell: React.CSSProperties = cellStyle(false);

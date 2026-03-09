@@ -8,7 +8,7 @@ import {
   matchId as canonicalMatchId,
 } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
-import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, logCache, buildCachePath } from './matchday-cache.js';
+import { persistTeamsCache, loadTeamsCache } from './matchday-cache.js';
 
 // ── Provider key ─────────────────────────────────────────────────────────────
 
@@ -150,9 +150,10 @@ export class TheSportsDbSource implements DataSource {
       0,
     );
 
-    // Fetch 2 extra rounds ahead (reduced from 6; TheSportsDB publishes fixtures
-    // at most 1-2 rounds in advance, so 6 was speculative waste — spec §10 / Phase 3).
-    const extraRoundNumbers = Array.from({ length: 2 }, (_, i) => maxSeasonRound + 1 + i);
+    // Fetch 6 extra rounds ahead. eventsseason.php is unreliable — it sometimes
+    // only returns already-played rounds, missing scheduled ones. 6 rounds ensures
+    // we cover upcoming fixtures even when the season endpoint lags significantly.
+    const extraRoundNumbers = Array.from({ length: 6 }, (_, i) => maxSeasonRound + 1 + i);
     const extraRoundResults = await Promise.all(
       extraRoundNumbers.map((r) =>
         this.apiGet<{ events: SDBEvent[] | null }>(
@@ -243,41 +244,9 @@ export class TheSportsDbSource implements DataSource {
     const currentMatchday = deriveCurrentMatchday(matches);
     const elapsed = Date.now() - t0;
 
-    // §15.1 – log API fetch and run per-matchday cache flow
-    const logCtxBase = {
-      provider: SPORTSDB_PROVIDER_KEY,
-      competitionId: this.leagueId,
-      season: s,
-      matchday: currentMatchday ?? 0,
-      cachePath: buildCachePath(SPORTSDB_PROVIDER_KEY, this.leagueId, s, currentMatchday ?? 0),
-    };
-    logCache({ event: 'CACHE_API_FETCH', ...logCtxBase });
-
-    const matchesByMatchday = new Map<number, typeof matches[number][]>();
-    for (const m of matches) {
-      if (m.matchday === undefined) continue;
-      const group = matchesByMatchday.get(m.matchday) ?? [];
-      group.push(m);
-      matchesByMatchday.set(m.matchday, group);
-    }
-
-    const allMatches: typeof matches = [];
-    for (const [md, apiMatches] of matchesByMatchday) {
-      const cached = checkMatchdayCache(SPORTSDB_PROVIDER_KEY, this.leagueId, s, md);
-      if (cached.hit) {
-        allMatches.push(...cached.matches);
-      } else {
-        allMatches.push(...apiMatches);
-        persistMatchdayCache(SPORTSDB_PROVIDER_KEY, this.leagueId, s, md, apiMatches);
-      }
-    }
-    for (const m of matches) {
-      if (m.matchday === undefined) allMatches.push(m);
-    }
-
     console.log(
       `[TheSportsDbSource] Done league=${this.leagueId} season=${s}: ` +
-        `teams=${teams.length}, matches=${allMatches.length}, ` +
+        `teams=${teams.length}, matches=${matches.length}, ` +
         `currentMatchday=${currentMatchday ?? 'none'} (${elapsed}ms)`,
     );
 
@@ -286,7 +255,7 @@ export class TheSportsDbSource implements DataSource {
 
     this.cache = {
       teams,
-      matches: allMatches,
+      matches,
       seasonId: seasId,
       currentMatchday,
       fetchedAt: Date.now(),

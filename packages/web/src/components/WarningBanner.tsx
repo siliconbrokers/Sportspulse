@@ -6,7 +6,10 @@ interface WarningBannerProps {
 }
 
 export function WarningBanner({ warnings }: WarningBannerProps) {
-  const visible = warnings.filter((w) => w.severity === 'WARN' || w.severity === 'ERROR');
+  const TEAM_LEVEL_CODES = new Set(['MISSING_SIGNAL', 'NO_UPCOMING_MATCH', 'INSUFFICIENT_HISTORY']);
+  const visible = warnings.filter(
+    (w) => (w.severity === 'WARN' || w.severity === 'ERROR') && !TEAM_LEVEL_CODES.has(w.code),
+  );
   if (visible.length === 0) return null;
 
   return (

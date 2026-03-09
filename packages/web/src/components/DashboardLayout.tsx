@@ -47,7 +47,7 @@ export function DashboardLayout({ competitionId, matchday, currentMatchday, time
   if (!data) return null;
 
   return (
-    <div data-testid="dashboard-layout">
+    <div data-testid="dashboard-layout" style={{ width: '100%', overflowX: 'hidden' }}>
       <DashboardHeader header={data.header} warnings={data.warnings} source={source} />
       <WarningBanner warnings={data.warnings} />
       {viewMode === 'radar' ? (

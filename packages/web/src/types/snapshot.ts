@@ -83,6 +83,14 @@ export interface GoalStatsDTO {
   lambdaDefense: number;
 }
 
+export interface MatchGoalEventDTO {
+  minute: number;
+  injuryTime?: number;
+  type: 'GOAL' | 'OWN_GOAL' | 'PENALTY';
+  team: 'HOME' | 'AWAY';
+  scorerName?: string;
+}
+
 export interface NextMatchDTO {
   matchId: string;
   matchday?: number;
@@ -102,6 +110,7 @@ export interface NextMatchDTO {
   matchStatus?: string;
   prediction?: PredictionDTO;
   predictionOutcome?: PredictionOutcomeDTO;
+  events?: MatchGoalEventDTO[];
 }
 
 export interface ContributionDTO {

@@ -1,5 +1,5 @@
 import type { Team, Match } from '@sportpulse/canonical';
-import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
+import type { DataSource, StandingEntry, MatchGoalEventDTO } from '@sportpulse/snapshot';
 
 /**
  * Composite DataSource that routes each call to the appropriate provider
@@ -57,6 +57,14 @@ export class RoutingDataSource implements DataSource {
 
   getTotalMatchdays(competitionId: string): number {
     return this.resolveByComp(competitionId).getTotalMatchdays?.(competitionId) ?? 38;
+  }
+
+  async getMatchGoals(canonicalMatchId: string): Promise<MatchGoalEventDTO[]> {
+    // Only football-data.org matches have goal events
+    // Canonical matchId format: "match:{providerKey}:..."
+    const providerKey = canonicalMatchId.split(':')[1];
+    const source = this.byProviderKey.get(providerKey) ?? this.fallback;
+    return source.getMatchGoals?.(canonicalMatchId) ?? [];
   }
 
   // ── Internal resolution ────────────────────────────────────────────────────

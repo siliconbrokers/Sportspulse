@@ -43,4 +43,7 @@ export type { TeamDetailDTO } from './dto/team-detail.js';
 export { projectTeamDetail } from './project/team-detail.js';
 
 // Data source interface
-export type { DataSource, StandingEntry } from './data/data-source.js';
+export type { DataSource, StandingEntry, MatchGoalEventDTO } from './data/data-source.js';
+
+// Derivation
+export { computeBestThirds } from './derivation/best-thirds.js';

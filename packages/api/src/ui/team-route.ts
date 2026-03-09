@@ -71,10 +71,30 @@ export function teamRoute(deps: AppDependencies): FastifyPluginAsync {
           throw new AppError(ErrorCode.NOT_FOUND, `Team not found: ${params.teamId}`, 404);
         }
 
+        // Enrich with match goals if FINISHED and service available
+        let enrichedDetail = detail;
+        if (
+          deps.matchEventsService &&
+          detail.nextMatch?.matchStatus === 'FINISHED' &&
+          detail.nextMatch.matchId
+        ) {
+          try {
+            const goals = await deps.matchEventsService.getMatchGoals(detail.nextMatch.matchId);
+            if (goals.length > 0) {
+              enrichedDetail = {
+                ...detail,
+                nextMatch: { ...detail.nextMatch, events: goals },
+              };
+            }
+          } catch {
+            // Non-fatal: proceed without events
+          }
+        }
+
         reply
           .header('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300')
           .header('X-Snapshot-Source', result.source)
-          .send(detail);
+          .send(enrichedDetail);
       });
     },
     { name: 'team-route' },

@@ -34,9 +34,6 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
     fallbackSearchTerms: [
       'resumen goles Primera División Uruguay apertura clausura',
       'Peñarol Nacional resumen goles apertura clausura Uruguay',
-      'ESPN resumen goles Primera División Uruguay',
-      'highlights goles Campeonato Uruguayo fecha resumen',
-      'DirecTV Sports resumen goles Uruguay Primera División',
     ],
     titleRequiredTerms: [
       'uruguay', 'uruguayo', 'uruguaya',
@@ -57,7 +54,6 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
     fallbackSearchTerms: [
       'resumen goles LaLiga jornada',
       'LaLiga highlights jornada goles resumen',
-      'highlights LaLiga goals today',
     ],
     titleRequiredTerms: ['laliga', 'la liga', 'liga española', 'real madrid', 'barcelona', 'atletico', 'sevilla', 'primera division', 'liga espanola'],
   },
@@ -72,11 +68,6 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
     fallbackSearchTerms: [
       'Premier League highlights matchday goals',
       'EPL goals highlights matchweek',
-      'Premier League resumen goles jornada',
-      'Premier League best goals this week',
-      'premier league match highlights goals scored',
-      'EPL matchday review all goals highlights',
-      'premier league goals this week compilation',
     ],
     titleRequiredTerms: [
       'premier league', 'epl', 'matchweek', 'match week',
@@ -97,11 +88,6 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
     fallbackSearchTerms: [
       'Bundesliga Highlights Spieltag Tore',
       'Bundesliga Zusammenfassung Spieltag goals',
-      'Bundesliga highlights goals matchday',
-      'Bundesliga resumen goles jornada',
-      'Bundesliga best goals this week spieltag highlights',
-      'Bundesliga matchday all goals highlights compilation',
-      'Bundesliga Spieltag Tore Zusammenfassung alle',
     ],
     titleRequiredTerms: [
       'bundesliga', 'spieltag', 'dfl',
