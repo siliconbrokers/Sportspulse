@@ -5,7 +5,7 @@
 import { useState, useRef, useEffect, forwardRef } from 'react';
 import {
   LayoutDashboard, Activity, CalendarDays, Trophy, Target,
-  Search, X, Sun, Moon,
+  Sun, Moon,
 } from 'lucide-react';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import { useTheme } from '../hooks/use-theme.js';
@@ -54,7 +54,6 @@ export function Navbar({
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
   const isLeagueView = view !== 'home';
-  const [searchOpen, setSearchOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -176,7 +175,6 @@ export function Navbar({
           {/* Zona derecha */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
-            <SearchBar open={searchOpen} onToggle={() => setSearchOpen((p) => !p)} isMobile={false} />
             {isLeagueView && (
               <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
             )}
@@ -382,63 +380,5 @@ function ThemeToggle({ theme, onToggle }: { theme: 'dark' | 'light'; onToggle: (
     >
       {isLight ? <Moon size={14} strokeWidth={2.5} /> : <Sun size={14} strokeWidth={2.5} />}
     </button>
-  );
-}
-
-// ─── SearchBar ────────────────────────────────────────────────────────────────
-
-function SearchBar({ open, onToggle, isMobile }: { open: boolean; onToggle: () => void; isMobile: boolean }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {open && !isMobile && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            background: 'var(--sp-surface)',
-            border: '1px solid var(--sp-primary-22)',
-            borderRadius: '0.75rem',
-            padding: '5px 10px',
-          }}
-        >
-          <Search size={13} color="var(--sp-primary)" strokeWidth={2.5} />
-          <input
-            autoFocus
-            placeholder="Buscar equipo..."
-            style={{
-              background: 'none',
-              border: 'none',
-              outline: 'none',
-              color: 'var(--sp-text)',
-              fontSize: 12,
-              width: 140,
-              caretColor: 'var(--sp-primary)',
-            }}
-            onKeyDown={(e) => e.key === 'Escape' && onToggle()}
-          />
-        </div>
-      )}
-      <button
-        onClick={onToggle}
-        title={open ? 'Cerrar búsqueda' : 'Buscar'}
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: open ? 'var(--sp-primary-10)' : 'var(--sp-border)',
-          border: open ? '1px solid var(--sp-primary-40)' : '1px solid var(--sp-border-8)',
-          cursor: 'pointer',
-          color: open ? 'var(--sp-primary)' : 'var(--sp-secondary)',
-          transition: 'all 0.15s ease',
-          flexShrink: 0,
-        }}
-      >
-        {open ? <X size={14} strokeWidth={2.5} /> : <Search size={14} strokeWidth={2.5} />}
-      </button>
-    </div>
   );
 }
