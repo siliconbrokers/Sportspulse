@@ -103,7 +103,9 @@ export function LeagueSelector({ value, onChange, options }: LeagueSelectorProps
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const { breakpoint } = useWindowWidth();
-  const isMobile = breakpoint === 'mobile';
+  // Usar bottom sheet en mobile Y tablet — el dropdown desktop puede quedar
+  // cortado por el stacking context de backdrop-filter en iOS Safari.
+  const isMobile = breakpoint !== 'desktop';
 
   const selected = getCompMeta(value);
 
@@ -280,7 +282,7 @@ export function LeagueSelector({ value, onChange, options }: LeagueSelectorProps
               </button>
             </div>
             {/* Opciones */}
-            <div style={{ borderTop: '1px solid var(--sp-border-5)' }}>
+            <div style={{ borderTop: '1px solid var(--sp-border-5)', overflowY: 'auto', maxHeight: '60vh' }}>
               {availableMeta.map((meta) => (
                 <LeagueOption
                   key={meta.id}
