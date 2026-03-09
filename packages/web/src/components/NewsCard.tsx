@@ -16,7 +16,7 @@ function formatDateTime(utc: string): string {
   }
 }
 
-export function NewsCard({ item }: { item: NewsHeadline }) {
+export function NewsCard({ item, compact = false }: { item: NewsHeadline; compact?: boolean }) {
   return (
     <a
       href={item.url}
@@ -27,9 +27,9 @@ export function NewsCard({ item }: { item: NewsHeadline }) {
         flexDirection: 'column',
         textDecoration: 'none',
         color: 'inherit',
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 10,
+        background: 'var(--sp-border-4)',
+        border: '1px solid var(--sp-border-8)',
+        borderRadius: compact ? 8 : 10,
         overflow: 'hidden',
         transition: 'transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease',
       }}
@@ -37,13 +37,13 @@ export function NewsCard({ item }: { item: NewsHeadline }) {
         const el = e.currentTarget as HTMLAnchorElement;
         el.style.transform = 'translateY(-3px)';
         el.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
-        el.style.background = 'rgba(255,255,255,0.07)';
+        el.style.background = 'var(--sp-border-8)';
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLAnchorElement;
         el.style.transform = 'translateY(0)';
         el.style.boxShadow = 'none';
-        el.style.background = 'rgba(255,255,255,0.04)';
+        el.style.background = 'var(--sp-border-4)';
       }}
     >
       {/* Imagen 16:9 */}
@@ -60,7 +60,7 @@ export function NewsCard({ item }: { item: NewsHeadline }) {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            backgroundColor: 'rgba(255,255,255,0.06)',
+            backgroundColor: 'var(--sp-border)',
           }}
         />
       </div>
@@ -70,33 +70,33 @@ export function NewsCard({ item }: { item: NewsHeadline }) {
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        padding: '12px 14px 14px',
-        gap: 8,
+        padding: compact ? '8px 10px 10px' : '12px 14px 14px',
+        gap: compact ? 5 : 8,
       }}>
         <div
           style={{
-            fontSize: 14,
+            fontSize: compact ? 12 : 14,
             fontWeight: 600,
-            lineHeight: 1.45,
+            lineHeight: 1.4,
             overflow: 'hidden',
             display: '-webkit-box',
-            WebkitLineClamp: 3,
+            WebkitLineClamp: compact ? 2 : 3,
             WebkitBoxOrient: 'vertical',
-            color: 'rgba(255,255,255,0.92)',
+            color: 'var(--sp-text-88)',
             flex: 1,
           }}
         >
           {item.title}
         </div>
         <div style={{
-          fontSize: 11,
-          color: 'rgba(255,255,255,0.38)',
+          fontSize: compact ? 10 : 11,
+          color: 'var(--sp-text-40)',
           display: 'flex',
           gap: 5,
           alignItems: 'center',
           marginTop: 'auto',
         }}>
-          <span style={{ fontWeight: 500, color: 'rgba(255,255,255,0.5)' }}>{item.sourceName}</span>
+          <span style={{ fontWeight: 500, color: 'var(--sp-text-55)' }}>{item.sourceName}</span>
           <span style={{ opacity: 0.5 }}>·</span>
           <span>{formatDateTime(item.publishedAtUtc)}</span>
         </div>

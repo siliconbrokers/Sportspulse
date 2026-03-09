@@ -214,6 +214,7 @@ export function buildMatchCards(
   type IntermediateCard = Omit<MatchCardDTO, 'tileHints'> & {
     hours: number | null;
     isLive: boolean;
+    isLiveStale: boolean;
     homeFormKind: string | undefined;
     awayFormKind: string | undefined;
   };
@@ -237,9 +238,18 @@ export function buildMatchCards(
     // probablemente está en juego aunque la API aún no actualizó el status.
     const isHeuristicallyLive =
       !isLive && !isFinished && hours !== null && hours < 0 && hours > -110 / 60;
+    // Safety: si el proveedor sigue reportando LIVE después de 130 min, es stale
+    const isLiveStale = isLive && hours !== null && hours < -(130 / 60);
     const timeChip = isFinished
       ? { icon: '✅', label: 'Finalizado', level: 'INFO' as const, kind: 'TIME_FINISHED' }
-      : mapTimeChipFromHours(hours, isLive);
+      : isLiveStale
+        ? {
+            icon: '🕐',
+            label: 'Pend. confirmación',
+            level: 'INFO' as const,
+            kind: 'TIME_STALE_LIVE',
+          }
+        : mapTimeChipFromHours(hours, isLive);
 
     const homeScore = scoreMap.get(match.homeTeamId);
     const awayScore = scoreMap.get(match.awayTeamId);
@@ -293,6 +303,7 @@ export function buildMatchCards(
       explainLine,
       hours,
       isLive,
+      isLiveStale,
       homeFormKind: homeFormChip?.kind,
       awayFormKind: awayFormChip?.kind,
     });
@@ -317,11 +328,18 @@ export function buildMatchCards(
 
   const cards: MatchCardDTO[] = intermediate.map((c) => {
     const sizeBucket = bucketMap.get(c.matchId) ?? 'S';
-    const urgencyColorKey = computeUrgencyColorKey(c.hours, c.isLive);
+    const urgencyColorKey = computeUrgencyColorKey(c.hours, c.isLive && !c.isLiveStale);
     const heatBorderKey = computeHeatBorderKey(c.homeFormKind, c.awayFormKind);
     const featuredRank = computeFeaturedRank(sizeBucket, heatBorderKey, urgencyColorKey);
 
-    const { hours: _h, isLive: _l, homeFormKind: _hfk, awayFormKind: _afk, ...rest } = c;
+    const {
+      hours: _h,
+      isLive: _l,
+      isLiveStale: _ils,
+      homeFormKind: _hfk,
+      awayFormKind: _afk,
+      ...rest
+    } = c;
     return {
       ...rest,
       tileHints: { sizeBucket, urgencyColorKey, heatBorderKey, featuredRank },

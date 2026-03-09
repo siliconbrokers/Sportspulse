@@ -1,7 +1,9 @@
 /**
  * Computes a live time label from kickoffUtc and the current browser time.
- * Replaces the stale backend-computed timeChip.label for display purposes.
+ * Umbrales zombie alineados con match-status.ts (fuente única de verdad).
  */
+import { ZOMBIE_THRESHOLD_MIN, AUTOFINISH_THRESHOLD_MIN } from './match-status.js';
+
 export interface LiveTimeChip {
   icon: string;
   label: string;
@@ -32,12 +34,26 @@ export function computeLiveTimeChip(
   kickoffUtc: string | undefined,
 ): LiveTimeChip {
   if (status === 'LIVE') {
+    if (kickoffUtc) {
+      const elapsed = (Date.now() - new Date(kickoffUtc).getTime()) / 60_000;
+      // Auto-terminado → tratarlo como finalizado
+      if (elapsed > AUTOFINISH_THRESHOLD_MIN) {
+        const dateStr = ` · ${fmtDate(kickoffUtc)}`;
+        return { icon: '✅', label: `Finalizado${dateStr}`, level: 'INFO' };
+      }
+      // Zombie: fuera de la ventana normal pero sin confirmación oficial
+      if (elapsed > ZOMBIE_THRESHOLD_MIN) {
+        return { icon: '🕐', label: 'Confirmando resultado', level: 'WARN' };
+      }
+    }
     return { icon: '🔴', label: 'En juego', level: 'HOT' };
   }
+
   if (status === 'FINISHED') {
     const dateStr = kickoffUtc ? ` · ${fmtDate(kickoffUtc)}` : '';
     return { icon: '✅', label: `Finalizado${dateStr}`, level: 'INFO' };
   }
+
   if (!kickoffUtc) {
     return { icon: '⚠️', label: 'Sin fecha', level: 'UNKNOWN' };
   }
@@ -49,9 +65,14 @@ export function computeLiveTimeChip(
   const time = fmtTime(kickoffUtc);
 
   if (hours <= 0) {
-    const minutesPast = -diffMs / (1000 * 60);
-    if (minutesPast > 110) {
-      return { icon: '🕐', label: 'Resultado pendiente', level: 'INFO' };
+    const minutesPast = -diffMs / 60_000;
+    // Partido con kickoff pasado y API aún en SCHEDULED — heurístico LIVE
+    if (minutesPast > ZOMBIE_THRESHOLD_MIN) {
+      return { icon: '🕐', label: 'Confirmando resultado', level: 'WARN' };
+    }
+    if (minutesPast > AUTOFINISH_THRESHOLD_MIN) {
+      const dateStr = ` · ${fmtDate(kickoffUtc)}`;
+      return { icon: '✅', label: `Finalizado${dateStr}`, level: 'INFO' };
     }
     return { icon: '🔴', label: 'En juego', level: 'HOT' };
   }

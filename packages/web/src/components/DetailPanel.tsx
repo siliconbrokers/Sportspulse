@@ -1,5 +1,5 @@
 /**
- * DetailPanel — Match detail card.
+ * DetailPanel — Match detail card. Premium 2026 Design System.
  * Implements: match-detail-card-update-spec-v1
  *
  * Rendering rules (§15):
@@ -8,19 +8,21 @@
  *   FINISHED   → header + final result + events (if any) + prediction evaluation + post-match reading
  *   UNKNOWN    → header only (safe fallback, §15.4)
  */
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
+import { Info, Clock } from 'lucide-react';
 import type { TeamDetailDTO } from '../types/team-detail.js';
 import type { FormResult } from '../types/snapshot.js';
 import type { IncidentEvent } from '../types/incidents.js';
 import { formatDateTime } from '../utils/format-date.js';
-import { signalLabel, signalValueLabel } from '../utils/labels.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
-import { buildMatchDetailViewModel, type MatchDetailViewModel } from '../utils/match-detail-viewmodel.js';
+import { buildMatchDetailViewModel, type MatchDetailViewModel, type PredictionProbsOverride } from '../utils/match-detail-viewmodel.js';
 import { useMatchIncidents } from '../hooks/use-match-incidents.js';
 
 interface DetailPanelProps {
   detail: TeamDetailDTO;
   onClose: () => void;
+  /** Override prediction probs (e.g. from radar liveData) to ensure consistency with PronosticoCard. */
+  predictionProbsOverride?: PredictionProbsOverride;
 }
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
@@ -37,35 +39,69 @@ function FormGuide({ form, label }: { form: string[]; label: string }) {
   const pts = typed.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
   const max = typed.length * 3;
   return (
-    <div>
-      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
       {typed.length === 0 ? (
-        <div style={{ fontSize: 11, opacity: 0.4, fontStyle: 'italic' }}>Sin datos</div>
+        <div style={{ fontSize: 11, color: 'var(--sp-text-35)', fontStyle: 'italic' }}>Sin datos</div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 3 }}>
+          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
             {typed.map((r, i) => (
-              <div key={i} style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: FORM_COLORS[r], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>
+              <div
+                key={i}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 5,
+                  flexShrink: 0,
+                  backgroundColor: FORM_COLORS[r],
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: '#fff',
+                }}
+              >
                 {FORM_LABELS[r]}
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>{pts} de {max} pts</div>
+          <div style={{ fontSize: 11, color: 'var(--sp-text-35)', marginTop: 5 }}>{pts} de {max} pts</div>
         </>
       )}
     </div>
   );
 }
 
-function TeamCrest({ url, name }: { url?: string; name: string }) {
+function TeamCrest({ url, name, size = 56 }: { url?: string; name: string; size?: number }) {
   if (!url) {
     return (
-      <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.12)', border: '2px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
+      <div style={{
+        width: size, height: size, borderRadius: '50%',
+        backgroundColor: 'var(--sp-border-8)',
+        border: '2px solid var(--sp-border-8)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: Math.round(size * 0.3), fontWeight: 700,
+        color: 'var(--sp-text-55)',
+        flexShrink: 0,
+      }}>
         {name.slice(0, 2).toUpperCase()}
       </div>
     );
   }
-  return <img src={url} alt={name} style={{ width: 48, height: 48, objectFit: 'contain' }} />;
+  return (
+    <img
+      src={url}
+      alt={name}
+      style={{
+        width: size, height: size,
+        objectFit: 'contain',
+        filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.35))',
+        flexShrink: 0,
+      }}
+    />
+  );
 }
 
 function pct(v?: number | null): string {
@@ -76,7 +112,14 @@ function pct(v?: number | null): string {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+    <div style={{
+      fontSize: 10,
+      color: 'var(--sp-text-35)',
+      marginBottom: 8,
+      textTransform: 'uppercase',
+      letterSpacing: '0.08em',
+      fontWeight: 700,
+    }}>
       {children}
     </div>
   );
@@ -93,30 +136,51 @@ function MatchHeader({
   timezone: string;
   headerLabel: string;
 }) {
-  const isLive = vm.uiState === 'IN_PLAY';
-  const hasScore = vm.score.home != null && vm.score.away != null;
+  const isLive    = vm.uiState === 'IN_PLAY';
+  const isZombie  = vm.uiState === 'PENDING_CONFIRMATION';
+  const hasScore  = vm.score.home != null && vm.score.away != null;
+
+  // Color semántico del score según estado
+  const scoreColor =
+    isLive   ? '#f97316'                // naranja neon — en juego confirmado
+    : isZombie ? '#f59e0b'             // ámbar — pendiente de confirmación
+    : 'var(--sp-text)';                // blanco/negro — resto
+
+  const scoreShadow =
+    isLive   ? 'drop-shadow(0 0 10px rgba(249,115,22,0.7))'
+    : isZombie ? 'drop-shadow(0 0 6px rgba(245,158,11,0.35))'
+    : 'none';
 
   return (
     <div>
       {/* Metadata row */}
-      <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>
+      <div style={{ fontSize: 12, color: 'var(--sp-text-40)', marginBottom: 16, textAlign: 'center' }}>
         {vm.matchday && <span>Jornada {vm.matchday} · </span>}
         {vm.utcDate && formatDateTime(vm.utcDate, timezone)}
-        {vm.venueName && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>{vm.venueName}</div>}
+        {vm.venueName && (
+          <div style={{ fontSize: 11, color: 'var(--sp-text-35)', marginTop: 3 }}>
+            📍 {vm.venueName}
+          </div>
+        )}
       </div>
 
       {/* Crests + score */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, gap: 8 }}>
         {/* Home team */}
         <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <TeamCrest url={vm.homeTeam.crest} name={vm.homeTeam.name} />
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+            <TeamCrest url={vm.homeTeam.crest} name={vm.homeTeam.name} size={56} />
           </div>
-          <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+          <div style={{
+            fontSize: 12, fontWeight: 900,
+            color: 'var(--sp-text)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            paddingInline: 4, letterSpacing: '-0.01em',
+          }}>
             {vm.homeTeam.name}
           </div>
           {vm.homeTeam.coachName && (
-            <div style={{ fontSize: 10, marginTop: 2, opacity: 0.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+            <div style={{ fontSize: 10, marginTop: 2, color: 'var(--sp-text-35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
               {vm.homeTeam.coachName}
             </div>
           )}
@@ -124,38 +188,83 @@ function MatchHeader({
 
         {/* Score or vs */}
         {hasScore ? (
-          <div style={{ textAlign: 'center', flexShrink: 0, width: 72 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 2, lineHeight: 1, color: isLive ? '#f97316' : undefined }}>
-              {vm.score.home} <span style={{ opacity: 0.4, fontSize: 16 }}>-</span> {vm.score.away}
+          <div style={{ textAlign: 'center', flexShrink: 0, width: 80, position: 'relative' }}>
+            {/* Aura glow — solo para partidos EN JUEGO confirmados */}
+            {isLive && (
+              <div style={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                transform: 'translate(-50%, -60%)',
+                width: 64, height: 32,
+                borderRadius: '50%',
+                background: 'rgba(249,115,22,0.18)',
+                filter: 'blur(12px)',
+                pointerEvents: 'none',
+              }} />
+            )}
+            <div style={{
+              fontSize: 28, fontWeight: 900, letterSpacing: 3, lineHeight: 1,
+              color: scoreColor,
+              filter: scoreShadow,
+              position: 'relative',
+            }}>
+              {vm.score.home} <span style={{ color: 'var(--sp-text-35)', fontSize: 20, fontWeight: 400 }}>-</span> {vm.score.away}
             </div>
+
+            {/* Badge de estado debajo del score */}
             {isLive ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block', animation: 'pulse 1.4s infinite' }} />
-                <span style={{ fontSize: 10, color: '#ef4444', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>En juego</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6 }}>
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  backgroundColor: '#ef4444', display: 'inline-block',
+                  animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
+                }} />
+                <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  En juego
+                </span>
+              </div>
+            ) : isZombie ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6 }}>
+                <Clock size={11} color="#f59e0b" strokeWidth={2.5} />
+                <span style={{ fontSize: 9, color: '#f59e0b', fontWeight: 700, letterSpacing: '0.05em' }}>
+                  Confirmando
+                </span>
               </div>
             ) : (
-              <div style={{ fontSize: 10, opacity: 0.4, marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>Final</div>
+              <div style={{ fontSize: 9, color: 'var(--sp-text-40)', marginTop: 5, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>
+                Final
+              </div>
             )}
           </div>
         ) : (
-          <span style={{ fontSize: 16, fontWeight: 700, opacity: 0.4, flexShrink: 0, width: 40, textAlign: 'center', display: 'block' }}>vs</span>
+          <div style={{ textAlign: 'center', flexShrink: 0, width: 60 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--sp-text-35)', display: 'block' }}>vs</span>
+          </div>
         )}
 
         {/* Away team */}
         <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <TeamCrest url={vm.awayTeam.crest} name={vm.awayTeam.name} />
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+            <TeamCrest url={vm.awayTeam.crest} name={vm.awayTeam.name} size={56} />
           </div>
-          <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+          <div style={{
+            fontSize: 12, fontWeight: 900,
+            color: 'var(--sp-text)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            paddingInline: 4, letterSpacing: '-0.01em',
+          }}>
             {vm.awayTeam.name}
           </div>
           {vm.awayTeam.coachName && (
-            <div style={{ fontSize: 10, marginTop: 2, opacity: 0.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
+            <div style={{ fontSize: 10, marginTop: 2, color: 'var(--sp-text-35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 4 }}>
               {vm.awayTeam.coachName}
             </div>
           )}
         </div>
       </div>
+
+      {/* Divider */}
+      <div style={{ height: 1, background: 'var(--sp-border)', marginBottom: 20 }} />
     </div>
   );
 }
@@ -166,10 +275,19 @@ function derivePredictionBadge(
   outcomeStatus?: string,
   uiState?: string,
 ): { label: string; color: string } {
-  if (uiState === 'IN_PLAY' || outcomeStatus === 'in_progress')
+  // PENDING_CONFIRMATION tiene prioridad absoluta: el uiState calculado
+  // puede coincidir con outcomeStatus='in_progress' del backend, pero el
+  // zombie guard ya determinó que no es un partido activo confirmado.
+  if (uiState === 'PENDING_CONFIRMATION')
+    return { label: 'Confirmando resultado', color: '#f59e0b' };
+  // "En juego" solo cuando el uiState confirma partido activo
+  if (uiState === 'IN_PLAY')
     return { label: 'En juego', color: '#f97316' };
-  if (outcomeStatus === 'hit')          return { label: 'Acertado',    color: '#22c55e' };
-  if (outcomeStatus === 'miss')         return { label: 'Fallado',     color: '#ef4444' };
+  // outcomeStatus='in_progress' sin estado activo confirmado = datos aún no actualizados
+  if (outcomeStatus === 'in_progress')
+    return { label: 'Pendiente', color: '#6b7280' };
+  if (outcomeStatus === 'hit')           return { label: 'Acertado',     color: '#22c55e' };
+  if (outcomeStatus === 'miss')          return { label: 'Fallado',      color: '#ef4444' };
   if (outcomeStatus === 'not_evaluable') return { label: 'No evaluable', color: '#6b7280' };
   return { label: 'Pendiente', color: '#6b7280' };
 }
@@ -197,68 +315,180 @@ function PreMatchBody({
       {/* §7.1 — Prediction block */}
       {vm.prediction && (() => {
         const badge = derivePredictionBadge(vm.prediction!.outcomeStatus, uiState);
+        const homeW = Math.round((vm.prediction.homeProbability ?? 0) * 100);
+        const drawW = Math.round((vm.prediction.drawProbability ?? 0) * 100);
+        const awayW = Math.round((vm.prediction.awayProbability ?? 0) * 100);
+
         return (
-        <div
-          data-testid="match-estimate"
-          style={{ marginBottom: 16, padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8 }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Pronóstico
+          <div
+            data-testid="match-estimate"
+            style={{
+              marginBottom: 20,
+              padding: '14px 16px',
+              backgroundColor: 'var(--sp-border-4)',
+              borderRadius: 12,
+              border: '1px solid var(--sp-border-8)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-text-35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Pronóstico
+              </div>
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                padding: '3px 10px', borderRadius: 20,
+                backgroundColor: `${badge.color}18`,
+                color: badge.color,
+                border: `1px solid ${badge.color}40`,
+              }}>
+                {badge.label}
+              </span>
             </div>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, backgroundColor: `${badge.color}22`, color: badge.color, border: `1px solid ${badge.color}44` }}>
-              {badge.label}
-            </span>
-          </div>
 
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginBottom: hasProbs ? 8 : 0 }}>
-            {vm.prediction.label}
-          </div>
+            {/* §7.1 — Gradient probability bars */}
+            {hasProbs && (
+              <div>
+                {/* Labels row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ textAlign: 'left', minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--sp-text)' }}>{homeW}%</div>
+                    <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 80 }}>
+                      {vm.homeTeam.name}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--sp-text-55)' }}>{drawW}%</div>
+                    <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1 }}>Empate</div>
+                  </div>
+                  <div style={{ textAlign: 'right', minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--sp-text)' }}>{awayW}%</div>
+                    <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 80 }}>
+                      {vm.awayTeam.name}
+                    </div>
+                  </div>
+                </div>
 
-          {/* §7.1 — Probabilities */}
-          {hasProbs && (
-            <>
-              <div style={{ display: 'flex', marginBottom: 6 }}>
-                <div style={{ width: pct(vm.prediction.homeProbability), textAlign: 'left' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800 }}>{pct(vm.prediction.homeProbability)}</div>
-                  <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vm.homeTeam.name}</div>
-                </div>
-                <div style={{ width: pct(vm.prediction.drawProbability), textAlign: 'center' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#6b7280' }}>{pct(vm.prediction.drawProbability)}</div>
-                  <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>Empate</div>
-                </div>
-                <div style={{ width: pct(vm.prediction.awayProbability), textAlign: 'right' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800 }}>{pct(vm.prediction.awayProbability)}</div>
-                  <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vm.awayTeam.name}</div>
+                {/* Gradient bar */}
+                <div style={{ display: 'flex', gap: 3, height: 8, borderRadius: 4, overflow: 'hidden' }}>
+                  {homeW > 0 && (
+                    <div style={{
+                      flex: homeW,
+                      background: 'linear-gradient(90deg, var(--sp-primary), #3b82f6)',
+                      borderRadius: 4,
+                    }} />
+                  )}
+                  {drawW > 0 && (
+                    <div style={{
+                      flex: drawW,
+                      background: 'var(--sp-border-8)',
+                      borderRadius: 4,
+                    }} />
+                  )}
+                  {awayW > 0 && (
+                    <div style={{
+                      flex: awayW,
+                      background: 'linear-gradient(90deg, #ef4444, #b91c1c)',
+                      borderRadius: 4,
+                    }} />
+                  )}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ height: 6, borderRadius: 3, backgroundColor: '#22c55e', width: pct(vm.prediction.homeProbability), transition: 'width 0.3s' }} />
-                <div style={{ height: 6, borderRadius: 3, backgroundColor: '#6b7280', width: pct(vm.prediction.drawProbability), transition: 'width 0.3s' }} />
-                <div style={{ height: 6, borderRadius: 3, backgroundColor: '#ef4444', width: pct(vm.prediction.awayProbability), transition: 'width 0.3s' }} />
-              </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
         );
       })()}
 
       {/* §7.3 — Short pre-match reading */}
       {vm.preMatchReading && (
-        <div style={{ fontSize: 12, opacity: 0.55, marginBottom: 16, fontStyle: 'italic' }}>
+        <div style={{
+          fontSize: 12,
+          color: 'var(--sp-text-40)',
+          marginBottom: 20,
+          fontStyle: 'italic',
+          lineHeight: 1.5,
+          padding: '10px 12px',
+          borderLeft: '3px solid var(--sp-primary-22)',
+          background: 'var(--sp-primary-04)',
+          borderRadius: '0 8px 8px 0',
+        }}>
           {vm.preMatchReading}
         </div>
       )}
 
       {/* §7.2 — Form block */}
       {vm.form && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <div style={{
+          display: 'flex',
+          gap: 12,
+          marginBottom: 20,
+          padding: '12px 14px',
+          background: 'var(--sp-border-4)',
+          borderRadius: 10,
+          border: '1px solid var(--sp-border)',
+          overflow: 'hidden',
+        }}>
           <FormGuide form={vm.form.home} label={vm.homeTeam.name} />
+          <div style={{ width: 1, background: 'var(--sp-border)', flexShrink: 0 }} />
           <FormGuide form={vm.form.away} label={vm.awayTeam.name} />
         </div>
       )}
 
-      {/* Venue performance tables — pre-match context, hidden in FINISHED (§12) */}
+      {/* Tournament goals/points — ordered by pts desc, then GD desc */}
+      {(detail.team.goalStats || nm?.opponentGoalStats) && (() => {
+        const rows = [
+          { name: detail.team.teamName, stats: detail.team.goalStats },
+          { name: nm?.opponentName ?? 'Rival', stats: nm?.opponentGoalStats },
+        ]
+          .filter((r) => r.stats != null)
+          .sort((a, b) => {
+            const ptsDiff = (b.stats?.points ?? 0) - (a.stats?.points ?? 0);
+            if (ptsDiff !== 0) return ptsDiff;
+            return (b.stats?.goalDifference ?? 0) - (a.stats?.goalDifference ?? 0);
+          });
+
+        return (
+          <div style={{ marginBottom: 20 }}>
+            <SectionLabel>Goles / Puntos del torneo</SectionLabel>
+            <div style={{
+              background: 'var(--sp-border-4)',
+              borderRadius: 10,
+              border: '1px solid var(--sp-border)',
+              overflow: 'hidden',
+              padding: '2px 12px 6px',
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '8px 0 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>Equipo</th>
+                    <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>GF</th>
+                    <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>GC</th>
+                    <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>DG</th>
+                    <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(({ name, stats }) => {
+                    const gd = stats!.goalDifference;
+                    return (
+                      <tr key={name} style={{ borderTop: '1px solid var(--sp-border)' }}>
+                        <td style={{ padding: '5px 0', fontSize: 12, fontWeight: 700, color: 'var(--sp-text-88)' }}>{name}</td>
+                        <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12 }}>{stats!.goalsFor}</td>
+                        <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12 }}>{stats!.goalsAgainst}</td>
+                        <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: gd > 0 ? '#22c55e' : gd < 0 ? '#ef4444' : '#6b7280' }}>
+                          {gd > 0 ? '+' : ''}{gd}
+                        </td>
+                        <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: 'var(--sp-text)' }}>{stats!.points}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Venue performance tables — mini-bento */}
       {(() => {
         const entries: { label: string; home?: typeof detail.team.goalStats; away?: typeof detail.team.goalStats }[] = [];
         if (detail.team.homeGoalStats || detail.team.awayGoalStats)
@@ -269,32 +499,43 @@ function PreMatchBody({
 
         function VenueRow({ stats, venue }: { stats: typeof detail.team.goalStats; venue: string }) {
           if (!stats) return null;
+          const gd = stats.goalDifference;
           return (
-            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-              <td style={{ padding: '5px 0' }}>{venue}</td>
-              <td style={{ textAlign: 'center', padding: '5px 6px' }}>{stats.goalsFor}</td>
-              <td style={{ textAlign: 'center', padding: '5px 6px' }}>{stats.goalsAgainst}</td>
-              <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 600, color: stats.goalDifference > 0 ? '#22c55e' : stats.goalDifference < 0 ? '#ef4444' : '#6b7280' }}>
-                {stats.goalDifference > 0 ? '+' : ''}{stats.goalDifference}
+            <tr style={{ borderTop: '1px solid var(--sp-border)' }}>
+              <td style={{ padding: '5px 0', fontSize: 12, color: 'var(--sp-text-55)' }}>{venue}</td>
+              <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12 }}>{stats.goalsFor}</td>
+              <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12 }}>{stats.goalsAgainst}</td>
+              <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: gd > 0 ? '#22c55e' : gd < 0 ? '#ef4444' : '#6b7280' }}>
+                {gd > 0 ? '+' : ''}{gd}
               </td>
-              <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 700 }}>{stats.points}</td>
+              <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: 'var(--sp-text)' }}>{stats.points}</td>
             </tr>
           );
         }
 
         return (
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 20 }}>
             <SectionLabel>Rendimiento local / visitante</SectionLabel>
             {entries.map((entry) => (
-              <div key={entry.label} style={{ marginBottom: 12 }}>
-                <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+              <div
+                key={entry.label}
+                style={{
+                  marginBottom: 10,
+                  background: 'var(--sp-border-4)',
+                  borderRadius: 10,
+                  border: '1px solid var(--sp-border)',
+                  overflow: 'hidden',
+                  padding: '2px 12px 6px',
+                }}
+              >
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left', padding: '4px 0', fontWeight: 600, fontSize: 12 }}>{entry.label}</th>
-                      <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>GF</th>
-                      <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>GC</th>
-                      <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>DG</th>
-                      <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400, opacity: 0.5 }}>Pts</th>
+                      <th style={{ textAlign: 'left', padding: '8px 0 4px', fontWeight: 700, fontSize: 11, color: 'var(--sp-text-88)' }}>{entry.label}</th>
+                      <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>GF</th>
+                      <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>GC</th>
+                      <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>DG</th>
+                      <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>Pts</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -308,65 +549,6 @@ function PreMatchBody({
         );
       })()}
 
-      {/* Tournament goals/points — pre-match context, hidden in FINISHED (§12) */}
-      {(detail.team.goalStats || nm?.opponentGoalStats) && (() => {
-        const homeStats = isHome ? detail.team.goalStats : nm?.opponentGoalStats;
-        const awayStats = isHome ? nm?.opponentGoalStats : detail.team.goalStats;
-        return (
-          <div style={{ marginBottom: 16 }}>
-            <SectionLabel>Goles / Puntos del torneo</SectionLabel>
-            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ opacity: 0.5 }}>
-                  <th style={{ textAlign: 'left', padding: '4px 0', fontWeight: 400 }}>Equipo</th>
-                  <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>GF</th>
-                  <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>GC</th>
-                  <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>DG</th>
-                  <th style={{ textAlign: 'center', padding: '4px 6px', fontWeight: 400 }}>Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {homeStats && (
-                  <tr style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                    <td style={{ padding: '5px 0', fontWeight: 600 }}>{vm.homeTeam.name}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 6px' }}>{homeStats.goalsFor}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 6px' }}>{homeStats.goalsAgainst}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 600, color: homeStats.goalDifference > 0 ? '#22c55e' : homeStats.goalDifference < 0 ? '#ef4444' : '#6b7280' }}>
-                      {homeStats.goalDifference > 0 ? '+' : ''}{homeStats.goalDifference}
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 700 }}>{homeStats.points}</td>
-                  </tr>
-                )}
-                {awayStats && (
-                  <tr style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                    <td style={{ padding: '5px 0', fontWeight: 600 }}>{vm.awayTeam.name}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 6px' }}>{awayStats.goalsFor}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 6px' }}>{awayStats.goalsAgainst}</td>
-                    <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 600, color: awayStats.goalDifference > 0 ? '#22c55e' : awayStats.goalDifference < 0 ? '#ef4444' : '#6b7280' }}>
-                      {awayStats.goalDifference > 0 ? '+' : ''}{awayStats.goalDifference}
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '5px 6px', fontWeight: 700 }}>{awayStats.points}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        );
-      })()}
-
-      {/* Signals — pre-match only */}
-      <section data-testid="explain-section" style={{ marginTop: 4 }}>
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {detail.explainability.topContributions
-            .filter((c) => c.signalKey !== 'FORM_POINTS_LAST_5')
-            .map((c) => (
-              <li key={c.signalKey} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 13, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                <span>{signalLabel(c.signalKey)}</span>
-                <span style={{ fontWeight: 600 }}>{signalValueLabel(c.signalKey, c.rawValue)}</span>
-              </li>
-            ))}
-        </ul>
-      </section>
     </>
   );
 }
@@ -403,7 +585,7 @@ const NARRATIVE_PHRASES: Record<string, string[]> = {
   ],
 };
 
-/** Deterministic phrase selector: same matchId → same phrase, different matches → variety. */
+/** Deterministic phrase selector */
 function pickPhrase(matchId: string, key: string): string {
   const pool = NARRATIVE_PHRASES[key];
   if (!pool || pool.length === 0) return key;
@@ -417,13 +599,7 @@ const DEVIATION_READABLE: Record<string, string> = {
   HIGH:   'Resultado inesperado',
 };
 
-const WINNER_LABELS = {
-  HOME:  (name: string) => `Ganó ${name}`,
-  AWAY:  (name: string) => `Ganó ${name}`,
-  DRAW:  () => 'Empate',
-};
-
-// ── IncidentTimeline ──────────────────────────────────────────────────────────
+// ── IncidentTimeline — Premium with conductor line ────────────────────────────
 
 const INCIDENT_ICONS: Record<string, string> = {
   GOAL:            '⚽',
@@ -448,11 +624,13 @@ function IncidentTimeline({
   homeTeamName,
   awayTeamName,
   label,
+  isMobile,
 }: {
   events: IncidentEvent[];
   homeTeamName: string;
   awayTeamName: string;
   label?: string;
+  isMobile?: boolean;
 }) {
   if (events.length === 0) return null;
 
@@ -460,176 +638,385 @@ function IncidentTimeline({
     (a, b) => a.minute - b.minute || (a.minuteExtra ?? 0) - (b.minuteExtra ?? 0),
   );
 
+  // Goals only for neon badge highlights
+  const isGoal = (type: string) => ['GOAL', 'OWN_GOAL', 'PENALTY_GOAL'].includes(type);
+  const isCard = (type: string) => type.includes('CARD');
+
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ marginBottom: 20 }}>
       {label && <SectionLabel>{label}</SectionLabel>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {sorted.map((ev, i) => {
-          const isHome = ev.teamSide === 'HOME';
-          const icon = INCIDENT_ICONS[ev.type] ?? '•';
-          const detail = INCIDENT_DETAIL[ev.type];
-          const timeStr = `${ev.minute}${ev.minuteExtra ? `+${ev.minuteExtra}` : ''}'`;
-          const isSub = ev.type === 'SUBSTITUTION';
-          const isCard = ev.type.includes('CARD');
 
-          return (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '4px 6px',
-                borderRadius: 5,
-                backgroundColor: isCard ? 'rgba(255,255,255,0.03)' : 'transparent',
-                flexDirection: isHome ? 'row' : 'row-reverse',
-              }}
-            >
-              {/* Minuto */}
-              <span style={{
-                fontSize: 10,
-                color: 'rgba(255,255,255,0.38)',
-                minWidth: 26,
-                textAlign: isHome ? 'right' : 'left',
-                fontVariantNumeric: 'tabular-nums',
-                flexShrink: 0,
-              }}>
-                {timeStr}
-              </span>
+      {/* Container with conductor line */}
+      <div style={{ position: 'relative', paddingLeft: isMobile ? 0 : 32 }}>
 
-              {/* Ícono */}
-              <span style={{ fontSize: 13, flexShrink: 0 }}>{icon}</span>
+        {/* Vertical conductor line (desktop only) */}
+        {!isMobile && (
+          <div style={{
+            position: 'absolute',
+            left: 14,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            background: 'linear-gradient(to bottom, transparent, var(--sp-border-8) 8%, var(--sp-border-8) 92%, transparent)',
+            borderRadius: 1,
+          }} />
+        )}
 
-              {/* Info del jugador */}
-              <div style={{
-                flex: 1,
-                minWidth: 0,
-                textAlign: isHome ? 'left' : 'right',
-              }}>
-                {ev.playerName && (
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {ev.playerName}
-                    {detail && <span style={{ fontSize: 10, opacity: 0.5, marginLeft: 4 }}>{detail}</span>}
-                  </span>
-                )}
-                {ev.assistName && !isSub && (
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', display: 'block' }}>
-                    Ast: {ev.assistName}
-                  </span>
-                )}
-                {isSub && ev.playerOutName && (
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', display: 'block' }}>
-                    ↓ {ev.playerOutName}
-                  </span>
-                )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {sorted.map((ev, i) => {
+            const isHome = ev.teamSide === 'HOME';
+            const icon = INCIDENT_ICONS[ev.type] ?? '•';
+            const detail = INCIDENT_DETAIL[ev.type];
+            const timeStr = `${ev.minute}${ev.minuteExtra ? `+${ev.minuteExtra}` : ''}'`;
+            const isSub = ev.type === 'SUBSTITUTION';
+            const goal = isGoal(ev.type);
+            const card = isCard(ev.type);
+
+            // Neon badge for goals
+            const badgeBg = goal
+              ? 'var(--sp-primary-10)'
+              : card
+              ? 'rgba(239,68,68,0.08)'
+              : 'transparent';
+            const badgeBorder = goal
+              ? '1px solid var(--sp-primary-22)'
+              : card
+              ? '1px solid rgba(239,68,68,0.2)'
+              : 'none';
+
+            return (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '5px 8px',
+                  borderRadius: 8,
+                  backgroundColor: badgeBg,
+                  border: badgeBorder,
+                  flexDirection: isMobile ? 'row' : isHome ? 'row' : 'row-reverse',
+                  transition: 'background 0.15s',
+                }}
+              >
+                {/* Minuto */}
+                <span style={{
+                  fontSize: 10,
+                  color: goal ? 'var(--sp-primary)' : 'var(--sp-text-40)',
+                  minWidth: 26,
+                  textAlign: isMobile ? 'left' : isHome ? 'right' : 'left',
+                  fontVariantNumeric: 'tabular-nums',
+                  fontWeight: goal ? 700 : 400,
+                  flexShrink: 0,
+                }}>
+                  {timeStr}
+                </span>
+
+                {/* Ícono */}
+                <span style={{ fontSize: 13, flexShrink: 0 }}>{icon}</span>
+
+                {/* Info del jugador */}
+                <div style={{
+                  flex: 1,
+                  minWidth: 0,
+                  textAlign: isMobile ? 'left' : isHome ? 'left' : 'right',
+                }}>
+                  {ev.playerName && (
+                    <span style={{
+                      fontSize: 12,
+                      color: goal ? 'var(--sp-text)' : 'var(--sp-text-88)',
+                      fontWeight: goal ? 700 : 400,
+                      display: 'block',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {ev.playerName}
+                      {detail && <span style={{ fontSize: 10, color: 'var(--sp-text-40)', marginLeft: 4 }}>{detail}</span>}
+                    </span>
+                  )}
+                  {ev.assistName && !isSub && (
+                    <span style={{ fontSize: 10, color: 'var(--sp-text-40)', display: 'block' }}>
+                      Ast: {ev.assistName}
+                    </span>
+                  )}
+                  {isSub && ev.playerOutName && (
+                    <span style={{ fontSize: 10, color: 'var(--sp-text-35)', display: 'block' }}>
+                      ↓ {ev.playerOutName}
+                    </span>
+                  )}
+                </div>
+
+                {/* Equipo label */}
+                <span style={{
+                  fontSize: 9,
+                  color: 'var(--sp-text-30)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  maxWidth: 52,
+                }}>
+                  {isHome ? homeTeamName : awayTeamName}
+                </span>
               </div>
-
-              {/* Equipo (pequeño label) */}
-              <span style={{
-                fontSize: 9,
-                color: 'rgba(255,255,255,0.25)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                flexShrink: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 52,
-              }}>
-                {isHome ? homeTeamName : awayTeamName}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
+// ── Share button ───────────────────────────────────────────────────────────────
+
+function ShareButton({ vm }: { vm: MatchDetailViewModel }) {
+  const handleShare = useCallback(async () => {
+    const score = vm.score.home != null && vm.score.away != null
+      ? `${vm.score.home}-${vm.score.away}`
+      : '';
+    const text = `${vm.homeTeam.name} ${score} ${vm.awayTeam.name} · SportPulse`;
+
+    if (navigator.share) {
+      await navigator.share({ title: 'SportPulse', text }).catch(() => null);
+    } else {
+      await navigator.clipboard.writeText(text).catch(() => null);
+    }
+  }, [vm]);
+
+  return (
+    <button
+      onClick={handleShare}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '8px 16px',
+        borderRadius: 20,
+        border: '1px solid var(--sp-border-8)',
+        background: 'var(--sp-surface)',
+        color: 'var(--sp-text-55)',
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget;
+        el.style.borderColor = 'var(--sp-primary-40)';
+        el.style.color = 'var(--sp-primary)';
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget;
+        el.style.borderColor = 'var(--sp-border-8)';
+        el.style.color = 'var(--sp-text-55)';
+      }}
+    >
+      <span>↗</span>
+      <span>Compartir</span>
+    </button>
+  );
+}
+
 // ── FinishedBody ──────────────────────────────────────────────────────────────
 
-function FinishedBody({ vm, hideEvents = false }: { vm: MatchDetailViewModel; hideEvents?: boolean }) {
+function FinishedBody({
+  vm,
+  hideEvents = false,
+  isMobile = false,
+}: {
+  vm: MatchDetailViewModel;
+  hideEvents?: boolean;
+  isMobile?: boolean;
+}) {
   const pred = vm.prediction;
   const hasEvents = !hideEvents && vm.events.length > 0;
+  const noEventsData = !hasEvents && hideEvents === false;
+
+  // Poisson unification: prefer expectedWinner vs actualWinner when both are available.
+  // Falls back to backend outcomeStatus when probs are unavailable.
+  const effectiveOutcomeStatus =
+    pred?.expectedWinner && pred?.actualWinner
+      ? pred.expectedWinner === pred.actualWinner
+        ? 'hit'
+        : 'miss'
+      : pred?.outcomeStatus;
+
+  const isHit = effectiveOutcomeStatus === 'hit';
+  const isMiss = effectiveOutcomeStatus === 'miss';
+
+  const narrativeBorder = isHit ? '#22c55e' : isMiss ? '#ef4444' : 'var(--sp-border-8)';
+  const narrativeBg     = isHit ? 'rgba(34,197,94,0.06)' : isMiss ? 'rgba(239,68,68,0.05)' : 'var(--sp-border-4)';
+
+  // Padding de la evaluación: más grande cuando no hay eventos para llenar el espacio
+  const predPadding = noEventsData ? '20px 20px' : '14px 16px';
 
   return (
     <>
+      {/* ── Caso A: hay eventos → lista cronológica de goles ────────────────── */}
+      {hasEvents && (
+        <div style={{ marginBottom: 20 }}>
+          <SectionLabel>Goles del partido</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {vm.events
+              .slice()
+              .sort((a, b) => a.minute - b.minute || (a.extraMinute ?? 0) - (b.extraMinute ?? 0))
+              .map((ev) => (
+                <div
+                  key={ev.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 12,
+                    justifyContent: ev.teamSide === 'HOME' ? 'flex-start' : 'flex-end',
+                    padding: '5px 10px',
+                    borderRadius: 8,
+                    background: 'var(--sp-primary-04)',
+                    border: '1px solid var(--sp-primary-10)',
+                  }}
+                >
+                  <span style={{
+                    fontSize: 10,
+                    color: 'var(--sp-primary)',
+                    fontWeight: 700,
+                    minWidth: 28,
+                    textAlign: 'right',
+                    fontVariantNumeric: 'tabular-nums',
+                    flexShrink: 0,
+                  }}>
+                    {ev.minute}{ev.extraMinute ? `+${ev.extraMinute}` : ''}'
+                  </span>
+                  <span style={{ flexShrink: 0 }}>⚽</span>
+                  {ev.playerName && (
+                    <span style={{
+                      color: 'var(--sp-text-88)',
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {ev.playerName}
+                    </span>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
-      {/* §8.2 — Match events block */}
-      {(() => {
-        const totalGoals = (vm.score.home ?? 0) + (vm.score.away ?? 0);
-        if (hasEvents) {
-          return (
-            <div style={{ marginBottom: 16 }}>
-              <SectionLabel>Goles del partido</SectionLabel>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {vm.events
-                  .slice()
-                  .sort((a, b) => a.minute - b.minute || (a.extraMinute ?? 0) - (b.extraMinute ?? 0))
-                  .map((ev) => (
-                    <div
-                      key={ev.id}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, justifyContent: ev.teamSide === 'HOME' ? 'flex-start' : 'flex-end' }}
-                    >
-                      <span style={{ fontSize: 11, opacity: 0.5, minWidth: 28, textAlign: 'right' }}>
-                        {ev.minute}{ev.extraMinute ? `+${ev.extraMinute}` : ''}'
-                      </span>
-                      <span>⚽</span>
-                      {ev.playerName && <span style={{ opacity: 0.85 }}>{ev.playerName}</span>}
-                    </div>
-                  ))}
-              </div>
+      {/* ── Caso B: sin datos de eventos → estado de cortesía ───────────────── */}
+      {noEventsData && (
+        <div style={{
+          marginBottom: isMobile ? 16 : 20,
+          padding: '14px 16px',
+          borderRadius: 12,
+          border: '1px solid var(--sp-border)',
+          background: 'var(--sp-border-4)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 12,
+        }}>
+          <div style={{
+            flexShrink: 0,
+            marginTop: 1,
+            color: 'var(--sp-text-20)',
+          }}>
+            <Info size={16} strokeWidth={1.5} />
+          </div>
+          <div>
+            <div style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--sp-text-40)',
+              marginBottom: 3,
+            }}>
+              Resumen detallado no disponible
             </div>
-          );
-        }
-        // Fallback: match had goals but no timeline data available
-        if (totalGoals > 0) {
-          return (
-            <div style={{ marginBottom: 16, fontSize: 12, opacity: 0.4, textAlign: 'center' }}>
-              {totalGoals === 1 ? '1 gol' : `${totalGoals} goles`} · detalles no disponibles
+            <div style={{
+              fontSize: 11,
+              color: 'var(--sp-text-30)',
+              lineHeight: 1.5,
+            }}>
+              Esta liga no provee el detalle de eventos. El marcador final está confirmado.
             </div>
-          );
-        }
-        return null;
-      })()}
+          </div>
+        </div>
+      )}
 
-      {/* §8.3 — Prediction evaluation block with outcome badge (data-testid="match-estimate") */}
+      {/* ── Evaluación del pronóstico — más prominente sin eventos ──────────── */}
       {pred && (() => {
-        const badge = derivePredictionBadge(pred.outcomeStatus, 'FINISHED');
+        const badge = derivePredictionBadge(effectiveOutcomeStatus, 'FINISHED');
         return (
           <div
             data-testid="match-estimate"
-            style={{ marginBottom: 16, padding: '12px 14px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8 }}
+            style={{
+              marginBottom: 20,
+              padding: predPadding,
+              backgroundColor: narrativeBg,
+              borderRadius: 12,
+              border: `1px solid ${narrativeBorder}`,
+            }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <SectionLabel>Evaluación del pronóstico</SectionLabel>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 4, backgroundColor: `${badge.color}22`, color: badge.color, border: `1px solid ${badge.color}44` }}>
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                padding: '3px 10px', borderRadius: 20,
+                backgroundColor: `${badge.color}18`,
+                color: badge.color,
+                border: `1px solid ${badge.color}40`,
+              }}>
                 {badge.label}
               </span>
             </div>
 
-            {/* Expected vs actual winner */}
             {pred.expectedWinner && pred.actualWinner && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, marginBottom: 8, opacity: 0.85 }}>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                fontSize: noEventsData ? 13 : 12,
+                marginBottom: 12,
+                color: 'var(--sp-text-88)',
+              }}>
                 <span>
-                  Esperado: <strong>{pred.expectedWinner === 'HOME' ? vm.homeTeam.name : pred.expectedWinner === 'AWAY' ? vm.awayTeam.name : 'Empate'}</strong>
+                  Esperado: <strong>
+                    {pred.expectedWinner === 'HOME' ? vm.homeTeam.name
+                      : pred.expectedWinner === 'AWAY' ? vm.awayTeam.name
+                      : 'Empate'}
+                  </strong>
                 </span>
                 <span>
-                  Real: <strong>{pred.actualWinner === 'HOME' ? vm.homeTeam.name : pred.actualWinner === 'AWAY' ? vm.awayTeam.name : 'Empate'}</strong>
+                  Real: <strong>
+                    {pred.actualWinner === 'HOME' ? vm.homeTeam.name
+                      : pred.actualWinner === 'AWAY' ? vm.awayTeam.name
+                      : 'Empate'}
+                  </strong>
                 </span>
               </div>
             )}
 
-            {/* Deviation */}
             {pred.deviation && (
-              <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+              <div style={{
+                fontSize: 12,
+                color: 'var(--sp-text-40)',
+                marginBottom: pred.narrativeTag ? 8 : 0,
+              }}>
                 {DEVIATION_READABLE[pred.deviation] ?? pred.deviation}
               </div>
             )}
 
-            {/* Narrative tag */}
             {pred.narrativeTag && NARRATIVE_PHRASES[pred.narrativeTag] && (
-              <div style={{ fontSize: 12, opacity: 0.55, fontStyle: 'italic' }}>
+              <div style={{
+                fontSize: noEventsData ? 14 : 13,
+                color: 'var(--sp-text-55)',
+                fontStyle: 'italic',
+                lineHeight: 1.5,
+                marginTop: noEventsData ? 4 : 0,
+              }}>
                 {pickPhrase(vm.matchId ?? '', pred.narrativeTag)}
               </div>
             )}
@@ -637,16 +1024,26 @@ function FinishedBody({ vm, hideEvents = false }: { vm: MatchDetailViewModel; hi
         );
       })()}
 
+      {/* Share button — sube en mobile cuando no hay eventos */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        marginTop: isMobile && noEventsData ? 4 : 8,
+        marginBottom: 8,
+      }}>
+        <ShareButton vm={vm} />
+      </div>
     </>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function DetailPanel({ detail, onClose }: DetailPanelProps) {
+export function DetailPanel({ detail, onClose, predictionProbsOverride }: DetailPanelProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
 
+  // Keyboard Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -655,10 +1052,21 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  const vm = buildMatchDetailViewModel(detail);
+  // Swipe-down to close on mobile
+  const touchStartY = useRef<number | null>(null);
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const delta = e.changedTouches[0].clientY - touchStartY.current;
+    if (delta > 80) onClose();
+    touchStartY.current = null;
+  }, [onClose]);
+
+  const vm = buildMatchDetailViewModel(detail, predictionProbsOverride);
   const nm = detail.nextMatch;
 
-  // Hook de incidentes: solo activo en partidos en curso o finalizados
   const { data: incidents } = useMatchIncidents({
     matchId:       nm?.matchId,
     status:        nm?.matchStatus as string | null | undefined,
@@ -673,39 +1081,84 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
   const incidentEvents: IncidentEvent[] | null =
     incidents && incidents.events.length > 0 ? incidents.events : null;
 
-  // Top bar label (§5 header)
   const headerLabel =
-    vm.uiState === 'IN_PLAY' ? 'En juego'
-    : vm.uiState === 'FINISHED' ? 'Último partido'
-    : vm.uiState === 'PRE_MATCH' ? 'Próximo partido'
+    vm.uiState === 'IN_PLAY'              ? 'En juego'
+    : vm.uiState === 'PENDING_CONFIRMATION' ? 'Confirmando resultado'
+    : vm.uiState === 'FINISHED'           ? 'Último partido'
+    : vm.uiState === 'PRE_MATCH'          ? 'Próximo partido'
     : '';
 
   return (
     <aside
       data-testid="detail-panel"
       className="detail-panel"
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
       style={{
         position: 'fixed', top: 0, right: 0,
-        width: isMobile ? '100vw' : 340,
+        width: isMobile ? '100vw' : 360,
         height: '100vh',
-        backgroundColor: '#1e293b', color: '#fff',
-        padding: isMobile ? 16 : 20,
+        backgroundColor: 'var(--sp-surface)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        color: 'var(--sp-text)',
+        padding: isMobile ? '16px 16px 32px' : '20px 22px 32px',
         overflowY: 'auto',
-        boxShadow: '-4px 0 20px rgba(0,0,0,0.3)',
+        boxShadow: '-4px 0 40px rgba(0,0,0,0.25)',
         animation: 'slideIn 220ms ease-out',
         zIndex: 100,
         boxSizing: 'border-box',
       }}
     >
       {/* Close bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+        <span style={{
+          fontSize: 10,
+          fontWeight: 800,
+          color: 'var(--sp-text-35)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+        }}>
           {headerLabel}
         </span>
+        {/* Swipe hint on mobile */}
+        {isMobile && (
+          <div style={{
+            width: 36, height: 4, borderRadius: 2,
+            background: 'var(--sp-border-8)',
+            position: 'absolute',
+            top: 8, left: '50%',
+            transform: 'translateX(-50%)',
+          }} />
+        )}
         <button
           data-testid="close-detail"
           onClick={onClose}
-          style={{ background: 'none', border: 'none', color: '#fff', fontSize: isMobile ? 24 : 20, cursor: 'pointer', padding: isMobile ? '8px 12px' : '4px', margin: isMobile ? '-8px -12px' : 0, flexShrink: 0 }}
+          style={{
+            background: 'var(--sp-border-4)',
+            border: '1px solid var(--sp-border)',
+            borderRadius: '50%',
+            width: isMobile ? 36 : 30,
+            height: isMobile ? 36 : 30,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--sp-text-55)',
+            fontSize: isMobile ? 16 : 14,
+            cursor: 'pointer',
+            flexShrink: 0,
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget;
+            el.style.borderColor = 'var(--sp-primary-40)';
+            el.style.color = 'var(--sp-primary)';
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget;
+            el.style.borderColor = 'var(--sp-border)';
+            el.style.color = 'var(--sp-text-55)';
+          }}
         >
           ✕
         </button>
@@ -713,14 +1166,14 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
 
       {/* Team identity — only when no match context */}
       {!nm && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-          <TeamCrest url={detail.team.crestUrl} name={detail.team.teamName} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+          <TeamCrest url={detail.team.crestUrl} name={detail.team.teamName} size={56} />
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--sp-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {detail.team.teamName}
             </div>
             {detail.team.coachName && (
-              <div style={{ fontSize: 11, opacity: 0.45, marginTop: 2 }}>{detail.team.coachName}</div>
+              <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginTop: 3 }}>{detail.team.coachName}</div>
             )}
           </div>
         </div>
@@ -728,17 +1181,76 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
 
       {nm && (
         <section data-testid="next-match">
-          {/* §6 — Fixed header: always visible across all states */}
+          {/* §6 — Fixed header */}
           <MatchHeader vm={vm} timezone={detail.header.timezone} headerLabel={headerLabel} />
 
-          {/* §15 — Conditional body by uiState */}
-
-          {/* PRE_MATCH: prediction + form + context tables (§7, §15.1) */}
+          {/* PRE_MATCH */}
           {vm.uiState === 'PRE_MATCH' && (
             <PreMatchBody vm={vm} detail={detail} uiState="PRE_MATCH" />
           )}
 
-          {/* IN_PLAY: pronóstico + timeline de incidentes (§13, §15.3) */}
+          {/* PENDING_CONFIRMATION — zombie: >180 min sin confirmación de resultado */}
+          {vm.uiState === 'PENDING_CONFIRMATION' && (
+            <>
+              {vm.prediction && (() => {
+                const badge = derivePredictionBadge(vm.prediction!.outcomeStatus, 'PENDING_CONFIRMATION');
+                return (
+                  <div
+                    data-testid="match-estimate"
+                    style={{
+                      marginBottom: 16, padding: '12px 16px',
+                      backgroundColor: 'var(--sp-border-4)',
+                      borderRadius: 12,
+                      border: '1px solid rgba(245,158,11,0.25)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-text-35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        Pronóstico
+                      </div>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700,
+                        padding: '3px 10px', borderRadius: 20,
+                        backgroundColor: `${badge.color}18`,
+                        color: badge.color,
+                        border: `1px solid ${badge.color}40`,
+                      }}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>
+                      {vm.prediction.label}
+                    </div>
+                  </div>
+                );
+              })()}
+              {incidentEvents ? (
+                <IncidentTimeline
+                  events={incidentEvents}
+                  homeTeamName={vm.homeTeam.name}
+                  awayTeamName={vm.awayTeam.name}
+                  label="Incidentes registrados"
+                  isMobile={isMobile}
+                />
+              ) : null}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                fontSize: 12, color: '#f59e0b',
+                textAlign: 'center', justifyContent: 'center',
+                marginTop: 12, padding: '12px 16px',
+                backgroundColor: 'rgba(245,158,11,0.06)',
+                borderRadius: 10,
+                border: '1px solid rgba(245,158,11,0.18)',
+              }}>
+                <Clock size={13} color="#f59e0b" strokeWidth={2} />
+                <span style={{ fontWeight: 600 }}>
+                  Resultado pendiente de confirmación oficial
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* IN_PLAY */}
           {vm.uiState === 'IN_PLAY' && (
             <>
               {vm.prediction && (() => {
@@ -746,17 +1258,29 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                 return (
                   <div
                     data-testid="match-estimate"
-                    style={{ marginBottom: 12, padding: '10px 14px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8 }}
+                    style={{
+                      marginBottom: 16,
+                      padding: '12px 16px',
+                      backgroundColor: 'var(--sp-border-4)',
+                      borderRadius: 12,
+                      border: '1px solid var(--sp-border)',
+                    }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-text-35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                         Pronóstico
                       </div>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, backgroundColor: `${badge.color}22`, color: badge.color, border: `1px solid ${badge.color}44` }}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700,
+                        padding: '3px 10px', borderRadius: 20,
+                        backgroundColor: `${badge.color}18`,
+                        color: badge.color,
+                        border: `1px solid ${badge.color}40`,
+                      }}>
                         {badge.label}
                       </span>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>
                       {vm.prediction.label}
                     </div>
                   </div>
@@ -768,16 +1292,17 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                   homeTeamName={vm.homeTeam.name}
                   awayTeamName={vm.awayTeam.name}
                   label="Incidentes"
+                  isMobile={isMobile}
                 />
               ) : (
-                <div style={{ fontSize: 12, opacity: 0.45, textAlign: 'center', marginTop: 8 }}>
+                <div style={{ fontSize: 12, color: 'var(--sp-text-40)', textAlign: 'center', marginTop: 12, padding: '12px 0' }}>
                   Partido en curso
                 </div>
               )}
             </>
           )}
 
-          {/* FINISHED: incidentes (Flashscore) o fallback a goles (MatchEventsService) + evaluación */}
+          {/* FINISHED */}
           {vm.uiState === 'FINISHED' && (
             <>
               {incidentEvents ? (
@@ -786,13 +1311,14 @@ export function DetailPanel({ detail, onClose }: DetailPanelProps) {
                   homeTeamName={vm.homeTeam.name}
                   awayTeamName={vm.awayTeam.name}
                   label="Resumen del partido"
+                  isMobile={isMobile}
                 />
               ) : null}
-              <FinishedBody vm={vm} hideEvents={incidentEvents != null} />
+              <FinishedBody vm={vm} hideEvents={incidentEvents != null} isMobile={isMobile} />
             </>
           )}
 
-          {/* UNKNOWN: no finished data — treat as pre-match (§7: "UNKNOWN with no finished data") */}
+          {/* UNKNOWN */}
           {vm.uiState === 'UNKNOWN' && (
             <PreMatchBody vm={vm} detail={detail} uiState="UNKNOWN" />
           )}

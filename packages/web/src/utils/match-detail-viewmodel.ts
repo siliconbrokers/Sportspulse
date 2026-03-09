@@ -8,10 +8,16 @@
  */
 import type { TeamDetailDTO } from '../types/team-detail.js';
 import type { PredictionDTO } from '../types/snapshot.js';
+import { getMatchDisplayStatus } from './match-status.js';
 
 // ── Types (§14) ───────────────────────────────────────────────────────────────
 
-export type MatchDetailUiState = 'PRE_MATCH' | 'IN_PLAY' | 'FINISHED' | 'UNKNOWN';
+export type MatchDetailUiState =
+  | 'PRE_MATCH'
+  | 'IN_PLAY'
+  | 'PENDING_CONFIRMATION' // EN_VIVO > 180 min sin confirmar resultado
+  | 'FINISHED'
+  | 'UNKNOWN';
 
 /** Minimum v1 event shape (§10). Events block hidden when array is empty. */
 export type MatchEvent = {
@@ -71,17 +77,19 @@ export interface MatchDetailViewModel {
 }
 
 // ── uiState derivation (§4) ───────────────────────────────────────────────────
+// Delega en getMatchDisplayStatus para aplicar zombie guard de forma centralizada.
 
-function deriveUiState(matchStatus?: string): MatchDetailUiState {
-  switch (matchStatus) {
-    case 'SCHEDULED':
-    case 'POSTPONED':
-    case 'CANCELED':
-      return 'PRE_MATCH';
-    case 'IN_PROGRESS':
+function deriveUiState(matchStatus?: string, kickoffUtc?: string): MatchDetailUiState {
+  const display = getMatchDisplayStatus(matchStatus, kickoffUtc);
+  switch (display) {
+    case 'LIVE':
       return 'IN_PLAY';
+    case 'ZOMBIE':
+      return 'PENDING_CONFIRMATION';
     case 'FINISHED':
       return 'FINISHED';
+    case 'SCHEDULED':
+      return 'PRE_MATCH';
     default:
       return 'UNKNOWN';
   }
@@ -107,6 +115,29 @@ function deriveExpectedWinner(prediction?: PredictionDTO): 'HOME' | 'DRAW' | 'AW
   const w = v?.winner;
   if (w === 'HOME' || w === 'AWAY' || w === 'DRAW') return w;
   return undefined;
+}
+
+/** Derives expected winner as argmax of provided probabilities. */
+function deriveExpectedWinnerFromProbs(
+  probs: { probHome?: number; probDraw?: number; probAway?: number } | null,
+): 'HOME' | 'DRAW' | 'AWAY' | undefined {
+  if (!probs || probs.probHome == null || probs.probDraw == null || probs.probAway == null)
+    return undefined;
+  if (probs.probHome >= probs.probDraw && probs.probHome >= probs.probAway) return 'HOME';
+  if (probs.probAway >= probs.probDraw && probs.probAway >= probs.probHome) return 'AWAY';
+  return 'DRAW';
+}
+
+/** Builds a display label consistent with the expected winner and team names. */
+function buildLabelFromWinner(
+  winner: 'HOME' | 'DRAW' | 'AWAY' | undefined,
+  homeTeamName: string,
+  awayTeamName: string,
+): string {
+  if (winner === 'HOME') return `Gana ${homeTeamName}`;
+  if (winner === 'AWAY') return `Gana ${awayTeamName}`;
+  if (winner === 'DRAW') return 'Empate';
+  return 'Sin predicción';
 }
 
 // ── Prediction probabilities from PredictionDTO ───────────────────────────────
@@ -205,7 +236,16 @@ function buildPostMatchReading(result?: 'HIT' | 'MISS', narrativeTag?: string): 
 
 // ── Main builder (§14) ────────────────────────────────────────────────────────
 
-export function buildMatchDetailViewModel(detail: TeamDetailDTO): MatchDetailViewModel {
+export interface PredictionProbsOverride {
+  probHome: number;
+  probDraw: number;
+  probAway: number;
+}
+
+export function buildMatchDetailViewModel(
+  detail: TeamDetailDTO,
+  predictionProbsOverride?: PredictionProbsOverride,
+): MatchDetailViewModel {
   const nm = detail.nextMatch;
   const isHome = nm?.venue === 'HOME';
 
@@ -219,31 +259,68 @@ export function buildMatchDetailViewModel(detail: TeamDetailDTO): MatchDetailVie
   const homeTeamId = isHome ? detail.team.teamId : (nm?.opponentTeamId ?? '');
   const awayTeamId = isHome ? (nm?.opponentTeamId ?? '') : detail.team.teamId;
 
-  const uiState = deriveUiState(nm?.matchStatus);
+  const uiState = deriveUiState(nm?.matchStatus, nm?.kickoffUtc ?? undefined);
 
   // Prediction
   const rawPrediction = nm?.prediction;
-  const probs = deriveProbs(rawPrediction);
-  const expectedWinner = deriveExpectedWinner(rawPrediction);
+  const snapshotProbs = deriveProbs(rawPrediction);
+
+  // When radar probs override is provided, derive EVERYTHING from that single source:
+  // probs + expectedWinner + label + result — no mixing of models.
+  // When no override, use snapshot model entirely.
+  const probs = predictionProbsOverride
+    ? {
+        probHome: predictionProbsOverride.probHome,
+        probDraw: predictionProbsOverride.probDraw,
+        probAway: predictionProbsOverride.probAway,
+      }
+    : snapshotProbs;
+
+  const expectedWinner = predictionProbsOverride
+    ? deriveExpectedWinnerFromProbs(probs)
+    : deriveExpectedWinner(rawPrediction);
+
   const actualWinner = deriveActualWinner(nm?.scoreHome, nm?.scoreAway);
 
-  // Prediction result: derive from predictionOutcome, v1 only HIT/MISS (§11)
+  // Prediction result: when override, derive from probs argmax vs actual.
+  // When snapshot, derive from backend predictionOutcome.
   const outcomeStatus = nm?.predictionOutcome?.status;
-  const predictionResult: 'HIT' | 'MISS' | undefined =
-    outcomeStatus === 'hit' ? 'HIT' : outcomeStatus === 'miss' ? 'MISS' : undefined;
+  const predictionResult: 'HIT' | 'MISS' | undefined = predictionProbsOverride
+    ? expectedWinner && actualWinner
+      ? expectedWinner === actualWinner
+        ? 'HIT'
+        : 'MISS'
+      : undefined
+    : outcomeStatus === 'hit'
+      ? 'HIT'
+      : outcomeStatus === 'miss'
+        ? 'MISS'
+        : undefined;
 
   const deviation = computeDeviation(probs, actualWinner);
   const narrativeTag = computeNarrativeTag(expectedWinner, actualWinner, deviation);
 
+  // Label: when override, derive from expectedWinner + team names (same format as prediction-builder).
+  // When snapshot, use stored label.
+  const predictionLabel = predictionProbsOverride
+    ? buildLabelFromWinner(expectedWinner, homeTeamName, awayTeamName)
+    : (rawPrediction?.label ?? '');
+
   const prediction: MatchDetailViewModel['prediction'] = rawPrediction
     ? {
-        label: rawPrediction.label,
+        label: predictionLabel,
         expectedWinner,
         homeProbability: probs?.probHome,
         drawProbability: probs?.probDraw,
         awayProbability: probs?.probAway,
         confidence: rawPrediction.confidence,
-        outcomeStatus: nm?.predictionOutcome?.status,
+        outcomeStatus: predictionProbsOverride
+          ? predictionResult === 'HIT'
+            ? 'hit'
+            : predictionResult === 'MISS'
+              ? 'miss'
+              : nm?.predictionOutcome?.status
+          : nm?.predictionOutcome?.status,
         actualWinner,
         result: predictionResult,
         deviation,

@@ -16,16 +16,16 @@ const LEAGUE_ACCENT: Record<string, string> = {
 function SkeletonCard() {
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.04)',
-      border: '1px solid rgba(255,255,255,0.07)',
+      background: 'var(--sp-border-4)',
+      border: '1px solid var(--sp-border)',
       borderRadius: 10,
       overflow: 'hidden',
     }}>
-      <div style={{ width: '100%', paddingTop: '56.25%', background: 'rgba(255,255,255,0.07)' }} />
+      <div style={{ width: '100%', paddingTop: '56.25%', background: 'var(--sp-border-8)' }} />
       <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ height: 13, borderRadius: 3, background: 'rgba(255,255,255,0.08)' }} />
-        <div style={{ height: 13, width: '80%', borderRadius: 3, background: 'rgba(255,255,255,0.06)' }} />
-        <div style={{ height: 10, width: '40%', borderRadius: 3, background: 'rgba(255,255,255,0.04)', marginTop: 4 }} />
+        <div style={{ height: 13, borderRadius: 3, background: 'var(--sp-border-8)' }} />
+        <div style={{ height: 13, width: '80%', borderRadius: 3, background: 'var(--sp-border)' }} />
+        <div style={{ height: 10, width: '40%', borderRadius: 3, background: 'var(--sp-border-4)', marginTop: 4 }} />
       </div>
     </div>
   );
@@ -143,7 +143,7 @@ export function MixedFeedGrid({
             {/* Section header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ width: 3, height: 20, borderRadius: 2, background: accent, flexShrink: 0 }} />
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.9)', margin: 0, letterSpacing: 0.3 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--sp-text-88)', margin: 0, letterSpacing: 0.3 }}>
                 {label}
               </h3>
             </div>

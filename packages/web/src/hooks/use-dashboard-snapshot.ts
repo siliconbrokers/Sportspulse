@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DashboardSnapshotDTO } from '../types/snapshot.js';
 
 interface UseDashboardSnapshotResult {
@@ -20,6 +20,8 @@ export function useDashboardSnapshot(
   const [source, setSource] = useState<string | null>(null);
   // Incrementar trigger dispara un refetch manual sin cambiar los otros deps
   const [trigger, setTrigger] = useState(0);
+  // Detectar transición LIVE → FINISHED para disparar refetch extra
+  const prevHasLiveRef = useRef(false);
 
   const refetch = useCallback(() => setTrigger((t) => t + 1), []);
 
@@ -52,6 +54,12 @@ export function useDashboardSnapshot(
         return res.json() as Promise<DashboardSnapshotDTO>;
       })
       .then((json) => {
+        const nowHasLive = json.matchCards.some((m) => m.status === 'LIVE');
+        // Transición LIVE → todo FINISHED: refetch extra en 10s para datos actualizados
+        if (prevHasLiveRef.current && !nowHasLive) {
+          setTimeout(() => setTrigger((t) => t + 1), 10_000);
+        }
+        prevHasLiveRef.current = nowHasLive;
         setData(json);
         setError(null);
       })
@@ -68,19 +76,28 @@ export function useDashboardSnapshot(
     return () => controller.abort();
   }, [competitionId, matchday, timezone, trigger]);
 
-  // Auto-refresh adaptivo: 60s si hay partido LIVE, 2min si hay partido en <10min, 1h si no
+  // Auto-refresh adaptivo: 60s si hay partido LIVE o heurísticamente live, 2min si inminente, 1h si no
   useEffect(() => {
     if (!data) return;
 
     const now = Date.now();
+    // API-confirmed live (includes stale live — seguimos polling para capturar FINISHED)
     const hasLive = data.matchCards.some((m) => m.status === 'LIVE');
+    // Heurístico: kickoff pasó hace ≤ 110 min pero API aún no actualizó a LIVE
+    const hasHeuristicallyLive = data.matchCards.some((m) => {
+      if (m.status !== 'SCHEDULED' || !m.kickoffUtc) return false;
+      const mins = (now - new Date(m.kickoffUtc).getTime()) / 60000;
+      return mins >= 0 && mins <= 110;
+    });
+    // Inminente: partido en los próximos 10 min
     const hasImminent = data.matchCards.some((m) => {
       if (m.status !== 'SCHEDULED' || !m.kickoffUtc) return false;
       const diff = new Date(m.kickoffUtc).getTime() - now;
       return diff >= 0 && diff <= 10 * 60 * 1000;
     });
 
-    const intervalMs = hasLive ? 60_000 : hasImminent ? 2 * 60_000 : 3_600_000;
+    const intervalMs =
+      hasLive || hasHeuristicallyLive ? 60_000 : hasImminent ? 2 * 60_000 : 3_600_000;
     const interval = setInterval(() => setTrigger((t) => t + 1), intervalMs);
     return () => clearInterval(interval);
   }, [data]);

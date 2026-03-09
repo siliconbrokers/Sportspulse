@@ -2,4 +2,4 @@ export { ErrorCode, AppError, toErrorEnvelope, errorHandlerPlugin } from './erro
 export type { ErrorCodeValue, ErrorEnvelope } from './errors/index.js';
 
 export { buildApp } from './app.js';
-export type { AppDependencies } from './ui/types.js';
+export type { AppDependencies, IUpcomingService, UpcomingMatchDTO } from './ui/types.js';

@@ -1,54 +1,95 @@
-// spec §13.3 — card de evento con badge, hora, equipos, botones DIRECT y EMBED_TEST
-import { useState } from 'react';
+/**
+ * EventCard — Streaming Card Premium 2026
+ * Tarjeta completa clickeable, icono Tv pulsante cian, zombie guard, signal badges.
+ */
+import { useState, useEffect } from 'react';
+import { Tv } from 'lucide-react';
 import type { ParsedEvent } from '../../hooks/use-events.js';
 import { openEventDirect } from '../../hooks/use-events.js';
+import { getMatchDisplayStatus } from '../../utils/match-status.js';
+import { useTheme } from '../../hooks/use-theme.js';
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  EN_VIVO: { label: 'EN VIVO', bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
-  PROXIMO: { label: 'PRÓXIMO', bg: 'rgba(59,130,246,0.15)', color: '#60a5fa' },
-  DESCONOCIDO: { label: 'DESCONOCIDO', bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' },
-};
+// ── CSS inyectado una vez ──────────────────────────────────────────────────────
 
-const LEAGUE_LABEL: Record<string, string> = {
-  URUGUAY_PRIMERA: 'Primera División Uruguay',
-  LALIGA: 'LaLiga',
-  PREMIER_LEAGUE: 'Premier League',
-  BUNDESLIGA: 'Bundesliga',
-  OTRA: 'Otro',
-  EXCLUIDA: 'Excluida',
-};
+let _injected = false;
+function injectStyles() {
+  if (_injected || typeof document === 'undefined') return;
+  _injected = true;
+  const s = document.createElement('style');
+  s.textContent = `
+    @keyframes sp-tv-pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.45; transform: scale(0.82); }
+    }
+    @keyframes sp-live-dot {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.25; }
+    }
+    @keyframes sp-card-reveal {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .sp-ev-card {
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+      animation: sp-card-reveal 0.28s ease both;
+    }
+    .sp-ev-card:hover {
+      transform: translateY(-2px) scale(1.012);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    }
+    .sp-ev-card:focus-visible {
+      outline: 2px solid #00E0FF;
+      outline-offset: 2px;
+    }
+  `;
+  document.head.appendChild(s);
+}
 
-// Logos de liga desde TheSportsDB CDN (verificados)
-const LEAGUE_LOGO: Record<string, string> = {
-  URUGUAY_PRIMERA: 'https://r2.thesportsdb.com/images/media/league/badge/3p98xv1740672448.png',
-  LALIGA: 'https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png',
-  PREMIER_LEAGUE: 'https://r2.thesportsdb.com/images/media/league/badge/gasy9d1737743125.png',
-  BUNDESLIGA: 'https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png',
-};
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatPortalTime(isoStr: string | null): string {
+function fmtTime(isoStr: string | null): string {
   if (!isoStr) return '—';
   try {
-    const d = new Date(isoStr);
-    return d.toLocaleTimeString('es-UY', {
+    return new Intl.DateTimeFormat('es-UY', {
       timeZone: 'America/Montevideo',
       hour: '2-digit',
       minute: '2-digit',
-    });
-  } catch {
-    return isoStr;
-  }
+    }).format(new Date(isoStr));
+  } catch { return '—'; }
 }
 
-interface CrestImgProps {
-  src: string | null;
-  alt: string;
-  size: number;
+/** Mapea normalizedStatus del feed de eventos al string que espera getMatchDisplayStatus */
+function toApiStatus(normalizedStatus: string): string {
+  if (normalizedStatus === 'EN_VIVO')  return 'IN_PROGRESS';
+  if (normalizedStatus === 'PROXIMO')  return 'SCHEDULED';
+  return 'UNKNOWN';
 }
 
-function CrestImg({ src, alt, size }: CrestImgProps) {
+// ── Logos y labels de liga ────────────────────────────────────────────────────
+
+const LEAGUE_LOGO: Record<string, string> = {
+  URUGUAY_PRIMERA: 'https://r2.thesportsdb.com/images/media/league/badge/3p98xv1740672448.png',
+  LALIGA:          'https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png',
+  PREMIER_LEAGUE:  'https://r2.thesportsdb.com/images/media/league/badge/gasy9d1737743125.png',
+  BUNDESLIGA:      'https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png',
+};
+
+const LEAGUE_LABEL: Record<string, string> = {
+  URUGUAY_PRIMERA: 'Primera División',
+  LALIGA:          'LaLiga',
+  PREMIER_LEAGUE:  'Premier League',
+  BUNDESLIGA:      'Bundesliga',
+  OTRA:            'Otro',
+};
+
+// ── Sub-componentes ───────────────────────────────────────────────────────────
+
+function CrestImg({ src, alt, size }: { src: string | null; alt: string; size: number }) {
   const [failed, setFailed] = useState(false);
-  if (!src || failed) return null;
+  if (!src || failed) {
+    return <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--sp-border-8)', flexShrink: 0 }} />;
+  }
   return (
     <img
       src={src}
@@ -61,6 +102,19 @@ function CrestImg({ src, alt, size }: CrestImgProps) {
   );
 }
 
+function LeagueLogo({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <img src={src} alt={alt} width={14} height={14}
+      onError={() => setFailed(true)}
+      style={{ objectFit: 'contain', opacity: 0.55, flexShrink: 0 }}
+    />
+  );
+}
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
 export interface EventSignal {
   label: string;
   altUrl?: string;
@@ -71,123 +125,266 @@ interface EventCardProps {
   accentColor: string;
   isMobile: boolean;
   signals?: EventSignal[];
+  animationDelay?: number;
+  hasSignal?: boolean;  // false = señal aún no confirmada por el proveedor
 }
 
-function openAltUrl(url: string) {
-  const w = Math.min(Math.round(window.screen.width * 0.9), 1440);
-  const h = Math.min(Math.round(window.screen.height * 0.9), 900);
-  const left = Math.round((window.screen.width - w) / 2);
-  const top = Math.round((window.screen.height - h) / 2);
-  const features = `popup,width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes,noopener`;
-  window.open(url, 'sportpulse_player_alt', features);
-}
+// ── Componente ────────────────────────────────────────────────────────────────
 
-export function EventCard({ event, accentColor, isMobile, signals }: EventCardProps) {
-  const status = STATUS_CONFIG[event.normalizedStatus] ?? STATUS_CONFIG.DESCONOCIDO;
+export function EventCard({ event, accentColor, isMobile, signals, animationDelay = 0, hasSignal = true }: EventCardProps) {
+  useEffect(() => { injectStyles(); }, []);
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  // Estado de visualización — zombie guard incluido
+  const ds = getMatchDisplayStatus(toApiStatus(event.normalizedStatus), event.startsAtPortalTz);
+  const isLive    = ds === 'LIVE';
+  const isZombie  = ds === 'ZOMBIE';
+  const isActive  = isLive || isZombie;
+
+  const crestSize = isMobile ? 22 : 26;
+
+  // ── Decoración de la tarjeta según estado ─────────────────────────────────
+  const borderColor = isLive   ? 'rgba(239,68,68,0.45)'
+    : isZombie                  ? 'rgba(245,158,11,0.45)'
+    : `${accentColor}28`;
+
+  const cardBg = isDark
+    ? 'var(--sp-surface-card)'
+    : 'var(--sp-surface-card)';
+
+  // ── Handler de click ──────────────────────────────────────────────────────
+  function handleCardClick(e: React.MouseEvent) {
+    if (!hasSignal) return;   // sin señal confirmada: no abre nada
+    if ((e.target as HTMLElement).closest('[data-signal-badge]')) return;
+    openEventDirect(event);
+  }
+
+  function handleAltSignal(e: React.MouseEvent, altUrl: string) {
+    e.stopPropagation();
+    const w = Math.min(Math.round(window.screen.width * 0.9), 1440);
+    const h = Math.min(Math.round(window.screen.height * 0.9), 900);
+    const left = Math.round((window.screen.width - w) / 2);
+    const top  = Math.round((window.screen.height - h) / 2);
+    window.open(altUrl, 'sportpulse_alt', `popup,width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no,scrollbars=yes,resizable=yes,noopener`);
+  }
+
+  const leagueLogo  = LEAGUE_LOGO[event.normalizedLeague] ?? null;
   const leagueLabel = LEAGUE_LABEL[event.normalizedLeague] ?? event.normalizedLeague;
-  const leagueLogo = LEAGUE_LOGO[event.normalizedLeague] ?? null;
-  const timeStr = formatPortalTime(event.startsAtPortalTz);
-  const crestSize = isMobile ? 20 : 24;
-
-  const btnStyle: React.CSSProperties = {
-    border: `1px solid ${accentColor}55`,
-    borderRadius: 6,
-    padding: isMobile ? '5px 10px' : '6px 14px',
-    fontSize: isMobile ? 11 : 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    flex: isMobile ? 1 : undefined,
-    whiteSpace: 'nowrap',
-  };
+  const timeStr     = fmtTime(event.startsAtPortalTz);
 
   return (
-    <div style={{
-      background: 'rgba(255,255,255,0.04)',
-      border: `1px solid ${accentColor}33`,
-      borderRadius: 10,
-      padding: isMobile ? '12px' : '14px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-    }}>
-      {/* Fila superior: badge estado + hora + logo liga */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: 0.6,
-          padding: '2px 7px', borderRadius: 4,
-          background: status.bg, color: status.color,
-        }}>
-          {status.label}
-        </span>
-        {/* spec §19.6 — hora convertida a zona del portal */}
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
-          {timeStr} (UY)
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
-          {leagueLogo && (
-            <LeagueLogoImg src={leagueLogo} alt={leagueLabel} />
-          )}
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+    <div
+      className="sp-ev-card"
+      role="button"
+      tabIndex={0}
+      aria-label={`Ver ${event.homeTeam ?? '?'} vs ${event.awayTeam ?? '?'}`}
+      onClick={handleCardClick}
+      onKeyDown={(e) => e.key === 'Enter' && openEventDirect(event)}
+      style={{
+        background: cardBg,
+        border: `1px solid ${borderColor}`,
+        borderRadius: isMobile ? 14 : 16,
+        padding: isMobile ? '12px' : '14px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: isMobile ? 10 : 12,
+        position: 'relative',
+        overflow: 'hidden',
+        animationDelay: `${animationDelay}ms`,
+        cursor: hasSignal ? 'pointer' : 'default',
+        opacity: hasSignal ? 1 : 0.85,
+      }}
+    >
+      {/* ── FILA 1: liga + icono streaming ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          {leagueLogo && <LeagueLogo src={leagueLogo} alt={leagueLabel} />}
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--sp-text-30)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             {leagueLabel}
+          </span>
+        </div>
+
+        {/* Streaming indicator */}
+        {hasSignal ? (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '3px 7px', borderRadius: 20,
+            background: 'rgba(0,224,255,0.10)',
+            border: '1px solid rgba(0,224,255,0.25)',
+          }}>
+            <Tv
+              size={11}
+              color="#00E0FF"
+              strokeWidth={2.2}
+              style={{ animation: isActive ? 'sp-tv-pulse 1.6s ease-in-out infinite' : 'none' }}
+            />
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#00E0FF', letterSpacing: '0.06em' }}>
+              STREAM
+            </span>
+          </div>
+        ) : (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '3px 7px', borderRadius: 20,
+            background: 'rgba(245,158,11,0.10)',
+            border: '1px solid rgba(245,158,11,0.30)',
+          }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#f59e0b', letterSpacing: '0.06em' }}>
+              🕐 SIN SEÑAL AÚN
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── FILA 2: equipos + marcador/hora ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        gap: isMobile ? 6 : 8,
+        padding: isMobile ? '6px 0' : '8px 0',
+      }}>
+        {/* Local */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, minWidth: 0 }}>
+          <CrestImg src={event.homeCrestUrl} alt={event.homeTeam ?? ''} size={crestSize} />
+          <span style={{
+            fontSize: isMobile ? 11 : 12, fontWeight: 700,
+            color: 'var(--sp-text-88)', textAlign: 'right',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            maxWidth: '100%',
+          }}>
+            {event.homeTeam ?? '?'}
+          </span>
+        </div>
+
+        {/* Centro: marcador o hora */}
+        <div style={{
+          flexShrink: 0, textAlign: 'center',
+          minWidth: isMobile ? 44 : 52,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+        }}>
+          {isActive ? (
+            // Marcador en vivo (los eventos del portal no tienen score, mostramos vs animado)
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                backgroundColor: isZombie ? '#f59e0b' : '#ef4444',
+                animation: 'sp-live-dot 1.2s ease-in-out infinite',
+                flexShrink: 0,
+              }} />
+              <span style={{
+                fontSize: 13, fontWeight: 800,
+                color: isZombie ? '#f59e0b' : '#ef4444',
+                letterSpacing: '0.03em',
+              }}>
+                {isZombie ? '?' : 'EN\u00A0VIVO'}
+              </span>
+            </div>
+          ) : (
+            <>
+              <span style={{ fontSize: isMobile ? 11 : 12, color: 'var(--sp-text-25)', fontWeight: 300 }}>vs</span>
+              <span style={{
+                fontSize: isMobile ? 13 : 15, fontWeight: 700,
+                color: 'var(--sp-text-70)', fontVariantNumeric: 'tabular-nums',
+              }}>
+                {timeStr}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Visitante */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
+          <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? ''} size={crestSize} />
+          <span style={{
+            fontSize: isMobile ? 11 : 12, fontWeight: 700,
+            color: 'var(--sp-text-88)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            maxWidth: '100%',
+          }}>
+            {event.awayTeam ?? '?'}
           </span>
         </div>
       </div>
 
-      {/* Equipos con escudos */}
+      {/* ── FILA 3: estado + señales ── */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        paddingTop: isMobile ? 6 : 8,
+        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
         gap: 8,
-        fontSize: isMobile ? 14 : 16,
-        fontWeight: 700,
-        color: 'rgba(255,255,255,0.92)',
-        lineHeight: 1.3,
-        flexWrap: 'wrap',
       }}>
-        <CrestImg src={event.homeCrestUrl} alt={event.homeTeam ?? ''} size={crestSize} />
-        <span style={{ minWidth: 0 }}>{event.homeTeam ?? '?'}</span>
-        <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 400, fontSize: isMobile ? 12 : 14 }}>vs</span>
-        <span style={{ minWidth: 0 }}>{event.awayTeam ?? '?'}</span>
-        <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? ''} size={crestSize} />
-      </div>
-
-      {/* Botones de señal — spec §13.3 modo DIRECT */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        {signals && signals.length > 0 ? (
-          signals.map((sig) => (
-            <button
-              key={sig.label}
-              onClick={() => sig.altUrl ? openAltUrl(sig.altUrl) : openEventDirect(event)}
-              style={{ ...btnStyle, background: accentColor, color: '#fff', border: 'none' }}
-            >
-              {sig.label}
-            </button>
-          ))
+        {/* Badge de estado */}
+        {isLive ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              backgroundColor: '#ef4444',
+              animation: 'sp-live-dot 1.2s ease-in-out infinite',
+              flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', letterSpacing: '0.04em' }}>
+              EN VIVO
+            </span>
+          </div>
+        ) : isZombie ? (
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>
+            ⚠️ Pendiente de confirmación
+          </span>
         ) : (
-          <button
-            onClick={() => openEventDirect(event)}
-            style={{ ...btnStyle, background: accentColor, color: '#fff', border: 'none' }}
-          >
-            Ver partido
-          </button>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-40)' }}>
+            Próximo · {timeStr}
+          </span>
         )}
+
+        {/* Signal badges */}
+        {hasSignal && signals && signals.length > 0 ? (
+          <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+            {signals.map((sig, idx) => (
+              idx === 0 ? (
+                <span
+                  key={sig.label}
+                  style={{
+                    fontSize: 10, fontWeight: 700,
+                    padding: '3px 8px', borderRadius: 20,
+                    background: `${accentColor}20`,
+                    color: accentColor,
+                    border: `1px solid ${accentColor}44`,
+                  }}
+                >
+                  {sig.label}
+                </span>
+              ) : (
+                <span
+                  key={sig.label}
+                  data-signal-badge="true"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => sig.altUrl ? handleAltSignal(e, sig.altUrl) : undefined}
+                  onKeyDown={(e) => e.key === 'Enter' && sig.altUrl && handleAltSignal(e as unknown as React.MouseEvent, sig.altUrl)}
+                  style={{
+                    fontSize: 10, fontWeight: 700,
+                    padding: '3px 8px', borderRadius: 20,
+                    background: 'var(--sp-border-8)',
+                    color: 'var(--sp-text-50)',
+                    border: '1px solid var(--sp-border-8)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {sig.label}
+                </span>
+              )
+            ))}
+          </div>
+        ) : !hasSignal ? (
+          <span style={{
+            fontSize: 10, fontWeight: 600,
+            color: 'var(--sp-text-30)',
+            fontStyle: 'italic',
+          }}>
+            Señal disponible más cerca del partido
+          </span>
+        ) : null}
       </div>
     </div>
-  );
-}
-
-// Logo de liga pequeño con fallback silencioso
-function LeagueLogoImg({ src, alt }: { src: string; alt: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
-  return (
-    <img
-      src={src}
-      alt={alt}
-      width={16}
-      height={16}
-      onError={() => setFailed(true)}
-      style={{ objectFit: 'contain', opacity: 0.6, flexShrink: 0 }}
-    />
   );
 }

@@ -1,20 +1,28 @@
 /**
- * Navbar — Premium Dark Glassmorphism
- * Tokens: bg-brand-dark/80, border-brand-primary, text-brand-primary, rounded-bento-inner
+ * Navbar — Ultra Pro Dark Glassmorphism
+ * Lucide icons + floating glow pill (CSS spring) + live ping + mobile icon-only
  */
-import { useState } from 'react';
-import { Search, X, Sun, Moon } from 'lucide-react';
+import { useState, useRef, useEffect, forwardRef } from 'react';
+import {
+  LayoutDashboard, Activity, CalendarDays, Trophy, Target,
+  Search, X, Sun, Moon,
+} from 'lucide-react';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import { useTheme } from '../hooks/use-theme.js';
-import { competitionDisplayName } from '../utils/labels.js';
+import { LeagueSelector } from './LeagueSelector.js';
 
-export type ViewMode = 'home' | 'radar' | 'partidos' | 'standings';
+export type ViewMode = 'home' | 'tv' | 'partidos' | 'standings' | 'pronosticos';
 
-const NAV_ITEMS: { id: ViewMode; icon: string; label: string; shortLabel: string }[] = [
-  { id: 'home',      icon: '🏠', label: 'Inicio',   shortLabel: 'Inicio'   },
-  { id: 'radar',     icon: '🛰',  label: 'Radar',    shortLabel: 'Radar'    },
-  { id: 'partidos',  icon: '⚽',  label: 'Partidos', shortLabel: 'Partidos' },
-  { id: 'standings', icon: '📊', label: 'Tabla',    shortLabel: 'Tabla'    },
+const NAV_ITEMS: {
+  id: ViewMode;
+  Icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  label: string;
+}[] = [
+  { id: 'home',         Icon: LayoutDashboard, label: 'Inicio'      },
+  { id: 'tv',           Icon: Activity,        label: 'TV'          },
+  { id: 'partidos',     Icon: CalendarDays,    label: 'Partidos'    },
+  { id: 'pronosticos',  Icon: Target,          label: 'Pronósticos' },
+  { id: 'standings',    Icon: Trophy,          label: 'Tabla'       },
 ];
 
 interface Competition {
@@ -27,12 +35,10 @@ interface NavbarProps {
   onViewChange: (v: ViewMode) => void;
   competitionId: string;
   onCompetitionChange: (id: string) => void;
-  matchday: number | null;
-  onMatchdayChange: (md: number) => void;
   competitions: Competition[];
-  totalMatchdays: number;
-  currentMatchday: number | null | undefined;
-  compInfoLoading: boolean;
+  hasLiveMatches?: boolean;
+  tvTab?: 'hoy' | 'manana';
+  onTvTabChange?: (tab: 'hoy' | 'manana') => void;
 }
 
 export function Navbar({
@@ -40,12 +46,10 @@ export function Navbar({
   onViewChange,
   competitionId,
   onCompetitionChange,
-  matchday,
-  onMatchdayChange,
   competitions,
-  totalMatchdays,
-  currentMatchday,
-  compInfoLoading,
+  hasLiveMatches = false,
+  tvTab = 'hoy',
+  onTvTabChange,
 }: NavbarProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
@@ -53,163 +57,308 @@ export function Navbar({
   const [searchOpen, setSearchOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
-  const matchdayOptions = Array.from({ length: totalMatchdays }, (_, i) => i + 1);
-
   return (
-    // Contenedor sticky glassmorphism
     <header
-      className="sticky top-0 z-50 backdrop-blur-md"
+      className="sticky top-0 z-50 backdrop-blur-xl"
       style={{
         background: 'var(--sp-header)',
         borderBottom: '1px solid var(--sp-border-5)',
         transition: 'background 0.2s ease',
       }}
     >
-      {/* ── Fila principal ─────────────────────────────────────────────── */}
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: '0 auto',
-          padding: isMobile ? '10px 14px 10px' : '10px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: isMobile ? 8 : 16,
-        }}
-      >
-        {/* ── Logo ──────────────────────────────────────────────────────── */}
-        <button
-          onClick={() => onViewChange('home')}
-          style={{
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexShrink: 0,
-            minHeight: 44,
-          }}
-          aria-label="SportsPulse — Inicio"
-        >
-          {/* Logo imagen */}
-          <img
-            src="/logo.png"
-            alt=""
-            style={{ height: isMobile ? 28 : 36, width: 'auto' }}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
-          {/* Wordmark — visible solo en desktop */}
-          {!isMobile && (
-            <span
-              style={{
-                fontWeight: 900,
-                letterSpacing: '-0.05em',
-                fontSize: 17,
-                color: '#fff',
-                lineHeight: 1,
-                fontFamily: 'inherit',
-              }}
+      {isMobile ? (
+        /* ── MOBILE: logo centrado arriba · menú abajo · liga debajo ─────── */
+        <>
+          {/* Fila 1: logo centrado + theme toggle a la derecha */}
+          <div style={{
+            maxWidth: 1200, margin: '0 auto',
+            padding: '10px 14px 6px',
+            display: 'flex', alignItems: 'center',
+          }}>
+            {/* Spacer izquierdo para centrar el logo */}
+            <div style={{ flex: 1 }} />
+            <button
+              onClick={() => onViewChange('home')}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}
+              aria-label="SportsPulse — Inicio"
             >
-              SPORTS
-              <span style={{ color: '#00E0FF' }}>PULSE</span>
-            </span>
-          )}
-        </button>
-
-        {/* ── Pill Nav (centro) ──────────────────────────────────────────── */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          {/* Pill container — fully rounded */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 3,
-              padding: '4px 6px',
-              background: 'var(--sp-surface)',
-              borderRadius: '9999px',
-              border: '1px solid var(--sp-border-8)',
-              transition: 'background 0.2s ease',
-            }}
-          >
-            {NAV_ITEMS.map((item) => {
-              const isActive = view === item.id;
-              return (
-                <NavTab
-                  key={item.id}
-                  icon={item.icon}
-                  label={isMobile ? item.shortLabel : item.label}
-                  isActive={isActive}
-                  isMobile={isMobile}
-                  onClick={() => onViewChange(item.id)}
-                />
-              );
-            })}
+              <img
+                src="/logo.png"
+                alt=""
+                style={{ height: 28, width: 'auto' }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </button>
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            </div>
           </div>
-        </div>
 
-        {/* ── Zona derecha: search + selects desktop ────────────────────── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {/* Toggle Day/Night */}
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          {/* Fila 2: menú centrado */}
+          <div style={{
+            maxWidth: 1200, margin: '0 auto',
+            padding: '0 10px 8px',
+            display: 'flex', justifyContent: 'center',
+          }}>
+            <NavPill view={view} onViewChange={onViewChange} isMobile={isMobile} hasLive={hasLiveMatches} />
+          </div>
 
-          {/* Barra de búsqueda expandible */}
-          <SearchBar open={searchOpen} onToggle={() => setSearchOpen((p) => !p)} isMobile={isMobile} />
-
-          {/* Selects de liga/jornada en desktop (fila inline) */}
-          {isLeagueView && !isMobile && (
-            <div style={{ display: 'flex', gap: 6 }}>
-              <LeagueSelect
-                value={competitionId}
-                onChange={onCompetitionChange}
-                options={competitions}
-                isMobile={false}
-              />
-              <MatchdaySelect
-                value={matchday}
-                onChange={onMatchdayChange}
-                options={matchdayOptions}
-                currentMatchday={currentMatchday}
-                loading={compInfoLoading}
-                isMobile={false}
-              />
+          {/* Fila 3: tabs TV -o- selector de liga según vista */}
+          {isLeagueView && (
+            <div style={{
+              maxWidth: 1200, margin: '0 auto',
+              padding: '0 14px 10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {view === 'tv' ? (
+                /* Tabs Hoy / Mañana inline */
+                <div style={{
+                  display: 'flex', gap: 4, padding: 3,
+                  background: 'var(--sp-surface)',
+                  border: '1px solid var(--sp-border-8)',
+                  borderRadius: 9999,
+                }}>
+                  {(['hoy', 'manana'] as const).map((tab) => {
+                    const isActive = tvTab === tab;
+                    return (
+                      <button
+                        key={tab}
+                        onClick={() => onTvTabChange?.(tab)}
+                        style={{
+                          padding: '5px 18px', borderRadius: 9999, border: 'none',
+                          background: isActive ? 'var(--sp-primary-10)' : 'transparent',
+                          color: isActive ? 'var(--sp-text)' : 'var(--sp-text-40)',
+                          fontSize: 13, fontWeight: isActive ? 700 : 500,
+                          cursor: 'pointer', minHeight: 36,
+                          boxShadow: isActive ? 'inset 0 0 0 1px var(--sp-primary-40)' : 'none',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {tab === 'hoy' ? 'Hoy' : 'Mañana'}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
+              )}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* ── Segunda fila mobile: selects de liga/jornada ──────────────── */}
-      {isLeagueView && isMobile && (
+        </>
+      ) : (
+        /* ── DESKTOP: fila única ─────────────────────────────────────────── */
         <div
           style={{
-            maxWidth: 1200,
-            margin: '0 auto',
-            padding: '0 14px 10px',
-            display: 'flex',
-            gap: 8,
+            maxWidth: 1200, margin: '0 auto',
+            padding: '10px 24px',
+            display: 'flex', alignItems: 'center', gap: 16,
           }}
         >
-          <LeagueSelect
-            value={competitionId}
-            onChange={onCompetitionChange}
-            options={competitions}
-            isMobile={true}
-          />
-          <MatchdaySelect
-            value={matchday}
-            onChange={onMatchdayChange}
-            options={matchdayOptions}
-            currentMatchday={currentMatchday}
-            loading={compInfoLoading}
-            isMobile={true}
-          />
+          {/* Logo */}
+          <button
+            onClick={() => onViewChange('home')}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, minHeight: 44 }}
+            aria-label="SportsPulse — Inicio"
+          >
+            <img
+              src="/logo.png"
+              alt=""
+              style={{ height: 36, width: 'auto' }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
+          </button>
+
+          {/* NavPill centrado */}
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+            <NavPill view={view} onViewChange={onViewChange} isMobile={false} hasLive={hasLiveMatches} />
+          </div>
+
+          {/* Zona derecha */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <SearchBar open={searchOpen} onToggle={() => setSearchOpen((p) => !p)} isMobile={false} />
+            {isLeagueView && (
+              <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
+            )}
+          </div>
         </div>
       )}
     </header>
   );
 }
 
+// ─── NavPill — contenedor con floating glow pill ──────────────────────────────
+
+function NavPill({
+  view,
+  onViewChange,
+  isMobile,
+  hasLive,
+}: {
+  view: ViewMode;
+  onViewChange: (v: ViewMode) => void;
+  isMobile: boolean;
+  hasLive: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
+  useEffect(() => {
+    const activeIndex = NAV_ITEMS.findIndex((item) => item.id === view);
+    const tab = tabRefs.current[activeIndex];
+    const container = containerRef.current;
+    if (tab && container) {
+      const cRect = container.getBoundingClientRect();
+      const tRect = tab.getBoundingClientRect();
+      setPillStyle({
+        left: tRect.left - cRect.left,
+        width: tRect.width,
+        opacity: 1,
+      });
+    }
+  }, [view, isMobile]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        position: 'relative',
+        padding: '4px 6px',
+        background: 'var(--sp-surface)',
+        borderRadius: '9999px',
+        border: '1px solid var(--sp-border-8)',
+        transition: 'background 0.2s ease',
+        gap: 0,
+      }}
+    >
+      {/* Floating glow pill — se desplaza con spring CSS */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 4,
+          bottom: 4,
+          left: pillStyle.left,
+          width: pillStyle.width,
+          borderRadius: '9999px',
+          background: 'var(--sp-primary-10)',
+          border: '1px solid var(--sp-primary-40)',
+          boxShadow: '0 0 16px var(--sp-primary-10), inset 0 0 10px var(--sp-primary-04)',
+          opacity: pillStyle.opacity,
+          transition: [
+            'left 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+            'width 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+            'opacity 0.2s ease',
+          ].join(', '),
+          pointerEvents: 'none',
+        }}
+      />
+
+      {NAV_ITEMS.map((item, i) => (
+        <NavTab
+          key={item.id}
+          ref={(el) => { tabRefs.current[i] = el; }}
+          item={item}
+          isActive={view === item.id}
+          isMobile={isMobile}
+          showPing={hasLive && item.id === 'tv'}
+          onClick={() => onViewChange(item.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── NavTab — botón individual con icono Lucide + ping live ──────────────────
+
+const NavTab = forwardRef<
+  HTMLButtonElement,
+  {
+    item: (typeof NAV_ITEMS)[0];
+    isActive: boolean;
+    isMobile: boolean;
+    showPing: boolean;
+    onClick: () => void;
+  }
+>(({ item, isActive, isMobile, showPing, onClick }, ref) => {
+  const { Icon, label } = item;
+
+  return (
+    <button
+      ref={ref}
+      onClick={onClick}
+      style={{
+        position: 'relative',
+        zIndex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: isMobile ? 0 : 7,
+        padding: isMobile ? '7px 12px' : '7px 16px',
+        borderRadius: '9999px',
+        border: 'none',
+        background: 'transparent',
+        color: isActive ? 'var(--sp-text)' : 'var(--sp-text-40)',
+        fontSize: 12,
+        fontWeight: isActive ? 700 : 500,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        minHeight: 44,
+        transition: 'color 0.15s ease',
+        letterSpacing: isActive ? '0.02em' : '0',
+      }}
+    >
+      {/* Icono con ping opcional */}
+      <div style={{ position: 'relative', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+        <Icon size={isMobile ? 18 : 16} strokeWidth={isActive ? 2.5 : 2} />
+        {showPing && (
+          <span
+            style={{
+              position: 'absolute',
+              top: -3,
+              right: -3,
+              display: 'flex',
+              width: 8,
+              height: 8,
+            }}
+          >
+            <span
+              className="animate-ping"
+              style={{
+                position: 'absolute',
+                display: 'inline-flex',
+                width: '100%',
+                height: '100%',
+                borderRadius: '9999px',
+                backgroundColor: 'var(--sp-primary)',
+                opacity: 0.75,
+              }}
+            />
+            <span
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                width: 8,
+                height: 8,
+                borderRadius: '9999px',
+                backgroundColor: 'var(--sp-primary)',
+                boxShadow: '0 0 6px var(--sp-primary)',
+              }}
+            />
+          </span>
+        )}
+      </div>
+
+      {/* Texto — oculto en mobile */}
+      {!isMobile && <span>{label}</span>}
+    </button>
+  );
+});
+NavTab.displayName = 'NavTab';
+
 // ─── ThemeToggle ─────────────────────────────────────────────────────────────
+
 function ThemeToggle({ theme, onToggle }: { theme: 'dark' | 'light'; onToggle: () => void }) {
   const isLight = theme === 'light';
   return (
@@ -223,12 +372,10 @@ function ThemeToggle({ theme, onToggle }: { theme: 'dark' | 'light'; onToggle: (
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: isLight ? 'rgba(2,132,199,0.1)' : 'rgba(255,255,255,0.05)',
-        border: isLight
-          ? '1px solid rgba(2,132,199,0.35)'
-          : '1px solid rgba(255,255,255,0.1)',
+        background: isLight ? 'var(--sp-primary-10)' : 'var(--sp-border-8)',
+        border: '1px solid var(--sp-border-8)',
         cursor: 'pointer',
-        color: isLight ? '#0284C7' : '#8A94A8',
+        color: isLight ? 'var(--sp-primary)' : 'var(--sp-secondary)',
         transition: 'all 0.15s ease',
         flexShrink: 0,
       }}
@@ -238,70 +385,9 @@ function ThemeToggle({ theme, onToggle }: { theme: 'dark' | 'light'; onToggle: (
   );
 }
 
-// ─── NavTab ──────────────────────────────────────────────────────────────────
-function NavTab({
-  icon,
-  label,
-  isActive,
-  isMobile,
-  onClick,
-}: {
-  icon: string;
-  label: string;
-  isActive: boolean;
-  isMobile: boolean;
-  onClick: () => void;
-}) {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: isMobile ? 0 : 6,
-        padding: isMobile ? '6px 12px' : '7px 16px',
-        borderRadius: '9999px',            // rounded-full — píldora
-        border: isActive
-          ? '1px solid var(--sp-primary-40)'
-          : '1px solid transparent',
-        background: isActive
-          ? 'var(--sp-primary-10)'
-          : hovered
-            ? 'var(--sp-border-8)'
-            : 'transparent',
-        color: isActive ? 'var(--sp-primary)' : hovered ? 'var(--sp-text)' : 'var(--sp-secondary)',
-        fontSize: isMobile ? 13 : 12,
-        fontWeight: isActive ? 700 : 500,
-        cursor: 'pointer',
-        letterSpacing: isActive ? '0.01em' : '0',
-        transition: 'all 0.15s ease',
-        textShadow: isActive ? '0 0 14px var(--sp-primary-40)' : 'none',
-        boxShadow: isActive
-          ? '0 0 10px var(--sp-primary-10) inset'
-          : 'none',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <span style={{ fontSize: isMobile ? 15 : 13, lineHeight: 1 }}>{icon}</span>
-      {!isMobile && <span>{label}</span>}
-    </button>
-  );
-}
-
 // ─── SearchBar ────────────────────────────────────────────────────────────────
-function SearchBar({
-  open,
-  onToggle,
-  isMobile,
-}: {
-  open: boolean;
-  onToggle: () => void;
-  isMobile: boolean;
-}) {
+
+function SearchBar({ open, onToggle, isMobile }: { open: boolean; onToggle: () => void; isMobile: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       {open && !isMobile && (
@@ -314,7 +400,6 @@ function SearchBar({
             border: '1px solid var(--sp-primary-22)',
             borderRadius: '0.75rem',
             padding: '5px 10px',
-            animation: 'fadeIn 0.15s ease',
           }}
         >
           <Search size={13} color="var(--sp-primary)" strokeWidth={2.5} />
@@ -356,88 +441,4 @@ function SearchBar({
       </button>
     </div>
   );
-}
-
-// ─── LeagueSelect ─────────────────────────────────────────────────────────────
-function LeagueSelect({
-  value,
-  onChange,
-  options,
-  isMobile,
-}: {
-  value: string;
-  onChange: (id: string) => void;
-  options: Competition[];
-  isMobile: boolean;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={selectStyle(isMobile)}
-    >
-      {options.map((c) => (
-        <option key={c.id} value={c.id}>
-          {competitionDisplayName(c.id)}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-// ─── MatchdaySelect ──────────────────────────────────────────────────────────
-function MatchdaySelect({
-  value,
-  onChange,
-  options,
-  currentMatchday,
-  loading,
-  isMobile,
-}: {
-  value: number | null;
-  onChange: (md: number) => void;
-  options: number[];
-  currentMatchday: number | null | undefined;
-  loading: boolean;
-  isMobile: boolean;
-}) {
-  return (
-    <select
-      value={value ?? ''}
-      onChange={(e) => onChange(Number(e.target.value))}
-      disabled={loading}
-      style={{ ...selectStyle(isMobile), opacity: loading ? 0.5 : 1 }}
-    >
-      {loading ? (
-        <option value="">Cargando...</option>
-      ) : (
-        options.map((md) => (
-          <option key={md} value={md}>
-            J{md}{md === currentMatchday ? ' ✓' : ''}
-          </option>
-        ))
-      )}
-    </select>
-  );
-}
-
-// ─── Estilos compartidos ──────────────────────────────────────────────────────
-function selectStyle(isMobile: boolean): React.CSSProperties {
-  return {
-    background: 'var(--sp-surface)',
-    color: 'var(--sp-text)',
-    border: '1px solid var(--sp-border-8)',
-    borderRadius: '0.5rem',
-    padding: isMobile ? '5px 6px' : '6px 10px',
-    fontSize: isMobile ? 11 : 12,
-    cursor: 'pointer',
-    outline: 'none',
-    appearance: 'none',
-    WebkitAppearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A94A8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 8px center',
-    paddingRight: 24,
-    transition: 'background 0.2s ease',
-  };
 }

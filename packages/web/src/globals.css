@@ -9,6 +9,8 @@
   --sp-surface: #1A1D24;
   --sp-header: rgba(11,14,20,0.95);
   --sp-surface-alpha: rgba(26,29,36,0.8);
+  --sp-surface-card: rgba(255,255,255,0.04);
+  --sp-surface-raised: rgba(255,255,255,0.07);
   /* Brand primary */
   --sp-primary: #00E0FF;
   --sp-primary-04: rgba(0,224,255,0.04);
@@ -17,10 +19,15 @@
   --sp-primary-22: rgba(0,224,255,0.22);
   --sp-primary-40: rgba(0,224,255,0.40);
   --sp-primary-glow: 0 0 12px rgba(0,224,255,0.4);
+  --sp-brand-rgb: 0, 224, 255;
   /* Text */
   --sp-text: #ffffff;
   --sp-text-88: rgba(255,255,255,0.88);
+  --sp-text-85: rgba(255,255,255,0.85);
+  --sp-text-75: rgba(255,255,255,0.75);
+  --sp-text-70: rgba(255,255,255,0.70);
   --sp-text-55: rgba(255,255,255,0.55);
+  --sp-text-50: rgba(255,255,255,0.50);
   --sp-text-40: rgba(255,255,255,0.40);
   --sp-text-35: rgba(255,255,255,0.35);
   --sp-text-30: rgba(255,255,255,0.30);
@@ -28,7 +35,9 @@
   --sp-secondary: #8A94A8;
   /* Borders */
   --sp-border: rgba(255,255,255,0.06);
+  --sp-border-10: rgba(255,255,255,0.10);
   --sp-border-8: rgba(255,255,255,0.08);
+  --sp-border-6: rgba(255,255,255,0.06);
   --sp-border-5: rgba(255,255,255,0.05);
   --sp-border-4: rgba(255,255,255,0.04);
   /* Table rows */
@@ -42,6 +51,8 @@ body.light {
   --sp-surface: #FFFFFF;
   --sp-header: rgba(248,250,252,0.95);
   --sp-surface-alpha: rgba(255,255,255,0.9);
+  --sp-surface-card: rgba(0,0,0,0.03);
+  --sp-surface-raised: rgba(0,0,0,0.05);
   --sp-primary: #0284C7;
   --sp-primary-04: rgba(2,132,199,0.04);
   --sp-primary-10: rgba(2,132,199,0.10);
@@ -49,20 +60,41 @@ body.light {
   --sp-primary-22: rgba(2,132,199,0.22);
   --sp-primary-40: rgba(2,132,199,0.40);
   --sp-primary-glow: 0 0 12px rgba(2,132,199,0.3);
+  --sp-brand-rgb: 2, 132, 199;
   --sp-text: #0F172A;
   --sp-text-88: rgba(15,23,42,0.88);
+  --sp-text-85: rgba(15,23,42,0.85);
+  --sp-text-75: rgba(15,23,42,0.75);
+  --sp-text-70: rgba(15,23,42,0.70);
   --sp-text-55: rgba(15,23,42,0.55);
+  --sp-text-50: rgba(15,23,42,0.50);
   --sp-text-40: rgba(15,23,42,0.40);
   --sp-text-35: rgba(15,23,42,0.35);
   --sp-text-30: rgba(15,23,42,0.30);
   --sp-text-20: rgba(15,23,42,0.20);
   --sp-secondary: #64748B;
   --sp-border: rgba(0,0,0,0.08);
+  --sp-border-10: rgba(0,0,0,0.12);
   --sp-border-8: rgba(0,0,0,0.10);
+  --sp-border-6: rgba(0,0,0,0.07);
   --sp-border-5: rgba(0,0,0,0.06);
   --sp-border-4: rgba(0,0,0,0.04);
   --sp-row-even: rgba(0,0,0,0.02);
   --sp-row-hover: rgba(2,132,199,0.04);
+}
+
+/* ── Animaciones de UI ──────────────────────────────────────────────────────── */
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0);    }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @layer base {
@@ -72,6 +104,10 @@ body.light {
     color: var(--sp-text);
   }
 }
+
+/* Ocultar scrollbar en todos los navegadores */
+.hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
 
 @layer components {
   .bento-card {

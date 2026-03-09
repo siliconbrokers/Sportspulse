@@ -1,30 +1,22 @@
 /**
- * Radar SportPulse — Unavailable State
- * Spec: radar-04-ui-ux-spec.md §19
+ * Radar SportPulse — Unavailable State. Premium 2026.
  */
 
 export function RadarUnavailableState() {
   return (
     <div style={{
-      padding: '24px 20px',
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.07)',
-      borderRadius: 12,
+      padding: '32px 24px',
+      background: 'var(--sp-surface-card, rgba(255,255,255,0.03))',
+      border: '1px solid var(--sp-border-8, rgba(255,255,255,0.08))',
+      borderRadius: 16,
       textAlign: 'center',
     }}>
-      <div style={{
-        fontSize: 14,
-        fontWeight: 600,
-        color: 'rgba(255,255,255,0.4)',
-        marginBottom: 6,
-      }}>
-        No se pudo generar el Radar para esta jornada
+      <div style={{ fontSize: 28, marginBottom: 12 }}>🔌</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--sp-text-40, rgba(255,255,255,0.4))', marginBottom: 6 }}>
+        Radar no disponible
       </div>
-      <div style={{
-        fontSize: 12,
-        color: 'rgba(255,255,255,0.25)',
-      }}>
-        Faltan datos o hubo un problema de integración.
+      <div style={{ fontSize: 12, color: 'var(--sp-text-25, rgba(255,255,255,0.25))' }}>
+        No se pudieron generar análisis para esta jornada. Intentalo de nuevo más tarde.
       </div>
     </div>
   );

@@ -1,11 +1,13 @@
 /**
- * Radar SportPulse — Section Component
- * Spec: radar-04-ui-ux-spec.md §4–§6
+ * RadarSection — Bento Grid de tarjetas del Radar.
+ * Premium 2026 Design System. Mobile-First.
  *
  * Layout:
- * - Desktop: up to 3 columns
- * - Tablet (≤900px): 2 columns
- * - Mobile (≤600px): 1 column, vertical stack
+ *   Mobile  (≤640px):  1 columna, stack vertical
+ *   Tablet  (≤900px):  2 columnas
+ *   Desktop (>900px):  3 columnas (máximo)
+ *
+ * Sin título redundante — el usuario llega desde el Navbar.
  */
 
 import { useWindowWidth } from '../../hooks/use-window-width.js';
@@ -20,109 +22,87 @@ interface RadarSectionProps {
   onViewMatch?: (matchId: string) => void;
 }
 
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+
+function RadarSkeleton({ cols }: { cols: number }) {
+  const items = Array.from({ length: cols });
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(${cols}, 1fr)`,
+      gap: 16,
+    }}>
+      {items.map((_, i) => (
+        <div key={i} style={{
+          height: 220,
+          background: 'var(--sp-surface-card)',
+          border: '1px solid var(--sp-border-8)',
+          borderRadius: 16,
+          animation: 'pulse 1.8s ease-in-out infinite',
+        }} />
+      ))}
+    </div>
+  );
+}
+
+// ── Section ───────────────────────────────────────────────────────────────────
+
 export function RadarSection({ data, loading, onViewMatch }: RadarSectionProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
   const isTablet = breakpoint === 'tablet';
-  // isTablet used below for layout decision
+  const cols     = isMobile ? 1 : isTablet ? 2 : 3;
 
-  // Section header
-  const header = (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-        <h2 style={{
-          margin: 0,
-          fontSize: isMobile ? 16 : 18,
-          fontWeight: 700,
-          color: 'rgba(255,255,255,0.9)',
-          letterSpacing: '-0.01em',
-        }}>
-          Radar SportPulse
-        </h2>
-        <span style={{
-          fontSize: 12,
-          color: 'rgba(255,255,255,0.35)',
-          fontWeight: 400,
-        }}>
-          Partidos destacados
-        </span>
-      </div>
-    </div>
-  );
-
-  // Loading skeleton
   if (loading) {
-    return (
-      <div style={{ marginBottom: 24 }}>
-        {header}
-        <div style={{
-          height: 180,
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.07)',
-          borderRadius: 12,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>Cargando Radar…</span>
-        </div>
-      </div>
-    );
+    return <RadarSkeleton cols={isMobile ? 1 : cols} />;
   }
 
   if (!data || data.state === 'unavailable') {
-    return (
-      <div style={{ marginBottom: 24 }}>
-        {header}
-        <RadarUnavailableState />
-      </div>
-    );
+    return <RadarUnavailableState />;
   }
 
   if (data.state === 'empty' || !data.index || data.index.cards.length === 0) {
-    return (
-      <div style={{ marginBottom: 24 }}>
-        {header}
-        <RadarEmptyState />
-      </div>
-    );
+    return <RadarEmptyState />;
   }
+
+  const competitionKey = data.index.competitionKey;
+  const matchday       = data.index.matchday;
 
   const liveMap = new Map<string, RadarLiveMatchData>(
     data.liveData.map((ld) => [ld.matchId, ld]),
   );
+
+  // Orden: primero los EN VIVO, luego por hora de inicio
   const cards = [...data.index.cards].sort((a, b) => {
-    const ta = liveMap.get(a.matchId)?.startTimeUtc ?? '';
-    const tb = liveMap.get(b.matchId)?.startTimeUtc ?? '';
+    const la = liveMap.get(a.matchId);
+    const lb = liveMap.get(b.matchId);
+    const aLive = la?.status === 'IN_PROGRESS' ? 0 : 1;
+    const bLive = lb?.status === 'IN_PROGRESS' ? 0 : 1;
+    if (aLive !== bLive) return aLive - bLive;
+    const ta = la?.startTimeUtc ?? '';
+    const tb = lb?.startTimeUtc ?? '';
     return ta < tb ? -1 : ta > tb ? 1 : 0;
   });
 
-  const isDesktop = !isMobile && !isTablet;
+  const gridCols = Math.min(cards.length, cols);
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      {header}
-      {/* Mobile/tablet: flex column (una tarjeta por fila, garantizado) */}
-      {/* Desktop: grid 3 columnas */}
-      <div style={isDesktop ? {
-        display: 'grid',
-        gridTemplateColumns: `repeat(${Math.min(cards.length, 3)}, 1fr)`,
-        gap: 16,
-      } : {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-      }}>
-        {cards.map((card) => (
-          <RadarCard
-            key={card.matchId}
-            card={card}
-            live={liveMap.get(card.matchId) ?? null}
-            matchday={data.index?.matchday}
-            onViewMatch={onViewMatch}
-          />
-        ))}
-      </div>
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+      gap: isMobile ? 12 : 16,
+    }}>
+      {cards.map((card, i) => (
+        <RadarCard
+          key={card.matchId}
+          card={card}
+          live={liveMap.get(card.matchId) ?? null}
+          competitionKey={competitionKey}
+          matchday={matchday}
+          onViewMatch={onViewMatch}
+          animationDelay={i * 60}
+        />
+      ))}
     </div>
   );
 }

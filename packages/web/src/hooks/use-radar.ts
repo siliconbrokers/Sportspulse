@@ -50,6 +50,7 @@ export interface RadarLiveMatchData {
   probHomeWin?: number;
   probDraw?: number;
   probAwayWin?: number;
+  preMatchText?: string;
 }
 
 export interface RadarData {

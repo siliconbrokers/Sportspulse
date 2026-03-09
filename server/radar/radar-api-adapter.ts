@@ -28,6 +28,8 @@ export interface RadarLiveMatchData {
   probHomeWin?: number;
   probDraw?: number;
   probAwayWin?: number;
+  /** Comentario analítico generado desde probabilidades (voz rioplatense) */
+  preMatchText?: string;
 }
 
 export type RadarApiResult = {
@@ -108,32 +110,41 @@ export class RadarApiAdapter {
     seasonId: string,
     buildNowUtc: string,
   ): RadarLiveMatchData[] {
-    const matches = this.dataSource.getMatches(seasonId);
+    const allMatches = this.dataSource.getMatches(seasonId);
     const teams = this.dataSource.getTeams(competitionId);
     const teamMap = new Map(teams.map((t) => [t.teamId, t]));
 
+    // Usar todos los partidos de la jornada, no solo los del radar editorial
+    const matchday = index.matchday;
+    const matches = allMatches.filter((m) => (m as Match & { matchday?: number }).matchday === matchday);
+
+    // Compute league average once for all teams (used for shrinkage)
+    const leagueAvgGoals = computeLeagueAvgGoals(allMatches, buildNowUtc);
+
     const liveData: RadarLiveMatchData[] = [];
 
-    for (const card of index.cards) {
-      const match = matches.find((m) => m.matchId === card.matchId);
-      if (!match) continue;
+    for (const match of matches) {
 
       const homeTeam = teamMap.get(match.homeTeamId);
       const awayTeam = teamMap.get(match.awayTeamId);
 
-      // Compute Poisson+DC probabilities for all match states
+      // Compute Poisson+DC probabilities with shrinkage toward league average
       let probHomeWin: number | undefined;
       let probDraw:    number | undefined;
       let probAwayWin: number | undefined;
 
-      const homeLambdas = resolveTeamLambdas(match.homeTeamId, matches, buildNowUtc, 'HOME');
-      const awayLambdas = resolveTeamLambdas(match.awayTeamId, matches, buildNowUtc, 'AWAY');
+      const homeLambdas = resolveTeamLambdas(match.homeTeamId, allMatches, buildNowUtc, 'HOME', leagueAvgGoals);
+      const awayLambdas = resolveTeamLambdas(match.awayTeamId, allMatches, buildNowUtc, 'AWAY', leagueAvgGoals);
       const probs = computeMatchProbs(homeLambdas, awayLambdas);
       if (probs) {
         probHomeWin = probs.homeWin;
         probDraw    = probs.draw;
         probAwayWin = probs.awayWin;
       }
+
+      const preMatchText = (probHomeWin != null && probDraw != null && probAwayWin != null)
+        ? renderProbText(probHomeWin, probDraw, probAwayWin, match.matchId)
+        : undefined;
 
       liveData.push({
         matchId: match.matchId,
@@ -150,6 +161,7 @@ export class RadarApiAdapter {
         probHomeWin,
         probDraw,
         probAwayWin,
+        preMatchText,
       });
     }
 
@@ -159,14 +171,48 @@ export class RadarApiAdapter {
 
 // ── Poisson + Dixon-Coles probability model ───────────────────────────────────
 
-const DECAY_XI       = 0.006;   // exponential decay per day, half-life ≈ 115d
-const MS_PER_DAY     = 86_400_000;
-const MIN_GAMES      = 2;       // minimum games to trust a split (venue or total)
-const MAX_GOALS      = 7;       // scoreline grid up to 7-7
-const DC_RHO         = -0.13;   // Dixon-Coles low-score correlation parameter
-const HOME_ADVANTAGE = 1.15;    // applied to λ_home only when falling back to season totals
+const DECAY_XI          = 0.006;  // exponential decay per day, half-life ≈ 115d
+const MS_PER_DAY        = 86_400_000;
+const MIN_GAMES_VENUE   = 5;      // min venue-specific games to trust the home/away split
+const MIN_GAMES_MODEL   = 1;      // min total games to compute probs at all (shrinkage handles small samples)
+const SHRINKAGE_K       = 5;      // prior strength: equivalent to 5 games toward league average
+const MAX_GOALS         = 7;      // scoreline grid up to 7-7
+const DC_RHO            = -0.13;  // Dixon-Coles low-score correlation parameter
+const HOME_ADVANTAGE    = 1.15;   // applied to λ_home when venue split unavailable
 
 interface TeamLambdas { attack: number; defense: number; games: number; venueSplit: boolean }
+
+/**
+ * Computes league average goals per team per game from all finished matches.
+ * Used as Bayesian prior for shrinkage. Returns 1.3 as fallback (typical European league avg).
+ */
+function computeLeagueAvgGoals(matches: readonly Match[], buildNowUtc: string): number {
+  let totalGoals = 0;
+  let totalMatches = 0;
+  for (const m of matches) {
+    if (
+      m.status !== EventStatus.FINISHED ||
+      m.startTimeUtc === null ||
+      m.startTimeUtc >= buildNowUtc ||
+      m.scoreHome === null ||
+      m.scoreAway === null
+    ) continue;
+    totalGoals   += m.scoreHome + m.scoreAway;
+    totalMatches += 1;
+  }
+  // Each match has 2 "team-slots" (one home, one away)
+  return totalMatches > 0 ? totalGoals / (2 * totalMatches) : 1.3;
+}
+
+/**
+ * Applies Bayesian shrinkage toward the league average.
+ * λ_shrunk = (n × λ_raw + K × λ_avg) / (n + K)
+ * With few games: result is heavily pulled toward average.
+ * With many games: result converges to the team's own data.
+ */
+function shrinkLambda(raw: number, games: number, leagueAvg: number): number {
+  return (games * raw + SHRINKAGE_K * leagueAvg) / (games + SHRINKAGE_K);
+}
 
 /** Compute time-decay weighted attack/defense rates for a team, optionally filtered by venue. */
 function computeTeamLambdas(
@@ -211,16 +257,28 @@ function computeTeamLambdas(
   };
 }
 
-/** Returns venue-specific lambdas when enough data, otherwise falls back to season totals. */
+/**
+ * Returns venue-specific lambdas when ≥ MIN_GAMES_VENUE, otherwise falls back to season totals.
+ * Applies shrinkage toward league average on the resulting lambdas.
+ */
 function resolveTeamLambdas(
   teamId: string,
   matches: readonly Match[],
   buildNowUtc: string,
   venue: 'HOME' | 'AWAY',
+  leagueAvgGoals: number,
 ): TeamLambdas {
   const venueLambdas = computeTeamLambdas(teamId, matches, buildNowUtc, venue);
-  if (venueLambdas.games >= MIN_GAMES) return { ...venueLambdas, venueSplit: true };
-  return { ...computeTeamLambdas(teamId, matches, buildNowUtc), venueSplit: false };
+  const raw = venueLambdas.games >= MIN_GAMES_VENUE
+    ? { ...venueLambdas, venueSplit: true }
+    : { ...computeTeamLambdas(teamId, matches, buildNowUtc), venueSplit: false };
+
+  // Apply shrinkage: pull extreme estimates toward league average, proportional to data volume
+  return {
+    ...raw,
+    attack:  shrinkLambda(raw.attack,  raw.games, leagueAvgGoals),
+    defense: shrinkLambda(raw.defense, raw.games, leagueAvgGoals),
+  };
 }
 
 function poissonPmf(lambda: number, k: number): number {
@@ -243,7 +301,8 @@ function computeMatchProbs(
   homeLambdas: TeamLambdas,
   awayLambdas: TeamLambdas,
 ): { homeWin: number; draw: number; awayWin: number } | null {
-  if (homeLambdas.games < MIN_GAMES || awayLambdas.games < MIN_GAMES) return null;
+  // With shrinkage, even 1 game gives a reasonable estimate anchored to league average
+  if (homeLambdas.games < MIN_GAMES_MODEL || awayLambdas.games < MIN_GAMES_MODEL) return null;
 
   let lh = (homeLambdas.attack  + awayLambdas.defense) / 2;
   let la = (awayLambdas.attack  + homeLambdas.defense) / 2;
@@ -264,6 +323,77 @@ function computeMatchProbs(
 
   const total = hw + dr + aw || 1;
   return { homeWin: hw / total, draw: dr / total, awayWin: aw / total };
+}
+
+// ── Prob-based pre-match text generator (voz rioplatense) ────────────────────
+
+/**
+ * Genera un comentario analítico en voz rioplatense a partir de las probabilidades
+ * del modelo Poisson+DC. Usa el matchId como seed para variedad determinista.
+ */
+function renderProbText(
+  probHome: number,
+  probDraw: number,
+  probAway: number,
+  matchId: string,
+): string {
+  // Seed determinista basado en matchId
+  let h = 0;
+  for (let i = 0; i < matchId.length; i++) h = (Math.imul(31, h) + matchId.charCodeAt(i)) | 0;
+  const seed = Math.abs(h);
+  const pick = (arr: string[]) => arr[seed % arr.length];
+
+  // Dominancia clara del local (≥ 60%)
+  if (probHome >= 0.60) {
+    return pick([
+      'El local llega como favorito claro. El modelo no le da mucho margen al visitante.',
+      'Los datos ubican al local con ventaja significativa. El visitante sale de atrás.',
+      'El partido llega con una diferencia marcada a favor del local. Difícil de remontar para el de afuera.',
+    ]);
+  }
+
+  // Dominancia clara del visitante (≥ 60%)
+  if (probAway >= 0.60) {
+    return pick([
+      'El visitante llega como favorito claro. El modelo no espera mucho del local en esta salida.',
+      'Número inusual: el visitante supera al local en el modelo. Vale la pena no pasarlo por alto.',
+      'Los datos marcan una ventaja clara para el equipo de afuera. El local tiene que remar.',
+    ]);
+  }
+
+  // Empate como resultado más probable (≥ 35%)
+  if (probDraw >= 0.35) {
+    return pick([
+      'Un cruce que llega muy equilibrado. El empate entra como opción fuerte y ningún resultado queda descartado.',
+      'El modelo no define un favorito claro. Partido abierto para cualquier desenlace.',
+      'El equilibrio es la nota del partido. Difícil inclinar la balanza hacia alguno de los dos lados.',
+    ]);
+  }
+
+  // Leve ventaja local (45-60%)
+  if (probHome >= 0.45) {
+    return pick([
+      'Leve ventaja para el local, pero sin margen cómodo. El visitante puede complicar.',
+      'El local tiene la mano, aunque el partido llega parejo. No hay favorito que se imponga con claridad.',
+      'Partido con inclinación local, pero el visitante llega con chances reales de sacar algo.',
+    ]);
+  }
+
+  // Leve ventaja visitante (45-60%)
+  if (probAway >= 0.45) {
+    return pick([
+      'El visitante llega con chances reales. El local no tiene asegurada la condición de local.',
+      'Ventaja ajustada para el de afuera. El partido llega más parejo de lo que sugiere el fixture.',
+      'El modelo le da una leve ventaja al visitante. Un cruce que puede resolverse para cualquier lado.',
+    ]);
+  }
+
+  // Máxima paridad
+  return pick([
+    'Pronóstico abierto. El modelo no se juega por ninguno de los dos.',
+    'Un partido sin favorito definido. Las tres opciones se reparten las chances de forma casi pareja.',
+    'Pocas veces el modelo deja un cruce tan parejo. Cualquier resultado tiene sentido.',
+  ]);
 }
 
 function normalizeSeasonKey(raw: string): string {

@@ -138,6 +138,27 @@ export interface ITournamentSource {
   getBracketView(competitionId: string): unknown | null;
 }
 
+export interface UpcomingMatchDTO {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeCrestUrl: string | null;
+  awayCrestUrl: string | null;
+  homeTeamId: string;
+  awayTeamId: string;
+  competitionId: string;
+  currentMatchday: number | null;
+  normalizedLeague: string;
+  normalizedStatus: 'EN_VIVO' | 'PROXIMO';
+  kickoffUtc: string;
+  startsAtPortalTz: string;
+  isTodayInPortalTz: boolean;
+}
+
+export interface IUpcomingService {
+  getUpcoming(windowHours?: number): UpcomingMatchDTO[];
+}
+
 export interface AppDependencies {
   snapshotService: SnapshotService;
   dataSource: DataSource;
@@ -147,4 +168,5 @@ export interface AppDependencies {
   eventosService?: IEventosService;
   matchEventsService?: IMatchEventsService;
   tournamentSource?: ITournamentSource;
+  upcomingService?: IUpcomingService;
 }

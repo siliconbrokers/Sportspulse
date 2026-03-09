@@ -104,7 +104,7 @@ function FormCircle({ result, size = 24 }: { result: string; size?: number }) {
 function FormBadges({ form, isMobile }: { form?: string | null; isMobile: boolean }) {
   if (!form) {
     return (
-      <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11 }}>—</span>
+      <span style={{ color: 'var(--sp-text-20)', fontSize: 11 }}>—</span>
     );
   }
 
@@ -141,7 +141,7 @@ function Legend({ competitionId }: { competitionId: string }) {
       {zones.map((z, i) => (
         <span key={z.type} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {i > 0 && (
-            <span style={{ color: 'rgba(255,255,255,0.15)', marginRight: 4, fontSize: 10 }}>|</span>
+            <span style={{ color: 'var(--sp-text-20)', marginRight: 4, fontSize: 10 }}>|</span>
           )}
           <span style={{ fontSize: 13 }}>{z.emoji}</span>
           <span
@@ -251,7 +251,7 @@ export function StandingsTable({
             width: '100%',
             borderCollapse: 'collapse',
             fontSize: isMobile ? 12 : 13,
-            color: '#fff',
+            color: 'var(--sp-text)',
             // Mobile: columnas reducidas caben sin scroll — no forzar max-content
             minWidth: isMobile ? undefined : 600,
           }}
@@ -294,7 +294,7 @@ export function StandingsTable({
                     fontWeight: 500,
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
-                    color: 'rgba(255,255,255,0.35)',
+                    color: 'var(--sp-text-35)',
                     // Mobile: 3 círculos × 18px + 2×2px gaps = 58px → 64px
                     // Desktop: 5 círculos × 24px + 4×4px gaps = 136px → 145px
                     minWidth: isMobile ? 64 : 145,
@@ -321,7 +321,7 @@ export function StandingsTable({
                   onClick={() => onTeamClick(row.teamId)}
                   style={{
                     cursor: 'pointer',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    borderBottom: '1px solid var(--sp-border-4)',
                     borderLeft: zone ? `4px solid ${zone.color}` : '4px solid transparent',
                     background: isEven ? 'var(--sp-row-even)' : 'transparent',
                     transition: 'background 0.12s ease',
@@ -331,7 +331,7 @@ export function StandingsTable({
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = isEven
-                      ? 'rgba(255,255,255,0.015)'
+                      ? 'var(--sp-row-even)'
                       : 'transparent';
                   }}
                 >
@@ -370,8 +370,8 @@ export function StandingsTable({
                             width: 6,
                             height: 6,
                             borderRadius: '50%',
-                            background: '#00E0FF',
-                            boxShadow: '0 0 6px #00E0FF',
+                            background: 'var(--sp-primary)',
+                            boxShadow: '0 0 6px var(--sp-primary)',
                             flexShrink: 0,
                             animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
                           }}
@@ -395,7 +395,7 @@ export function StandingsTable({
                             ? '#4ade80'
                             : row.goalDifference < 0
                               ? '#f87171'
-                              : 'rgba(255,255,255,0.35)',
+                              : 'var(--sp-text-35)',
                       }}
                     >
                       {row.goalDifference > 0 ? '+' : ''}
@@ -417,7 +417,7 @@ export function StandingsTable({
                               ? '#4ade80'
                               : row.goalDifference < 0
                                 ? '#f87171'
-                                : 'rgba(255,255,255,0.35)',
+                                : 'var(--sp-text-35)',
                         }}
                       >
                         {row.goalDifference > 0 ? '+' : ''}

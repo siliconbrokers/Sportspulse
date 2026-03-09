@@ -13,6 +13,7 @@ import { EventosService, buildEventSource } from './eventos/index.js';
 import { MatchEventsService } from './match-events-service.js';
 import { IncidentService } from './incidents/incident-service.js';
 import type { MatchCoreInput } from './incidents/types.js';
+import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
 import {
   SnapshotService,
   InMemorySnapshotStore,
@@ -179,7 +180,91 @@ async function main() {
     console.warn('[ApiFootballSource] APIFOOTBALL_KEY not set — PD/PL/URU goal events disabled');
   }
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: wcSource });
+  // ── UpcomingService — partidos de hoy / próximas 24h desde fuentes canónicas ──
+  const PORTAL_TZ = 'America/Montevideo';
+
+  const COMP_LEAGUE_KEY: Record<string, string> = {
+    [UY_COMPETITION_ID]:  'URUGUAY_PRIMERA',
+    [OLG_COMPETITION_ID]: 'BUNDESLIGA',
+  };
+  for (const code of FD_COMPETITION_CODES) {
+    const id = `comp:football-data:${code}`;
+    COMP_LEAGUE_KEY[id] =
+      code === 'PD' ? 'LALIGA'
+      : code === 'PL' ? 'PREMIER_LEAGUE'
+      : code === 'BL1' ? 'BUNDESLIGA'
+      : 'OTRA';
+  }
+
+  function isToday(isoStr: string, tz: string): boolean {
+    const now = new Date();
+    const todayInTz = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now); // YYYY-MM-DD
+    const dateInTz  = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(isoStr));
+    return dateInTz === todayInTz;
+  }
+
+  function toPortalTime(isoStr: string, tz: string): string {
+    return new Date(isoStr).toLocaleString('sv-SE', { timeZone: tz }).replace(' ', 'T');
+  }
+
+  const upcomingService: IUpcomingService = {
+    getUpcoming(windowHours = 24): UpcomingMatchDTO[] {
+      const now    = Date.now();
+      const cutoff = now + windowHours * 60 * 60 * 1000;
+      const results: UpcomingMatchDTO[] = [];
+
+      for (const compId of ALL_COMP_IDS) {
+        const seasonId = dataSource.getSeasonId(compId);
+        if (!seasonId) continue;
+
+        const matches = dataSource.getMatches(seasonId);
+        const teams   = dataSource.getTeams(compId);
+        const teamMap = new Map(teams.map((t) => [t.teamId, t]));
+        const leagueKey = COMP_LEAGUE_KEY[compId] ?? 'OTRA';
+
+        for (const m of matches) {
+          if (!m.startTimeUtc) continue;
+          const kickoffMs = new Date(m.startTimeUtc).getTime();
+
+          const isLive = m.status === 'IN_PROGRESS';
+          const isUpcoming = m.status === 'SCHEDULED' && kickoffMs > now && kickoffMs <= cutoff;
+
+          if (!isLive && !isUpcoming) continue;
+
+          const home = teamMap.get(m.homeTeamId);
+          const away = teamMap.get(m.awayTeamId);
+          const portalTime = toPortalTime(m.startTimeUtc, PORTAL_TZ);
+
+          results.push({
+            id:               m.matchId,
+            homeTeam:         home?.shortName ?? home?.name ?? m.homeTeamId,
+            awayTeam:         away?.shortName ?? away?.name ?? m.awayTeamId,
+            homeCrestUrl:     home?.crestUrl ?? null,
+            awayCrestUrl:     away?.crestUrl ?? null,
+            homeTeamId:       m.homeTeamId,
+            awayTeamId:       m.awayTeamId,
+            competitionId:    compId,
+            currentMatchday:  dataSource.getCurrentMatchday?.(compId) ?? null,
+            normalizedLeague: leagueKey,
+            normalizedStatus: isLive ? 'EN_VIVO' : 'PROXIMO',
+            kickoffUtc:       m.startTimeUtc,
+            startsAtPortalTz: portalTime,
+            isTodayInPortalTz: isToday(m.startTimeUtc, PORTAL_TZ),
+          });
+        }
+      }
+
+      // Sort: live first (by time), then upcoming (by time)
+      return results.sort((a, b) => {
+        if (a.normalizedStatus !== b.normalizedStatus) {
+          return a.normalizedStatus === 'EN_VIVO' ? -1 : 1;
+        }
+        return a.kickoffUtc.localeCompare(b.kickoffUtc);
+      });
+    },
+  };
+
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: wcSource, upcomingService });
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
   // Refresh interval adapts to match state. Only polls when data can change.

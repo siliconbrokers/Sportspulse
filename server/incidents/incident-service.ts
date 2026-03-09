@@ -65,8 +65,8 @@ export class IncidentService {
     // siblingMatches kept for API compat but no longer used (API-Football resolves by date+league)
     _siblingMatches: MatchCoreInput[] = [],
   ): Promise<IncidentSnapshot | null> {
-    // 1. Cargar snapshot existente
-    const snapshot = await loadIncidentSnapshot(matchCore.matchId);
+    // 1. Cargar snapshot existente (con contexto de liga/temporada para ruta jerárquica)
+    const snapshot = await loadIncidentSnapshot(matchCore.matchId, matchCore);
 
     // 2. Evaluar si hay que refrescar
     if (!shouldScrapeIncidents(matchCore, snapshot, new Date())) {
@@ -109,7 +109,7 @@ export class IncidentService {
       }
 
       const snapshot = buildSnapshot(matchCore, events);
-      await saveIncidentSnapshot(snapshot);
+      await saveIncidentSnapshot(snapshot, matchCore);
       console.log(
         `[IncidentService] Saved snapshot matchId=${matchCore.matchId} ` +
         `status=${matchCore.status} events=${events.length} isFinal=${snapshot.isFinal}`,

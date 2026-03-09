@@ -47,8 +47,8 @@ function LiveDot() {
         width: 8,
         height: 8,
         borderRadius: '50%',
-        background: '#00E0FF',
-        boxShadow: '0 0 8px rgba(0,224,255,0.7)',
+        background: 'var(--sp-primary)',
+        boxShadow: '0 0 8px var(--sp-primary-40)',
         animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
         flexShrink: 0,
       }}
@@ -61,8 +61,8 @@ function SkeletonBento({ isMobile }: { isMobile: boolean }) {
     <div
       style={{
         borderRadius: '1.5rem',
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--sp-border-4)',
+        border: '1px solid var(--sp-border)',
         minHeight: isMobile ? 155 : 170,
         animation: 'none',
       }}
@@ -161,9 +161,9 @@ export function LiveEventsHub({ feed, loading, isMobile }: LiveEventsHubProps) {
             style={{
               fontSize: 10,
               fontWeight: 700,
-              color: '#00E0FF',
-              background: 'rgba(0,224,255,0.1)',
-              border: '1px solid rgba(0,224,255,0.3)',
+              color: 'var(--sp-primary)',
+              background: 'var(--sp-primary-10)',
+              border: '1px solid var(--sp-primary-22)',
               borderRadius: 20,
               padding: '2px 8px',
               letterSpacing: '0.06em',

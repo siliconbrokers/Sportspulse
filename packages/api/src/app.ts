@@ -15,6 +15,7 @@ import { eventosRoute } from './ui/eventos-route.js';
 import { groupStandingsRoute } from './ui/group-standings-route.js';
 import { bracketRoute } from './ui/bracket-route.js';
 import { scorersRoute } from './ui/scorers-route.js';
+import { upcomingRoute } from './ui/upcoming-route.js';
 import type { AppDependencies } from './ui/types.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -34,6 +35,7 @@ export function buildApp(deps: AppDependencies): FastifyInstance {
   app.register(groupStandingsRoute(deps));
   app.register(bracketRoute(deps));
   app.register(scorersRoute(deps));
+  app.register(upcomingRoute(deps));
 
   // Servir el frontend React en producción
   const webDist = join(__dirname, '../../web/dist');

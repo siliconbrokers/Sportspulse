@@ -6,6 +6,7 @@ import { MatchdayCarousel } from './components/MatchdayCarousel.js';
 import { TournamentView } from './components/TournamentView.js';
 import { DetailPanel } from './components/DetailPanel.js';
 import { HomePortal } from './components/HomePortal.js';
+import { PronosticosView } from './components/pronosticos/PronosticosView.js';
 import { Navbar } from './components/Navbar.js';
 import type { ViewMode } from './components/Navbar.js';
 import { useStandings } from './hooks/use-standings.js';
@@ -15,6 +16,7 @@ import { useWindowWidth } from './hooks/use-window-width.js';
 import { useTeamsPlayingToday } from './hooks/use-teams-playing-today.js';
 import { useScorers } from './hooks/use-scorers.js';
 import { EventPlayerTest } from './components/eventos/EventPlayerTest.js';
+import { EventsSection } from './components/eventos/EventsSection.js';
 
 // spec §16 — detectar si la ruta actual es el player de reproducción
 function isPlayerTestRoute(): boolean {
@@ -42,6 +44,8 @@ function App() {
   const [matchday, setMatchday] = useState<number | null>(null);
   const [view, setView] = useState<ViewMode>('home');
   const [standingsFocusId, setStandingsFocusId] = useState<string | null>(null);
+  const [hasLiveMatches, setHasLiveMatches] = useState(false);
+  const [tvTab, setTvTab] = useState<'hoy' | 'manana'>('hoy');
 
   const currentComp = COMPETITIONS.find((c) => c.id === competitionId) ?? COMPETITIONS[0];
   const isTournament = currentComp.isTournament;
@@ -86,7 +90,7 @@ function App() {
 
   function handleMatchdayChange(md: number) {
     setMatchday(md);
-    if (view === 'standings') setView('radar');
+    if (view === 'standings') setView('tv');
   }
 
   return (
@@ -105,18 +109,35 @@ function App() {
         onViewChange={setView}
         competitionId={competitionId}
         onCompetitionChange={(id) => { setCompetitionId(id); }}
-        matchday={matchday}
-        onMatchdayChange={handleMatchdayChange}
         competitions={COMPETITIONS}
-        totalMatchdays={totalMatchdays}
-        currentMatchday={compInfo?.currentMatchday ?? null}
-        compInfoLoading={compInfoLoading}
+        hasLiveMatches={hasLiveMatches}
+        tvTab={tvTab}
+        onTvTabChange={setTvTab}
       />
 
       {/* ── Contenido principal ─────────────────────────────────────────── */}
       {view === 'home' ? (
         <HomePortal />
-      ) : view === 'radar' || view === 'partidos' ? (
+      ) : view === 'pronosticos' ? (
+        <div style={{ padding: isMobile ? '12px 12px' : '16px 20px', maxWidth: 1400, margin: '0 auto' }}>
+          {/* Carousel de jornada */}
+          <div style={{ marginBottom: isMobile ? 12 : 16 }}>
+            <MatchdayCarousel
+              totalMatchdays={totalMatchdays}
+              selected={matchday}
+              currentMatchday={compInfo?.currentMatchday ?? null}
+              onChange={setMatchday}
+              isMobile={isMobile}
+            />
+          </div>
+          <PronosticosView
+            competitionId={competitionId}
+            matchday={matchday}
+          />
+        </div>
+      ) : view === 'tv' ? (
+        <EventsSection activeTab={tvTab} onTabChange={setTvTab} />
+      ) : view === 'partidos' ? (
         isTournament ? (
           <div style={{ padding: isMobile ? 12 : 24, color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
             Seleccioná la pestaña{' '}
@@ -143,6 +164,7 @@ function App() {
               currentMatchday={compInfo?.currentMatchday ?? null}
               timezone="America/Montevideo"
               viewMode={view}
+              onLiveMatchesChange={setHasLiveMatches}
             />
           </>
         )
