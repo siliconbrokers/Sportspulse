@@ -14,6 +14,7 @@ import { useWindowWidth } from '../../hooks/use-window-width.js';
 import { useTheme } from '../../hooks/use-theme.js';
 import { useTeamDetail } from '../../hooks/use-team-detail.js';
 import { DetailPanel } from '../DetailPanel.js';
+import { getMatchDisplayStatus, AUTOFINISH_THRESHOLD_MIN } from '../../utils/match-status.js';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -240,7 +241,17 @@ export function EventsSection({ activeTab, onTabChange }: EventsSectionProps) {
       e.normalizedLeague !== 'OTRA',
   );
 
-  const allEvents = [...canonicalEvents, ...streamOnlyEvents];
+  // Filtrar eventos que el auto-detector marca como FINISHED (kickoff > 240 min).
+  // Aplica principalmente a eventos de streamtp10 que quedan en el feed del proveedor
+  // después de que el partido terminó. Los eventos canónicos ya se filtran en el servidor.
+  function isEffectivelyFinished(e: ParsedEvent): boolean {
+    if (!e.startsAtPortalTz) return false;
+    const elapsed = (Date.now() - new Date(e.startsAtPortalTz).getTime()) / 60_000;
+    const isLiveSource = e.normalizedStatus === 'EN_VIVO';
+    return isLiveSource && elapsed > AUTOFINISH_THRESHOLD_MIN;
+  }
+
+  const allEvents = [...canonicalEvents, ...streamOnlyEvents].filter((e) => !isEffectivelyFinished(e));
 
   // ── Filtrar por tab (hoy / mañana) ────────────────────────────────────────
   const todayEvents    = allEvents.filter((e) => e.isTodayInPortalTz || e.normalizedStatus === 'EN_VIVO');
