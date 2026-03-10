@@ -286,14 +286,16 @@ function derivePredictionBadge(
 ): { label: string; color: string } | null {
   if (uiState === 'PENDING_CONFIRMATION')
     return { label: 'Confirmando resultado', color: '#f59e0b' };
-  // PRE_MATCH: el badge lo maneja PreMatchBody con el label del DTO (ganador esperado)
+  // PRE_MATCH: solo muestra badge cuando hay outcome explícito
   if (uiState === 'PRE_MATCH')
-    return null;
+    return outcomeStatus === 'pending' ? { label: 'Pendiente', color: '#6b7280' } : null;
+  // Predicción pendiente de evaluación (en curso o aún no iniciado)
+  if (outcomeStatus === 'in_progress' || outcomeStatus === 'pending')
+    return { label: 'Pendiente', color: '#6b7280' };
   // Post-partido — evaluación binaria
   if (outcomeStatus === 'hit')           return { label: 'Acertado',     color: '#22c55e' };
   if (outcomeStatus === 'miss')          return { label: 'Fallado',      color: '#ef4444' };
-  if (outcomeStatus === 'not_evaluable' || outcomeStatus === 'in_progress')
-    return { label: 'No evaluable', color: '#6b7280' };
+  if (outcomeStatus === 'not_evaluable') return { label: 'No evaluable', color: '#6b7280' };
   return null;
 }
 
@@ -320,6 +322,7 @@ function PreMatchBody({
       {/* §7.1 — Prediction block */}
       {vm.prediction && (() => {
         const predictionLabel = vm.prediction!.label;
+        const statusBadge = derivePredictionBadge(vm.prediction!.outcomeStatus, 'PRE_MATCH');
 
         return (
           <div
@@ -336,17 +339,30 @@ function PreMatchBody({
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-text-35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Pronóstico
               </div>
-              {predictionLabel && (
-                <span style={{
-                  fontSize: 10, fontWeight: 700,
-                  padding: '3px 10px', borderRadius: 20,
-                  backgroundColor: 'var(--sp-primary-10)',
-                  color: 'var(--sp-primary)',
-                  border: '1px solid var(--sp-primary-22)',
-                }}>
-                  {predictionLabel}
-                </span>
-              )}
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {statusBadge && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 700,
+                    padding: '3px 10px', borderRadius: 20,
+                    backgroundColor: `${statusBadge.color}18`,
+                    color: statusBadge.color,
+                    border: `1px solid ${statusBadge.color}40`,
+                  }}>
+                    {statusBadge.label}
+                  </span>
+                )}
+                {predictionLabel && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 700,
+                    padding: '3px 10px', borderRadius: 20,
+                    backgroundColor: 'var(--sp-primary-10)',
+                    color: 'var(--sp-primary)',
+                    border: '1px solid var(--sp-primary-22)',
+                  }}>
+                    {predictionLabel}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* §7.1 — Probability bars (shared component — mismos colores que PronosticoCard y RadarCard) */}
