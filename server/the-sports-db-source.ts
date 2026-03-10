@@ -207,6 +207,19 @@ export class TheSportsDbSource implements DataSource {
       upsertTeam(e.idAwayTeam, e.strAwayTeam, e.strAwayTeamBadge);
     }
 
+    // Build a map of previously-known scores to guard against score regression.
+    // TheSportsDB sometimes returns null scores for FINISHED matches even though
+    // a previous fetch had the correct scores. If the API now returns null for a
+    // FINISHED match that we already have scores for, we keep the old data.
+    const prevScoreMap = new Map<string, { scoreHome: number | null; scoreAway: number | null }>();
+    if (this.cache) {
+      for (const m of this.cache.matches) {
+        if (m.status === 'FINISHED' && (m.scoreHome !== null || m.scoreAway !== null)) {
+          prevScoreMap.set(m.providerMatchId, { scoreHome: m.scoreHome, scoreAway: m.scoreAway });
+        }
+      }
+    }
+
     // Map events → canonical matches
     const matches: Match[] = [];
     for (const e of rawEvents) {
@@ -220,22 +233,38 @@ export class TheSportsDbSource implements DataSource {
       const startTimeUtc =
         e.dateEvent && e.strTime ? `${e.dateEvent}T${e.strTime}Z` : null;
 
+      const status = classifyStatus(e.strStatus);
+
+      let scoreHome: number | null =
+        e.intHomeScore !== null && e.intHomeScore !== ''
+          ? Number(e.intHomeScore)
+          : null;
+      let scoreAway: number | null =
+        e.intAwayScore !== null && e.intAwayScore !== ''
+          ? Number(e.intAwayScore)
+          : null;
+
+      // Score regression guard: if API returns null scores for a FINISHED match
+      // that we previously had scores for, preserve the known-good scores.
+      if (status === 'FINISHED' && scoreHome === null && scoreAway === null) {
+        const prev = prevScoreMap.get(e.idEvent);
+        if (prev) {
+          scoreHome = prev.scoreHome;
+          scoreAway = prev.scoreAway;
+          console.log(`[TheSportsDbSource] Score regression guard: preserved scores for event ${e.idEvent}`);
+        }
+      }
+
       matches.push({
         matchId: canonicalMatchId(SPORTSDB_PROVIDER_KEY, e.idEvent),
         seasonId: seasId,
         matchday: parseInt(e.intRound, 10) || undefined,
         startTimeUtc,
-        status: classifyStatus(e.strStatus),
+        status,
         homeTeamId,
         awayTeamId,
-        scoreHome:
-          e.intHomeScore !== null && e.intHomeScore !== ''
-            ? Number(e.intHomeScore)
-            : null,
-        scoreAway:
-          e.intAwayScore !== null && e.intAwayScore !== ''
-            ? Number(e.intAwayScore)
-            : null,
+        scoreHome,
+        scoreAway,
         providerKey: SPORTSDB_PROVIDER_KEY,
         providerMatchId: e.idEvent,
         lastSeenUtc: nowUtc,

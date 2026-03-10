@@ -73,7 +73,13 @@ export function resolveGlobalStatus(matches: Match[]): MatchdayStatus {
   const hasFinished  = matches.some(m => m.status === 'FINISHED');
   const hasScheduled = matches.some(m => m.status === 'SCHEDULED');
 
-  if (!hasLive && !hasScheduled && matches.every(m => m.status === 'FINISHED')) return 'finished';
+  if (!hasLive && !hasScheduled && matches.every(m => m.status === 'FINISHED')) {
+    // All matches finished, but if any lack scores the provider hasn't populated them yet.
+    // Treat as 'mixed' (5 min TTL) until all scores arrive — prevents permanent caching
+    // of incomplete data (e.g. TheSportsDB reports FINISHED before populating scores).
+    const hasNullScore = matches.some(m => m.scoreHome === null || m.scoreAway === null);
+    return hasNullScore ? 'mixed' : 'finished';
+  }
   if (!hasLive && !hasFinished  && matches.every(m => m.status === 'SCHEDULED')) return 'scheduled';
   // Any live match → use live TTL regardless of other statuses in the matchday.
   // Previously this fell into 'mixed' (5min TTL) which caused stale scores during live matches.
