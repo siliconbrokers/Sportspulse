@@ -163,21 +163,23 @@ export function MatchdayCarousel({
                   border: isActive
                     ? '1px solid var(--sp-primary-40)'
                     : isCurrent
-                      ? '1px solid var(--sp-primary-22)'
+                      ? '1px solid rgba(249,115,22,0.4)'
                       : '1px solid var(--sp-border-8)',
                   background: isActive
                     ? 'var(--sp-primary-12)'
                     : isCurrent
-                      ? 'var(--sp-primary-04)'
+                      ? 'rgba(249,115,22,0.08)'
                       : 'var(--sp-surface-alpha)',
-                  color: isActive || isCurrent
+                  color: isActive
                     ? 'var(--sp-primary)'
-                    : 'var(--sp-text-55)',
+                    : isCurrent
+                      ? '#f97316'
+                      : 'var(--sp-text-55)',
                   fontSize: isMobile ? 12 : 13,
-                  fontWeight: isActive ? 800 : isCurrent ? 600 : 400,
+                  fontWeight: isActive ? 800 : isCurrent ? 700 : 400,
                   cursor: 'pointer',
                   letterSpacing: isActive ? '0.01em' : '0',
-                  textShadow: isActive ? '0 0 10px var(--sp-primary-40)' : 'none',
+                  textShadow: isActive ? '0 0 10px var(--sp-primary-40)' : isCurrent ? '0 0 8px rgba(249,115,22,0.4)' : 'none',
                   boxShadow: isActive ? '0 0 12px var(--sp-primary-10) inset' : 'none',
                   display: 'flex',
                   alignItems: 'center',
@@ -198,7 +200,7 @@ export function MatchdayCarousel({
                       width: 4,
                       height: 4,
                       borderRadius: '50%',
-                      background: 'var(--sp-primary-40)',
+                      background: '#f97316',
                     }}
                   />
                 )}

@@ -4,7 +4,7 @@
  */
 import { useState, useRef, useEffect, forwardRef } from 'react';
 import {
-  LayoutDashboard, Activity, CalendarDays, Trophy, Target,
+  Home, Tv, CalendarDays, TrendingUp, Trophy,
   Sun, Moon,
 } from 'lucide-react';
 import { useWindowWidth } from '../hooks/use-window-width.js';
@@ -18,11 +18,10 @@ const NAV_ITEMS: {
   Icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
   label: string;
 }[] = [
-  { id: 'home',         Icon: LayoutDashboard, label: 'Inicio'      },
-  { id: 'tv',           Icon: Activity,        label: 'TV'          },
-  { id: 'partidos',     Icon: CalendarDays,    label: 'Partidos'    },
-  { id: 'pronosticos',  Icon: Target,          label: 'Pronósticos' },
-  { id: 'standings',    Icon: Trophy,          label: 'Tabla'       },
+  { id: 'home',         Icon: Home,        label: 'Inicio'      },
+  { id: 'tv',           Icon: Tv,          label: 'TV'          },
+  { id: 'partidos',     Icon: CalendarDays, label: 'Partidos'   },
+  { id: 'pronosticos',  Icon: TrendingUp,  label: 'Pronósticos' },
 ];
 
 interface Competition {
@@ -39,6 +38,8 @@ interface NavbarProps {
   hasLiveMatches?: boolean;
   tvTab?: 'hoy' | 'manana';
   onTvTabChange?: (tab: 'hoy' | 'manana') => void;
+  isTournament?: boolean;
+  onStandingsClick?: () => void;
 }
 
 export function Navbar({
@@ -50,6 +51,8 @@ export function Navbar({
   hasLiveMatches = false,
   tvTab = 'hoy',
   onTvTabChange,
+  isTournament = false,
+  onStandingsClick,
 }: NavbarProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
@@ -99,7 +102,7 @@ export function Navbar({
             padding: '0 10px 8px',
             display: 'flex', justifyContent: 'center',
           }}>
-            <NavPill view={view} onViewChange={onViewChange} isMobile={isMobile} hasLive={hasLiveMatches} />
+            <NavPill view={view} onViewChange={onViewChange} isMobile={isMobile} hasLive={hasLiveMatches} isTournament={isTournament} />
           </div>
 
           {/* Fila 3: tabs TV -o- selector de liga según vista */}
@@ -139,7 +142,12 @@ export function Navbar({
                   })}
                 </div>
               ) : (
-                <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {onStandingsClick && view !== 'standings' && (
+                    <StandingsButton onClick={onStandingsClick} />
+                  )}
+                  <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
+                </div>
               )}
             </div>
           )}
@@ -169,14 +177,19 @@ export function Navbar({
 
           {/* NavPill centrado */}
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-            <NavPill view={view} onViewChange={onViewChange} isMobile={false} hasLive={hasLiveMatches} />
+            <NavPill view={view} onViewChange={onViewChange} isMobile={false} hasLive={hasLiveMatches} isTournament={isTournament} />
           </div>
 
           {/* Zona derecha */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
             {isLeagueView && (
-              <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {onStandingsClick && view !== 'standings' && (
+                  <StandingsButton onClick={onStandingsClick} />
+                )}
+                <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
+              </div>
             )}
           </div>
         </div>
@@ -187,23 +200,31 @@ export function Navbar({
 
 // ─── NavPill — contenedor con floating glow pill ──────────────────────────────
 
+const TOURNAMENT_HIDDEN: ViewMode[] = ['pronosticos'];
+
 function NavPill({
   view,
   onViewChange,
   isMobile,
   hasLive,
+  isTournament,
 }: {
   view: ViewMode;
   onViewChange: (v: ViewMode) => void;
   isMobile: boolean;
   hasLive: boolean;
+  isTournament: boolean;
 }) {
+  const visibleItems = isTournament
+    ? NAV_ITEMS.filter((item) => !TOURNAMENT_HIDDEN.includes(item.id))
+    : NAV_ITEMS;
+
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0, opacity: 0 });
 
   useEffect(() => {
-    const activeIndex = NAV_ITEMS.findIndex((item) => item.id === view);
+    const activeIndex = visibleItems.findIndex((item) => item.id === view);
     const tab = tabRefs.current[activeIndex];
     const container = containerRef.current;
     if (tab && container) {
@@ -214,8 +235,10 @@ function NavPill({
         width: tRect.width,
         opacity: 1,
       });
+    } else {
+      setPillStyle((prev) => ({ ...prev, opacity: 0 }));
     }
-  }, [view, isMobile]);
+  }, [view, isMobile, visibleItems]);
 
   return (
     <div
@@ -254,7 +277,7 @@ function NavPill({
         }}
       />
 
-      {NAV_ITEMS.map((item, i) => (
+      {visibleItems.map((item, i) => (
         <NavTab
           key={item.id}
           ref={(el) => { tabRefs.current[i] = el; }}
@@ -291,14 +314,16 @@ const NavTab = forwardRef<
         position: 'relative',
         zIndex: 1,
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         alignItems: 'center',
-        gap: isMobile ? 0 : 7,
-        padding: isMobile ? '7px 12px' : '7px 16px',
+        justifyContent: 'center',
+        gap: isMobile ? 3 : 7,
+        padding: isMobile ? '5px 12px' : '7px 16px',
         borderRadius: '9999px',
         border: 'none',
         background: 'transparent',
         color: isActive ? 'var(--sp-text)' : 'var(--sp-text-40)',
-        fontSize: 12,
+        fontSize: isMobile ? 10 : 12,
         fontWeight: isActive ? 700 : 500,
         cursor: 'pointer',
         whiteSpace: 'nowrap',
@@ -309,7 +334,7 @@ const NavTab = forwardRef<
     >
       {/* Icono con ping opcional */}
       <div style={{ position: 'relative', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-        <Icon size={isMobile ? 18 : 16} strokeWidth={isActive ? 2.5 : 2} />
+        <Icon size={isMobile ? 17 : 16} strokeWidth={isActive ? 2.5 : 2} />
         {showPing && (
           <span
             style={{
@@ -348,12 +373,47 @@ const NavTab = forwardRef<
         )}
       </div>
 
-      {/* Texto — oculto en mobile */}
-      {!isMobile && <span>{label}</span>}
+      {/* Etiqueta — siempre visible; debajo del icono en mobile */}
+      <span>{label}</span>
     </button>
   );
 });
 NavTab.displayName = 'NavTab';
+
+// ─── StandingsButton — acceso rápido a la tabla desde otras vistas ────────────
+
+function StandingsButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title="Ver tabla"
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--sp-border)',
+        border: '1px solid var(--sp-border-8)',
+        cursor: 'pointer',
+        color: 'var(--sp-text-55)',
+        flexShrink: 0,
+        transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--sp-primary-40)';
+        (e.currentTarget as HTMLButtonElement).style.color = 'var(--sp-primary)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--sp-border-8)';
+        (e.currentTarget as HTMLButtonElement).style.color = 'var(--sp-text-55)';
+      }}
+    >
+      <Trophy size={14} strokeWidth={2} />
+    </button>
+  );
+}
 
 // ─── ThemeToggle ─────────────────────────────────────────────────────────────
 
