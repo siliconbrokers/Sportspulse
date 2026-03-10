@@ -1,16 +1,25 @@
 /**
- * FootballDataTournamentSource — adaptador para torneos con grupos + eliminatorias.
- * Diseñado para Copa del Mundo 2026 vía football-data.org API v4.
+ * FootballDataTournamentSource — adaptador genérico para torneos con grupos + eliminatorias.
+ * Soporta cualquier competición de football-data.org API v4 mediante TournamentConfig.
  *
  * Obtiene equipos, partidos y standings, los normaliza en memoria y expone:
- *   - DataSource interface → para que el scheduler monitoree partidos WC
+ *   - DataSource interface → para que el scheduler monitoree partidos del torneo
  *   - getGroupView()       → datos de fase de grupos para el API route
  *   - getBracketView()     → datos de eliminatorias para el API route
+ *
+ * Torneos registrados:
+ *   - WC (Copa del Mundo 2026): usePERanking=false, usa standings API
+ *   - CA (Copa América 2027):   usePERanking=true, usa PE competition engine
  */
 import { teamId as canonicalTeamId, matchId as canonicalMatchId, seasonId as canonicalSeasonId, competitionId as canonicalCompId } from '@sportpulse/canonical';
 import type { Team, Match, StageType } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
+import type { TournamentConfig } from './tournament-config.js';
+import { rankGroup } from '@sportpulse/prediction';
+import type { GroupData, MatchResult as PEMatchResult } from '@sportpulse/prediction';
+import { CA_GROUP_RANKING_RULES } from '@sportpulse/prediction';
 
+/** @deprecated Usar TournamentConfig.providerKey directamente. Mantenido para compatibilidad. */
 export const WC_PROVIDER_KEY = 'football-data-wc';
 const FD_PROVIDER_KEY = 'football-data'; // mismo API, distinto identificador de liga
 
@@ -33,8 +42,8 @@ interface FDWCMatch {
   status: string;
   stage: string;   // 'GROUP_STAGE' | 'ROUND_OF_32' | 'ROUND_OF_16' | 'QUARTER_FINALS' | 'SEMI_FINALS' | 'FINAL' | ...
   group?: string | null; // 'GROUP_A' ... 'GROUP_L'
-  homeTeam: { id: number | null; name: string | null };
-  awayTeam: { id: number | null; name: string | null };
+  homeTeam: { id: number | null; name: string | null; shortName?: string | null; tla?: string | null; crest?: string | null };
+  awayTeam: { id: number | null; name: string | null; shortName?: string | null; tla?: string | null; crest?: string | null };
   score: {
     winner?: string | null; // 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null
     fullTime: { home: number | null; away: number | null };
@@ -68,6 +77,11 @@ interface FDWCStandingsResponse {
 // ── Stage metadata tables ─────────────────────────────────────────────────────
 
 const STAGE_ORDER: Record<string, number> = {
+  // Fases previas / clasificatorias (Copa Libertadores, Copa Sudamericana, etc.)
+  ROUND_1: -3, PRELIMINARY_ROUND_1: -3,
+  ROUND_2: -2, PRELIMINARY_ROUND_2: -2,
+  ROUND_3: -1, PRELIMINARY_ROUND_3: -1,
+  // Fases principales
   GROUP_STAGE: 0,
   LAST_32: 1, ROUND_OF_32: 1,
   LAST_16: 2, ROUND_OF_16: 2,
@@ -78,9 +92,12 @@ const STAGE_ORDER: Record<string, number> = {
 };
 
 const STAGE_NAME_ES: Record<string, string> = {
+  ROUND_1: 'Fase previa 1',   PRELIMINARY_ROUND_1: 'Fase previa 1',
+  ROUND_2: 'Fase previa 2',   PRELIMINARY_ROUND_2: 'Fase previa 2',
+  ROUND_3: 'Fase previa 3',   PRELIMINARY_ROUND_3: 'Fase previa 3',
   GROUP_STAGE: 'Fase de grupos',
-  LAST_32: 'Ronda de 32',    ROUND_OF_32: 'Ronda de 32',
-  LAST_16: 'Ronda de 16',    ROUND_OF_16: 'Ronda de 16',
+  LAST_32: 'Ronda de 32',     ROUND_OF_32: 'Ronda de 32',
+  LAST_16: 'Ronda de 16',     ROUND_OF_16: 'Ronda de 16',
   QUARTER_FINALS: 'Cuartos de final',
   SEMI_FINALS: 'Semifinales',
   THIRD_PLACE: 'Tercer puesto', PLAY_OFF_FOR_THIRD_PLACE: 'Tercer puesto',
@@ -88,6 +105,9 @@ const STAGE_NAME_ES: Record<string, string> = {
 };
 
 const STAGE_ROUND_LABEL: Record<string, string> = {
+  ROUND_1: 'R1', PRELIMINARY_ROUND_1: 'R1',
+  ROUND_2: 'R2', PRELIMINARY_ROUND_2: 'R2',
+  ROUND_3: 'R3', PRELIMINARY_ROUND_3: 'R3',
   GROUP_STAGE: 'GS',
   LAST_32: 'R32', ROUND_OF_32: 'R32',
   LAST_16: 'R16', ROUND_OF_16: 'R16',
@@ -98,6 +118,9 @@ const STAGE_ROUND_LABEL: Record<string, string> = {
 };
 
 const STAGE_TYPE_MAP: Record<string, StageType> = {
+  ROUND_1: 'ROUND_OF_32',    PRELIMINARY_ROUND_1: 'ROUND_OF_32',
+  ROUND_2: 'ROUND_OF_32',    PRELIMINARY_ROUND_2: 'ROUND_OF_32',
+  ROUND_3: 'ROUND_OF_16',    PRELIMINARY_ROUND_3: 'ROUND_OF_16',
   GROUP_STAGE: 'GROUP_STAGE',
   LAST_32: 'ROUND_OF_32',    ROUND_OF_32: 'ROUND_OF_32',
   LAST_16: 'ROUND_OF_16',    ROUND_OF_16: 'ROUND_OF_16',
@@ -118,6 +141,24 @@ export interface TieSlotBlock {
   crestUrl?: string;
 }
 
+/**
+ * Resultado de una pierna individual (ida o vuelta) desde la perspectiva de los slots del cruce.
+ * scoreA = goles del slotA en este partido; scoreB = goles del slotB.
+ * En leg1, slotA juega de local. En leg2, slotB juega de local.
+ */
+export interface LegBlock {
+  legNumber: 1 | 2;
+  utcDate: string;
+  /** Goles del slotA en esta pierna. */
+  scoreA: number | null;
+  /** Goles del slotB en esta pierna. */
+  scoreB: number | null;
+  /** Penales del slotA (solo leg2 si el cruce se definió por penales). */
+  penA?: number | null;
+  /** Penales del slotB (solo leg2 si el cruce se definió por penales). */
+  penB?: number | null;
+}
+
 export interface TieBlock {
   tieId: string;
   name: string;
@@ -132,6 +173,8 @@ export interface TieBlock {
   scoreAPenalties?: number | null;
   scoreBPenalties?: number | null;
   winnerId?: string | null;
+  /** Piernas del cruce. Solo presente cuando hay 2 partidos (ida + vuelta). */
+  legs?: LegBlock[];
 }
 
 export interface RoundBlock {
@@ -155,7 +198,10 @@ export interface TournamentGroupView {
 }
 
 export interface TournamentBracketView {
-  rounds: RoundBlock[];
+  /** Rondas previas a la fase de grupos (ROUND_1/2/3 — clasificación). */
+  preliminaryRounds: RoundBlock[];
+  /** Rondas eliminatorias post-grupos (R16, QF, SF, FINAL). */
+  knockoutRounds: RoundBlock[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -213,17 +259,17 @@ interface TournamentCache {
 export class FootballDataTournamentSource implements DataSource {
   private readonly apiToken: string;
   private readonly baseUrl: string;
-  private readonly competitionCode: string;
-  /** competitionId canónico que identifica esta fuente (usando WC_PROVIDER_KEY) */
+  private readonly config: TournamentConfig;
+  /** competitionId canónico que identifica esta fuente. */
   readonly competitionId: string;
 
   private cache: TournamentCache | null = null;
 
-  constructor(apiToken: string, competitionCode: string, baseUrl = 'https://api.football-data.org/v4') {
+  constructor(apiToken: string, config: TournamentConfig, baseUrl = 'https://api.football-data.org/v4') {
     this.apiToken = apiToken;
-    this.competitionCode = competitionCode;
+    this.config = config;
     this.baseUrl = baseUrl;
-    this.competitionId = canonicalCompId(WC_PROVIDER_KEY, competitionCode);
+    this.competitionId = canonicalCompId(config.providerKey, config.competitionCode);
   }
 
   // ── DataSource interface (requerido por RoutingDataSource + scheduler) ────────
@@ -265,20 +311,20 @@ export class FootballDataTournamentSource implements DataSource {
     groups.sort((a, b) => a.group.orderIndex - b.group.orderIndex);
 
     return {
-      formatFamily: 'GROUP_STAGE_PLUS_KNOCKOUT_WITH_BEST_THIRDS',
+      formatFamily: this.config.formatFamily,
       groups,
-      bestThirdsCount: 8, // WC 2026: 8 mejores terceros de 12 grupos
+      bestThirdsCount: this.config.bestThirdsCount,
     };
   }
 
   getBracketView(_competitionId: string): TournamentBracketView | null {
     if (!this.cache) return null;
 
-    const rounds: RoundBlock[] = [];
+    const allRounds: RoundBlock[] = [];
     for (const [stageId, ties] of this.cache.tiesByStageId) {
       const meta = this.cache.stageMeta.get(stageId);
       if (!meta) continue;
-      rounds.push({
+      allRounds.push({
         stageId,
         name: meta.name,
         stageType: meta.stageType,
@@ -286,9 +332,14 @@ export class FootballDataTournamentSource implements DataSource {
         ties: [...ties].sort((a, b) => a.orderIndex - b.orderIndex),
       });
     }
-    rounds.sort((a, b) => a.orderIndex - b.orderIndex);
+    allRounds.sort((a, b) => a.orderIndex - b.orderIndex);
 
-    return { rounds };
+    return {
+      // orderIndex < 0: fases previas (ROUND_1/2/3 — clasificación al grupo stage)
+      preliminaryRounds: allRounds.filter((r) => r.orderIndex < 0),
+      // orderIndex > 0: eliminatorias post-grupos (R16, QF, SF, FINAL)
+      knockoutRounds:    allRounds.filter((r) => r.orderIndex > 0),
+    };
   }
 
   // ── Fetch & derivación ────────────────────────────────────────────────────
@@ -299,16 +350,25 @@ export class FootballDataTournamentSource implements DataSource {
       return; // datos frescos
     }
 
-    const [teamsResp, matchesResp, standingsResp] = await Promise.all([
-      this.apiGet<{ teams: FDWCTeam[] }>(`/competitions/${this.competitionCode}/teams`),
-      this.apiGet<{ matches: FDWCMatch[] }>(`/competitions/${this.competitionCode}/matches`),
-      this.apiGet<FDWCStandingsResponse>(`/competitions/${this.competitionCode}/standings`),
+    const [teamsResp, matchesResp] = await Promise.all([
+      this.apiGet<{ teams: FDWCTeam[] }>(`/competitions/${this.config.competitionCode}/teams`),
+      this.apiGet<{ matches: FDWCMatch[] }>(`/competitions/${this.config.competitionCode}/matches`),
     ]);
+
+    // standings es opcional: no disponible durante fases preliminares o cuando la API lo restringe
+    let standingsResp: FDWCStandingsResponse = { standings: [] };
+    if (!this.config.usePERanking) {
+      try {
+        standingsResp = await this.apiGet<FDWCStandingsResponse>(`/competitions/${this.config.competitionCode}/standings`);
+      } catch (err) {
+        console.warn(`[TournamentSource] ${this.config.competitionCode}: standings no disponibles — ${String(err).slice(0, 80)}`);
+      }
+    }
 
     // SeasonId desde el primer partido
     const firstMatch = matchesResp.matches[0];
     const fdSeasonId = firstMatch?.season?.id;
-    const seasonId = canonicalSeasonId(WC_PROVIDER_KEY, String(fdSeasonId ?? 'wc'));
+    const seasonId = canonicalSeasonId(this.config.providerKey, String(fdSeasonId ?? this.config.competitionCode.toLowerCase()));
 
     // ── Equipos ─────────────────────────────────────────────────────────────
     const teams = new Map<string, Team>();
@@ -351,32 +411,138 @@ export class FootballDataTournamentSource implements DataSource {
     const groupMeta = new Map<string, { groupId: string; name: string; orderIndex: number }>();
     const standingsByGroupId = new Map<string, StandingEntry[]>();
 
-    // Intento 1: standings per-grupo desde la API (torneo en curso o con sorteo ya realizado)
-    const perGroupStandings = standingsResp.standings.filter(
-      (gs) => isGroupType(gs.type) && gs.table && gs.table.length > 0,
-    );
+    if (this.config.usePERanking) {
+      // ── PE-native: derivar standings usando PE competition engine ──────────
+      // Agrupa partidos de fase de grupos por grupo y llama a rankGroup().
+      // Fuente de verdad: resultados de partidos, no standings API.
 
-    if (perGroupStandings.length > 0) {
+      // fdGroupName → { teams: Map<fdId, info>, matches: PEMatchResult[] }
+      const groupRawData = new Map<string, {
+        teams: Map<string, { name: string; crestUrl?: string }>;
+        matches: PEMatchResult[];
+      }>();
+
+      for (const m of matchesResp.matches) {
+        if (m.stage !== 'GROUP_STAGE' || !m.group || !isGroupType(m.group)) continue;
+        if (!groupRawData.has(m.group)) groupRawData.set(m.group, { teams: new Map(), matches: [] });
+        const grp = groupRawData.get(m.group)!;
+
+        const homeCanId = m.homeTeam.id != null ? canonicalTeamId(FD_PROVIDER_KEY, String(m.homeTeam.id)) : null;
+        const awayCanId = m.awayTeam.id != null ? canonicalTeamId(FD_PROVIDER_KEY, String(m.awayTeam.id)) : null;
+
+        if (homeCanId) {
+          const homeTeam = teams.get(homeCanId);
+          grp.teams.set(homeCanId, { name: homeTeam?.name ?? m.homeTeam.name ?? homeCanId, crestUrl: homeTeam?.crestUrl });
+        }
+        if (awayCanId) {
+          const awayTeam = teams.get(awayCanId);
+          grp.teams.set(awayCanId, { name: awayTeam?.name ?? m.awayTeam.name ?? awayCanId, crestUrl: awayTeam?.crestUrl });
+        }
+        if (homeCanId && awayCanId) {
+          grp.matches.push({
+            match_id: canonicalMatchId(FD_PROVIDER_KEY, String(m.id)),
+            home_team_id: homeCanId,
+            away_team_id: awayCanId,
+            home_score: m.score.fullTime.home,
+            away_score: m.score.fullTime.away,
+          });
+        }
+      }
+
+      for (const [fdGroupName, raw] of groupRawData) {
+        const orderIndex = groupOrderIndex(fdGroupName);
+        const groupId = `group:${groupStageId}:${orderIndex}`;
+        groupMeta.set(groupId, { groupId, name: groupNameEs(fdGroupName), orderIndex });
+
+        const groupData: GroupData = {
+          group_id: groupId,
+          team_ids: [...raw.teams.keys()],
+          matches: raw.matches,
+        };
+
+        const rankResult = rankGroup(groupData, CA_GROUP_RANKING_RULES);
+        const ranked = rankResult.status !== 'BLOCKED' ? rankResult.data : [];
+
+        const entries: StandingEntry[] = ranked.map((rt) => {
+          const s = rt.standing;
+          const teamInfo = raw.teams.get(rt.team_id);
+          return {
+            position: rt.rank,
+            teamId: rt.team_id,
+            teamName: teamInfo?.name ?? rt.team_id,
+            crestUrl: teamInfo?.crestUrl,
+            playedGames: s.played,
+            won: s.wins,
+            draw: s.draws,
+            lost: s.losses,
+            goalsFor: s.goals_for,
+            goalsAgainst: s.goals_against,
+            goalDifference: s.goal_difference,
+            points: s.points,
+            groupId,
+            statusBadge: null,
+          };
+        });
+
+        // Si no hay partidos jugados aún, poblar con equipos en 0
+        if (entries.length === 0) {
+          let pos = 1;
+          for (const [teamId, info] of raw.teams) {
+            entries.push({
+              position: pos++,
+              teamId,
+              teamName: info.name,
+              crestUrl: info.crestUrl,
+              playedGames: 0, won: 0, draw: 0, lost: 0,
+              goalsFor: 0, goalsAgainst: 0, goalDifference: 0, points: 0,
+              groupId,
+              statusBadge: null,
+            });
+          }
+        }
+
+        standingsByGroupId.set(groupId, entries);
+      }
+    } else {
+      // ── Legado (WC/CLI): standings API de football-data.org ───────────────────
+
+      // Intento 1: standings per-grupo desde la API
+      // Acepta grupos aunque la tabla esté vacía (sorteo realizado pero fase no iniciada)
+      const perGroupStandings = standingsResp.standings.filter(
+        (gs) => isGroupType(gs.type) && gs.table,
+      );
+
       for (const gs of perGroupStandings) {
         const orderIndex = groupOrderIndex(gs.type);
         const groupId = `group:${groupStageId}:${orderIndex}`;
         groupMeta.set(groupId, { groupId, name: groupNameEs(gs.type), orderIndex });
-        standingsByGroupId.set(groupId, gs.table.map((row) => ({
-          position: row.position,
-          teamId: canonicalTeamId(FD_PROVIDER_KEY, String(row.team.id)),
-          teamName: row.team.name,
-          crestUrl: row.team.crest || undefined,
-          playedGames: row.playedGames,
-          won: row.won, draw: row.draw, lost: row.lost,
-          goalsFor: row.goalsFor, goalsAgainst: row.goalsAgainst,
-          goalDifference: row.goalDifference, points: row.points,
-          groupId, statusBadge: null,
-        })));
+        if (gs.table.length > 0) {
+          standingsByGroupId.set(groupId, gs.table.map((row) => {
+            // Equipos TBD: football-data.org puede devolver id=null para slots
+            // pendientes de clasificación (ej: ganador de fase previa aún no definido)
+            const hasTeam = row.team.id != null;
+            return {
+              position: row.position,
+              teamId: hasTeam
+                ? canonicalTeamId(FD_PROVIDER_KEY, String(row.team.id))
+                : `tbd:${groupId}:${row.position}`,
+              teamName: row.team.name || 'Por definir',
+              crestUrl: hasTeam ? (row.team.crest || undefined) : undefined,
+              playedGames: row.playedGames,
+              won: row.won, draw: row.draw, lost: row.lost,
+              goalsFor: row.goalsFor, goalsAgainst: row.goalsAgainst,
+              goalDifference: row.goalDifference, points: row.points,
+              groupId, statusBadge: null,
+            };
+          }));
+        }
+        // Si la tabla está vacía (fase no iniciada), Intento 2 la completará desde partidos
       }
-    } else {
-      // Intento 2: construir grupos desde los partidos de fase de grupos
-      // (caso pre-torneo cuando standings devuelve TOTAL o nada por grupo)
-      const groupTeamIds = new Map<string, Map<string, { name: string; crestUrl?: string }>>(); // fdGroupName → Map<fdTeamId → info>
+
+      // Intento 2: completar/construir grupos desde partidos de fase de grupos
+      // Cubre dos casos: grupos con tabla vacía del API y grupos no retornados por el API
+      // No sobreescribe grupos ya populados con datos reales de Intento 1
+      const groupTeamIds = new Map<string, Map<string, { name: string; crestUrl?: string }>>();
       for (const m of matchesResp.matches) {
         if (m.stage !== 'GROUP_STAGE' || !m.group || !isGroupType(m.group)) continue;
         if (!groupTeamIds.has(m.group)) groupTeamIds.set(m.group, new Map());
@@ -395,6 +561,8 @@ export class FootballDataTournamentSource implements DataSource {
       for (const [fdGroupName, fdTeamMap] of groupTeamIds) {
         const orderIndex = groupOrderIndex(fdGroupName);
         const groupId = `group:${groupStageId}:${orderIndex}`;
+        // No sobreescribir grupos ya populados por Intento 1 con datos reales
+        if (standingsByGroupId.has(groupId)) continue;
         groupMeta.set(groupId, { groupId, name: groupNameEs(fdGroupName), orderIndex });
         const entries: StandingEntry[] = [...fdTeamMap.entries()].map(([fdId, info], pos) => ({
           position: pos + 1,
@@ -409,15 +577,40 @@ export class FootballDataTournamentSource implements DataSource {
       }
     }
 
-    // ── Partidos y ties (desde la respuesta de matches) ──────────────────────
+    // ── Partidos y ties ───────────────────────────────────────────────────────
+    //
+    // Ties eliminatorios se construyen agrupando partidos por PAR DE EQUIPOS
+    // dentro del mismo stage. Dos partidos entre los mismos equipos = dos piernas
+    // de una misma llave (ida + vuelta). Un solo partido = llave de pierna única.
+    //
+    // Clave del acumulador: `${stageId}|${[teamA, teamB].sort().join('|')}`
+
+    interface LegData {
+      homeId: string | null;
+      awayId: string | null;
+      utcDate: string;
+      scoreHome: number | null;
+      scoreAway: number | null;
+      penHome: number | null;
+      penAway: number | null;
+      winner: string | null;
+      homeTeamFdName: string | null;
+      awayTeamFdName: string | null;
+      homeTeamCrest: string | null;
+      awayTeamCrest: string | null;
+    }
+    interface TieAccumulator {
+      legs: LegData[];
+      stageId: string;
+      stageFdName: string;
+    }
+
     const matches: Match[] = [];
-    const tiesByStageId = new Map<string, TieBlock[]>();
-    const tieCountByStage = new Map<string, number>();
+    const tieAccumulators = new Map<string, TieAccumulator>();
 
     for (const m of matchesResp.matches) {
       const stageId = stageIdByFdName.get(m.stage);
       if (!stageId) continue;
-
       const meta = stageMeta.get(stageId);
       if (!meta) continue;
 
@@ -429,27 +622,38 @@ export class FootballDataTournamentSource implements DataSource {
         ? canonicalTeamId(FD_PROVIDER_KEY, String(m.awayTeam.id))
         : null;
 
-      // Canonical Match (para scheduler — solo si tenemos ambos equipos)
+      // Cuando hay penales, football-data.org incluye los goles de tanda en score.fullTime.
+      // Calculamos el score real (sin penales) aquí para usarlo tanto en CanonicalMatch como en LegData.
+      const hasPenalties = m.score.penalties?.home != null && m.score.penalties?.away != null;
+      const canonicalScoreHome = hasPenalties
+        ? (m.score.extraTime?.home != null
+            ? m.score.extraTime.home
+            : ((m.score.fullTime.home ?? 0) - (m.score.penalties!.home ?? 0)))
+        : m.score.fullTime.home;
+      const canonicalScoreAway = hasPenalties
+        ? (m.score.extraTime?.away != null
+            ? m.score.extraTime.away
+            : ((m.score.fullTime.away ?? 0) - (m.score.penalties!.away ?? 0)))
+        : m.score.fullTime.away;
+
+      // ── Canonical Match (para scheduler) ──
       if (homeTeamId && awayTeamId) {
         const matchGroupId: string | null = m.group
           ? `group:${groupStageId}:${groupOrderIndex(m.group)}`
           : null;
 
         matches.push({
-          matchId,
-          seasonId,
+          matchId, seasonId,
           matchday: m.matchday ?? undefined,
           startTimeUtc: m.utcDate || null,
           status: normalizeStatus(m.status),
-          homeTeamId,
-          awayTeamId,
-          scoreHome: m.score.fullTime.home,
-          scoreAway: m.score.fullTime.away,
+          homeTeamId, awayTeamId,
+          scoreHome: canonicalScoreHome,
+          scoreAway: canonicalScoreAway,
           providerKey: FD_PROVIDER_KEY,
           providerMatchId: String(m.id),
           lastSeenUtc: new Date(nowMs).toISOString(),
-          stageId,
-          groupId: matchGroupId,
+          stageId, groupId: matchGroupId,
           scoreHomeExtraTime: m.score.extraTime?.home ?? null,
           scoreAwayExtraTime: m.score.extraTime?.away ?? null,
           scoreHomePenalties: m.score.penalties?.home ?? null,
@@ -460,56 +664,181 @@ export class FootballDataTournamentSource implements DataSource {
         });
       }
 
-      // Knockout Tie block (solo fases eliminatorias)
-      if (meta.stageType !== 'GROUP_STAGE') {
-        const idx = tieCountByStage.get(stageId) ?? 0;
-        tieCountByStage.set(stageId, idx + 1);
-        const tieId = `tie:${stageId}:${idx}`;
-
-        const homeTeam = homeTeamId ? teams.get(homeTeamId) : undefined;
-        const awayTeam = awayTeamId ? teams.get(awayTeamId) : undefined;
-
-        const winnerId = m.score.winner === 'HOME_TEAM' ? homeTeamId
-          : m.score.winner === 'AWAY_TEAM' ? awayTeamId
-          : null;
-
-        const slotA: TieSlotBlock = {
-          slotId: `slot:${tieId}:A`,
-          slotRole: 'A',
-          participantId: homeTeamId,
-          placeholderText: homeTeamId ? null : (m.homeTeam.name || 'Por definir'),
-          teamName: homeTeam?.name,
-          crestUrl: homeTeam?.crestUrl,
-        };
-
-        const slotB: TieSlotBlock = {
-          slotId: `slot:${tieId}:B`,
-          slotRole: 'B',
-          participantId: awayTeamId,
-          placeholderText: awayTeamId ? null : (m.awayTeam.name || 'Por definir'),
-          teamName: awayTeam?.name,
-          crestUrl: awayTeam?.crestUrl,
-        };
-
-        const tie: TieBlock = {
-          tieId,
-          name: `${STAGE_NAME_ES[m.stage] ?? m.stage} ${idx + 1}`,
-          roundLabel: STAGE_ROUND_LABEL[m.stage] ?? m.stage.slice(0, 3),
-          orderIndex: idx,
-          slotA,
-          slotB,
-          scoreA: m.score.fullTime.home,
-          scoreB: m.score.fullTime.away,
-          scoreAExtraTime: m.score.extraTime?.home ?? null,
-          scoreBExtraTime: m.score.extraTime?.away ?? null,
-          scoreAPenalties: m.score.penalties?.home ?? null,
-          scoreBPenalties: m.score.penalties?.away ?? null,
-          winnerId,
-        };
-
-        if (!tiesByStageId.has(stageId)) tiesByStageId.set(stageId, []);
-        tiesByStageId.get(stageId)!.push(tie);
+      // ── Descubrimiento dinámico de equipos desde partidos ──
+      // Los endpoints /teams solo devuelven equipos activos en la ronda actual.
+      // Equipos eliminados en fases previas (ej: Universidad Católica en R1)
+      // no aparecen ahí pero sí en los datos de partidos.
+      if (homeTeamId && m.homeTeam.id != null && !teams.has(homeTeamId)) {
+        teams.set(homeTeamId, {
+          teamId: homeTeamId,
+          sportId: 'FOOTBALL',
+          name: m.homeTeam.name ?? String(m.homeTeam.id),
+          shortName: m.homeTeam.shortName || m.homeTeam.tla || m.homeTeam.name || String(m.homeTeam.id),
+          crestUrl: m.homeTeam.crest ?? `https://crests.football-data.org/${m.homeTeam.id}.png`,
+          providerKey: FD_PROVIDER_KEY,
+          providerTeamId: String(m.homeTeam.id),
+        });
       }
+      if (awayTeamId && m.awayTeam.id != null && !teams.has(awayTeamId)) {
+        teams.set(awayTeamId, {
+          teamId: awayTeamId,
+          sportId: 'FOOTBALL',
+          name: m.awayTeam.name ?? String(m.awayTeam.id),
+          shortName: m.awayTeam.shortName || m.awayTeam.tla || m.awayTeam.name || String(m.awayTeam.id),
+          crestUrl: m.awayTeam.crest ?? `https://crests.football-data.org/${m.awayTeam.id}.png`,
+          providerKey: FD_PROVIDER_KEY,
+          providerTeamId: String(m.awayTeam.id),
+        });
+      }
+
+      // ── Acumular piernas para ties eliminatorios ──
+      if (meta.stageType !== 'GROUP_STAGE') {
+        // Clave canónica: misma sin importar quién juega de local en cada pierna
+        const pairKey = homeTeamId && awayTeamId
+          ? [homeTeamId, awayTeamId].sort().join('|')
+          : `solo:${matchId}`; // equipo desconocido → llave individual
+        const accKey = `${stageId}|${pairKey}`;
+
+        if (!tieAccumulators.has(accKey)) {
+          tieAccumulators.set(accKey, { legs: [], stageId, stageFdName: m.stage });
+        }
+        tieAccumulators.get(accKey)!.legs.push({
+          homeId: homeTeamId,
+          awayId: awayTeamId,
+          utcDate: m.utcDate,
+          scoreHome: canonicalScoreHome,
+          scoreAway: canonicalScoreAway,
+          penHome: m.score.penalties?.home ?? null,
+          penAway: m.score.penalties?.away ?? null,
+          winner: m.score.winner ?? null,
+          homeTeamFdName: m.homeTeam.name ?? null,
+          awayTeamFdName: m.awayTeam.name ?? null,
+          homeTeamCrest: m.homeTeam.crest ?? null,
+          awayTeamCrest: m.awayTeam.crest ?? null,
+        });
+      }
+    }
+
+    // ── Construir TieBlocks desde acumuladores ────────────────────────────────
+    const tiesByStageId = new Map<string, TieBlock[]>();
+    const tieOrderByStage = new Map<string, number>();
+
+    for (const acc of tieAccumulators.values()) {
+      // Ordenar piernas cronológicamente (leg1 = más antigua)
+      acc.legs.sort((a, b) => a.utcDate.localeCompare(b.utcDate));
+      const leg1 = acc.legs[0];
+      const leg2 = acc.legs.length > 1 ? acc.legs[1] : null;
+      const { stageId, stageFdName } = acc;
+
+      const idx = tieOrderByStage.get(stageId) ?? 0;
+      tieOrderByStage.set(stageId, idx + 1);
+      const tieId = `tie:${stageId}:${idx}`;
+
+      // slotA = local en leg1, slotB = visitante en leg1
+      const slotAId = leg1.homeId;
+      const slotBId = leg1.awayId;
+      const slotATeam = slotAId ? teams.get(slotAId) : undefined;
+      const slotBTeam = slotBId ? teams.get(slotBId) : undefined;
+
+      // Scores: agregado si hay 2 piernas, individual si 1
+      let scoreA: number | null = null;
+      let scoreB: number | null = null;
+      let penA: number | null = null;
+      let penB: number | null = null;
+      let winnerId: string | null = null;
+
+      if (leg2) {
+        // Agregado parcial o total: suma los goles jugados hasta ahora.
+        // Si leg2 aún no se jugó (scores null), se muestra solo el resultado de la ida.
+        const leg1Played = leg1.scoreHome !== null || leg1.scoreAway !== null;
+        const leg2Played = leg2.scoreHome !== null || leg2.scoreAway !== null;
+        if (leg1Played || leg2Played) {
+          // slotA juega de local en leg1 y de visitante en leg2
+          scoreA = (leg1.scoreHome ?? 0) + (leg2.scoreAway ?? 0);
+          // slotB juega de visitante en leg1 y de local en leg2
+          scoreB = (leg1.scoreAway ?? 0) + (leg2.scoreHome ?? 0);
+        }
+        // Penales del leg2 (partido decisivo — slotA es visitante, slotB es local)
+        if (leg2.penHome !== null || leg2.penAway !== null) {
+          penA = leg2.penAway; // slotA visitante en leg2
+          penB = leg2.penHome; // slotB local en leg2
+        }
+        // Ganador del cruce: solo se determina cuando AMBAS piernas están jugadas.
+        // Si solo se jugó la ida, la serie sigue abierta → sin winner.
+        if (leg2Played && scoreA !== null && scoreB !== null) {
+          if (scoreA > scoreB) {
+            winnerId = slotAId;
+          } else if (scoreB > scoreA) {
+            winnerId = slotBId;
+          } else if (penA !== null && penB !== null) {
+            // Empate en agregado → desempate por penales
+            if (penA > penB) winnerId = slotAId;
+            else if (penB > penA) winnerId = slotBId;
+          }
+        }
+      } else {
+        // Pierna única
+        scoreA = leg1.scoreHome;
+        scoreB = leg1.scoreAway;
+        penA = leg1.penHome;
+        penB = leg1.penAway;
+        if (leg1.winner === 'HOME_TEAM') winnerId = slotAId;
+        else if (leg1.winner === 'AWAY_TEAM') winnerId = slotBId;
+      }
+
+      const slotA: TieSlotBlock = {
+        slotId: `slot:${tieId}:A`, slotRole: 'A',
+        participantId: slotAId,
+        placeholderText: slotAId ? null : (leg1.homeTeamFdName || 'Por definir'),
+        teamName: slotATeam?.name,
+        crestUrl: slotATeam?.crestUrl,
+      };
+      const slotB: TieSlotBlock = {
+        slotId: `slot:${tieId}:B`, slotRole: 'B',
+        participantId: slotBId,
+        placeholderText: slotBId ? null : (leg1.awayTeamFdName || 'Por definir'),
+        teamName: slotBTeam?.name,
+        crestUrl: slotBTeam?.crestUrl,
+      };
+
+      // Piernas individuales — solo para cruces de ida+vuelta (2 legs).
+      // scoreA/B en cada LegBlock se expresan desde la perspectiva de slotA:
+      //   leg1: slotA juega de LOCAL  → scoreA=leg1.scoreHome, scoreB=leg1.scoreAway
+      //   leg2: slotA juega de VISITA → scoreA=leg2.scoreAway,  scoreB=leg2.scoreHome
+      const legs: LegBlock[] | undefined = leg2 ? [
+        {
+          legNumber: 1,
+          utcDate: leg1.utcDate,
+          scoreA: leg1.scoreHome,
+          scoreB: leg1.scoreAway,
+        },
+        {
+          legNumber: 2,
+          utcDate: leg2.utcDate,
+          scoreA: leg2.scoreAway,
+          scoreB: leg2.scoreHome,
+          penA: leg2.penAway ?? null,
+          penB: leg2.penHome ?? null,
+        },
+      ] : undefined;
+
+      const tie: TieBlock = {
+        tieId,
+        name: `${STAGE_NAME_ES[stageFdName] ?? stageFdName} ${idx + 1}`,
+        roundLabel: STAGE_ROUND_LABEL[stageFdName] ?? stageFdName.slice(0, 3),
+        orderIndex: idx,
+        slotA, slotB,
+        scoreA, scoreB,
+        scoreAExtraTime: null,
+        scoreBExtraTime: null,
+        scoreAPenalties: penA,
+        scoreBPenalties: penB,
+        winnerId,
+        legs,
+      };
+
+      if (!tiesByStageId.has(stageId)) tiesByStageId.set(stageId, []);
+      tiesByStageId.get(stageId)!.push(tie);
     }
 
     this.cache = {
@@ -524,7 +853,7 @@ export class FootballDataTournamentSource implements DataSource {
     };
 
     console.log(
-      `[FootballDataTournamentSource] Fetched ${this.competitionCode}: ` +
+      `[FootballDataTournamentSource] Fetched ${this.config.competitionCode}: ` +
       `${teams.size} equipos, ${matches.length} partidos, ` +
       `${groupMeta.size} grupos, ${tiesByStageId.size} fases eliminatorias`,
     );

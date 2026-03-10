@@ -42,7 +42,7 @@ export function resolveDateFromMatchday(
     return utcToLocalDate(sorted[0].startTimeUtc!, timezone);
   }
 
-  return new Date().toISOString().split('T')[0];
+  return utcToLocalDate(new Date().toISOString(), timezone);
 }
 
 function utcToLocalDate(utcIso: string, timezone: string): string {

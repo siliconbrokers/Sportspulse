@@ -17,6 +17,10 @@ import { useTeamsPlayingToday } from './hooks/use-teams-playing-today.js';
 import { useScorers } from './hooks/use-scorers.js';
 import { EventPlayerTest } from './components/eventos/EventPlayerTest.js';
 import { EventsSection } from './components/eventos/EventsSection.js';
+import { PredictionsLabPage } from './labs/PredictionsLabPage.js';
+import { EvaluationLabPage } from './labs/EvaluationLabPage.js';
+import { HistoricalEvaluationLabPage } from './labs/HistoricalEvaluationLabPage.js';
+import { getCompMeta } from './utils/competition-meta.js';
 
 // spec §16 — detectar si la ruta actual es el player de reproducción
 function isPlayerTestRoute(): boolean {
@@ -24,17 +28,31 @@ function isPlayerTestRoute(): boolean {
   return p.startsWith('/eventos/player-test') || p.startsWith('/eventos/ver');
 }
 
+// PE-76 — ruta interna de diagnóstico (no expuesta en Navbar)
+function isLabsRoute(): boolean {
+  return window.location.pathname.startsWith('/labs/');
+}
+
 const COMPETITIONS = [
   { id: 'comp:thesportsdb:4432', code: '4432', isTournament: false },
   { id: 'comp:football-data:PD', code: 'PD', isTournament: false },
   { id: 'comp:football-data:PL', code: 'PL', isTournament: false },
   { id: 'comp:openligadb:bl1', code: 'BL1', isTournament: false },
-  { id: 'comp:football-data-wc:WC', code: 'WC', isTournament: true },
+  { id: 'comp:football-data-cli:CLI', code: 'CLI', isTournament: true },
+  // Ocultas del menú hasta que haya datos disponibles
+  { id: 'comp:football-data-wc:WC', code: 'WC', isTournament: true, hidden: true },
+  { id: 'comp:football-data-ca:CA', code: 'CA', isTournament: true, hidden: true },
 ];
 
 export function AppRoot() {
   if (isPlayerTestRoute()) {
     return <EventPlayerTest />;
+  }
+  if (isLabsRoute()) {
+    const path = window.location.pathname;
+    if (path.startsWith('/labs/evaluacion-historica')) return <HistoricalEvaluationLabPage />;
+    if (path.startsWith('/labs/evaluacion')) return <EvaluationLabPage />;
+    return <PredictionsLabPage />;
   }
   return <App />;
 }
@@ -44,6 +62,8 @@ function App() {
   const [matchday, setMatchday] = useState<number | null>(null);
   const [view, setView] = useState<ViewMode>('home');
   const [standingsFocusId, setStandingsFocusId] = useState<string | null>(null);
+  const [tournamentFocusId, setTournamentFocusId] = useState<string | null>(null);
+  const [tournamentFocusDate, setTournamentFocusDate] = useState<string | null>(null);
   const [hasLiveMatches, setHasLiveMatches] = useState(false);
   const [tvTab, setTvTab] = useState<'hoy' | 'manana'>('hoy');
 
@@ -66,27 +86,44 @@ function App() {
     compInfo?.currentMatchday ?? null,
     'America/Montevideo',
   );
+  const todayLocal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+  const { data: tournamentTeamDetail } = useTeamDetail(
+    competitionId,
+    view === 'standings' && isTournament ? tournamentFocusId : null,
+    null,
+    'America/Montevideo',
+    tournamentFocusDate ?? todayLocal,
+  );
   const { data: scorers, loading: scorersLoading } = useScorers(
     competitionId,
     view === 'standings' && !isTournament,
   );
 
-  // Cuando cambia la liga: resetear jornada y foco
+  // Cuando cambia la liga: resetear jornada y foco; navegar siempre a standings
   useEffect(() => {
     setMatchday(null);
     setStandingsFocusId(null);
+    setTournamentFocusId(null);
+    setTournamentFocusDate(null);
+    setView('standings');
   }, [competitionId]);
 
   // Cuando carga compInfo: setear jornada por defecto
   useEffect(() => {
     if (!compInfo) return;
-    const defaultMatchday = compInfo.currentMatchday ?? compInfo.lastPlayedMatchday;
+    // Prefer next upcoming matchday (between rounds); fall back to current/last played
+    const defaultMatchday =
+      compInfo.nextMatchday ?? compInfo.currentMatchday ?? compInfo.lastPlayedMatchday;
     if (defaultMatchday) setMatchday(defaultMatchday);
   }, [compInfo]);
 
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
   const totalMatchdays = compInfo?.totalMatchdays ?? 38;
+  // The "active" matchday drives both the blue dot and showForm logic
+  const activeMatchday = compInfo
+    ? (compInfo.nextMatchday ?? compInfo.currentMatchday ?? null)
+    : null;
 
   function handleMatchdayChange(md: number) {
     setMatchday(md);
@@ -109,10 +146,12 @@ function App() {
         onViewChange={setView}
         competitionId={competitionId}
         onCompetitionChange={(id) => { setCompetitionId(id); }}
-        competitions={COMPETITIONS}
+        competitions={COMPETITIONS.filter((c) => !c.hidden)}
         hasLiveMatches={hasLiveMatches}
         tvTab={tvTab}
         onTvTabChange={setTvTab}
+        isTournament={isTournament}
+        onStandingsClick={() => setView('standings')}
       />
 
       {/* ── Contenido principal ─────────────────────────────────────────── */}
@@ -125,7 +164,7 @@ function App() {
             <MatchdayCarousel
               totalMatchdays={totalMatchdays}
               selected={matchday}
-              currentMatchday={compInfo?.currentMatchday ?? null}
+              currentMatchday={activeMatchday}
               onChange={setMatchday}
               isMobile={isMobile}
             />
@@ -138,41 +177,50 @@ function App() {
       ) : view === 'tv' ? (
         <EventsSection activeTab={tvTab} onTabChange={setTvTab} />
       ) : view === 'partidos' ? (
-        isTournament ? (
-          <div style={{ padding: isMobile ? 12 : 24, color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
-            Seleccioná la pestaña{' '}
-            <strong style={{ color: '#f97316' }}>📊 Tabla</strong>{' '}
-            para ver grupos y eliminatorias del torneo.
-          </div>
-        ) : (
-          <>
-            {/* Carousel de jornada — solo en vista Partidos */}
-            {view === 'partidos' && (
-              <div style={{ padding: isMobile ? '8px 12px 0' : '12px 20px 0', maxWidth: 1100, margin: '0 auto' }}>
-                <MatchdayCarousel
-                  totalMatchdays={totalMatchdays}
-                  selected={matchday}
-                  currentMatchday={compInfo?.currentMatchday ?? null}
-                  onChange={setMatchday}
-                  isMobile={isMobile}
-                />
-              </div>
-            )}
-            <DashboardLayout
-              competitionId={competitionId}
-              matchday={matchday}
-              currentMatchday={compInfo?.currentMatchday ?? null}
-              timezone="America/Montevideo"
-              viewMode={view}
-              onLiveMatchesChange={setHasLiveMatches}
-            />
-          </>
-        )
+        <>
+          {/* Carousel de jornada — solo en ligas, no en torneos */}
+          {!isTournament && (
+            <div style={{ padding: isMobile ? '8px 12px 0' : '12px 20px 0', maxWidth: 1100, margin: '0 auto' }}>
+              <MatchdayCarousel
+                totalMatchdays={totalMatchdays}
+                selected={matchday}
+                currentMatchday={activeMatchday}
+                onChange={setMatchday}
+                isMobile={isMobile}
+              />
+            </div>
+          )}
+          <DashboardLayout
+            competitionId={competitionId}
+            matchday={isTournament ? null : matchday}
+            currentMatchday={activeMatchday}
+            timezone="America/Montevideo"
+            viewMode={view}
+            onLiveMatchesChange={setHasLiveMatches}
+            dateLocal={isTournament ? todayLocal : undefined}
+          />
+        </>
       ) : (
         /* standings — sin carousel de jornada, la tabla refleja posiciones actuales */
         <div style={{ padding: isMobile ? '12px' : '16px 20px', maxWidth: 1100, margin: '0 auto' }}>
           {isTournament ? (
-            <TournamentView competitionId={competitionId} />
+            <>
+              <TournamentView
+                competitionId={competitionId}
+                accent={getCompMeta(competitionId)?.accent}
+                startDate={getCompMeta(competitionId)?.startDate}
+                onSelectTeam={(id, dateLocal) => {
+                  setTournamentFocusId((prev) => (prev === id ? null : id));
+                  setTournamentFocusDate(dateLocal ?? todayLocal);
+                }}
+              />
+              {tournamentFocusId && tournamentTeamDetail && (
+                <DetailPanel
+                  detail={tournamentTeamDetail}
+                  onClose={() => setTournamentFocusId(null)}
+                />
+              )}
+            </>
           ) : (
             <>
 

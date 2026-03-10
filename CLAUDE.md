@@ -10,10 +10,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Zonas horarias — Regla CRÍTICA
+
+**Nunca derivar una fecha local cortando un timestamp UTC.** `.toISOString().slice(0, 10)` y `.slice(0, 10)` sobre strings ISO UTC devuelven la fecha UTC, no la fecha local del usuario, y pueden diferir por un día entero para partidos nocturnos.
+
+### Regla
+
+- **Siempre almacenar y transportar timestamps como UTC** (ISO 8601 con `Z`).
+- **Convertir a fecha local solo en el punto de presentación o consulta**, usando `Intl.DateTimeFormat` con la timezone explícita.
+
+### Patrón obligatorio
+
+```typescript
+// ❌ INCORRECTO — devuelve fecha UTC, puede ser el día siguiente al local
+const dateLocal = utcIsoString.slice(0, 10);
+const dateLocal = new Date().toISOString().split('T')[0];
+
+// ✅ CORRECTO — convierte a fecha en la timezone del usuario
+const dateLocal = new Date(utcIsoString).toLocaleDateString('en-CA', {
+  timeZone: 'America/Montevideo', // o la tz del usuario
+});
+```
+
+### Aplicación
+
+- **Frontend**: toda fecha derivada de un campo `*Utc` que se pasa como `dateLocal` al API **debe** usar `toLocaleDateString('en-CA', { timeZone })`.
+- **Backend**: al derivar `dateLocal` desde timestamps UTC para consultas internas, usar `utcToLocalDate(iso, timezone)` (ya implementado en `packages/api/src/ui/resolve-date.ts`). Los parámetros de fecha para APIs externas pueden usar UTC según lo requiera cada API.
+- **Timezone del portal**: `'America/Montevideo'` (UTC-3). Todos los componentes ya usan esta tz.
+
+---
+
 ## UI — Reglas de presentación de datos
 
 - **No repetir datos ya expresados en la misma vista.** Si un dato (resultado, score, fecha, etc.) ya se muestra claramente en la ficha del partido, no volver a mostrarlo en otro módulo de la misma pantalla (ej: cuadro de pronóstico, sección de estadísticas, etc.).
 - Esta regla aplica especialmente al panel de detalle del partido (`DetailPanel`): cada dato se muestra una sola vez, en el lugar más prominente y natural.
+- **Todo partido visible en la app debe tener DetailPanel funcional.** Cualquier tarjeta de partido que aparezca en LiveCarousel, MatchCardList, EventCard u otro componente debe abrir el DetailPanel al hacer click, sin importar el torneo o liga (ligas, Copa Libertadores, Copa del Mundo, Copa América, etc.). Esto aplica en mobile y desktop.
 
 ---
 

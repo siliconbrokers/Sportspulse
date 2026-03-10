@@ -55,6 +55,28 @@ export class RoutingDataSource implements DataSource {
     return this.resolveByComp(competitionId).getLastPlayedMatchday?.(competitionId);
   }
 
+  getNextMatchday(competitionId: string): number | undefined {
+    const source = this.resolveByComp(competitionId);
+    // Use the source's own implementation when available
+    if (source.getNextMatchday) return source.getNextMatchday(competitionId);
+    // Generic fallback: compute from canonical matches so new sources get this for free
+    const seasonId = source.getSeasonId(competitionId);
+    if (!seasonId) return undefined;
+    const nowUtc = new Date().toISOString();
+    let next: number | undefined = undefined;
+    for (const m of source.getMatches(seasonId)) {
+      if (
+        m.matchday === undefined ||
+        m.status !== 'SCHEDULED' ||
+        !m.startTimeUtc ||
+        m.startTimeUtc <= nowUtc
+      )
+        continue;
+      if (next === undefined || m.matchday < next) next = m.matchday;
+    }
+    return next;
+  }
+
   getTotalMatchdays(competitionId: string): number {
     return this.resolveByComp(competitionId).getTotalMatchdays?.(competitionId) ?? 38;
   }

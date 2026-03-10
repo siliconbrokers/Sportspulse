@@ -6,6 +6,8 @@ export interface CompetitionMeta {
   logoUrl: string;
   accent: string;
   season: string;
+  /** Fecha ISO de inicio del torneo (solo torneos). Usada para banner pre-torneo. */
+  startDate?: string;
 }
 
 export const COMPETITION_META: CompetitionMeta[] = [
@@ -40,6 +42,32 @@ export const COMPETITION_META: CompetitionMeta[] = [
     logoUrl: 'https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png',
     accent: '#ef4444',
     season: '25/26',
+  },
+  {
+    id: 'comp:football-data-wc:WC',
+    name: 'Mundial 2026',
+    shortName: 'Mundial',
+    logoUrl: 'https://crests.football-data.org/2000.png',
+    accent: '#22c55e',
+    season: '2026',
+    startDate: '2026-06-11',
+  },
+  {
+    id: 'comp:football-data-ca:CA',
+    name: 'Copa América 2027',
+    shortName: 'Copa América',
+    logoUrl: 'https://crests.football-data.org/2016.png',
+    accent: '#3b82f6',
+    season: '2027',
+    // startDate: actualizar cuando CONMEBOL confirme fecha oficial
+  },
+  {
+    id: 'comp:football-data-cli:CLI',
+    name: 'Copa Libertadores',
+    shortName: 'Libertadores',
+    logoUrl: 'https://crests.football-data.org/CLI.svg',
+    accent: '#eab308',
+    season: '2026',
   },
 ];
 

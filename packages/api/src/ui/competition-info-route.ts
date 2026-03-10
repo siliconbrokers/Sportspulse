@@ -27,17 +27,23 @@ export function competitionInfoRoute(deps: AppDependencies): FastifyPluginAsync 
         if (!seasonId) {
           reply
             .header('Cache-Control', 'no-cache')
-            .send({ currentMatchday: null, lastPlayedMatchday: null, totalMatchdays: 38 });
+            .send({
+              currentMatchday: null,
+              lastPlayedMatchday: null,
+              nextMatchday: null,
+              totalMatchdays: 38,
+            });
           return;
         }
 
         const currentMatchday = deps.dataSource.getCurrentMatchday?.(competitionId);
         const lastPlayedMatchday = deps.dataSource.getLastPlayedMatchday?.(competitionId);
+        const nextMatchday = deps.dataSource.getNextMatchday?.(competitionId);
         const totalMatchdays = deps.dataSource.getTotalMatchdays?.(competitionId) ?? 38;
 
         reply
           .header('Cache-Control', 'public, max-age=60')
-          .send({ currentMatchday, lastPlayedMatchday, totalMatchdays });
+          .send({ currentMatchday, lastPlayedMatchday, nextMatchday, totalMatchdays });
       });
     },
     { name: 'competition-info-route' },

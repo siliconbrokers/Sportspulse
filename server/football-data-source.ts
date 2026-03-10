@@ -153,6 +153,26 @@ export class FootballDataSource implements DataSource {
     return last;
   }
 
+  getNextMatchday(compId: string): number | undefined {
+    const cached = this.getCached(compId);
+    if (!cached) return undefined;
+
+    const nowUtc = new Date().toISOString();
+    // Find the lowest matchday that has at least one SCHEDULED match in the future
+    let next: number | undefined = undefined;
+    for (const m of cached.matches) {
+      if (
+        m.matchday === undefined ||
+        m.status !== 'SCHEDULED' ||
+        !m.startTimeUtc ||
+        m.startTimeUtc <= nowUtc
+      )
+        continue;
+      if (next === undefined || m.matchday < next) next = m.matchday;
+    }
+    return next;
+  }
+
   getTotalMatchdays(compId: string): number {
     const cached = this.getCached(compId);
     if (!cached) return 38;

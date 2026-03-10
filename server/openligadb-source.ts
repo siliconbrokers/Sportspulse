@@ -160,6 +160,25 @@ export class OpenLigaDBSource implements DataSource {
     return computeLastPlayedMatchday(hit.matches);
   }
 
+  getNextMatchday(compId: string): number | undefined {
+    if (!this.owns(compId)) return undefined;
+    const hit = this.getCached();
+    if (!hit) return undefined;
+    const nowUtc = new Date().toISOString();
+    let next: number | undefined = undefined;
+    for (const m of hit.matches) {
+      if (
+        m.matchday === undefined ||
+        m.status !== 'SCHEDULED' ||
+        !m.startTimeUtc ||
+        m.startTimeUtc <= nowUtc
+      )
+        continue;
+      if (next === undefined || m.matchday < next) next = m.matchday;
+    }
+    return next;
+  }
+
   getTotalMatchdays(compId: string): number {
     if (!this.owns(compId)) return 34; // Bundesliga has 34 matchdays
     const hit = this.getCached();

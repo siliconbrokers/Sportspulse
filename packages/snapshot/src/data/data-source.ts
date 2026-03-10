@@ -50,6 +50,7 @@ export interface DataSource {
   getStandings?(competitionId: string, groupId?: string): StandingEntry[];
   getCurrentMatchday?(competitionId: string): number | undefined;
   getLastPlayedMatchday?(competitionId: string): number | undefined;
+  getNextMatchday?(competitionId: string): number | undefined;
   getTotalMatchdays?(competitionId: string): number;
   getMatchGoals?(canonicalMatchId: string): Promise<MatchGoalEventDTO[]>;
   getTopScorers?(competitionId: string): Promise<TopScorerEntry[]>;

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 interface CompetitionInfo {
   currentMatchday: number | null;
   lastPlayedMatchday: number | null;
+  nextMatchday: number | null;
   totalMatchdays: number;
 }
 
@@ -32,6 +33,7 @@ export function useCompetitionInfo(competitionId: string): UseCompetitionInfoRes
           setData({
             currentMatchday: json.currentMatchday ?? null,
             lastPlayedMatchday: json.lastPlayedMatchday ?? null,
+            nextMatchday: json.nextMatchday ?? null,
             totalMatchdays: json.totalMatchdays ?? 38,
           });
         }

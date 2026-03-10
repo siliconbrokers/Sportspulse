@@ -115,6 +115,25 @@ export class TheSportsDbSource implements DataSource {
     return computeLastPlayedMatchday(hit.matches);
   }
 
+  getNextMatchday(compId: string): number | undefined {
+    if (!this.owns(compId)) return undefined;
+    const hit = this.getCached();
+    if (!hit) return undefined;
+    const nowUtc = new Date().toISOString();
+    let next: number | undefined = undefined;
+    for (const m of hit.matches) {
+      if (
+        m.matchday === undefined ||
+        m.status !== 'SCHEDULED' ||
+        !m.startTimeUtc ||
+        m.startTimeUtc <= nowUtc
+      )
+        continue;
+      if (next === undefined || m.matchday < next) next = m.matchday;
+    }
+    return next;
+  }
+
   getTotalMatchdays(compId: string): number {
     if (!this.owns(compId)) return 15;
     const hit = this.getCached();

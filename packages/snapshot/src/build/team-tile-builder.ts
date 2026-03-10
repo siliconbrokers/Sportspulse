@@ -132,7 +132,30 @@ function extractNextMatch(
     );
   }
 
-  // Fallback: next SCHEDULED match after buildNowUtc
+  // Fallback 1: FINISHED/IN_PROGRESS match within ±36h of buildNowUtc.
+  // Checked BEFORE next-scheduled so that navigating to a specific past date
+  // (e.g., a tournament preliminary-round leg) always returns the played match
+  // rather than a future SCHEDULED leg of the same tie.
+  if (!target) {
+    const buildMs = new Date(buildNowUtc).getTime();
+    const windowMs = 36 * 60 * 60 * 1000; // 36 h covers UTC-offset edge cases
+    const nearby = matches
+      .filter(
+        (m) =>
+          (m.homeTeamId === teamId || m.awayTeamId === teamId) &&
+          (m.status === EventStatus.FINISHED || m.status === EventStatus.IN_PROGRESS) &&
+          m.startTimeUtc !== null &&
+          Math.abs(new Date(m.startTimeUtc).getTime() - buildMs) <= windowMs,
+      )
+      .sort((a, b) => {
+        const da = Math.abs(new Date(a.startTimeUtc!).getTime() - buildMs);
+        const db = Math.abs(new Date(b.startTimeUtc!).getTime() - buildMs);
+        return da - db;
+      });
+    target = nearby[0];
+  }
+
+  // Fallback 2: next SCHEDULED match after buildNowUtc
   if (!target) {
     const upcoming = matches
       .filter(
@@ -177,6 +200,10 @@ function extractNextMatch(
       target.status === EventStatus.FINISHED || target.status === EventStatus.IN_PROGRESS
         ? target.scoreAway
         : undefined,
+    scoreHomePenalties:
+      target.status === EventStatus.FINISHED ? (target.scoreHomePenalties ?? undefined) : undefined,
+    scoreAwayPenalties:
+      target.status === EventStatus.FINISHED ? (target.scoreAwayPenalties ?? undefined) : undefined,
     matchStatus: target.status,
   };
 }
