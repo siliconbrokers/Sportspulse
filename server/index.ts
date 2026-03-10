@@ -123,7 +123,9 @@ async function main() {
     await new Promise<void>((r) => setTimeout(r, 7000));
     await cliSource.fetchTournament();
   } catch (err) {
-    console.error('Failed to fetch Copa Libertadores 2026 from football-data.org:', err);
+    const cliErr = err instanceof Error ? err.message : String(err);
+    console.error(`[Startup] ERROR cargando Copa Libertadores: ${cliErr}`);
+    console.error('[Startup] Verificá que FOOTBALL_DATA_TOKEN tenga acceso a CLI. Visitá /api/ui/status para diagnóstico.');
   }
 
   // Routing: Liga Uruguaya → TheSportsDB, BL1 → OpenLigaDB, WC/CA/CLI → tournament sources, resto → football-data.org
