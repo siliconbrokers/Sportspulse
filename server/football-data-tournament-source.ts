@@ -18,6 +18,7 @@ import type { TournamentConfig } from './tournament-config.js';
 import { rankGroup } from '@sportpulse/prediction';
 import type { GroupData, MatchResult as PEMatchResult } from '@sportpulse/prediction';
 import { CA_GROUP_RANKING_RULES } from '@sportpulse/prediction';
+import { readRawCache, writeRawCache } from './raw-response-cache.js';
 
 /** @deprecated Usar TournamentConfig.providerKey directamente. Mantenido para compatibilidad. */
 export const WC_PROVIDER_KEY = 'football-data-wc';
@@ -235,9 +236,16 @@ function groupNameEs(fdGroupType: string): string {
   return `Grupo ${groupLetter(fdGroupType)}`;
 }
 
-// ── In-memory cache ───────────────────────────────────────────────────────────
+// ── Cache ─────────────────────────────────────────────────────────────────────
 
-const CACHE_TTL_MS = 30 * 60_000; // 30 minutos
+const CACHE_TTL_MS      = 30 * 60_000;          // 30 min — in-memory
+const DISK_CACHE_TTL_MS = 6 * 60 * 60 * 1000;   // 6h  — disco
+
+interface TournamentRawCache {
+  teams: { teams: FDWCTeam[] };
+  matches: { matches: FDWCMatch[] };
+  standings: FDWCStandingsResponse;
+}
 
 interface TournamentCache {
   teams: Map<string, Team>;
@@ -347,22 +355,40 @@ export class FootballDataTournamentSource implements DataSource {
   async fetchTournament(): Promise<void> {
     const nowMs = Date.now();
     if (this.cache && nowMs - this.cache.fetchedAt < CACHE_TTL_MS) {
-      return; // datos frescos
+      return; // datos frescos en memoria
     }
 
-    const [teamsResp, matchesResp] = await Promise.all([
-      this.apiGet<{ teams: FDWCTeam[] }>(`/competitions/${this.config.competitionCode}/teams`),
-      this.apiGet<{ matches: FDWCMatch[] }>(`/competitions/${this.config.competitionCode}/matches`),
-    ]);
-
-    // standings es opcional: no disponible durante fases preliminares o cuando la API lo restringe
+    const diskKey = `tournament-fd-${this.config.competitionCode}`;
+    let teamsResp: { teams: FDWCTeam[] };
+    let matchesResp: { matches: FDWCMatch[] };
     let standingsResp: FDWCStandingsResponse = { standings: [] };
-    if (!this.config.usePERanking) {
-      try {
-        standingsResp = await this.apiGet<FDWCStandingsResponse>(`/competitions/${this.config.competitionCode}/standings`);
-      } catch (err) {
-        console.warn(`[TournamentSource] ${this.config.competitionCode}: standings no disponibles — ${String(err).slice(0, 80)}`);
+
+    // Intentar leer desde caché de disco
+    const diskHit = await readRawCache<TournamentRawCache>(diskKey, DISK_CACHE_TTL_MS);
+    if (diskHit) {
+      console.log(`[TournamentSource] DISK_HIT ${this.config.competitionCode}`);
+      teamsResp = diskHit.teams;
+      matchesResp = diskHit.matches;
+      standingsResp = diskHit.standings;
+    } else {
+      // Caché de disco expirado o inexistente — llamar API
+      console.log(`[TournamentSource] DISK_MISS ${this.config.competitionCode} — fetching from API`);
+      [teamsResp, matchesResp] = await Promise.all([
+        this.apiGet<{ teams: FDWCTeam[] }>(`/competitions/${this.config.competitionCode}/teams`),
+        this.apiGet<{ matches: FDWCMatch[] }>(`/competitions/${this.config.competitionCode}/matches`),
+      ]);
+
+      // standings es opcional: no disponible durante fases preliminares o cuando la API lo restringe
+      if (!this.config.usePERanking) {
+        try {
+          standingsResp = await this.apiGet<FDWCStandingsResponse>(`/competitions/${this.config.competitionCode}/standings`);
+        } catch (err) {
+          console.warn(`[TournamentSource] ${this.config.competitionCode}: standings no disponibles — ${String(err).slice(0, 80)}`);
+        }
       }
+
+      // Persistir en disco (atómico)
+      await writeRawCache<TournamentRawCache>(diskKey, { teams: teamsResp, matches: matchesResp, standings: standingsResp });
     }
 
     // SeasonId desde el primer partido

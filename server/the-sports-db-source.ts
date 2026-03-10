@@ -10,6 +10,7 @@ import {
 import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
 import { persistTeamsCache, loadTeamsCache } from './matchday-cache.js';
 import { resolveTla } from './tla-overrides.js';
+import { readRawCache, writeRawCache } from './raw-response-cache.js';
 
 // ── Provider key ─────────────────────────────────────────────────────────────
 
@@ -44,7 +45,8 @@ interface CachedData {
   fetchedAt: number;
 }
 
-const CACHE_TTL_MS = 10 * 60 * 1000;
+const CACHE_TTL_MS      = 10 * 60 * 1000;       // 10 min — in-memory
+const DISK_CACHE_TTL_MS = 6 * 60 * 60 * 1000;  // 6h  — disco
 
 // ── DataSource implementation ─────────────────────────────────────────────────
 
@@ -158,41 +160,54 @@ export class TheSportsDbSource implements DataSource {
       `[TheSportsDbSource] Fetching league=${this.leagueId} (${this.leagueName}) season=${s}...`,
     );
 
-    // Phase 1: fetch season events + extra rounds in parallel
-    // TheSportsDB's eventsseason endpoint lags behind — fetch extra rounds explicitly.
-    const eventsResp = await this.apiGet<{ events: SDBEvent[] | null }>(
-      `/eventsseason.php?id=${this.leagueId}&s=${s}`,
-    );
-    const seasonEvents = eventsResp.events ?? [];
+    const diskKey = `sportsdb-${this.leagueId}-${s}`;
+    let rawEvents: SDBEvent[];
 
-    const maxSeasonRound = seasonEvents.reduce(
-      (max, e) => Math.max(max, parseInt(e.intRound, 10) || 0),
-      0,
-    );
+    // Intentar leer desde caché de disco
+    const diskHit = await readRawCache<SDBEvent[]>(diskKey, DISK_CACHE_TTL_MS);
+    if (diskHit) {
+      console.log(`[TheSportsDbSource] DISK_HIT league=${this.leagueId} season=${s}`);
+      rawEvents = diskHit;
+    } else {
+      // Phase 1: fetch season events + extra rounds in parallel
+      // TheSportsDB's eventsseason endpoint lags behind — fetch extra rounds explicitly.
+      const eventsResp = await this.apiGet<{ events: SDBEvent[] | null }>(
+        `/eventsseason.php?id=${this.leagueId}&s=${s}`,
+      );
+      const seasonEvents = eventsResp.events ?? [];
 
-    // Fetch 6 extra rounds ahead. eventsseason.php is unreliable — it sometimes
-    // only returns already-played rounds, missing scheduled ones. 6 rounds ensures
-    // we cover upcoming fixtures even when the season endpoint lags significantly.
-    const extraRoundNumbers = Array.from({ length: 6 }, (_, i) => maxSeasonRound + 1 + i);
-    const extraRoundResults = await Promise.all(
-      extraRoundNumbers.map((r) =>
-        this.apiGet<{ events: SDBEvent[] | null }>(
-          `/eventsround.php?id=${this.leagueId}&r=${r}&s=${s}`,
-        ).catch(() => ({ events: null })),
-      ),
-    );
-    const extraEvents = extraRoundResults.flatMap((r) => r.events ?? []);
+      const maxSeasonRound = seasonEvents.reduce(
+        (max, e) => Math.max(max, parseInt(e.intRound, 10) || 0),
+        0,
+      );
 
-    // Merge all events: deduplicate by idEvent and filter to the expected season
-    // (eventsround.php can return events from previous seasons if the round doesn't exist yet)
-    const seenEvents = new Set(seasonEvents.map((e) => e.idEvent));
-    const rawEvents = [
-      ...seasonEvents,
-      ...extraEvents.filter(
-        (e) =>
-          e.strSeason === s && !seenEvents.has(e.idEvent) && !!seenEvents.add(e.idEvent),
-      ),
-    ];
+      // Fetch 6 extra rounds ahead. eventsseason.php is unreliable — it sometimes
+      // only returns already-played rounds, missing scheduled ones. 6 rounds ensures
+      // we cover upcoming fixtures even when the season endpoint lags significantly.
+      const extraRoundNumbers = Array.from({ length: 6 }, (_, i) => maxSeasonRound + 1 + i);
+      const extraRoundResults = await Promise.all(
+        extraRoundNumbers.map((r) =>
+          this.apiGet<{ events: SDBEvent[] | null }>(
+            `/eventsround.php?id=${this.leagueId}&r=${r}&s=${s}`,
+          ).catch(() => ({ events: null })),
+        ),
+      );
+      const extraEvents = extraRoundResults.flatMap((r) => r.events ?? []);
+
+      // Merge all events: deduplicate by idEvent and filter to the expected season
+      // (eventsround.php can return events from previous seasons if the round doesn't exist yet)
+      const seenEvents = new Set(seasonEvents.map((e) => e.idEvent));
+      rawEvents = [
+        ...seasonEvents,
+        ...extraEvents.filter(
+          (e) =>
+            e.strSeason === s && !seenEvents.has(e.idEvent) && !!seenEvents.add(e.idEvent),
+        ),
+      ];
+
+      // Persistir en disco
+      await writeRawCache<SDBEvent[]>(diskKey, rawEvents);
+    }
 
     // Phase 2: build team registry directly from event data.
     // Each event carries strHomeTeamBadge / strAwayTeamBadge, so we don't need

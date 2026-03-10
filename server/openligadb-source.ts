@@ -1,5 +1,6 @@
 import type { Team, Match } from '@sportpulse/canonical';
 import { CrestCache } from './crest-cache.js';
+import { readRawCache, writeRawCache } from './raw-response-cache.js';
 import {
   classifyStatus,
   Sport,
@@ -89,6 +90,14 @@ interface OLGCurrentGroup {
 }
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
+
+const DISK_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h — disco
+
+interface OpenLigaRawCache {
+  matches: OLGMatch[];
+  table: OLGTableEntry[];
+  currentGroup: OLGCurrentGroup;
+}
 
 interface CachedData {
   teams: Team[];
@@ -236,12 +245,28 @@ export class OpenLigaDBSource implements DataSource {
       `[OpenLigaDBSource] Fetching league=${this.league} (${this.leagueName}) season=${season}...`,
     );
 
-    // Fetch in parallel: all matches + standings + current group
-    const [rawMatches, rawTable, currentGroup] = await Promise.all([
-      this.apiGet<OLGMatch[]>(`/getmatchdata/${this.league}/${season}`),
-      this.apiGet<OLGTableEntry[]>(`/getbltable/${this.league}/${season}`),
-      this.apiGet<OLGCurrentGroup>(`/getcurrentgroup/${this.league}`),
-    ]);
+    const diskKey = `openligadb-${this.league}-${season}`;
+    let rawMatches: OLGMatch[];
+    let rawTable: OLGTableEntry[];
+    let currentGroup: OLGCurrentGroup;
+
+    // Intentar leer desde caché de disco
+    const diskHit = await readRawCache<OpenLigaRawCache>(diskKey, DISK_CACHE_TTL_MS);
+    if (diskHit) {
+      console.log(`[OpenLigaDBSource] DISK_HIT league=${this.league} season=${season}`);
+      rawMatches = diskHit.matches;
+      rawTable = diskHit.table;
+      currentGroup = diskHit.currentGroup;
+    } else {
+      // Fetch in parallel: all matches + standings + current group
+      [rawMatches, rawTable, currentGroup] = await Promise.all([
+        this.apiGet<OLGMatch[]>(`/getmatchdata/${this.league}/${season}`),
+        this.apiGet<OLGTableEntry[]>(`/getbltable/${this.league}/${season}`),
+        this.apiGet<OLGCurrentGroup>(`/getcurrentgroup/${this.league}`),
+      ]);
+      // Persistir en disco
+      await writeRawCache<OpenLigaRawCache>(diskKey, { matches: rawMatches, table: rawTable, currentGroup });
+    }
 
     // Build team registry from match data
     const teamIdMap = new Map<number, string>(); // providerTeamId → canonicalTeamId
