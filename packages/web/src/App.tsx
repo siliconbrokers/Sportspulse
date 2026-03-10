@@ -177,9 +177,28 @@ function App() {
       ) : view === 'tv' ? (
         <EventsSection activeTab={tvTab} onTabChange={setTvTab} />
       ) : view === 'partidos' ? (
-        <>
-          {/* Carousel de jornada — solo en ligas, no en torneos */}
-          {!isTournament && (
+        isTournament ? (
+          /* Torneos en vista "Partidos" → mostrar fases del torneo (mismo que standings) */
+          <div style={{ padding: isMobile ? '12px' : '16px 20px', maxWidth: 1100, margin: '0 auto' }}>
+            <TournamentView
+              competitionId={competitionId}
+              accent={getCompMeta(competitionId)?.accent}
+              startDate={getCompMeta(competitionId)?.startDate}
+              onSelectTeam={(id, dateLocal) => {
+                setTournamentFocusId((prev) => (prev === id ? null : id));
+                setTournamentFocusDate(dateLocal ?? todayLocal);
+              }}
+            />
+            {tournamentFocusId && tournamentTeamDetail && (
+              <DetailPanel
+                detail={tournamentTeamDetail}
+                onClose={() => setTournamentFocusId(null)}
+              />
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Carousel de jornada — solo en ligas */}
             <div style={{ padding: isMobile ? '8px 12px 0' : '12px 20px 0', maxWidth: 1100, margin: '0 auto' }}>
               <MatchdayCarousel
                 totalMatchdays={totalMatchdays}
@@ -189,17 +208,16 @@ function App() {
                 isMobile={isMobile}
               />
             </div>
-          )}
-          <DashboardLayout
-            competitionId={competitionId}
-            matchday={isTournament ? null : matchday}
-            currentMatchday={activeMatchday}
-            timezone="America/Montevideo"
-            viewMode={view}
-            onLiveMatchesChange={setHasLiveMatches}
-            dateLocal={isTournament ? todayLocal : undefined}
-          />
-        </>
+            <DashboardLayout
+              competitionId={competitionId}
+              matchday={matchday}
+              currentMatchday={activeMatchday}
+              timezone="America/Montevideo"
+              viewMode={view}
+              onLiveMatchesChange={setHasLiveMatches}
+            />
+          </>
+        )
       ) : (
         /* standings — sin carousel de jornada, la tabla refleja posiciones actuales */
         <div style={{ padding: isMobile ? '12px' : '16px 20px', maxWidth: 1100, margin: '0 auto' }}>
