@@ -1,7 +1,7 @@
 import { buildApp } from '@sportpulse/api';
 import { FootballDataSource } from './football-data-source.js';
 import { FootballDataTournamentSource, WC_PROVIDER_KEY } from './football-data-tournament-source.js';
-import { WC_CONFIG, CA_CONFIG, CLI_CONFIG } from './tournament-config.js';
+import { WC_CONFIG, CLI_CONFIG } from './tournament-config.js';
 import { TheSportsDbSource, SPORTSDB_PROVIDER_KEY } from './the-sports-db-source.js';
 import { OpenLigaDBSource, OPENLIGADB_PROVIDER_KEY } from './openligadb-source.js';
 import { CrestCache } from './crest-cache.js';
@@ -106,16 +106,6 @@ async function main() {
     console.error('Failed to fetch Copa del Mundo 2026 from football-data.org:', err);
   }
 
-  // Football-data.org — Copa América 2027 (primer torneo PE-nativo)
-  const caSource = new FootballDataTournamentSource(API_TOKEN, CA_CONFIG);
-  const CA_COMPETITION_ID = caSource.competitionId; // 'comp:football-data-ca:CA'
-  try {
-    await new Promise<void>((r) => setTimeout(r, 7000));
-    await caSource.fetchTournament();
-  } catch (err) {
-    console.error('Failed to fetch Copa América 2027 from football-data.org:', err);
-  }
-
   // Football-data.org — Copa Libertadores 2026 (grupos + eliminatorias CONMEBOL)
   const cliSource = new FootballDataTournamentSource(API_TOKEN, CLI_CONFIG);
   const CLI_COMPETITION_ID = cliSource.competitionId; // 'comp:football-data-cli:CLI'
@@ -133,7 +123,6 @@ async function main() {
     { competitionId: UY_COMPETITION_ID, providerKey: SPORTSDB_PROVIDER_KEY, source: sportsDbSource },
     { competitionId: OLG_COMPETITION_ID, providerKey: OPENLIGADB_PROVIDER_KEY, source: openLigaDbSource },
     { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
-    { competitionId: CA_COMPETITION_ID, providerKey: CA_CONFIG.providerKey, source: caSource },
     { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
   ]);
 
@@ -176,7 +165,7 @@ async function main() {
 
   // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy, league-aware)
   const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`);
-  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, OLG_COMPETITION_ID, WC_COMPETITION_ID, CA_COMPETITION_ID, CLI_COMPETITION_ID];
+  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, OLG_COMPETITION_ID, WC_COMPETITION_ID, CLI_COMPETITION_ID];
   function normTeamName(s: string) {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   }
@@ -264,7 +253,6 @@ async function main() {
       : 'OTRA';
   }
   COMP_LEAGUE_KEY[WC_COMPETITION_ID] = 'MUNDIAL';
-  COMP_LEAGUE_KEY[CA_COMPETITION_ID] = 'COPA_AMERICA';
   COMP_LEAGUE_KEY[CLI_COMPETITION_ID] = 'COPA_LIBERTADORES';
 
   function isToday(isoStr: string, tz: string): boolean {
@@ -352,7 +340,6 @@ async function main() {
   // Composite tournament source — delega a WC, CA o CLI según competitionId
   const tournamentSources = new Map([
     [WC_COMPETITION_ID,  wcSource],
-    [CA_COMPETITION_ID,  caSource],
     [CLI_COMPETITION_ID, cliSource],
   ]);
   const compositeTournamentSource = {
@@ -438,8 +425,6 @@ async function main() {
     if (olgSeasonId) all.push(...dataSource.getMatches(olgSeasonId));
     const wcSeasonId = wcSource.getSeasonId(WC_COMPETITION_ID);
     if (wcSeasonId) all.push(...wcSource.getMatches(wcSeasonId));
-    const caSeasonId = caSource.getSeasonId(CA_COMPETITION_ID);
-    if (caSeasonId) all.push(...caSource.getMatches(caSeasonId));
     const cliSeasonId = cliSource.getSeasonId(CLI_COMPETITION_ID);
     if (cliSeasonId) all.push(...cliSource.getMatches(cliSeasonId));
     return all;
@@ -473,16 +458,13 @@ async function main() {
     } catch (err) {
       console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
     }
+    await new Promise<void>((r) => setTimeout(r, 7000));
     try {
       await wcSource.fetchTournament();
     } catch (err) {
       console.error('Refresh failed for Copa del Mundo 2026:', err);
     }
-    try {
-      await caSource.fetchTournament();
-    } catch (err) {
-      console.error('Refresh failed for Copa América 2027:', err);
-    }
+    await new Promise<void>((r) => setTimeout(r, 7000));
     try {
       await cliSource.fetchTournament();
     } catch (err) {

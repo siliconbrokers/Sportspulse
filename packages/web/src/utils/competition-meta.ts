@@ -53,15 +53,6 @@ export const COMPETITION_META: CompetitionMeta[] = [
     startDate: '2026-06-11',
   },
   {
-    id: 'comp:football-data-ca:CA',
-    name: 'Copa América 2027',
-    shortName: 'Copa América',
-    logoUrl: 'https://crests.football-data.org/2016.png',
-    accent: '#3b82f6',
-    season: '2027',
-    // startDate: actualizar cuando CONMEBOL confirme fecha oficial
-  },
-  {
     id: 'comp:football-data-cli:CLI',
     name: 'Copa Libertadores',
     shortName: 'Libertadores',

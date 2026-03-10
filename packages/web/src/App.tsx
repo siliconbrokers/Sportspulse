@@ -39,9 +39,8 @@ const COMPETITIONS = [
   { id: 'comp:football-data:PL', code: 'PL', isTournament: false },
   { id: 'comp:openligadb:bl1', code: 'BL1', isTournament: false },
   { id: 'comp:football-data-cli:CLI', code: 'CLI', isTournament: true },
-  // Ocultas del menú hasta que haya datos disponibles
+  // Oculto del menú hasta que haya datos disponibles
   { id: 'comp:football-data-wc:WC', code: 'WC', isTournament: true, hidden: true },
-  { id: 'comp:football-data-ca:CA', code: 'CA', isTournament: true, hidden: true },
 ];
 
 export function AppRoot() {
