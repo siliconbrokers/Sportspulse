@@ -29,6 +29,8 @@ export interface ParsedEvent {
   openUrl: string | null;
   homeCrestUrl: string | null;
   awayCrestUrl: string | null;
+  scoreHome?: number | null;
+  scoreAway?: number | null;
 }
 
 export interface EventosFeed {

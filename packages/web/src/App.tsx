@@ -55,7 +55,7 @@ function App() {
     competitionId,
     view === 'standings' && !isTournament,
   );
-  const teamsPlayingToday = useTeamsPlayingToday(
+  const { teamsPlayingToday, teamsPlayingLive } = useTeamsPlayingToday(
     competitionId,
     view === 'standings' ? (compInfo?.currentMatchday ?? null) : null,
     'America/Montevideo',
@@ -198,6 +198,7 @@ function App() {
                       onTeamClick={(id) => setStandingsFocusId((prev) => (prev === id ? null : id))}
                       competitionId={competitionId}
                       teamsPlayingToday={teamsPlayingToday}
+                      teamsPlayingLive={teamsPlayingLive}
                     />
                   )}
                   {standingsFocusId && standingsTeamDetail && (

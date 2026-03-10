@@ -1,7 +1,7 @@
 # SportPulse — Repo Structure and Module Boundaries
 
-Version: 1.0  
-Status: Authoritative repository/module boundary definition for MVP  
+Version: 1.1
+Status: Authoritative repository/module boundary definition for MVP — amended to include packages/prediction (v1.1)  
 Scope: Repository layout, module responsibilities, dependency rules, and boundary constraints for SportPulse MVP implementation  
 Audience: Backend, Frontend, QA, Ops, AI-assisted development workflows
 
@@ -115,6 +115,41 @@ sportpulse/
         treemap/
         rounding/
         validate/
+      test/
+    prediction/
+      src/
+        contracts/
+          types/
+          constants.ts
+          index.ts
+        engine/
+          elo-rating.ts
+          lambda-computer.ts
+          scoreline-matrix.ts
+          raw-aggregator.ts
+          derived-raw.ts
+          derived-calibrated.ts
+          decision-policy.ts
+          scoreline-explainer.ts
+          bridging.ts
+        store/
+          rating-pool.ts
+        calibration/
+          isotonic-calibrator.ts
+          calibration-selector.ts
+          version-metadata.ts
+        validation/
+          match-validator.ts
+          competition-profile-validator.ts
+          history-validator.ts
+        competition/
+          standings.ts
+          group-ranking.ts
+          bracket-mapper.ts
+          knockout-resolver.ts
+        persistence/
+        metrics/
+        response-builder.ts
       test/
     snapshot/
       src/
@@ -256,6 +291,34 @@ Must not own:
 
 ---
 
+## 4.9 packages/prediction
+
+Purpose:
+- compute match outcome predictions using the Elo extended + Poisson independent model defined in `SportPulse_Predictive_Engine_Spec_v1.3_Final.md`.
+
+Owns:
+- domain contracts (types, enums, constants) — no logic
+- Elo rating store and update rules per rating pool
+- lambda_home / lambda_away computation per match
+- raw_match_distribution (8×8 scoreline matrix) and tail_mass_raw
+- raw_1x2_probs and all derived raw outputs (BTTS, totals, etc.)
+- Isotonic calibration (one-vs-rest) producing calibrated_1x2_probs
+- derived calibrated outputs (double chance, DNB, predicted_result)
+- ValidationResult production and operating_mode assignment
+- Competition structure resolution (standings, groups, brackets, knockout)
+- PredictionResponse assembly
+
+Must not own:
+- attention scoring policy (belongs to packages/scoring)
+- treemap geometry (belongs to packages/layout)
+- snapshot artifact assembly (belongs to packages/snapshot)
+- provider ingestion adapters (belongs to packages/canonical)
+- UI rendering logic
+
+Position in dependency chain: `canonical → prediction → snapshot`
+
+---
+
 ## 4.6 packages/snapshot
 
 Purpose:
@@ -318,20 +381,25 @@ Must not own:
 
 The intended dependency direction is:
 
-`shared`  
-→ `canonical`  
-→ `signals`  
-→ `scoring`  
-→ `layout`  
-→ `snapshot`  
-→ `api`  
+`shared`
+→ `canonical`
+→ `signals`
+→ `scoring`
+→ `layout`
+→ `snapshot`
+→ `api`
 → `web`
 
-With constraints:
+With `prediction` inserted between `canonical` and `snapshot`:
+
+`canonical` → `prediction` → `snapshot`
+
+Full constraints:
 
 - `web` may depend on `shared` types and the API client only.
-- `api` depends on `snapshot` and `shared`, not on provider adapters.
-- `snapshot` may depend on `canonical`, `signals`, `scoring`, `layout`, `shared`.
+- `api` depends on `snapshot`, `prediction` (PredictionResponse types only), and `shared`.
+- `snapshot` may depend on `canonical`, `signals`, `scoring`, `layout`, `prediction`, `shared`.
+- `prediction` depends on `canonical` (models only) and `shared`. Must NOT depend on `signals`, `scoring`, or `layout`.
 - `layout` depends only on `shared` (and its own internal utilities).
 - `scoring` depends on `shared` and consumes `signals` outputs.
 - `signals` depends on `canonical` models and `shared`.
@@ -355,6 +423,11 @@ The following dependency edges are forbidden:
 - `layout -> signals`
 - `scoring -> canonical ingestion adapters` (policy must not depend on provider)
 - `signals -> provider ingestion adapters` (signals consume canonical model only)
+- `prediction -> scoring` (attention scoring and match prediction are separate concerns)
+- `prediction -> signals` (prediction uses canonical models directly, not signal registry)
+- `prediction -> layout` (prediction has no geometry concerns)
+- `web -> prediction` (frontend never imports prediction logic directly)
+- `api -> prediction engine internals` (api may import PredictionResponse type only via shared or snapshot)
 
 If any of these appear, architecture is drifting in a way that will break determinism and testability.
 

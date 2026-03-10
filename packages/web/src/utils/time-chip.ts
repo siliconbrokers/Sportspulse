@@ -46,7 +46,7 @@ export function computeLiveTimeChip(
         return { icon: '🕐', label: 'Confirmando resultado', level: 'WARN' };
       }
     }
-    return { icon: '🔴', label: 'En juego', level: 'HOT' };
+    return { icon: '🔴', label: 'LIVE', level: 'HOT' };
   }
 
   if (status === 'FINISHED') {
@@ -74,7 +74,7 @@ export function computeLiveTimeChip(
       const dateStr = ` · ${fmtDate(kickoffUtc)}`;
       return { icon: '✅', label: `Finalizado${dateStr}`, level: 'INFO' };
     }
-    return { icon: '🔴', label: 'En juego', level: 'HOT' };
+    return { icon: '🔴', label: 'LIVE', level: 'HOT' };
   }
   if (hours < 1) {
     const mins = Math.ceil(hours * 60);

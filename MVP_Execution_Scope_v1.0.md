@@ -1,7 +1,7 @@
 # SportPulse — MVP Execution Scope
 
-Version: 1.0  
-Status: Authoritative execution scope for MVP delivery  
+Version: 1.1
+Status: Authoritative execution scope for MVP delivery — amended to include Predictive Engine (v1.1)  
 Scope: Executable MVP boundaries, deliverables, exclusions, workflows, and acceptance scope for AI-assisted and human development  
 Audience: Product, Backend, Frontend, QA, Ops, AI-assisted development workflows
 
@@ -238,6 +238,28 @@ This includes:
 
 ---
 
+## 6.7 Predictive Engine
+
+The backend must compute match outcome predictions using the Elo extended + Poisson independent model defined in `SportPulse_Predictive_Engine_Spec_v1.3_Final.md`.
+
+Minimum required capabilities:
+- Elo rating maintenance per rating pool (club / national team)
+- Per-match lambda computation (lambda_home, lambda_away)
+- raw_match_distribution (8×8 scoreline matrix) as first-class output
+- Isotonic calibration (one-vs-rest) producing calibrated_1x2_probs
+- ValidationResult with operating_mode (FULL_MODE / LIMITED_MODE / NOT_ELIGIBLE)
+- PredictionResponse envelope with strict field separation (core / secondary / explainability / internals)
+- Competition structure resolution (standings, groups, knockout brackets)
+
+### Predictive Engine invariants
+- raw_match_distribution must never be mixed with calibrated_1x2_probs in any output path
+- KnockoutResolutionRules is an ordered array, never a flag set
+- prior_rating hard conditions are enforced, not interpreted
+- LIMITED_MODE always produces predictions.core; NOT_ELIGIBLE produces predictions=null
+- Calibration is trained only on data before prediction cutoff (anti-leakage)
+
+---
+
 ## 6.6 Internal UI API
 
 The backend must expose the internal frontend-facing API needed for the dashboard and team detail.
@@ -340,7 +362,6 @@ The following are explicitly out of scope for MVP v1 unless separately approved:
 - multi-competition comparative dashboard
 - personalized recommendation engine
 - odds or betting guidance
-- predictive engine
 - social features
 - notification system
 - saved dashboards

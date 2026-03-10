@@ -159,6 +159,7 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
   // ── Score ─────────────────────────────────────────────────────────────────
   const scoreHome = matchCard.scoreHome ?? null;
   const scoreAway = matchCard.scoreAway ?? null;
+  // Para partidos en vivo mostrar score siempre (0-0 si aún no disponible en el DTO)
   const hasScore  = scoreHome !== null && scoreAway !== null;
 
   // ── Probabilities ─────────────────────────────────────────────────────────
@@ -252,10 +253,17 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
 
   /** Indicador de hora o estado cuando no hay score */
   const StatusChip = isLive ? (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-      <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#ef4444', animation: 'sp-live-ping 1.4s infinite', flexShrink: 0 }} />
-      <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', letterSpacing: '0.04em' }}>EN VIVO</span>
-    </div>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
+      padding: '2px 7px', borderRadius: 20,
+      background: '#ef4444', color: '#fff',
+      animation: 'sp-live-ping 1.4s infinite',
+      lineHeight: 1.6, boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+    }}>
+      <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+      LIVE
+    </span>
   ) : isZombie ? (
     <span style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>🕐 Confirmando</span>
   ) : matchCard.kickoffUtc ? (
@@ -291,16 +299,14 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
         }}>
           <Crest url={homeCrest} size={22} />
           {/* Marcador centrado entre crests */}
-          {hasScore ? (
+          {(hasScore || isLive || isZombie) ? (
             <span style={{
               fontSize: 14, fontWeight: 900, color: scoreColor,
               letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums',
               lineHeight: 1,
             }}>
-              {scoreHome}<span style={{ opacity: 0.35, margin: '0 2px' }}>–</span>{scoreAway}
+              {scoreHome ?? 0}<span style={{ opacity: 0.35, margin: '0 2px' }}>–</span>{scoreAway ?? 0}
             </span>
-          ) : isLive ? (
-            <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#ef4444', animation: 'sp-live-ping 1.4s infinite' }} />
           ) : matchCard.kickoffUtc ? (
             <div style={{ textAlign: 'center', lineHeight: 1.3 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--sp-text-80)' }}>{fmtDate(matchCard.kickoffUtc)}</div>
@@ -332,9 +338,45 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
               {vCfg.icon} {vCfg.label}
             </span>
           ) : isLive ? (
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', letterSpacing: '0.04em' }}>● EN VIVO</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
+                padding: '2px 7px', borderRadius: 20,
+                background: '#ef4444', color: '#fff',
+                animation: 'sp-live-ping 1.4s infinite',
+                lineHeight: 1.6, boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+              }}>
+                <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+                LIVE
+              </span>
+              {!isPost && (
+                <span style={{
+                  fontSize: 9, fontWeight: 700,
+                  padding: '2px 7px', borderRadius: 20,
+                  backgroundColor: 'rgba(249,115,22,0.15)',
+                  color: '#f97316',
+                  border: '1px solid rgba(249,115,22,0.35)',
+                }}>
+                  Pendiente
+                </span>
+              )}
+            </div>
           ) : isZombie ? (
-            <span style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b' }}>🕐 Confirmando</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b' }}>🕐 Confirmando</span>
+              {radarCard && (
+                <span style={{
+                  fontSize: 9, fontWeight: 700,
+                  padding: '2px 7px', borderRadius: 20,
+                  backgroundColor: 'rgba(245,158,11,0.15)',
+                  color: '#f59e0b',
+                  border: '1px solid rgba(245,158,11,0.35)',
+                }}>
+                  Pendiente
+                </span>
+              )}
+            </div>
           ) : matchCard.kickoffUtc ? (
             <span style={{ fontSize: 10, color: 'var(--sp-text-35)' }}>{fmtDate(matchCard.kickoffUtc)} · {fmtTime(matchCard.kickoffUtc)}</span>
           ) : null}
@@ -376,15 +418,30 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
         }}>
           <Crest url={homeCrest} size={24} />
 
-          {hasScore ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 22, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                {scoreHome}
-              </span>
-              <span style={{ fontSize: 13, color: 'var(--sp-text-25, rgba(128,128,128,0.5))', fontWeight: 300 }}>—</span>
-              <span style={{ fontSize: 22, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                {scoreAway}
-              </span>
+          {(hasScore || isLive || isZombie) ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 22, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  {scoreHome ?? 0}
+                </span>
+                <span style={{ fontSize: 13, color: 'var(--sp-text-25, rgba(128,128,128,0.5))', fontWeight: 300 }}>—</span>
+                <span style={{ fontSize: 22, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  {scoreAway ?? 0}
+                </span>
+              </div>
+              {isLive && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
+                  padding: '2px 7px', borderRadius: 20,
+                  background: '#ef4444', color: '#fff',
+                  animation: 'sp-live-ping 1.4s infinite',
+                  lineHeight: 1.6, boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+                }}>
+                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+                  LIVE
+                </span>
+              )}
             </div>
           ) : (
             StatusChip
@@ -421,11 +478,27 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
         </div>
       )}
 
-      {/* ── PIE: probabilidades siempre + veredicto post-match ── */}
+      {/* ── PIE: probabilidades siempre + veredicto post-match + pendiente ── */}
       <div style={{ padding: '10px 12px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {ProbBarsBlock}
         {isPost && VerdictBlock}
-        {!ProbBarsBlock && !VerdictBlock && radarCard && (
+        {/* Badge Pendiente: partido en curso o zombie */}
+        {!isPost && (isLive || isZombie) && (() => {
+          const color = isLive ? '#f97316' : '#f59e0b';
+          return (
+            <span style={{
+              alignSelf: 'flex-start',
+              fontSize: 10, fontWeight: 700,
+              padding: '3px 10px', borderRadius: 20,
+              backgroundColor: `${color}18`,
+              color,
+              border: `1px solid ${color}40`,
+            }}>
+              Pendiente
+            </span>
+          );
+        })()}
+        {!ProbBarsBlock && !VerdictBlock && !(isLive || isZombie) && radarCard && (
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             padding: '4px 8px', borderRadius: 6,

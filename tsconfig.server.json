@@ -16,7 +16,8 @@
       "@sportpulse/scoring":   ["./packages/scoring/src/index.ts"],
       "@sportpulse/layout":    ["./packages/layout/src/index.ts"],
       "@sportpulse/snapshot":  ["./packages/snapshot/src/index.ts"],
-      "@sportpulse/api":       ["./packages/api/src/index.ts"]
+      "@sportpulse/api":        ["./packages/api/src/index.ts"],
+      "@sportpulse/prediction": ["./packages/prediction/src/index.ts"]
     }
   },
   "include": ["server/**/*", "packages/*/src/**/*"]

@@ -127,11 +127,12 @@ interface EventCardProps {
   signals?: EventSignal[];
   animationDelay?: number;
   hasSignal?: boolean;  // false = señal aún no confirmada por el proveedor
+  onCardClick?: () => void; // si se provee: click en tarjeta (fuera de señales) muestra detalle
 }
 
 // ── Componente ────────────────────────────────────────────────────────────────
 
-export function EventCard({ event, accentColor, isMobile, signals, animationDelay = 0, hasSignal = true }: EventCardProps) {
+export function EventCard({ event, accentColor, isMobile, signals, animationDelay = 0, hasSignal = true, onCardClick }: EventCardProps) {
   useEffect(() => { injectStyles(); }, []);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -155,9 +156,11 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
 
   // ── Handler de click ──────────────────────────────────────────────────────
   function handleCardClick(e: React.MouseEvent) {
-    if (!hasSignal) return;   // sin señal confirmada: no abre nada
+    if (!hasSignal && !onCardClick) return;
     if ((e.target as HTMLElement).closest('[data-signal-badge]')) return;
-    openEventDirect(event);
+    // Si hay onCardClick (evento canónico), muestra detalle; si no, abre stream directamente
+    if (onCardClick) { onCardClick(); return; }
+    if (hasSignal) openEventDirect(event);
   }
 
   function handleAltSignal(e: React.MouseEvent, altUrl: string) {
@@ -256,39 +259,21 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
           </span>
         </div>
 
-        {/* Centro: marcador o hora */}
+        {/* Centro: score si hay datos, "vs" si no */}
         <div style={{
           flexShrink: 0, textAlign: 'center',
           minWidth: isMobile ? 44 : 52,
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
         }}>
-          {isActive ? (
-            // Marcador en vivo (los eventos del portal no tienen score, mostramos vs animado)
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{
-                width: 7, height: 7, borderRadius: '50%',
-                backgroundColor: isZombie ? '#f59e0b' : '#ef4444',
-                animation: 'sp-live-dot 1.2s ease-in-out infinite',
-                flexShrink: 0,
-              }} />
-              <span style={{
-                fontSize: 13, fontWeight: 800,
-                color: isZombie ? '#f59e0b' : '#ef4444',
-                letterSpacing: '0.03em',
-              }}>
-                {isZombie ? '?' : 'EN\u00A0VIVO'}
-              </span>
-            </div>
+          {isActive && event.scoreHome != null && event.scoreAway != null ? (
+            <span style={{
+              fontSize: isMobile ? 14 : 16, fontWeight: 900,
+              color: '#f97316', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em',
+            }}>
+              {event.scoreHome}<span style={{ opacity: 0.5, margin: '0 2px' }}>–</span>{event.scoreAway}
+            </span>
           ) : (
-            <>
-              <span style={{ fontSize: isMobile ? 11 : 12, color: 'var(--sp-text-25)', fontWeight: 300 }}>vs</span>
-              <span style={{
-                fontSize: isMobile ? 13 : 15, fontWeight: 700,
-                color: 'var(--sp-text-70)', fontVariantNumeric: 'tabular-nums',
-              }}>
-                {timeStr}
-              </span>
-            </>
+            <span style={{ fontSize: isMobile ? 11 : 12, color: 'var(--sp-text-25)', fontWeight: 300 }}>vs</span>
           )}
         </div>
 
@@ -315,17 +300,17 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
       }}>
         {/* Badge de estado */}
         {isLive ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              backgroundColor: '#ef4444',
-              animation: 'sp-live-dot 1.2s ease-in-out infinite',
-              flexShrink: 0,
-            }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', letterSpacing: '0.04em' }}>
-              EN VIVO
-            </span>
-          </div>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
+            padding: '2px 7px', borderRadius: 20,
+            background: '#ef4444', color: '#fff',
+            animation: 'sp-live-dot 1.2s ease-in-out infinite',
+            lineHeight: 1.6, boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+          }}>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+            LIVE
+          </span>
         ) : isZombie ? (
           <span style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>
             ⚠️ Pendiente de confirmación
@@ -343,12 +328,18 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
               idx === 0 ? (
                 <span
                   key={sig.label}
+                  data-signal-badge="true"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); openEventDirect(event); }}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.stopPropagation(), openEventDirect(event))}
                   style={{
                     fontSize: 10, fontWeight: 700,
                     padding: '3px 8px', borderRadius: 20,
                     background: `${accentColor}20`,
                     color: accentColor,
                     border: `1px solid ${accentColor}44`,
+                    cursor: 'pointer',
                   }}
                 >
                   {sig.label}

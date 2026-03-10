@@ -143,11 +143,20 @@ function Legend({ competitionId }: { competitionId: string }) {
           {i > 0 && (
             <span style={{ color: 'var(--sp-text-20)', marginRight: 4, fontSize: 10 }}>|</span>
           )}
-          <span style={{ fontSize: 13 }}>{z.emoji}</span>
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              background: z.color,
+              flexShrink: 0,
+              boxShadow: `0 0 4px ${z.color}66`,
+            }}
+          />
           <span
             style={{
               fontSize: 10,
-              color: 'var(--sp-secondary)',
+              color: z.color,
               letterSpacing: '0.03em',
               lineHeight: 1.6,
             }}
@@ -219,6 +228,7 @@ interface StandingsTableProps {
   onTeamClick: (teamId: string) => void;
   competitionId: string;
   teamsPlayingToday?: Set<string>;
+  teamsPlayingLive?: Set<string>;
 }
 
 export function StandingsTable({
@@ -226,6 +236,7 @@ export function StandingsTable({
   onTeamClick,
   competitionId,
   teamsPlayingToday,
+  teamsPlayingLive,
 }: StandingsTableProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
@@ -312,7 +323,8 @@ export function StandingsTable({
           <tbody>
             {standings.map((row, i) => {
               const zone = getZone(competitionId, row.position);
-              const playsToday = teamsPlayingToday?.has(row.teamId) ?? false;
+              const isLiveNow = teamsPlayingLive?.has(row.teamId) ?? false;
+              const playsToday = (teamsPlayingToday?.has(row.teamId) ?? false) && !isLiveNow;
               const isEven = i % 2 === 0;
 
               return (
@@ -353,7 +365,7 @@ export function StandingsTable({
                       <span
                         style={{
                           fontWeight: 500,
-                          color: playsToday ? 'var(--sp-primary)' : 'var(--sp-text-88)',
+                          color: isLiveNow ? '#f97316' : playsToday ? 'var(--sp-primary)' : 'var(--sp-text-88)',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -363,6 +375,20 @@ export function StandingsTable({
                       >
                         {row.teamName}
                       </span>
+                      {isLiveNow && (
+                        <span
+                          title="En juego ahora"
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: '#f97316',
+                            boxShadow: '0 0 6px rgba(249,115,22,0.7)',
+                            flexShrink: 0,
+                            animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
+                          }}
+                        />
+                      )}
                       {playsToday && (
                         <span
                           title="Juega hoy"

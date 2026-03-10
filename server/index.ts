@@ -12,6 +12,7 @@ import { RadarApiAdapter } from './radar/index.js';
 import { EventosService, buildEventSource } from './eventos/index.js';
 import { MatchEventsService } from './match-events-service.js';
 import { IncidentService } from './incidents/incident-service.js';
+import { PredictionService } from './prediction/prediction-service.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
 import {
@@ -136,26 +137,56 @@ async function main() {
   const EVENTOS_SOURCE_URL = process.env.EVENTOS_SOURCE_URL;
   const EVENTOS_DEBUG = process.env.EVENTOS_DEBUG === 'true';
 
-  // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy)
+  // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy, league-aware)
   const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`);
   const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, OLG_COMPETITION_ID];
   function normTeamName(s: string) {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   }
-  let crestMap: Map<string, string> | null = null;
-  function resolveCrest(teamName: string): string | null {
-    if (!crestMap) {
-      crestMap = new Map();
-      for (const compId of ALL_COMP_IDS) {
+  // Mapas por liga para evitar confusión entre equipos homónimos (ej. Liverpool EPL vs Liverpool URU)
+  let leagueCrestMaps: Map<string, Map<string, string>> | null = null;
+  let globalCrestMap: Map<string, string> | null = null;
+  function initCrestMaps() {
+    if (leagueCrestMaps) return;
+    leagueCrestMaps = new Map();
+    globalCrestMap = new Map();
+    const leagueToCompIds: Record<string, string[]> = {
+      URUGUAY_PRIMERA: [UY_COMPETITION_ID],
+      PREMIER_LEAGUE:  FD_COMPETITION_CODES.includes('PL') ? ['comp:football-data:PL'] : [],
+      LALIGA:          FD_COMPETITION_CODES.includes('PD') ? ['comp:football-data:PD'] : [],
+      BUNDESLIGA:      [OLG_COMPETITION_ID],
+    };
+    for (const [league, compIds] of Object.entries(leagueToCompIds)) {
+      const map = new Map<string, string>();
+      for (const compId of compIds) {
         for (const team of dataSource.getTeams(compId)) {
           if (team.crestUrl) {
-            crestMap.set(normTeamName(team.name), team.crestUrl);
-            if (team.shortName) crestMap.set(normTeamName(team.shortName), team.crestUrl);
+            map.set(normTeamName(team.name), team.crestUrl);
+            if (team.shortName) map.set(normTeamName(team.shortName), team.crestUrl);
           }
         }
       }
+      leagueCrestMaps.set(league, map);
     }
-    return crestMap.get(normTeamName(teamName)) ?? null;
+    for (const compId of ALL_COMP_IDS) {
+      for (const team of dataSource.getTeams(compId)) {
+        if (team.crestUrl) {
+          globalCrestMap.set(normTeamName(team.name), team.crestUrl);
+          if (team.shortName) globalCrestMap.set(normTeamName(team.shortName), team.crestUrl);
+        }
+      }
+    }
+  }
+  function resolveCrest(teamName: string, league?: string): string | null {
+    initCrestMaps();
+    const normed = normTeamName(teamName);
+    // Liga específica primero → evita que "Liverpool" de URU resuelva al escudo del EPL
+    if (league && leagueCrestMaps?.has(league)) {
+      const result = leagueCrestMaps.get(league)!.get(normed);
+      if (result) return result;
+    }
+    // Fallback global
+    return globalCrestMap?.get(normed) ?? null;
   }
 
   const eventosService = new EventosService(
@@ -237,8 +268,8 @@ async function main() {
 
           results.push({
             id:               m.matchId,
-            homeTeam:         home?.shortName ?? home?.name ?? m.homeTeamId,
-            awayTeam:         away?.shortName ?? away?.name ?? m.awayTeamId,
+            homeTeam:         home?.name ?? home?.shortName ?? m.homeTeamId,
+            awayTeam:         away?.name ?? away?.shortName ?? m.awayTeamId,
             homeCrestUrl:     home?.crestUrl ?? null,
             awayCrestUrl:     away?.crestUrl ?? null,
             homeTeamId:       m.homeTeamId,
@@ -250,6 +281,8 @@ async function main() {
             kickoffUtc:       m.startTimeUtc,
             startsAtPortalTz: portalTime,
             isTodayInPortalTz: isToday(m.startTimeUtc, PORTAL_TZ),
+            scoreHome:        isLive ? (m.scoreHome ?? null) : null,
+            scoreAway:        isLive ? (m.scoreAway ?? null) : null,
           });
         }
       }
@@ -264,7 +297,9 @@ async function main() {
     },
   };
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: wcSource, upcomingService });
+  const predictionService = new PredictionService();
+
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: wcSource, upcomingService, predictionService });
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
   // Refresh interval adapts to match state. Only polls when data can change.

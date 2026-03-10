@@ -195,14 +195,16 @@ export function RadarCard({ card, live, competitionKey, matchday, onViewMatch, a
 
         {/* Estado badge */}
         {isLive && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%', backgroundColor: '#ef4444',
-              animation: 'sp-dot-pulse 1.4s ease-in-out infinite', flexShrink: 0,
-            }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', letterSpacing: '0.04em' }}>
-              EN VIVO
-            </span>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0,
+            fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
+            padding: '2px 7px', borderRadius: 20,
+            background: '#ef4444', color: '#fff',
+            animation: 'sp-dot-pulse 1.4s ease-in-out infinite',
+            lineHeight: 1.6, boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+          }}>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+            LIVE
           </span>
         )}
         {isZombie && (

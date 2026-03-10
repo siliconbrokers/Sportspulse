@@ -58,23 +58,13 @@ function EmptyState({ isMobile }: { isMobile: boolean }) {
 
 function sortMatchCards(
   cards: MatchCardDTO[],
-  radarMap: Map<string, RadarCardEntry>,
+  _radarMap: Map<string, RadarCardEntry>,
 ): MatchCardDTO[] {
+  // Orden temporal descendente: el partido con kickoff más tardío aparece primero
   return [...cards].sort((a, b) => {
-    // Prioridad estado: LIVE=0, FINISHED=1, SCHEDULED=2, otros=3
-    const stateOrder = (s?: string) =>
-      s === 'LIVE' ? 0 : s === 'FINISHED' ? 1 : s === 'SCHEDULED' ? 2 : 3;
-    const ao = stateOrder(a.status);
-    const bo = stateOrder(b.status);
-    if (ao !== bo) return ao - bo;
-    // Dentro del mismo estado, partidos con radar editorial primero
-    const aHasRadar = radarMap.has(a.matchId) ? 0 : 1;
-    const bHasRadar = radarMap.has(b.matchId) ? 0 : 1;
-    if (aHasRadar !== bHasRadar) return aHasRadar - bHasRadar;
-    // Por hora de kickoff
     const aTime = a.kickoffUtc ?? '';
     const bTime = b.kickoffUtc ?? '';
-    return aTime < bTime ? -1 : aTime > bTime ? 1 : 0;
+    return aTime > bTime ? -1 : aTime < bTime ? 1 : 0;
   });
 }
 

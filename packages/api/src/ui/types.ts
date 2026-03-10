@@ -1,4 +1,5 @@
 import type { SnapshotService, DataSource, MatchGoalEventDTO } from '@sportpulse/snapshot';
+import type { IPredictionService } from './prediction-route.js';
 
 // Interfaz mínima para el servicio de noticias (evita importar server/ en packages/)
 export interface INewsService {
@@ -153,6 +154,8 @@ export interface UpcomingMatchDTO {
   kickoffUtc: string;
   startsAtPortalTz: string;
   isTodayInPortalTz: boolean;
+  scoreHome: number | null;
+  scoreAway: number | null;
 }
 
 export interface IUpcomingService {
@@ -169,4 +172,5 @@ export interface AppDependencies {
   matchEventsService?: IMatchEventsService;
   tournamentSource?: ITournamentSource;
   upcomingService?: IUpcomingService;
+  predictionService?: IPredictionService;
 }

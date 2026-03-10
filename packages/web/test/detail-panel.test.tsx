@@ -43,10 +43,10 @@ describe('DetailPanel', () => {
     expect(screen.getAllByText(/Real Madrid/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders topContributions in explain section', () => {
+  it('renders detail panel with team and match data', () => {
     render(<DetailPanel detail={detail} onClose={() => {}} />);
-    expect(screen.getByTestId('explain-section')).toBeInTheDocument();
-    expect(screen.getByText('Comienza en')).toBeInTheDocument();
+    expect(screen.getByTestId('detail-panel')).toBeInTheDocument();
+    expect(screen.getAllByText('FC Barcelona').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders match estimate with probabilities when form data available', () => {

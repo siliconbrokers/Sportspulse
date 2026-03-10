@@ -84,9 +84,13 @@ function convertTime(
   portalTimezone: string,
 ): { startsAtSource: string; startsAtPortalTz: string; isTodayInPortalTz: boolean } {
   const [hh, mm] = timeText.split(':').map(Number);
-  const year = referenceDate.getUTCFullYear();
-  const month = referenceDate.getUTCMonth();
-  const day = referenceDate.getUTCDate();
+  // Usar la fecha en la zona del proveedor (UTC-5) como referencia, no UTC.
+  // Si en Montevideo son las 22:30 (01:30 UTC+1), la fecha UTC es "mañana" pero
+  // la fecha UTC-5 sigue siendo "hoy" → los partidos se asignan al día correcto.
+  const sourceRef = new Date(referenceDate.getTime() + sourceOffsetMinutes * 60_000);
+  const year = sourceRef.getUTCFullYear();
+  const month = sourceRef.getUTCMonth();
+  const day = sourceRef.getUTCDate();
 
   // Construir datetime de origen: la hora del proveedor en su offset (UTC-5 = -300 min)
   // hour:min es la hora local del proveedor → UTC = local - offset

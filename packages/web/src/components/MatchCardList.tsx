@@ -188,8 +188,8 @@ function TeamRow({
   const isZombie = cardState === 'ZOMBIE';
 
   // Color del score según estado
-  const scoreColor  = isLive ? 'var(--sp-primary)' : isZombie ? '#f59e0b' : 'var(--sp-text-88)';
-  const scoreShadow = isLive ? '0 0 10px var(--sp-primary-40)' : 'none';
+  const scoreColor  = isLive ? '#f97316' : isZombie ? '#f59e0b' : 'var(--sp-text-88)';
+  const scoreShadow = isLive ? '0 0 10px rgba(249,115,22,0.5)' : 'none';
 
   return (
     <div
@@ -285,21 +285,21 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
     ? '0 0 14px rgba(245,158,11,0.08)'
     : 'none';
 
-  // Badge de estado
+  // Badge de estado — live usa rojo sólido como LiveCarousel
   const badgeBg = isLive
-    ? 'var(--sp-primary-10)'
+    ? '#ef4444'
     : isZombie
     ? 'rgba(245,158,11,0.10)'
     : 'rgba(255,255,255,0.05)';
 
   const badgeColor = isLive
-    ? 'var(--sp-primary)'
+    ? '#fff'
     : isZombie
     ? '#f59e0b'
     : 'var(--sp-text-35)';
 
   const badgeBorder = isLive
-    ? '1px solid var(--sp-primary-22)'
+    ? 'none'
     : isZombie
     ? '1px solid rgba(245,158,11,0.30)'
     : '1px solid transparent';

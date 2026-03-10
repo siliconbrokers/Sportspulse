@@ -3,7 +3,7 @@ import type { ParsedEvent, EventosServiceConfig } from './types.js';
 import type { IEventSource } from './event-source.js';
 import { parseEvent, sortEvents } from './event-parser.js';
 
-export type CrestResolver = (teamName: string) => string | null;
+export type CrestResolver = (teamName: string, league?: string) => string | null;
 
 const DEFAULT_CONFIG: EventosServiceConfig = {
   sourceTimezoneOffsetMinutes: -300, // spec §12.4: UTC-5
@@ -53,9 +53,9 @@ export class EventosService {
         this.config.portalTimezone,
         this.config.debugMode,
       );
-      // Enriquecer con escudos del DataSource canónico
-      ev.homeCrestUrl = ev.homeTeam && this.crestResolver ? this.crestResolver(ev.homeTeam) : null;
-      ev.awayCrestUrl = ev.awayTeam && this.crestResolver ? this.crestResolver(ev.awayTeam) : null;
+      // Enriquecer con escudos del DataSource canónico (league-aware para evitar confusión entre homónimos)
+      ev.homeCrestUrl = ev.homeTeam && this.crestResolver ? this.crestResolver(ev.homeTeam, ev.normalizedLeague) : null;
+      ev.awayCrestUrl = ev.awayTeam && this.crestResolver ? this.crestResolver(ev.awayTeam, ev.normalizedLeague) : null;
       return ev;
     });
 

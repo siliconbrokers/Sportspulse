@@ -1,8 +1,10 @@
 /**
  * EventsSection — Streaming Center Premium 2026
- * Self-contained: fetcha useEvents internamente.
- * Tab state viene del padre (coordinado con Navbar en mobile).
+ * Para las 4 ligas canónicas (URU/LL/EPL/BUN) usa datos canónicos de /api/ui/upcoming
+ * y los anota con la URL de streaming de streamtp10 si hay match.
+ * Para ligas no canónicas usa streamtp10 directamente.
  */
+import { useState, useEffect, useCallback } from 'react';
 import { useEvents } from '../../hooks/use-events.js';
 import type { ParsedEvent } from '../../hooks/use-events.js';
 import { EventCard } from './EventCard.js';
@@ -10,6 +12,29 @@ import { DebugTable } from './DebugTable.js';
 import { AdBlockerBanner } from './AdBlockerBanner.js';
 import { useWindowWidth } from '../../hooks/use-window-width.js';
 import { useTheme } from '../../hooks/use-theme.js';
+import { useTeamDetail } from '../../hooks/use-team-detail.js';
+import { DetailPanel } from '../DetailPanel.js';
+
+// ── Tipos ─────────────────────────────────────────────────────────────────────
+
+interface UpcomingMatchDTO {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeCrestUrl: string | null;
+  awayCrestUrl: string | null;
+  homeTeamId: string;
+  awayTeamId: string;
+  competitionId: string;
+  currentMatchday: number | null;
+  normalizedLeague: string;
+  normalizedStatus: 'EN_VIVO' | 'PROXIMO';
+  kickoffUtc: string;
+  startsAtPortalTz: string;
+  isTodayInPortalTz: boolean;
+  scoreHome: number | null;
+  scoreAway: number | null;
+}
 
 // ── Configuración de señales por liga ─────────────────────────────────────────
 
@@ -30,7 +55,69 @@ const ACCENT: Record<string, string> = {
   OTRA:            '#64748b',
 };
 
-// ── Helpers de filtrado ───────────────────────────────────────────────────────
+// ── Ligas con cobertura canónica (no se usa streamtp10 para estas) ─────────────
+
+const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA']);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function normName(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function teamsMatch(a: string, b: string): boolean {
+  const an = normName(a);
+  const bn = normName(b);
+  return an === bn || an.includes(bn) || bn.includes(an);
+}
+
+/**
+ * Busca en el feed de streamtp10 el evento correspondiente a un partido canónico.
+ * Retorna el ParsedEvent de streamtp10 para poder reusar su ID (el server lo conoce)
+ * y su openUrl.
+ */
+function findStreamEvent(m: UpcomingMatchDTO, streamEvents: ParsedEvent[]): ParsedEvent | null {
+  return streamEvents.find(
+    (e) =>
+      e.normalizedLeague === m.normalizedLeague &&
+      e.openUrl != null &&
+      teamsMatch(m.homeTeam, e.homeTeam ?? '') &&
+      teamsMatch(m.awayTeam, e.awayTeam ?? ''),
+  ) ?? null;
+}
+
+/**
+ * Convierte un partido canónico en ParsedEvent.
+ * Si hay match en streamtp10, usa su ID (el server lo conoce para el player)
+ * y su openUrl. Los datos de equipos y crests vienen del canónico.
+ */
+function canonicalToEvent(m: UpcomingMatchDTO, streamEvent: ParsedEvent | null): ParsedEvent {
+  return {
+    // Usar ID del streamtp10 si existe → el server puede resolver la URL del player
+    id:                          streamEvent?.id ?? `canonical:${m.id}`,
+    rawText:                     `${m.homeTeam} vs ${m.awayTeam}`,
+    sourceUrl:                   streamEvent?.sourceUrl ?? '',
+    sourceLanguage:              'es',
+    sourceTimeText:              null,
+    sourceCompetitionText:       null,
+    sourceStatusText:            null,
+    // Nombres y crests del canónico (fuente de verdad)
+    homeTeam:                    m.homeTeam,
+    awayTeam:                    m.awayTeam,
+    normalizedLeague:            m.normalizedLeague as ParsedEvent['normalizedLeague'],
+    normalizedStatus:            m.normalizedStatus,
+    sourceTimezoneOffsetMinutes: null,
+    startsAtSource:              m.kickoffUtc,
+    startsAtPortalTz:            m.startsAtPortalTz,
+    isTodayInPortalTz:           m.isTodayInPortalTz,
+    isDebugVisible:              false,
+    openUrl:                     streamEvent?.openUrl ?? null,
+    homeCrestUrl:                m.homeCrestUrl,
+    awayCrestUrl:                m.awayCrestUrl,
+    scoreHome:                   m.scoreHome,
+    scoreAway:                   m.scoreAway,
+  };
+}
 
 function isEventTomorrow(ev: ParsedEvent): boolean {
   if (!ev.startsAtPortalTz) return false;
@@ -45,12 +132,6 @@ function isEventTomorrow(ev: ParsedEvent): boolean {
     }).format(tmr);
     return evDay === tmrDay;
   } catch { return false; }
-}
-
-function filterVisible(events: ParsedEvent[]) {
-  return events.filter(
-    (e) => e.normalizedLeague !== 'EXCLUIDA' && e.normalizedLeague !== 'OTRA',
-  );
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -98,7 +179,7 @@ interface EventsSectionProps {
 }
 
 export function EventsSection({ activeTab, onTabChange }: EventsSectionProps) {
-  const { data: feed, loading, error } = useEvents(true);
+  const { data: feed, loading: loadingStream, error } = useEvents(true);
   const { breakpoint } = useWindowWidth();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -106,10 +187,64 @@ export function EventsSection({ activeTab, onTabChange }: EventsSectionProps) {
 
   const cols = isMobile ? 1 : breakpoint === 'tablet' ? 2 : 4;
 
-  // ── Filtrar eventos por tab ───────────────────────────────────────────────
-  const visibleEvents = feed ? filterVisible(feed.events) : [];
-  const todayEvents   = visibleEvents.filter((e) => e.isTodayInPortalTz);
-  const tomorrowEvents = visibleEvents.filter((e) => !e.isTodayInPortalTz && isEventTomorrow(e));
+  // ── Foco en partido para DetailPanel ──────────────────────────────────────
+  const [focusState, setFocusState] = useState<{
+    teamId: string; matchId: string; competitionId: string; matchday: number | null;
+  } | null>(null);
+  const { data: teamDetail } = useTeamDetail(
+    focusState?.competitionId ?? '',
+    focusState?.teamId ?? null,
+    focusState?.matchday ?? null,
+    'America/Montevideo',
+  );
+
+  // ── Datos canónicos (misma fuente que LiveCarousel) ───────────────────────
+  const [upcoming, setUpcoming] = useState<UpcomingMatchDTO[]>([]);
+  const [loadingCanon, setLoadingCanon] = useState(true);
+
+  const fetchCanon = useCallback(() => {
+    fetch('/api/ui/upcoming')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { matches: UpcomingMatchDTO[] }) => setUpcoming(data.matches ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingCanon(false));
+  }, []);
+
+  useEffect(() => {
+    fetchCanon();
+    const id = setInterval(fetchCanon, 60_000);
+    return () => clearInterval(id);
+  }, [fetchCanon]);
+
+  const loading = loadingStream || loadingCanon;
+
+  // ── Fusión: canónicas para las 4 ligas, streamtp10 para el resto ──────────
+  const streamAll = feed?.events ?? [];
+
+  // Canónicas → convertir a ParsedEvent, buscando evento streamtp10 para ID y URL
+  // También construimos mapa eventId→DTO para poder abrir DetailPanel al hacer click
+  const canonicalDTOMap = new Map<string, UpcomingMatchDTO>();
+  const canonicalEvents: ParsedEvent[] = upcoming
+    .filter((m) => CANONICAL_LEAGUES.has(m.normalizedLeague))
+    .map((m) => {
+      const ev = canonicalToEvent(m, findStreamEvent(m, streamAll));
+      canonicalDTOMap.set(ev.id, m);
+      return ev;
+    });
+
+  // Streamtp10: solo ligas NO canónicas, con stream URL, estado conocido
+  const streamOnlyEvents: ParsedEvent[] = streamAll.filter(
+    (e) =>
+      !CANONICAL_LEAGUES.has(e.normalizedLeague) &&
+      e.normalizedLeague !== 'EXCLUIDA' &&
+      e.normalizedLeague !== 'OTRA',
+  );
+
+  const allEvents = [...canonicalEvents, ...streamOnlyEvents];
+
+  // ── Filtrar por tab (hoy / mañana) ────────────────────────────────────────
+  const todayEvents    = allEvents.filter((e) => e.isTodayInPortalTz || e.normalizedStatus === 'EN_VIVO');
+  const tomorrowEvents = allEvents.filter((e) => !e.isTodayInPortalTz && isEventTomorrow(e));
 
   const tabEvents = activeTab === 'hoy' ? todayEvents : tomorrowEvents;
 
@@ -219,22 +354,42 @@ export function EventsSection({ activeTab, onTabChange }: EventsSectionProps) {
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
           gap: isMobile ? 10 : 14,
         }}>
-          {tabEvents.map((ev, i) => (
-            <EventCard
-              key={ev.id}
-              event={ev}
-              accentColor={ACCENT[ev.normalizedLeague] ?? '#64748b'}
-              isMobile={isMobile}
-              signals={SIGNALS_BY_LEAGUE[ev.normalizedLeague]}
-              animationDelay={i * 40}
-              hasSignal={ev.openUrl !== null}
-            />
-          ))}
+          {tabEvents.map((ev, i) => {
+            const dto = canonicalDTOMap.get(ev.id);
+            return (
+              <EventCard
+                key={ev.id}
+                event={ev}
+                accentColor={ACCENT[ev.normalizedLeague] ?? '#64748b'}
+                isMobile={isMobile}
+                signals={SIGNALS_BY_LEAGUE[ev.normalizedLeague]}
+                animationDelay={i * 40}
+                hasSignal={ev.openUrl !== null}
+                onCardClick={dto ? () => {
+                  const isToggleOff = focusState?.matchId === dto.id;
+                  setFocusState(isToggleOff ? null : {
+                    teamId: dto.homeTeamId,
+                    matchId: dto.id,
+                    competitionId: dto.competitionId,
+                    matchday: dto.currentMatchday,
+                  });
+                } : undefined}
+              />
+            );
+          })}
         </div>
       )}
 
       {/* Debug table — solo si debugMode=true */}
       {feed?.debugMode && <DebugTable events={feed.events} />}
+
+      {/* DetailPanel — se abre al hacer click en tarjeta canónica */}
+      {focusState && teamDetail && (
+        <DetailPanel
+          detail={teamDetail}
+          onClose={() => setFocusState(null)}
+        />
+      )}
     </div>
   );
 }

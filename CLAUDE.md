@@ -25,6 +25,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Nuevo paquete workspace — Regla CRÍTICA
+
+Cada vez que se crea un nuevo paquete en `packages/`, se deben hacer **obligatoriamente** estas dos cosas antes de terminar la tarea:
+
+1. Agregar el path alias en `tsconfig.server.json` bajo `compilerOptions.paths`:
+   ```json
+   "@sportpulse/<nombre>": ["./packages/<nombre>/src/index.ts"]
+   ```
+2. Verificar que el paquete compile: `pnpm build` debe terminar sin errores.
+
+**Por qué:** `tsx` (dev server) resuelve `@sportpulse/*` desde `tsconfig.server.json`. Si el alias no existe, el API server crashea con `Cannot find module` y el portal queda completamente caído.
+
+---
+
 ## Dev Server & Build — Reglas obligatorias
 
 - Después de cualquier cambio de backend (`packages/snapshot`, `packages/api`, `packages/scoring`, etc.) **siempre** correr `pnpm build` y luego reiniciar el dev server automáticamente — sin pedirle al usuario que lo haga.
@@ -261,7 +275,7 @@ SportPulse is a **snapshot-first sports attention dashboard**. It transforms nor
 
 ## Repository Status
 
-All phases (0-9) complete + Phase 10 (UI Polish) complete + News + Video Highlights. The full pipeline is operational: canonical→signals→scoring→layout→snapshot→api→web. Stack: TypeScript (Node.js/Fastify backend, React/Vite frontend), pnpm workspaces.
+All phases (0-9) complete + Phase 10 (UI Polish) complete + News + Video Highlights + Eventos V1 + Matchday File Cache + Predictive Engine (PE). The full pipeline is operational: canonical→signals→scoring→layout→snapshot→api→web. Stack: TypeScript (Node.js/Fastify backend, React/Vite frontend), pnpm workspaces.
 
 ### API endpoints
 - `GET /api/ui/dashboard` — snapshot treemap + match cards
@@ -270,6 +284,8 @@ All phases (0-9) complete + Phase 10 (UI Polish) complete + News + Video Highlig
 - `GET /api/ui/competition-info` — matchday info
 - `GET /api/ui/news` — news feed por liga (URU/LL/EPL/BUN)
 - `GET /api/ui/videos` — video highlight por liga (YouTube Data API v3)
+- `GET /api/ui/eventos` — streaming events list (streamtp10)
+- `GET /api/ui/eventos/event/:id` — single event (provider URL never exposed to client)
 
 ### server/ composition root (outside packages)
 - `server/news/` — NewsService: Tenfield RSS (URU) + SerpAPI google_news (LL/EPL/BUN)
@@ -281,6 +297,8 @@ All phases (0-9) complete + Phase 10 (UI Polish) complete + News + Video Highlig
   - Cache dir: `/cache/{provider}/{competitionId}/{season}/matchday-{NN}.json` (runtime, not versioned)
   - Atomic write (.tmp → rename), TTL by status (finished=1y, live=60s, scheduled=6h, mixed=5min)
   - Integrated in both data sources via `checkMatchdayCache` / `persistMatchdayCache`
+  - Bug fix (2026-03): window fetch was overwriting matchday cache files with partial data when a matchday spans multiple days; fix: merge with baseMatches per matchday before persisting
+  - Optimization: in incremental window fetch, if `checkMatchdayCache()` returns a hit with status=finished and all matches are FINISHED → skip processing (continue), reuse cached data
 
 ## Architecture (Layered Pipeline)
 
@@ -383,3 +401,7 @@ YOUTUBE_API_KEY=...       # YouTube Data API v3 (video highlights)
 
 ### Known bugs fixed
 - Race condition al cambiar de liga rápido: `use-dashboard-snapshot.ts` usa `AbortController` para cancelar requests anteriores en vuelo.
+- Window fetch partial overwrite: merging with baseMatches before persisting matchday cache prevents data loss for multi-day matchdays.
+- LiveCarousel hover clipping: `paddingTop:4` on scroll container prevents `translateY(-2px)` from being clipped by overflow.
+- Standings legend emojis replaced with colored squares using exact `zone.color` values.
+- Pronósticos missing matches: window fetch was caching partial matchday data; merge fix ensures full match list.

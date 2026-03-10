@@ -220,7 +220,7 @@ function MatchHeader({
                   animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
                 }} />
                 <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  En juego
+                  LIVE
                 </span>
               </div>
             ) : isZombie ? (
@@ -280,9 +280,9 @@ function derivePredictionBadge(
   // zombie guard ya determinó que no es un partido activo confirmado.
   if (uiState === 'PENDING_CONFIRMATION')
     return { label: 'Confirmando resultado', color: '#f59e0b' };
-  // "En juego" solo cuando el uiState confirma partido activo
+  // Partido activo — la predicción está pendiente de evaluación
   if (uiState === 'IN_PLAY')
-    return { label: 'En juego', color: '#f97316' };
+    return { label: 'Pendiente', color: '#f97316' };
   // outcomeStatus='in_progress' sin estado activo confirmado = datos aún no actualizados
   if (outcomeStatus === 'in_progress')
     return { label: 'Pendiente', color: '#6b7280' };
@@ -1203,8 +1203,8 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
           {/* PENDING_CONFIRMATION — zombie: >180 min sin confirmación de resultado */}
           {vm.uiState === 'PENDING_CONFIRMATION' && (
             <>
-              {vm.prediction && (() => {
-                const badge = derivePredictionBadge(vm.prediction!.outcomeStatus, 'PENDING_CONFIRMATION');
+              {(() => {
+                const badge = derivePredictionBadge(vm.prediction?.outcomeStatus, 'PENDING_CONFIRMATION');
                 return (
                   <div
                     data-testid="match-estimate"
@@ -1229,9 +1229,11 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
                         {badge.label}
                       </span>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>
-                      {vm.prediction.label}
-                    </div>
+                    {vm.prediction && (
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>
+                        {vm.prediction.label}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1264,8 +1266,8 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
           {/* IN_PLAY */}
           {vm.uiState === 'IN_PLAY' && (
             <>
-              {vm.prediction && (() => {
-                const badge = derivePredictionBadge(vm.prediction!.outcomeStatus, 'IN_PLAY');
+              {(() => {
+                const badge = derivePredictionBadge(vm.prediction?.outcomeStatus, 'IN_PLAY');
                 return (
                   <div
                     data-testid="match-estimate"
@@ -1291,9 +1293,11 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
                         {badge.label}
                       </span>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>
-                      {vm.prediction.label}
-                    </div>
+                    {vm.prediction && (
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>
+                        {vm.prediction.label}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1305,11 +1309,7 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
                   label="Incidentes"
                   isMobile={isMobile}
                 />
-              ) : (
-                <div style={{ fontSize: 12, color: 'var(--sp-text-40)', textAlign: 'center', marginTop: 12, padding: '12px 0' }}>
-                  Partido en curso
-                </div>
-              )}
+              ) : null}
             </>
           )}
 

@@ -25,6 +25,8 @@ interface UpcomingMatchDTO {
   kickoffUtc: string;
   startsAtPortalTz: string;
   isTodayInPortalTz: boolean;
+  scoreHome: number | null;
+  scoreAway: number | null;
 }
 
 /** Estado visual de un partido en vivo tras aplicar el zombie guard (alias local) */
@@ -138,6 +140,8 @@ function upcomingToEvent(m: UpcomingMatchDTO): ParsedEvent {
     openUrl:                     null,
     homeCrestUrl:                m.homeCrestUrl,
     awayCrestUrl:                m.awayCrestUrl,
+    scoreHome:                   m.scoreHome,
+    scoreAway:                   m.scoreAway,
   };
 }
 
@@ -308,8 +312,8 @@ function LiveMatchCard({
       <div style={{
         display: 'flex', alignItems: 'center',
         justifyContent: 'space-between',
-        // dejar espacio para el badge absoluto en tarjetas live
-        paddingRight: isLive ? 72 : 0,
+        // dejar espacio para el badge absoluto: CONFIRMANDO es más largo que LIVE
+        paddingRight: isZombie ? 108 : isLive ? 72 : 0,
       }}>
         <span style={{
           fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
@@ -346,26 +350,42 @@ function LiveMatchCard({
       }} />
 
       {/* ── Equipos ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <CrestImg src={event.homeCrestUrl} alt={event.homeTeam ?? 'L'} size={crestSz} />
-          <span style={{
-            fontSize: 13, fontWeight: 700, color: 'var(--sp-text)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-          }}>
-            {event.homeTeam ?? 'Local'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? 'V'} size={crestSz} />
-          <span style={{
-            fontSize: 13, fontWeight: 700, color: 'var(--sp-text)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-          }}>
-            {event.awayTeam ?? 'Visitante'}
-          </span>
-        </div>
-      </div>
+      {(() => {
+        const hasScore = isLive && !isZombie && event.scoreHome != null && event.scoreAway != null;
+        const scoreColor = '#f97316';
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CrestImg src={event.homeCrestUrl} alt={event.homeTeam ?? 'L'} size={crestSz} />
+              <span style={{
+                fontSize: 13, fontWeight: 700, color: 'var(--sp-text)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+              }}>
+                {event.homeTeam ?? 'Local'}
+              </span>
+              {hasScore && (
+                <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                  {event.scoreHome}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? 'V'} size={crestSz} />
+              <span style={{
+                fontSize: 13, fontWeight: 700, color: 'var(--sp-text)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+              }}>
+                {event.awayTeam ?? 'Visitante'}
+              </span>
+              {hasScore && (
+                <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                  {event.scoreAway}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Footer ── */}
       <div style={{
@@ -518,31 +538,25 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
 
   // ── Fusión y filtrado ─────────────────────────────────────────────────────
 
-  // Streamtp: solo ligas conocidas
+  // Canónicas: siempre son la fuente de verdad (nombres completos, detail panel, status exacto)
+  const canonicalAll = upcoming.map(upcomingToEvent);
+
+  // Ligas con cobertura canónica — streamtp NO aporta para estas (evita confusión entre
+  // equipos homónimos de distintas ligas, ej. Liverpool EPL vs Liverpool URU)
+  const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA']);
+
+  // Streamtp: solo ligas NO cubiertas por canónico (Champions, Libertadores, etc.) + con stream URL
   const streamEvents = (feed?.events ?? []).filter(
     (e) =>
+      !!e.openUrl &&
+      !CANONICAL_LEAGUES.has(e.normalizedLeague) &&
       e.normalizedLeague !== 'EXCLUIDA' &&
       e.normalizedLeague !== 'OTRA' &&
       (e.normalizedStatus === 'EN_VIVO' || e.normalizedStatus === 'PROXIMO'),
   );
 
-  // Canónicas: dedup contra streamtp por (homeTeam + awayTeam + hora:minuto)
-  const streamKeys = new Set(
-    streamEvents.map((e) =>
-      `${normStr(e.homeTeam ?? '')}|${normStr(e.awayTeam ?? '')}|${e.startsAtPortalTz?.slice(0, 16) ?? ''}`,
-    ),
-  );
-  const canonicalDeduped = upcoming
-    .map(upcomingToEvent)
-    .filter(
-      (e) =>
-        !streamKeys.has(
-          `${normStr(e.homeTeam ?? '')}|${normStr(e.awayTeam ?? '')}|${e.startsAtPortalTz?.slice(0, 16) ?? ''}`,
-        ),
-    );
-
   // Aplicar zombie guard: eliminar auto-finalizados (>240 min)
-  const allEvents = [...streamEvents, ...canonicalDeduped].filter(
+  const allEvents = [...canonicalAll, ...streamEvents].filter(
     (e) => getLiveState(e) !== 'finished',
   );
 
@@ -610,6 +624,7 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
             overflowX: 'auto',
             scrollSnapType: 'x mandatory',
             scrollBehavior: 'smooth',
+            paddingTop: 4,
             paddingBottom: 6,
             paddingLeft: 2,
             paddingRight: isMobile ? 40 : 2,

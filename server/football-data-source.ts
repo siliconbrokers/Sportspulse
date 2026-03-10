@@ -354,10 +354,30 @@ export class FootballDataSource implements DataSource {
 
     const windowMatches: Match[] = [];
     for (const [md, apiMatches] of matchesByMatchday) {
-      // Always use fresh API data when we just fetched it — never discard live scores.
-      // The cache is only used when we have NO fresh data (API failed, startup from disk).
-      windowMatches.push(...apiMatches);
-      persistMatchdayCache(PROVIDER_KEY, competitionCode, season, md, apiMatches);
+      // Optimization: skip processing if the matchday is already cached as fully
+      // FINISHED (immutable data, 1-year TTL). Avoids unnecessary disk writes and
+      // merge work for data that cannot change. Only applies on incremental fetches
+      // (isFirstLoad=false) since on first load there is no prior cache to trust.
+      if (!isFirstLoad) {
+        const cached = checkMatchdayCache(PROVIDER_KEY, competitionCode, season, md);
+        if (cached.hit && cached.matches.length > 0 && cached.matches.every((m) => m.status === 'FINISHED')) {
+          // All matches confirmed finished and cache is fresh — reuse, skip persist.
+          windowMatches.push(...cached.matches);
+          continue;
+        }
+      }
+
+      // Merge API results with base matches for this matchday.
+      // This preserves matches from earlier dates that fall outside the current
+      // fetch window (e.g. a jornada split across two weekends: day 1 matches
+      // are outside the window when day 2 matches are fetched, but must not be lost).
+      // Fresh API data always wins for matches present in both sets.
+      const baseForMd = isFirstLoad ? [] : baseMatches.filter((m) => m.matchday === md);
+      const mergedMap = new Map<string, Match>(baseForMd.map((m) => [m.matchId, m]));
+      for (const m of apiMatches) mergedMap.set(m.matchId, m);
+      const mergedForMd = [...mergedMap.values()];
+      windowMatches.push(...mergedForMd);
+      persistMatchdayCache(PROVIDER_KEY, competitionCode, season, md, mergedForMd);
     }
     for (const m of normalizedMatches) {
       if (m.matchday === undefined) windowMatches.push(m);

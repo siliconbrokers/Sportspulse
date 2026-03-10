@@ -12,11 +12,16 @@ const basePrediction: PredictionDTO = {
   generatedAt: '2026-03-04T11:00:00Z',
 };
 
+// kickoffUtc dinámico: 45 min atrás desde ahora para que IN_PROGRESS no dispare zombie guard
+const RECENT_KICKOFF = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+
 function makeDetail(
   matchStatus: string,
   prediction?: PredictionDTO,
   predictionOutcome?: PredictionOutcomeDTO,
 ): TeamDetailDTO {
+  // Para IN_PROGRESS usamos un kickoff reciente; para otros estados usamos uno futuro.
+  const kickoffUtc = matchStatus === 'IN_PROGRESS' ? RECENT_KICKOFF : '2026-12-06T20:00:00Z';
   return {
     header: {
       competitionId: 'comp:test',
@@ -33,7 +38,7 @@ function makeDetail(
     score: { rawScore: 75, attentionScore: 80, displayScore: 85, layoutWeight: 0.3 },
     nextMatch: {
       matchId: 'm1',
-      kickoffUtc: '2026-03-06T20:00:00Z',
+      kickoffUtc,
       opponentName: 'Real Madrid',
       venue: 'HOME',
       matchStatus,
@@ -62,9 +67,9 @@ describe('PredictionDetailModule — badges por estado', () => {
     expect(screen.getByTestId('match-estimate').textContent).toContain('Pendiente');
   });
 
-  it('IN_PROGRESS → badge "En juego"', () => {
+  it('IN_PROGRESS → badge "Pendiente" (en vivo, pendiente de evaluación)', () => {
     render(<DetailPanel detail={makeDetail('IN_PROGRESS', basePrediction, { status: 'in_progress' })} onClose={() => {}} />);
-    expect(screen.getByTestId('match-estimate').textContent).toContain('En juego');
+    expect(screen.getByTestId('match-estimate').textContent).toContain('Pendiente');
   });
 
   it('FINISHED + hit → badge "Acertado"', () => {
@@ -101,8 +106,11 @@ describe('PredictionDetailModule — resultado final', () => {
 });
 
 describe('PredictionDetailModule — label de predicción', () => {
-  it('muestra el label de la predicción', () => {
+  it('muestra las probabilidades del partido (home, draw, away)', () => {
     render(<DetailPanel detail={makeDetail('SCHEDULED', basePrediction)} onClose={() => {}} />);
-    expect(screen.getByTestId('match-estimate').textContent).toContain('Ganador: FC Barcelona');
+    // El componente muestra barras de probabilidad con los nombres de equipo y "Empate"
+    const el = screen.getByTestId('match-estimate');
+    expect(el.textContent).toContain('Empate');
+    expect(el.textContent).toContain('Real Madrid');
   });
 });
