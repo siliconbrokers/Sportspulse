@@ -8,7 +8,7 @@
  * Usa CSS vars del sistema de diseño (light/dark mode compatible).
  * El color del tab activo usa el accent de la competición (prop).
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGroupStandings } from '../hooks/use-group-standings.js';
 import { useKnockoutBracket } from '../hooks/use-knockout-bracket.js';
 import { GroupStandingsView } from './GroupStandingsView.js';
@@ -42,15 +42,24 @@ export function TournamentView({ competitionId, accent = 'var(--sp-primary)', st
   const hasPreliminary  = (bracketData?.preliminaryRounds?.length ?? 0) > 0;
   const hasKnockout     = (bracketData?.knockoutRounds?.length ?? 0) > 0;
 
-  // Tab por defecto: fase previa si existe, si no grupos
-  const defaultTab: TournamentTab = hasPreliminary ? 'previa' : 'grupos';
-  const [tab, setTab] = useState<TournamentTab>(defaultTab);
+  // Tab state — arranca en null (sin datos aún). Se fija una sola vez cuando
+  // llegan los datos del bracket, priorizando 'previa' > 'grupos' > 'eliminatorias'.
+  const [tab, setTab] = useState<TournamentTab | null>(null);
 
-  // Si el tab activo dejó de tener datos (ej: avanzó la competición), redirigir
+  // Fija el tab por defecto la primera vez que bracketData carga
+  useEffect(() => {
+    if (!bracketData || tab !== null) return;
+    if ((bracketData.preliminaryRounds?.length ?? 0) > 0) setTab('previa');
+    else if ((bracketData.knockoutRounds?.length ?? 0) > 0) setTab('eliminatorias');
+    else setTab('grupos');
+  }, [bracketData, tab]);
+
+  // Resuelve el tab efectivo: usa el seleccionado o 'grupos' como fallback mientras carga
+  const resolvedTab = tab ?? 'grupos';
   const effectiveTab: TournamentTab =
-    tab === 'previa'       && !hasPreliminary ? 'grupos'
-    : tab === 'eliminatorias' && !hasKnockout ? 'grupos'
-    : tab;
+    resolvedTab === 'previa'       && !hasPreliminary ? 'grupos'
+    : resolvedTab === 'eliminatorias' && !hasKnockout ? 'grupos'
+    : resolvedTab;
 
   const {
     data: groupData,
