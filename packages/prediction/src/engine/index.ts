@@ -13,3 +13,10 @@ export {
 } from './decision-policy.js';
 
 export type { PredictedResultOutput } from './decision-policy.js';
+
+export { computePreMatchTeamState } from './team-state-replay.js';
+export type {
+  FinishedMatchRecord,
+  TeamHistoricalState,
+  PreMatchTeamState,
+} from './team-state-replay.js';

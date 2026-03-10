@@ -1,4 +1,4 @@
-export type LeagueKey = 'URU' | 'LL' | 'EPL' | 'BUN';
+export type LeagueKey = 'URU' | 'LL' | 'EPL' | 'BUN' | 'WC' | 'CA' | 'CLI';
 
 export interface LeagueVideoSourceConfig {
   leagueKey: LeagueKey;
@@ -79,6 +79,21 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
       'ipswich', 'southampton', 'nottingham forest', 'nottm forest',
     ],
   },
+  WC: {
+    leagueKey: 'WC',
+    channelId: 'UCpcTrCXblq78GThrequest9A', // placeholder — FIFA no tiene canal YouTube abierto
+    channelLabel: 'FIFA / Mundial 2026',
+    enabled: true,
+    searchOnly: true, // sin canal oficial disponible, búsqueda libre
+    fallbackSearchTerms: [
+      'Copa del Mundo 2026 resumen goles highlights',
+      'FIFA World Cup 2026 highlights goals',
+    ],
+    titleRequiredTerms: [
+      'world cup', 'mundial', 'copa del mundo', 'fifa 2026',
+      'wc 2026', 'world cup 2026',
+    ],
+  },
   BUN: {
     leagueKey: 'BUN',
     channelId: 'UC6UL29enLNe4mqwTfAyeNuw', // Bundesliga oficial (5.5M subs)
@@ -96,6 +111,34 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
       'hoffenheim', 'freiburg', 'eintracht', 'frankfurt',
       'mainz', 'augsburg', 'bochum', 'werder', 'bremen',
       'köln', 'koln', 'heidenheim', 'stuttgart', 'st pauli', 'kiel',
+    ],
+  },
+  CA: {
+    leagueKey: 'CA',
+    channelId: 'UCxxxxxxxxxxxxxxxxxxxxxx', // placeholder — sin canal oficial CONMEBOL abierto en YouTube
+    channelLabel: 'Copa América 2027',
+    enabled: true,
+    searchOnly: true,
+    fallbackSearchTerms: [
+      'Copa América 2027 goles highlights resumen',
+      'Copa America 2027 goals highlights CONMEBOL',
+    ],
+    titleRequiredTerms: [
+      'copa américa', 'copa america', 'conmebol', 'copa america 2027',
+    ],
+  },
+  CLI: {
+    leagueKey: 'CLI',
+    channelId: 'UClgFf9mS1mZI2D_vo-ZTpmQ', // CONMEBOL Libertadores canal oficial (@Libertadores)
+    channelLabel: 'Copa Libertadores',
+    enabled: true,
+    searchOnly: false,
+    fallbackSearchTerms: [
+      'Copa Libertadores 2026 goles highlights resumen',
+      'Copa Libertadores highlights goals CONMEBOL 2026',
+    ],
+    titleRequiredTerms: [
+      'libertadores', 'copa libertadores', 'conmebol libertadores',
     ],
   },
 };

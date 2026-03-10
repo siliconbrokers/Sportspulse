@@ -9,11 +9,7 @@ import {
   CompetitionFormat,
   EventStatus,
 } from '../src/index.js';
-import type {
-  FDCompetitionResponse,
-  FDTeamResponse,
-  FDMatchResponse,
-} from '../src/index.js';
+import type { FDCompetitionResponse, FDTeamResponse, FDMatchResponse } from '../src/index.js';
 
 const FD_COMPETITION: FDCompetitionResponse = {
   id: 2014,
@@ -120,6 +116,7 @@ describe('mapTeam', () => {
       sportId: Sport.FOOTBALL,
       name: 'Real Madrid CF',
       shortName: 'Real Madrid',
+      tla: 'RMA',
       providerKey: 'football-data',
       providerTeamId: '86',
     });
@@ -140,7 +137,13 @@ describe('mapTeam', () => {
 
 describe('mapMatch', () => {
   it('maps football-data match to canonical Match', () => {
-    const result = mapMatch(FD_MATCH, 'match:450123', 'season:2025-26', TEAM_ID_MAP, '2025-12-01T10:00:00Z');
+    const result = mapMatch(
+      FD_MATCH,
+      'match:450123',
+      'season:2025-26',
+      TEAM_ID_MAP,
+      '2025-12-01T10:00:00Z',
+    );
     expect(result).toEqual({
       matchId: 'match:450123',
       seasonId: 'season:2025-26',

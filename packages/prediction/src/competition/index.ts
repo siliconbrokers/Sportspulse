@@ -40,3 +40,13 @@ export type {
 // ── Bracket mapper ───────────────────────────────────────────────────────────
 export { mapToBracket } from './bracket-mapper.js';
 export type { TeamQualification, BracketSlot, BracketMapResult } from './bracket-mapper.js';
+
+// ── Competition profiles (catalog) ───────────────────────────────────────────
+export {
+  CA_GROUP_RANKING_RULES,
+  CA_QUALIFICATION_RULES,
+  CA_TIE_BREAK_RULES,
+  CA_KNOCKOUT_RESOLUTION_RULES,
+  CA_GROUP_STAGE_PROFILE,
+  CA_KNOCKOUT_PROFILE,
+} from './profiles/copa-america.js';

@@ -9,6 +9,7 @@
  * Mobile: acordeón por ronda (collapse/expand).
  *
  * Genérico: funciona con cualquier profundidad de cuadro.
+ * Usa CSS vars del sistema de diseño (light/dark mode compatible).
  */
 import { useState, useRef, useLayoutEffect } from 'react';
 import { useWindowWidth } from '../hooks/use-window-width.js';
@@ -24,23 +25,18 @@ const CARD_H = 64;          // alto del TieCard
 const UNIT_H = CARD_H + 6;  // alto por slot (card + gap mínimo)
 const COL_W  = 152;         // ancho natural de cada columna de tie cards
 const CONN_W = 18;          // ancho natural de zona de conectores
-// Ancho natural (4 rondas KO): 9×152 + 8×18 = 1512px
-// El componente escala con zoom para llenar el contenedor disponible
 
 // ── Helpers de posición ───────────────────────────────────────────────────────
 
-/** Alto de cada slot dentro de una columna. */
 function slotHeight(tiesInCol: number, totalH: number): number {
   return totalH / tiesInCol;
 }
 
-/** Y superior del card dentro de su slot (centrado). */
 function cardTopY(idx: number, tiesInCol: number, totalH: number): number {
   const sh = slotHeight(tiesInCol, totalH);
   return idx * sh + (sh - CARD_H) / 2;
 }
 
-/** Y del centro del card. */
 function cardCenterY(idx: number, tiesInCol: number, totalH: number): number {
   return cardTopY(idx, tiesInCol, totalH) + CARD_H / 2;
 }
@@ -48,7 +44,6 @@ function cardCenterY(idx: number, tiesInCol: number, totalH: number): number {
 // ── Categorización de rondas ──────────────────────────────────────────────────
 
 interface CategorizedRounds {
-  /** Rondas eliminatorias puras (excluye Final y 3er puesto), orden outer→inner. */
   knockout: RoundDTO[];
   final: RoundDTO | null;
   thirdPlace: RoundDTO | null;
@@ -64,35 +59,34 @@ function categorize(rounds: RoundDTO[]): CategorizedRounds {
   };
 }
 
-/** Divide los ties de una ronda en mitad izquierda y mitad derecha. */
 function splitHalf(round: RoundDTO): { left: TieDTO[]; right: TieDTO[] } {
   const sorted = [...round.ties].sort((a, b) => a.orderIndex - b.orderIndex);
   const mid = Math.ceil(sorted.length / 2);
   return { left: sorted.slice(0, mid), right: sorted.slice(mid) };
 }
 
-// ── SlotDisplay (compacto para bracket) ──────────────────────────────────────
+// ── SlotDisplay ───────────────────────────────────────────────────────────────
 
 function BracketSlot({ slot, isWinner }: { slot: TieSlotDTO; isWinner: boolean }) {
-  const hasTeam  = slot.participantId != null && slot.teamName;
+  const hasTeam        = slot.participantId != null && slot.teamName;
   const hasPlaceholder = !hasTeam && slot.placeholderText;
 
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 5,
       padding: '3px 6px',
-      backgroundColor: isWinner ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)',
+      backgroundColor: isWinner ? 'rgba(34,197,94,0.1)' : 'var(--sp-border-4)',
       borderRadius: 4, minWidth: 0,
     }}>
       {hasTeam && slot.crestUrl ? (
         <img src={slot.crestUrl} alt={slot.teamName ?? ''} style={{ width: 15, height: 15, objectFit: 'contain', flexShrink: 0 }} />
       ) : (
-        <div style={{ width: 15, height: 15, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
+        <div style={{ width: 15, height: 15, borderRadius: '50%', backgroundColor: 'var(--sp-border-8)', flexShrink: 0 }} />
       )}
       <span style={{
         fontSize: 11,
         fontWeight: isWinner ? 700 : 400,
-        color: hasTeam ? (isWinner ? '#22c55e' : 'rgba(255,255,255,0.85)') : 'rgba(255,255,255,0.28)',
+        color: hasTeam ? (isWinner ? '#22c55e' : 'var(--sp-text-85)') : 'var(--sp-text-30)',
         fontStyle: hasTeam ? 'normal' : 'italic',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
       }}>
@@ -108,11 +102,12 @@ function BracketTieCard({ tie }: { tie: TieDTO }) {
   const winA = tie.winnerId != null && tie.winnerId === tie.slotA.participantId;
   const winB = tie.winnerId != null && tie.winnerId === tie.slotB.participantId;
   const hasScore = tie.scoreA != null || tie.scoreB != null;
+  const hasPen = tie.scoreAPenalties != null || tie.scoreBPenalties != null;
 
   return (
     <div style={{
-      backgroundColor: 'rgba(255,255,255,0.05)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      backgroundColor: 'var(--sp-surface-card)',
+      border: '1px solid var(--sp-border-8)',
       borderRadius: 6, overflow: 'hidden',
       height: CARD_H, display: 'flex', flexDirection: 'column',
     }}>
@@ -122,22 +117,36 @@ function BracketTieCard({ tie }: { tie: TieDTO }) {
           <BracketSlot slot={tie.slotA} isWinner={winA} />
         </div>
         {hasScore && (
-          <span style={{ fontSize: 12, fontWeight: 700, minWidth: 18, textAlign: 'center', color: winA ? '#22c55e' : 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
-            {tie.scoreA ?? '–'}
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, minWidth: 22 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: winA ? '#22c55e' : 'var(--sp-text-55)', lineHeight: 1 }}>
+              {tie.scoreA ?? '–'}
+            </span>
+            {hasPen && (
+              <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--sp-text-40)', lineHeight: 1, marginTop: 1 }}>
+                ({tie.scoreAPenalties ?? '–'})
+              </span>
+            )}
+          </div>
         )}
       </div>
       {/* Divider */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '0 4px' }} />
+      <div style={{ borderTop: '1px solid var(--sp-border-6)', margin: '0 4px' }} />
       {/* Slot B */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 3, padding: '0 3px', minWidth: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <BracketSlot slot={tie.slotB} isWinner={winB} />
         </div>
         {hasScore && (
-          <span style={{ fontSize: 12, fontWeight: 700, minWidth: 18, textAlign: 'center', color: winB ? '#22c55e' : 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
-            {tie.scoreB ?? '–'}
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, minWidth: 22 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: winB ? '#22c55e' : 'var(--sp-text-55)', lineHeight: 1 }}>
+              {tie.scoreB ?? '–'}
+            </span>
+            {hasPen && (
+              <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--sp-text-40)', lineHeight: 1, marginTop: 1 }}>
+                ({tie.scoreAPenalties != null || tie.scoreBPenalties != null ? (tie.scoreBPenalties ?? '–') : ''})
+              </span>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -150,15 +159,12 @@ interface ColProps {
   ties: TieDTO[];
   totalH: number;
   side: 'left' | 'right';
-  /** Si es la columna más interna (SF), no dibuja conectores salientes. */
   innermost?: boolean;
 }
 
 function BracketColumn({ ties, totalH, side, innermost = false }: ColProps) {
   const n = ties.length;
   const isLeft = side === 'left';
-
-  // Ancho total: el COL_W para el card + CONN_W para el conector (si aplica)
   const totalW = innermost ? COL_W : COL_W + CONN_W;
 
   return (
@@ -168,75 +174,56 @@ function BracketColumn({ ties, totalH, side, innermost = false }: ColProps) {
         <div key={tie.tieId} style={{
           position: 'absolute',
           top: cardTopY(idx, n, totalH),
-          // Lado derecho innermost: no hay brazo saliente → card arranca en 0 igual que el izquierdo
-        left: isLeft || innermost ? 0 : CONN_W,
+          left: isLeft || innermost ? 0 : CONN_W,
           width: COL_W,
         }}>
           <BracketTieCard tie={tie} />
         </div>
       ))}
 
-      {/* Conectores (bracket shape) para cada par de ties */}
+      {/* Conectores */}
       {!innermost && Array.from({ length: Math.floor(n / 2) }, (_, k) => {
         const topC = cardCenterY(2 * k,     n, totalH);
         const botC = cardCenterY(2 * k + 1, n, totalH);
         const midY = (topC + botC) / 2;
 
         if (isLeft) {
-          // ──┐         bracket shape a la derecha del card
-          //   │ vertical
-          // ──┘── arm saliente al centro
           return (
             <span key={k}>
-              {/* Bracket bracket: top-arm + vertical-bar + bottom-arm */}
               <div style={{
                 position: 'absolute',
-                left: COL_W,
-                top: topC,
-                width: CONN_W / 2,
-                height: botC - topC,
-                borderTop: '1px solid rgba(255,255,255,0.18)',
-                borderRight: '1px solid rgba(255,255,255,0.18)',
-                borderBottom: '1px solid rgba(255,255,255,0.18)',
+                left: COL_W, top: topC,
+                width: CONN_W / 2, height: botC - topC,
+                borderTop: '1px solid var(--sp-border-10)',
+                borderRight: '1px solid var(--sp-border-10)',
+                borderBottom: '1px solid var(--sp-border-10)',
                 boxSizing: 'border-box',
               }} />
-              {/* Arm saliente desde el midpoint hacia la siguiente columna */}
               <div style={{
                 position: 'absolute',
-                left: COL_W + CONN_W / 2,
-                top: midY,
-                width: CONN_W / 2,
-                height: 1,
-                backgroundColor: 'rgba(255,255,255,0.18)',
+                left: COL_W + CONN_W / 2, top: midY,
+                width: CONN_W / 2, height: 1,
+                backgroundColor: 'var(--sp-border-10)',
               }} />
             </span>
           );
         } else {
-          // arm ──┐         bracket shape a la izquierda del card
-          //       │ vertical
-          // ──────┘
           return (
             <span key={k}>
-              {/* Bracket shape */}
               <div style={{
                 position: 'absolute',
-                left: CONN_W / 2,
-                top: topC,
-                width: CONN_W / 2,
-                height: botC - topC,
-                borderTop: '1px solid rgba(255,255,255,0.18)',
-                borderLeft: '1px solid rgba(255,255,255,0.18)',
-                borderBottom: '1px solid rgba(255,255,255,0.18)',
+                left: CONN_W / 2, top: topC,
+                width: CONN_W / 2, height: botC - topC,
+                borderTop: '1px solid var(--sp-border-10)',
+                borderLeft: '1px solid var(--sp-border-10)',
+                borderBottom: '1px solid var(--sp-border-10)',
                 boxSizing: 'border-box',
               }} />
-              {/* Arm saliente desde el midpoint hacia el centro */}
               <div style={{
                 position: 'absolute',
-                left: 0,
-                top: midY,
-                width: CONN_W / 2,
-                height: 1,
-                backgroundColor: 'rgba(255,255,255,0.18)',
+                left: 0, top: midY,
+                width: CONN_W / 2, height: 1,
+                backgroundColor: 'var(--sp-border-10)',
               }} />
             </span>
           );
@@ -265,44 +252,40 @@ function CenterColumn({
 
   return (
     <div style={{ position: 'relative', width: CONN_W + COL_W + CONN_W, height: colHeight, flexShrink: 0 }}>
-      {/* Arm entrante desde SF izquierdo */}
+      {/* Arm desde SF izquierdo */}
       <div style={{
         position: 'absolute', left: 0, top: totalH / 2,
-        width: CONN_W, height: 1, backgroundColor: 'rgba(255,255,255,0.18)',
+        width: CONN_W, height: 1, backgroundColor: 'var(--sp-border-10)',
       }} />
-
-      {/* Arm entrante desde SF derecho */}
+      {/* Arm desde SF derecho */}
       <div style={{
         position: 'absolute', right: 0, top: totalH / 2,
-        width: CONN_W, height: 1, backgroundColor: 'rgba(255,255,255,0.18)',
+        width: CONN_W, height: 1, backgroundColor: 'var(--sp-border-10)',
       }} />
 
       {/* Label "Final" */}
       <div style={{
         position: 'absolute',
-        top: finalTop - 18,
-        left: CONN_W, width: COL_W,
+        top: finalTop - 18, left: CONN_W, width: COL_W,
         fontSize: 10, fontWeight: 700, textAlign: 'center',
-        color: 'rgba(255,255,255,0.5)',
+        color: 'var(--sp-text-50)',
         textTransform: 'uppercase', letterSpacing: '0.07em',
       }}>
         Final
       </div>
 
-      {/* Final card */}
       {finalTie && (
         <div style={{ position: 'absolute', top: finalTop, left: CONN_W, width: COL_W }}>
           <BracketTieCard tie={finalTie} />
         </div>
       )}
 
-      {/* 3er puesto */}
       {thirdTie && (
         <>
           <div style={{
             position: 'absolute', top: thirdTop - 14, left: CONN_W, width: COL_W,
             fontSize: 9, fontWeight: 600, textAlign: 'center',
-            color: 'rgba(255,255,255,0.3)',
+            color: 'var(--sp-text-30)',
             textTransform: 'uppercase', letterSpacing: '0.06em',
           }}>
             3er puesto
@@ -323,7 +306,7 @@ function RoundLabel({ name, width }: { name: string; width: number }) {
     <div style={{
       width, flexShrink: 0, textAlign: 'center',
       fontSize: 10, fontWeight: 700,
-      color: 'rgba(255,255,255,0.38)',
+      color: 'var(--sp-text-40)',
       textTransform: 'uppercase', letterSpacing: '0.07em',
       paddingBottom: 8,
     }}>
@@ -339,29 +322,22 @@ function DesktopBracket({ rounds }: { rounds: RoundDTO[] }) {
 
   if (knockout.length === 0 && !final) {
     return (
-      <div style={{ fontSize: 13, opacity: 0.4, textAlign: 'center', padding: '24px 0' }}>
+      <div style={{ fontSize: 13, color: 'var(--sp-text-40)', textAlign: 'center', padding: '24px 0' }}>
         Sin cuadro eliminatorio disponible.
       </div>
     );
   }
 
-  // Ordenar del más poblado (externo) al menos (interno = SF)
   const koOuter2Inner = [...knockout].sort((a, b) => b.ties.length - a.ties.length);
-
-  // totalH basado en la ronda más externa (más ties)
   const outerPerSide = koOuter2Inner.length > 0
     ? Math.ceil(koOuter2Inner[0].ties.length / 2)
     : 1;
   const totalH = Math.max(outerPerSide * UNIT_H, CARD_H + 32);
-
-  // Halves para cada ronda
   const halves = koOuter2Inner.map(r => splitHalf(r));
 
-  // Columnas izquierda (outer→inner) y derecha (inner→outer)
   const leftCols  = halves.map((h, i) => ({ ties: h.left,  innermost: i === halves.length - 1 }));
   const rightCols = [...halves].reverse().map((h, i) => ({ ties: h.right, innermost: i === 0 }));
 
-  // Labels: left labels outer→inner, then center, then right labels inner→outer
   const leftLabels  = koOuter2Inner.map((r, i) => ({
     name:  r.name,
     width: i === koOuter2Inner.length - 1 ? COL_W : COL_W + CONN_W,
@@ -374,38 +350,19 @@ function DesktopBracket({ rounds }: { rounds: RoundDTO[] }) {
 
   return (
     <div style={{ paddingBottom: 24 }}>
-      {/* Etiquetas de rondas */}
       <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 0 }}>
         {leftLabels.map((l, i)  => <RoundLabel key={`ll-${i}`} name={l.name} width={l.width} />)}
         <RoundLabel name="" width={centerW} />
         {rightLabels.map((l, i) => <RoundLabel key={`rl-${i}`} name={l.name} width={l.width} />)}
       </div>
 
-      {/* Bracket */}
       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-        {/* Lado izquierdo */}
         {leftCols.map((col, i) => (
-          <BracketColumn
-            key={`left-${i}`}
-            ties={col.ties}
-            totalH={totalH}
-            side="left"
-            innermost={col.innermost}
-          />
+          <BracketColumn key={`left-${i}`} ties={col.ties} totalH={totalH} side="left" innermost={col.innermost} />
         ))}
-
-        {/* Centro: Final + 3er puesto */}
         <CenterColumn final={final} thirdPlace={thirdPlace} totalH={totalH} />
-
-        {/* Lado derecho */}
         {rightCols.map((col, i) => (
-          <BracketColumn
-            key={`right-${i}`}
-            ties={col.ties}
-            totalH={totalH}
-            side="right"
-            innermost={col.innermost}
-          />
+          <BracketColumn key={`right-${i}`} ties={col.ties} totalH={totalH} side="right" innermost={col.innermost} />
         ))}
       </div>
     </div>
@@ -437,24 +394,36 @@ function MobileTieCard({ tie }: { tie: TieDTO }) {
 
   return (
     <div style={{
-      backgroundColor: 'rgba(255,255,255,0.05)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      backgroundColor: 'var(--sp-surface-card)',
+      border: '1px solid var(--sp-border-8)',
       borderRadius: 8, overflow: 'hidden', marginBottom: 6,
     }}>
-      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '3px 8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{
+        fontSize: 10, color: 'var(--sp-text-30)',
+        textTransform: 'uppercase', letterSpacing: '0.06em',
+        padding: '3px 8px', borderBottom: '1px solid var(--sp-border-5)',
+      }}>
         {tie.name}
       </div>
       <div style={{ padding: '5px 6px', display: 'flex', flexDirection: 'column', gap: 3 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <div style={{ flex: 1, minWidth: 0 }}><BracketSlot slot={tie.slotA} isWinner={winA} /></div>
-          {hasScore && <span style={{ fontSize: 13, fontWeight: 700, minWidth: 20, textAlign: 'center', color: winA ? '#22c55e' : 'rgba(255,255,255,0.7)' }}>{tie.scoreA ?? '–'}</span>}
+          {hasScore && (
+            <span style={{ fontSize: 13, fontWeight: 700, minWidth: 20, textAlign: 'center', color: winA ? '#22c55e' : 'var(--sp-text-70)' }}>
+              {tie.scoreA ?? '–'}
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <div style={{ flex: 1, minWidth: 0 }}><BracketSlot slot={tie.slotB} isWinner={winB} /></div>
-          {hasScore && <span style={{ fontSize: 13, fontWeight: 700, minWidth: 20, textAlign: 'center', color: winB ? '#22c55e' : 'rgba(255,255,255,0.7)' }}>{tie.scoreB ?? '–'}</span>}
+          {hasScore && (
+            <span style={{ fontSize: 13, fontWeight: 700, minWidth: 20, textAlign: 'center', color: winB ? '#22c55e' : 'var(--sp-text-70)' }}>
+              {tie.scoreB ?? '–'}
+            </span>
+          )}
         </div>
         {(tie.scoreAPenalties != null || tie.scoreBPenalties != null) && (
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', textAlign: 'right', marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-30)', textAlign: 'right', marginTop: 2 }}>
             Pen. {tie.scoreAPenalties ?? '–'} – {tie.scoreBPenalties ?? '–'}
           </div>
         )}
@@ -474,25 +443,29 @@ function MobileBracket({ rounds }: { rounds: RoundDTO[] }) {
         const isOpen = openId === round.stageId;
         const ties = [...round.ties].sort((a, b) => a.orderIndex - b.orderIndex);
         return (
-          <div key={round.stageId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div key={round.stageId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sp-border-8)' }}>
             <button
               onClick={() => setOpenId(isOpen ? null : round.stageId)}
+              aria-expanded={isOpen}
               style={{
-                width: '100%', background: isOpen ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
-                border: 'none', color: '#fff', display: 'flex', justifyContent: 'space-between',
+                width: '100%',
+                background: isOpen ? 'var(--sp-border-8)' : 'var(--sp-border-4)',
+                border: 'none',
+                color: 'var(--sp-text)',
+                display: 'flex', justifyContent: 'space-between',
                 alignItems: 'center', padding: '10px 14px', cursor: 'pointer',
                 fontSize: 12, fontWeight: 600, textAlign: 'left', minHeight: 44,
               }}
             >
-              <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.7 }}>
+              <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sp-text-70)' }}>
                 {stageLabel(round.stageType, round.name)}
               </span>
-              <span style={{ opacity: 0.4, fontSize: 16 }}>{isOpen ? '▲' : '▼'}</span>
+              <span style={{ color: 'var(--sp-text-40)', fontSize: 16 }}>{isOpen ? '▲' : '▼'}</span>
             </button>
             {isOpen && (
               <div style={{ padding: '8px 8px 12px', display: 'flex', flexDirection: 'column' }}>
                 {ties.length === 0 ? (
-                  <div style={{ fontSize: 12, opacity: 0.35, textAlign: 'center', padding: '8px 0' }}>Sin cruces disponibles</div>
+                  <div style={{ fontSize: 12, color: 'var(--sp-text-35)', textAlign: 'center', padding: '8px 0' }}>Sin cruces disponibles</div>
                 ) : (
                   ties.map(tie => <MobileTieCard key={tie.tieId} tie={tie} />)
                 )}
@@ -513,13 +486,14 @@ export function KnockoutBracket({ rounds }: KnockoutBracketProps) {
   const outerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
-  // Calcula cuántas rondas KO hay para saber el ancho natural del bracket
   const { knockout } = categorize(rounds);
   const N = knockout.length;
-  // Fórmula: (2N+1)×COL_W + 2N×CONN_W  (derivada de las columnas izq + centro + der)
   const naturalW = (2 * N + 1) * COL_W + 2 * N * CONN_W;
 
-  // Escala el bracket para que llene exactamente el contenedor disponible
+  // Altura natural del bracket (misma fórmula que DesktopBracket)
+  const outerPerSide = knockout.length > 0 ? Math.ceil(knockout.sort((a, b) => b.ties.length - a.ties.length)[0].ties.length / 2) : 1;
+  const naturalH = Math.max(outerPerSide * UNIT_H, CARD_H + 32) + 80; // +80 para labels + 3er puesto
+
   useLayoutEffect(() => {
     const el = outerRef.current;
     if (!el || isCompact) return;
@@ -529,7 +503,7 @@ export function KnockoutBracket({ rounds }: KnockoutBracketProps) {
 
   if (rounds.length === 0) {
     return (
-      <div style={{ fontSize: 13, opacity: 0.4, textAlign: 'center', padding: '24px 0' }}>
+      <div style={{ fontSize: 13, color: 'var(--sp-text-40)', textAlign: 'center', padding: '24px 0' }}>
         Sin fases eliminatorias disponibles.
       </div>
     );
@@ -540,9 +514,9 @@ export function KnockoutBracket({ rounds }: KnockoutBracketProps) {
   }
 
   return (
-    <div ref={outerRef} style={{ width: '100%', overflow: 'hidden' }}>
-      {/* zoom escala el contenido Y su espacio en layout, sin scroll */}
-      <div style={{ zoom: scale, width: 'fit-content' }}>
+    // Altura explícita = naturalH × scale para que el layout respete el espacio
+    <div ref={outerRef} style={{ width: '100%', overflow: 'hidden', height: naturalH * scale }}>
+      <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: 'fit-content' }}>
         <DesktopBracket rounds={rounds} />
       </div>
     </div>

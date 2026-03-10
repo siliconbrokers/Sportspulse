@@ -42,7 +42,12 @@ export interface MatchDetailViewModel {
   homeTeam: { id: string; name: string; crest?: string; coachName?: string };
   awayTeam: { id: string; name: string; crest?: string; coachName?: string };
 
-  score: { home?: number | null; away?: number | null };
+  score: {
+    home?: number | null;
+    away?: number | null;
+    homePenalties?: number | null;
+    awayPenalties?: number | null;
+  };
 
   // Pre-match (§7)
   prediction?: {
@@ -368,7 +373,12 @@ export function buildMatchDetailViewModel(
       crest: awayTeamCrest,
       coachName: awayCoachName,
     },
-    score: { home: nm?.scoreHome, away: nm?.scoreAway },
+    score: {
+      home: nm?.scoreHome,
+      away: nm?.scoreAway,
+      homePenalties: nm?.scoreHomePenalties,
+      awayPenalties: nm?.scoreAwayPenalties,
+    },
     prediction,
     form,
     events,

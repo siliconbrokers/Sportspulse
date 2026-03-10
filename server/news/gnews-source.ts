@@ -21,6 +21,21 @@ export const LEAGUE_CONFIG: Record<
   Exclude<LeagueKey, 'URU'>,
   { competitionLabel: string; competitionId: string; query: string }
 > = {
+  WC: {
+    competitionLabel: 'Mundial 2026',
+    competitionId: 'comp:football-data-wc:WC',
+    query: 'Copa del Mundo 2026 FIFA fútbol',
+  },
+  CA: {
+    competitionLabel: 'Copa América 2027',
+    competitionId: 'comp:football-data-ca:CA',
+    query: 'Copa América 2027 CONMEBOL fútbol',
+  },
+  CLI: {
+    competitionLabel: 'Copa Libertadores',
+    competitionId: 'comp:football-data-cli:CLI',
+    query: 'Copa Libertadores 2026 CONMEBOL fútbol',
+  },
   LL: {
     competitionLabel: 'LaLiga',
     competitionId: 'comp:football-data:PD',

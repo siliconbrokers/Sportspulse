@@ -298,13 +298,20 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
         }}>
           <Crest url={homeCrest} size={22} />
           {/* Marcador centrado entre crests */}
-          {(hasScore || isLive || isZombie) ? (
+          {hasScore ? (
             <span style={{
               fontSize: 14, fontWeight: 900, color: scoreColor,
               letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums',
               lineHeight: 1,
             }}>
-              {scoreHome ?? 0}<span style={{ opacity: 0.35, margin: '0 2px' }}>–</span>{scoreAway ?? 0}
+              {scoreHome}<span style={{ opacity: 0.35, margin: '0 2px' }}>–</span>{scoreAway}
+            </span>
+          ) : (isLive || isZombie) ? (
+            <span style={{
+              fontSize: 13, fontWeight: 700, color: 'var(--sp-text-40)',
+              letterSpacing: '-0.02em', lineHeight: 1,
+            }}>
+              ?<span style={{ opacity: 0.5, margin: '0 2px' }}>–</span>?
             </span>
           ) : matchCard.kickoffUtc ? (
             <div style={{ textAlign: 'center', lineHeight: 1.3 }}>
@@ -349,32 +356,10 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
                 <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
                 LIVE
               </span>
-              {!isPost && (
-                <span style={{
-                  fontSize: 9, fontWeight: 700,
-                  padding: '2px 7px', borderRadius: 20,
-                  backgroundColor: 'rgba(249,115,22,0.15)',
-                  color: '#f97316',
-                  border: '1px solid rgba(249,115,22,0.35)',
-                }}>
-                  Pendiente
-                </span>
-              )}
             </div>
           ) : isZombie ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b' }}>🕐 Confirmando</span>
-              {radarCard && (
-                <span style={{
-                  fontSize: 9, fontWeight: 700,
-                  padding: '2px 7px', borderRadius: 20,
-                  backgroundColor: 'rgba(245,158,11,0.15)',
-                  color: '#f59e0b',
-                  border: '1px solid rgba(245,158,11,0.35)',
-                }}>
-                  Pendiente
-                </span>
-              )}
             </div>
           ) : matchCard.kickoffUtc ? (
             <span style={{ fontSize: 10, color: 'var(--sp-text-35)' }}>{fmtDate(matchCard.kickoffUtc)} · {fmtTime(matchCard.kickoffUtc)}</span>
@@ -477,38 +462,24 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
         </div>
       )}
 
-      {/* ── PIE: probabilidades siempre + veredicto post-match + pendiente ── */}
+      {/* ── PIE: probabilidades + ganador esperado (PRE_MATCH) / veredicto (post) ── */}
       <div style={{ padding: '10px 12px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {ProbBarsBlock}
-        {isPost && VerdictBlock}
-        {/* Badge Pendiente: partido en curso o zombie */}
-        {!isPost && (isLive || isZombie) && (() => {
-          const color = isLive ? '#f97316' : '#f59e0b';
-          return (
-            <span style={{
-              alignSelf: 'flex-start',
-              fontSize: 10, fontWeight: 700,
-              padding: '3px 10px', borderRadius: 20,
-              backgroundColor: `${color}18`,
-              color,
-              border: `1px solid ${color}40`,
-            }}>
-              Pendiente
-            </span>
-          );
-        })()}
-        {!ProbBarsBlock && !VerdictBlock && !(isLive || isZombie) && radarCard && (
+        {/* Label de ganador esperado — PRE_MATCH, junto con las barras */}
+        {!isPost && !isLive && !isZombie && radarCard?.labelText && (
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
-            padding: '4px 8px', borderRadius: 6,
-            background: 'var(--sp-surface-raised, rgba(255,255,255,0.05))',
-            border: '1px solid var(--sp-border-8)',
+            padding: '3px 8px', borderRadius: 6,
+            background: 'var(--sp-primary-04)',
+            border: '1px solid var(--sp-primary-10)',
+            alignSelf: 'flex-start',
           }}>
-            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--sp-text-50)' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-primary)' }}>
               {radarCard.labelText}
             </span>
           </div>
         )}
+        {isPost && VerdictBlock}
       </div>
     </div>
   );

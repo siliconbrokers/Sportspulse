@@ -13,6 +13,7 @@ export function useDashboardSnapshot(
   competitionId: string,
   matchday: number | null,
   timezone: string,
+  dateLocal?: string,
 ): UseDashboardSnapshotResult {
   const [data, setData] = useState<DashboardSnapshotDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,18 +27,20 @@ export function useDashboardSnapshot(
   const refetch = useCallback(() => setTrigger((t) => t + 1), []);
 
   useEffect(() => {
-    if (matchday === null) return;
+    if (matchday === null && !dateLocal) return;
 
     // AbortController cancela la request anterior cuando competitionId/matchday cambia
     const controller = new AbortController();
     setLoading(true);
     setError(null);
 
-    const params = new URLSearchParams({
-      competitionId,
-      matchday: String(matchday),
-      timezone,
-    });
+    const paramObj: Record<string, string> = { competitionId, timezone };
+    if (dateLocal) {
+      paramObj.dateLocal = dateLocal;
+    } else {
+      paramObj.matchday = String(matchday);
+    }
+    const params = new URLSearchParams(paramObj);
 
     fetch(`/api/ui/dashboard?${params}`, { signal: controller.signal })
       .then(async (res) => {
@@ -74,7 +77,7 @@ export function useDashboardSnapshot(
       });
 
     return () => controller.abort();
-  }, [competitionId, matchday, timezone, trigger]);
+  }, [competitionId, matchday, timezone, dateLocal, trigger]);
 
   // Auto-refresh adaptivo: 60s si hay partido LIVE o heurísticamente live, 2min si inminente, 1h si no
   useEffect(() => {

@@ -17,6 +17,8 @@ import { formatDateTime } from '../utils/format-date.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import { buildMatchDetailViewModel, type MatchDetailViewModel, type PredictionProbsOverride } from '../utils/match-detail-viewmodel.js';
 import { useMatchIncidents } from '../hooks/use-match-incidents.js';
+import { PredictionExperimentalSection } from './PredictionExperimentalSection.js';
+import { ProbabilityBars } from './shared/ProbabilityBars.js';
 
 interface DetailPanelProps {
   detail: TeamDetailDTO;
@@ -231,9 +233,16 @@ function MatchHeader({
                 </span>
               </div>
             ) : (
-              <div style={{ fontSize: 9, color: 'var(--sp-text-40)', marginTop: 5, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>
-                Final
-              </div>
+              <>
+                <div style={{ fontSize: 9, color: 'var(--sp-text-40)', marginTop: 5, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>
+                  Final
+                </div>
+                {vm.score.homePenalties != null && vm.score.awayPenalties != null && (
+                  <div style={{ fontSize: 10, color: 'var(--sp-text-40)', marginTop: 3, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                    PEN {vm.score.homePenalties} - {vm.score.awayPenalties}
+                  </div>
+                )}
+              </>
             )}
           </div>
         ) : (
@@ -274,22 +283,18 @@ function MatchHeader({
 function derivePredictionBadge(
   outcomeStatus?: string,
   uiState?: string,
-): { label: string; color: string } {
-  // PENDING_CONFIRMATION tiene prioridad absoluta: el uiState calculado
-  // puede coincidir con outcomeStatus='in_progress' del backend, pero el
-  // zombie guard ya determinó que no es un partido activo confirmado.
+): { label: string; color: string } | null {
   if (uiState === 'PENDING_CONFIRMATION')
     return { label: 'Confirmando resultado', color: '#f59e0b' };
-  // Partido activo — la predicción está pendiente de evaluación
-  if (uiState === 'IN_PLAY')
-    return { label: 'Pendiente', color: '#f97316' };
-  // outcomeStatus='in_progress' sin estado activo confirmado = datos aún no actualizados
-  if (outcomeStatus === 'in_progress')
-    return { label: 'Pendiente', color: '#6b7280' };
+  // PRE_MATCH: el badge lo maneja PreMatchBody con el label del DTO (ganador esperado)
+  if (uiState === 'PRE_MATCH')
+    return null;
+  // Post-partido — evaluación binaria
   if (outcomeStatus === 'hit')           return { label: 'Acertado',     color: '#22c55e' };
   if (outcomeStatus === 'miss')          return { label: 'Fallado',      color: '#ef4444' };
-  if (outcomeStatus === 'not_evaluable') return { label: 'No evaluable', color: '#6b7280' };
-  return { label: 'Pendiente', color: '#6b7280' };
+  if (outcomeStatus === 'not_evaluable' || outcomeStatus === 'in_progress')
+    return { label: 'No evaluable', color: '#6b7280' };
+  return null;
 }
 
 // ── PRE_MATCH body (§7) ───────────────────────────────────────────────────────
@@ -314,10 +319,7 @@ function PreMatchBody({
     <>
       {/* §7.1 — Prediction block */}
       {vm.prediction && (() => {
-        const badge = derivePredictionBadge(vm.prediction!.outcomeStatus, uiState);
-        const homeW = Math.round((vm.prediction.homeProbability ?? 0) * 100);
-        const drawW = Math.round((vm.prediction.drawProbability ?? 0) * 100);
-        const awayW = Math.round((vm.prediction.awayProbability ?? 0) * 100);
+        const predictionLabel = vm.prediction!.label;
 
         return (
           <div
@@ -334,65 +336,30 @@ function PreMatchBody({
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-text-35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Pronóstico
               </div>
-              <span style={{
-                fontSize: 10, fontWeight: 700,
-                padding: '3px 10px', borderRadius: 20,
-                backgroundColor: `${badge.color}18`,
-                color: badge.color,
-                border: `1px solid ${badge.color}40`,
-              }}>
-                {badge.label}
-              </span>
+              {predictionLabel && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700,
+                  padding: '3px 10px', borderRadius: 20,
+                  backgroundColor: 'var(--sp-primary-10)',
+                  color: 'var(--sp-primary)',
+                  border: '1px solid var(--sp-primary-22)',
+                }}>
+                  {predictionLabel}
+                </span>
+              )}
             </div>
 
-            {/* §7.1 — Gradient probability bars */}
+            {/* §7.1 — Probability bars (shared component — mismos colores que PronosticoCard y RadarCard) */}
             {hasProbs && (
-              <div>
-                {/* Labels row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ textAlign: 'left', minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--sp-text)' }}>{homeW}%</div>
-                    <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 80 }}>
-                      {vm.homeTeam.name}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--sp-text-55)' }}>{drawW}%</div>
-                    <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1 }}>Empate</div>
-                  </div>
-                  <div style={{ textAlign: 'right', minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--sp-text)' }}>{awayW}%</div>
-                    <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 80 }}>
-                      {vm.awayTeam.name}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Gradient bar */}
-                <div style={{ display: 'flex', gap: 3, height: 8, borderRadius: 4, overflow: 'hidden' }}>
-                  {homeW > 0 && (
-                    <div style={{
-                      flex: homeW,
-                      background: 'linear-gradient(90deg, var(--sp-primary), #3b82f6)',
-                      borderRadius: 4,
-                    }} />
-                  )}
-                  {drawW > 0 && (
-                    <div style={{
-                      flex: drawW,
-                      background: 'var(--sp-border-8)',
-                      borderRadius: 4,
-                    }} />
-                  )}
-                  {awayW > 0 && (
-                    <div style={{
-                      flex: awayW,
-                      background: 'linear-gradient(90deg, #ef4444, #b91c1c)',
-                      borderRadius: 4,
-                    }} />
-                  )}
-                </div>
-              </div>
+              <ProbabilityBars
+                probHomeWin={vm.prediction!.homeProbability!}
+                probDraw={vm.prediction!.drawProbability!}
+                probAwayWin={vm.prediction!.awayProbability!}
+                homeTeamName={vm.homeTeam.name}
+                awayTeamName={vm.awayTeam.name}
+                showTeamNames={true}
+                label=""
+              />
             )}
           </div>
         );
@@ -962,15 +929,17 @@ function FinishedBody({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <SectionLabel>Evaluación del pronóstico</SectionLabel>
-              <span style={{
-                fontSize: 10, fontWeight: 700,
-                padding: '3px 10px', borderRadius: 20,
-                backgroundColor: `${badge.color}18`,
-                color: badge.color,
-                border: `1px solid ${badge.color}40`,
-              }}>
-                {badge.label}
-              </span>
+              {badge && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700,
+                  padding: '3px 10px', borderRadius: 20,
+                  backgroundColor: `${badge.color}18`,
+                  color: badge.color,
+                  border: `1px solid ${badge.color}40`,
+                }}>
+                  {badge.label}
+                </span>
+              )}
             </div>
 
             {pred.expectedWinner && pred.actualWinner && (
@@ -1200,6 +1169,16 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
             <PreMatchBody vm={vm} detail={detail} uiState="PRE_MATCH" />
           )}
 
+          {/* PRE_MATCH — experimental prediction section (auto-hides if flag off or no data) */}
+          {vm.uiState === 'PRE_MATCH' && (
+            <PredictionExperimentalSection
+              matchId={vm.matchId}
+              competitionId={detail.header.competitionId}
+              homeTeamName={vm.homeTeam.name}
+              awayTeamName={vm.awayTeam.name}
+            />
+          )}
+
           {/* PENDING_CONFIRMATION — zombie: >180 min sin confirmación de resultado */}
           {vm.uiState === 'PENDING_CONFIRMATION' && (
             <>
@@ -1219,15 +1198,17 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
                       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-text-35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                         Pronóstico
                       </div>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700,
-                        padding: '3px 10px', borderRadius: 20,
-                        backgroundColor: `${badge.color}18`,
-                        color: badge.color,
-                        border: `1px solid ${badge.color}40`,
-                      }}>
-                        {badge.label}
-                      </span>
+                      {badge && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700,
+                          padding: '3px 10px', borderRadius: 20,
+                          backgroundColor: `${badge.color}18`,
+                          color: badge.color,
+                          border: `1px solid ${badge.color}40`,
+                        }}>
+                          {badge.label}
+                        </span>
+                      )}
                     </div>
                     {vm.prediction && (
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>
@@ -1283,15 +1264,17 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
                       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-text-35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                         Pronóstico
                       </div>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700,
-                        padding: '3px 10px', borderRadius: 20,
-                        backgroundColor: `${badge.color}18`,
-                        color: badge.color,
-                        border: `1px solid ${badge.color}40`,
-                      }}>
-                        {badge.label}
-                      </span>
+                      {badge && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700,
+                          padding: '3px 10px', borderRadius: 20,
+                          backgroundColor: `${badge.color}18`,
+                          color: badge.color,
+                          border: `1px solid ${badge.color}40`,
+                        }}>
+                          {badge.label}
+                        </span>
+                      )}
                     </div>
                     {vm.prediction && (
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>

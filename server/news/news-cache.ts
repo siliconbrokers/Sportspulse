@@ -13,6 +13,9 @@ const TTL_MS: Record<LeagueKey, number> = {
   LL:  60 * 60 * 1000,
   EPL: 60 * 60 * 1000,
   BUN: 60 * 60 * 1000,
+  WC:  60 * 60 * 1000,
+  CA:  60 * 60 * 1000,
+  CLI: 60 * 60 * 1000,
 };
 
 function todayKeyMontevideo(): string {

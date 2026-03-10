@@ -1,6 +1,7 @@
 import { buildApp } from '@sportpulse/api';
 import { FootballDataSource } from './football-data-source.js';
 import { FootballDataTournamentSource, WC_PROVIDER_KEY } from './football-data-tournament-source.js';
+import { WC_CONFIG, CA_CONFIG, CLI_CONFIG } from './tournament-config.js';
 import { TheSportsDbSource, SPORTSDB_PROVIDER_KEY } from './the-sports-db-source.js';
 import { OpenLigaDBSource, OPENLIGADB_PROVIDER_KEY } from './openligadb-source.js';
 import { CrestCache } from './crest-cache.js';
@@ -16,6 +17,16 @@ import { PredictionService } from './prediction/prediction-service.js';
 import { PredictionStore } from './prediction/prediction-store.js';
 import { runShadow } from './prediction/shadow-runner.js';
 import { registerInspectionRoute } from './prediction/inspection-route.js';
+import { registerExperimentalPredictionRoute } from './prediction/experimental-route.js';
+import { EvaluationStore } from './prediction/evaluation-store.js';
+import { captureResults } from './prediction/result-capture.js';
+import { registerEvaluationRoute } from './prediction/evaluation-route.js';
+import { HistoricalBacktestStore } from './prediction/historical-backtest-store.js';
+import { registerHistoricalEvaluationRoute } from './prediction/historical-evaluation-route.js';
+import { ForwardValidationStore } from './prediction/forward-validation-store.js';
+import { ForwardValidationRunner } from './prediction/forward-validation-runner.js';
+import { ForwardValidationEvaluator } from './prediction/forward-validation-evaluator.js';
+import { HistoricalStateService } from './prediction/historical-state-service.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
 import {
@@ -86,21 +97,42 @@ async function main() {
   }
 
   // Football-data.org — Copa del Mundo 2026 (torneo con grupos + eliminatorias)
-  const wcSource = new FootballDataTournamentSource(API_TOKEN, 'WC');
+  const wcSource = new FootballDataTournamentSource(API_TOKEN, WC_CONFIG);
   const WC_COMPETITION_ID = wcSource.competitionId; // 'comp:football-data-wc:WC'
   try {
-    // Rate limit: esperar antes de hacer las 3 llamadas del torneo
     await new Promise<void>((r) => setTimeout(r, 7000));
     await wcSource.fetchTournament();
   } catch (err) {
     console.error('Failed to fetch Copa del Mundo 2026 from football-data.org:', err);
   }
 
-  // Routing: Liga Uruguaya → TheSportsDB, BL1 → OpenLigaDB, WC → wcSource, resto → football-data.org
+  // Football-data.org — Copa América 2027 (primer torneo PE-nativo)
+  const caSource = new FootballDataTournamentSource(API_TOKEN, CA_CONFIG);
+  const CA_COMPETITION_ID = caSource.competitionId; // 'comp:football-data-ca:CA'
+  try {
+    await new Promise<void>((r) => setTimeout(r, 7000));
+    await caSource.fetchTournament();
+  } catch (err) {
+    console.error('Failed to fetch Copa América 2027 from football-data.org:', err);
+  }
+
+  // Football-data.org — Copa Libertadores 2026 (grupos + eliminatorias CONMEBOL)
+  const cliSource = new FootballDataTournamentSource(API_TOKEN, CLI_CONFIG);
+  const CLI_COMPETITION_ID = cliSource.competitionId; // 'comp:football-data-cli:CLI'
+  try {
+    await new Promise<void>((r) => setTimeout(r, 7000));
+    await cliSource.fetchTournament();
+  } catch (err) {
+    console.error('Failed to fetch Copa Libertadores 2026 from football-data.org:', err);
+  }
+
+  // Routing: Liga Uruguaya → TheSportsDB, BL1 → OpenLigaDB, WC/CA/CLI → tournament sources, resto → football-data.org
   const dataSource = new RoutingDataSource(fdSource, [
     { competitionId: UY_COMPETITION_ID, providerKey: SPORTSDB_PROVIDER_KEY, source: sportsDbSource },
     { competitionId: OLG_COMPETITION_ID, providerKey: OPENLIGADB_PROVIDER_KEY, source: openLigaDbSource },
     { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
+    { competitionId: CA_COMPETITION_ID, providerKey: CA_CONFIG.providerKey, source: caSource },
+    { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
   ]);
 
   // News service — demand-pull, cached per league (30-60 min TTL)
@@ -142,7 +174,7 @@ async function main() {
 
   // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy, league-aware)
   const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`);
-  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, OLG_COMPETITION_ID];
+  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, OLG_COMPETITION_ID, WC_COMPETITION_ID, CA_COMPETITION_ID, CLI_COMPETITION_ID];
   function normTeamName(s: string) {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   }
@@ -229,6 +261,9 @@ async function main() {
       : code === 'BL1' ? 'BUNDESLIGA'
       : 'OTRA';
   }
+  COMP_LEAGUE_KEY[WC_COMPETITION_ID] = 'MUNDIAL';
+  COMP_LEAGUE_KEY[CA_COMPETITION_ID] = 'COPA_AMERICA';
+  COMP_LEAGUE_KEY[CLI_COMPETITION_ID] = 'COPA_LIBERTADORES';
 
   function isToday(isoStr: string, tz: string): boolean {
     const now = new Date();
@@ -304,8 +339,26 @@ async function main() {
 
   const predictionService = new PredictionService();
   const predictionStore = new PredictionStore();
+  const evaluationStore = new EvaluationStore();
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: wcSource, upcomingService, predictionService });
+  // H11 — Forward Validation pipeline (feature-flagged)
+  const forwardValStore = new ForwardValidationStore();
+  const historicalStateServiceFV = new HistoricalStateService({ apiToken: API_TOKEN! });
+  const forwardValRunner = new ForwardValidationRunner(dataSource, predictionService, historicalStateServiceFV, forwardValStore);
+  const forwardValEvaluator = new ForwardValidationEvaluator(forwardValStore, dataSource);
+
+  // Composite tournament source — delega a WC, CA o CLI según competitionId
+  const tournamentSources = new Map([
+    [WC_COMPETITION_ID,  wcSource],
+    [CA_COMPETITION_ID,  caSource],
+    [CLI_COMPETITION_ID, cliSource],
+  ]);
+  const compositeTournamentSource = {
+    getGroupView:   (id: string) => tournamentSources.get(id)?.getGroupView(id)   ?? null,
+    getBracketView: (id: string) => tournamentSources.get(id)?.getBracketView(id) ?? null,
+  };
+
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService });
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
   // Refresh interval adapts to match state. Only polls when data can change.
@@ -383,6 +436,10 @@ async function main() {
     if (olgSeasonId) all.push(...dataSource.getMatches(olgSeasonId));
     const wcSeasonId = wcSource.getSeasonId(WC_COMPETITION_ID);
     if (wcSeasonId) all.push(...wcSource.getMatches(wcSeasonId));
+    const caSeasonId = caSource.getSeasonId(CA_COMPETITION_ID);
+    if (caSeasonId) all.push(...caSource.getMatches(caSeasonId));
+    const cliSeasonId = cliSource.getSeasonId(CLI_COMPETITION_ID);
+    if (cliSeasonId) all.push(...cliSource.getMatches(cliSeasonId));
     return all;
   }
 
@@ -419,9 +476,39 @@ async function main() {
     } catch (err) {
       console.error('Refresh failed for Copa del Mundo 2026:', err);
     }
+    try {
+      await caSource.fetchTournament();
+    } catch (err) {
+      console.error('Refresh failed for Copa América 2027:', err);
+    }
+    try {
+      await cliSource.fetchTournament();
+    } catch (err) {
+      console.error('Refresh failed for Copa Libertadores 2026:', err);
+    }
     // Shadow prediction pipeline — fire-and-forget, fault-isolated
     // Runs out-of-band: errors never propagate to the refresh cycle
-    void runShadow(dataSource, ALL_COMP_IDS, predictionService, predictionStore);
+    void runShadow(dataSource, ALL_COMP_IDS, predictionService, predictionStore, evaluationStore);
+    // OE-3: capture ground truth for completed matches
+    captureResults(dataSource, evaluationStore, ALL_COMP_IDS);
+
+    // Forward validation — feature-flagged, fault-isolated
+    const fvEnabled = process.env.FORWARD_VALIDATION_ENABLED === 'true';
+    if (fvEnabled) {
+      const fvCompetitions = (process.env.FORWARD_VALIDATION_COMPETITIONS ?? 'PD,PL,BL1')
+        .split(',').map(c => `comp:football-data:${c.trim()}`);
+      const seasonStartYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
+      void forwardValRunner.run(fvCompetitions, seasonStartYear).then(result => {
+        if (result.frozen > 0 || result.errors > 0) {
+          console.log(`[ForwardVal] Frozen: ${result.frozen}, skipped: ${result.skipped}, errors: ${result.errors}`);
+        }
+      }).catch(err => console.error('[ForwardVal] runner error:', err));
+      void forwardValEvaluator.closeCompleted(fvCompetitions).then(result => {
+        if (result.closed > 0) {
+          console.log(`[ForwardVal] Closed: ${result.closed} records, still pending: ${result.stillPending}`);
+        }
+      }).catch(err => console.error('[ForwardVal] evaluator error:', err));
+    }
 
     // Invalidate snapshot cache after every data source refresh.
     // This ensures MatchCardList (snapshot) and PronosticoCard/Radar (reads DataSource live)
@@ -448,7 +535,10 @@ async function main() {
     }, delayMs);
   }
 
-  scheduleNextRefresh();
+  // Run an initial refresh immediately at startup so the evaluation store
+  // and snapshot cache are populated before the first scheduled timer fires.
+  // Fire-and-forget: errors are caught inside runRefresh().
+  void runRefresh().then(() => scheduleNextRefresh());
 
   // ── GET /api/ui/match/:matchId/incidents ────────────────────────────────────
   // Devuelve snapshot de incidentes (goles, tarjetas, sustituciones) para un partido.
@@ -529,6 +619,16 @@ async function main() {
 
   // ── Internal predictions inspection endpoint (PE-75) ──────────────────────
   registerInspectionRoute(app, predictionStore);
+
+  // ── Experimental prediction endpoint (PE-78) ───────────────────────────────
+  registerExperimentalPredictionRoute(app, predictionStore);
+
+  // ── Evaluation endpoint (OE-5) ─────────────────────────────────────────────
+  registerEvaluationRoute(app, evaluationStore);
+
+  // ── Historical evaluation endpoint (H5) ────────────────────────────────────
+  const historicalBacktestStore = new HistoricalBacktestStore();
+  registerHistoricalEvaluationRoute(app, historicalBacktestStore);
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`SportsPulse API running at http://localhost:${PORT}`);

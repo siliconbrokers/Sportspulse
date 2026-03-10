@@ -17,16 +17,19 @@ interface DashboardLayoutProps {
   timezone: string;
   viewMode?: 'radar' | 'partidos';
   onLiveMatchesChange?: (hasLive: boolean) => void;
+  /** Alternativa a matchday para torneos: fecha local ISO (YYYY-MM-DD) */
+  dateLocal?: string;
 }
 
-export function DashboardLayout({ competitionId, matchday, currentMatchday, timezone, viewMode = 'radar', onLiveMatchesChange }: DashboardLayoutProps) {
+export function DashboardLayout({ competitionId, matchday, currentMatchday, timezone, viewMode = 'radar', onLiveMatchesChange, dateLocal }: DashboardLayoutProps) {
   const { data, loading, error, source, refetch } = useDashboardSnapshot(
     competitionId,
     matchday,
     timezone,
+    dateLocal,
   );
   const { focus, setFocus } = useUrlState();
-  const { data: teamDetail } = useTeamDetail(competitionId, focus, matchday, timezone);
+  const { data: teamDetail } = useTeamDetail(competitionId, focus, matchday, timezone, dateLocal);
   const { data: radarData, loading: radarLoading } = useRadar(competitionId, matchday);
 
   // Notificar al padre cuando cambia el estado live (para el ping del Navbar)
@@ -38,7 +41,7 @@ export function DashboardLayout({ competitionId, matchday, currentMatchday, time
 
   // Vista Partidos: el skeleton lo maneja MatchCardList internamente
   if (viewMode === 'partidos') {
-    if (matchday === null) return null;
+    if (matchday === null && !dateLocal) return null;
     if (error) {
       return (
         <div style={{ padding: 16 }}>

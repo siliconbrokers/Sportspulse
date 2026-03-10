@@ -1,4 +1,4 @@
-export type LeagueKey = 'URU' | 'LL' | 'EPL' | 'BUN';
+export type LeagueKey = 'URU' | 'LL' | 'EPL' | 'BUN' | 'WC' | 'CA' | 'CLI';
 
 export interface NewsHeadline {
   id: string;

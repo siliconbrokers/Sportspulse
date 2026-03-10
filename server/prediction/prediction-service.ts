@@ -45,6 +45,7 @@ import {
   IsotonicCalibrator,
   selectCalibrator,
 } from '@sportpulse/prediction';
+import { HOME_ADVANTAGE_ELO_DELTA } from '@sportpulse/prediction';
 
 import type {
   PredictionResponse,
@@ -106,6 +107,30 @@ export interface PredictionServiceConfig {
  *
  * Spec §5.1–§5.3, §21
  */
+// ── Prediction options ──────────────────────────────────────────────────────
+
+/**
+ * Optional Elo overrides for a single predict() call.
+ *
+ * When provided, these replace the DEFAULT_ELO bootstrap values for lambda
+ * computation. Home advantage (HOME_ADVANTAGE_ELO_DELTA) is added to
+ * eloHome automatically.
+ *
+ * H3: used by HistoricalBacktestRunner to pass real pre-match Elo values.
+ */
+export interface PredictEloOverride {
+  /** Raw Elo rating for home team (home advantage applied internally). */
+  home: number;
+  /** Raw Elo rating for away team. */
+  away: number;
+  /**
+   * Override for HOME_ADVANTAGE_ELO_DELTA when set.
+   * Used by H6a sensitivity tests only — never change the production default.
+   * If omitted, uses the module-level HOME_ADVANTAGE_ELO_DELTA constant.
+   */
+  homeAdvantageDeltaOverride?: number;
+}
+
 export class PredictionService {
   private readonly calibrationRegistry: CalibrationRegistry;
 
@@ -119,9 +144,12 @@ export class PredictionService {
    * Returns a PredictionResponse. Never throws — all error paths are
    * expressed as eligibility_status = 'NOT_ELIGIBLE' with reason codes.
    *
+   * @param input     Match to predict.
+   * @param eloOverride  Optional real Elo values; when absent, bootstrap DEFAULT_ELO is used.
+   *
    * Spec §21
    */
-  async predict(input: MatchInput): Promise<PredictionResponse> {
+  async predict(input: MatchInput, eloOverride?: PredictEloOverride): Promise<PredictionResponse> {
     // ── Version metadata (present in ALL responses) ──────────────────────
     const versionMetadata = buildCurrentVersionMetadata();
 
@@ -162,13 +190,21 @@ export class PredictionService {
     // ── Steps 3–6: Raw engine outputs ────────────────────────────────────
     // These are computed for both FULL_MODE and LIMITED_MODE.
 
-    // §14.1: compute lambdas from effective Elo
-    // For bootstrapping (no rating pool): use default Elo for both teams.
-    // In a full implementation, effectiveElo would come from the rating pool.
+    // §14.1: compute lambdas from effective Elo.
+    // effectiveEloHome must already include home advantage (§6.1 "localía").
+    // When eloOverride is provided (H3 historical backtest): use real pre-match
+    // Elo values + HOME_ADVANTAGE_ELO_DELTA for home team.
+    // When absent (bootstrap): both teams at DEFAULT_ELO, no home advantage
+    // applied — symmetric lambdas at 1.35/1.35.
     const DEFAULT_ELO = 1500;
+    const effectiveDelta = eloOverride?.homeAdvantageDeltaOverride ?? HOME_ADVANTAGE_ELO_DELTA;
+    const eloHome = eloOverride !== undefined
+      ? eloOverride.home + effectiveDelta
+      : DEFAULT_ELO;
+    const eloAway = eloOverride?.away ?? DEFAULT_ELO;
     const lambdaResult = computeLambdas({
-      effectiveEloHome: DEFAULT_ELO,
-      effectiveEloAway: DEFAULT_ELO,
+      effectiveEloHome: eloHome,
+      effectiveEloAway: eloAway,
       homeForm: null,
       awayForm: null,
     });
@@ -191,9 +227,9 @@ export class PredictionService {
       raw1x2: raw1x2AggResult.probs,
       derivedRaw,
       effectiveElo: {
-        home: DEFAULT_ELO,
-        away: DEFAULT_ELO,
-        homAdvantageEffect: 0, // no bridging in bootstrapping
+        home: eloHome,
+        away: eloAway,
+        homAdvantageEffect: eloOverride !== undefined ? HOME_ADVANTAGE_ELO_DELTA : 0,
       },
     };
 

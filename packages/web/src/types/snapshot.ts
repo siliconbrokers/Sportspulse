@@ -107,6 +107,8 @@ export interface NextMatchDTO {
   venue?: 'HOME' | 'AWAY' | 'NEUTRAL' | 'UNKNOWN';
   scoreHome?: number | null;
   scoreAway?: number | null;
+  scoreHomePenalties?: number | null;
+  scoreAwayPenalties?: number | null;
   matchStatus?: string;
   prediction?: PredictionDTO;
   predictionOutcome?: PredictionOutcomeDTO;
@@ -203,6 +205,8 @@ export interface MatchCardDTO {
   status?: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'UNKNOWN';
   scoreHome?: number | null;
   scoreAway?: number | null;
+  scoreHomePenalties?: number | null;
+  scoreAwayPenalties?: number | null;
   timeChip: DisplayChipDTO;
   home: MatchCardTeam;
   away: MatchCardTeam;

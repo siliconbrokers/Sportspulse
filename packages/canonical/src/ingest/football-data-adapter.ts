@@ -62,7 +62,7 @@ export function mapTeam(fd: FDTeamResponse, teamId: string): Team {
     teamId,
     sportId: Sport.FOOTBALL,
     name: fd.name,
-    shortName: fd.shortName || undefined,
+    shortName: fd.shortName || fd.tla || fd.name.slice(0, 3).toUpperCase(),
     tla: fd.tla || undefined,
     crestUrl: fd.crest || undefined,
     venueName: fd.venue || undefined,

@@ -183,6 +183,8 @@ function TeamRow({
 }) {
   const team = side === 'home' ? card.home : card.away;
   const score = side === 'home' ? card.scoreHome : card.scoreAway;
+  const penScore = side === 'home' ? card.scoreHomePenalties : card.scoreAwayPenalties;
+  const hasPenalties = card.scoreHomePenalties != null && card.scoreAwayPenalties != null;
   const { breakpoint } = useWindowWidth();
   const displayName = resolveTeamName(team.name, {
     tla: team.tla,
@@ -214,18 +216,32 @@ function TeamRow({
       {showForm && card.status !== 'FINISHED' && team.formChip && (
         <FormChip icon={team.formChip.icon} label={team.formChip.label} level={team.formChip.level} />
       )}
-      <div className="flex-shrink-0 text-right" style={{ minWidth: 24 }}>
+      <div className="flex-shrink-0 flex flex-col items-end" style={{ minWidth: 32 }}>
         {showScore ? (
-          <span
-            style={{
-              fontSize: 18, fontWeight: 800,
-              color: scoreColor,
-              textShadow: scoreShadow,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {score ?? '-'}
-          </span>
+          <>
+            <span
+              style={{
+                fontSize: 18, fontWeight: 800,
+                color: scoreColor,
+                textShadow: scoreShadow,
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1,
+              }}
+            >
+              {score ?? '-'}
+            </span>
+            {hasPenalties && (
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                color: 'var(--sp-text-55)',
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1,
+                marginTop: 2,
+              }}>
+                ({penScore})
+              </span>
+            )}
+          </>
         ) : showDash ? (
           <span style={{ fontSize: 16, fontWeight: 800, color: 'rgba(251,146,60,0.75)' }}>-</span>
         ) : (

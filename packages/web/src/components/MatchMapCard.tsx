@@ -211,8 +211,8 @@ export function MatchMapCard({
   const isCompact = breakpoint === 'mobile';
 
   // ── Content resolution (§ 24 pseudocode) ────────────────────────────────────
-  const homeName = resolveTeamName(homeTeam.name?.trim() || '—', { tla: homeTeam.tla, compact: isCompact });
-  const awayName = resolveTeamName(awayTeam.name?.trim() || '—', { tla: awayTeam.tla, compact: isCompact });
+  const homeName = resolveTeamName(homeTeam.name?.trim() || '—', { tla: homeTeam.tla, shortName: homeTeam.shortName, compact: isCompact });
+  const awayName = resolveTeamName(awayTeam.name?.trim() || '—', { tla: awayTeam.tla, shortName: awayTeam.shortName, compact: isCompact });
 
   const scoreDisplay = resolveScoreDisplay(score);
 

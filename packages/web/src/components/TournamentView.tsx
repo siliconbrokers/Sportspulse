@@ -5,79 +5,109 @@
  *   - Grupos: tabla de posiciones por grupo + mejores terceros
  *   - Eliminatorias: bracket de rondas eliminatorias
  *
- * Responsive: mobile y desktop.
+ * Usa CSS vars del sistema de diseño (light/dark mode compatible).
+ * El color del tab activo usa el accent de la competición (prop).
  */
 import { useState } from 'react';
 import { useGroupStandings } from '../hooks/use-group-standings.js';
 import { useKnockoutBracket } from '../hooks/use-knockout-bracket.js';
 import { GroupStandingsView } from './GroupStandingsView.js';
 import { KnockoutBracket } from './KnockoutBracket.js';
+import { PreliminaryRoundsView } from './PreliminaryRoundsView.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import { computeBestThirds } from '../utils/best-thirds.js';
 
 interface TournamentViewProps {
   competitionId: string;
+  /** Color accent de la competición — usado en tabs activos */
+  accent?: string;
+  /** Fecha ISO de inicio del torneo — para banner pre-torneo */
+  startDate?: string;
+  onSelectTeam?: (teamId: string, dateLocal?: string) => void;
 }
 
-type TournamentTab = 'grupos' | 'eliminatorias';
+type TournamentTab = 'previa' | 'grupos' | 'eliminatorias';
 
-export function TournamentView({ competitionId }: TournamentViewProps) {
-  const [tab, setTab] = useState<TournamentTab>('grupos');
+export function TournamentView({ competitionId, accent = 'var(--sp-primary)', startDate, onSelectTeam }: TournamentViewProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
+
+  // Cargamos bracket siempre para saber qué tabs mostrar
+  const {
+    data: bracketData,
+    loading: bracketLoading,
+    error: bracketError,
+  } = useKnockoutBracket(competitionId, true);
+
+  const hasPreliminary  = (bracketData?.preliminaryRounds?.length ?? 0) > 0;
+  const hasKnockout     = (bracketData?.knockoutRounds?.length ?? 0) > 0;
+
+  // Tab por defecto: fase previa si existe, si no grupos
+  const defaultTab: TournamentTab = hasPreliminary ? 'previa' : 'grupos';
+  const [tab, setTab] = useState<TournamentTab>(defaultTab);
+
+  // Si el tab activo dejó de tener datos (ej: avanzó la competición), redirigir
+  const effectiveTab: TournamentTab =
+    tab === 'previa'       && !hasPreliminary ? 'grupos'
+    : tab === 'eliminatorias' && !hasKnockout ? 'grupos'
+    : tab;
 
   const {
     data: groupData,
     loading: groupLoading,
     error: groupError,
-  } = useGroupStandings(competitionId, tab === 'grupos');
-
-  const {
-    data: bracketData,
-    loading: bracketLoading,
-    error: bracketError,
-  } = useKnockoutBracket(competitionId, tab === 'eliminatorias');
+  } = useGroupStandings(competitionId, effectiveTab === 'grupos');
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: isMobile ? '8px 16px' : '8px 20px',
+    padding: isMobile ? '8px 14px' : '8px 20px',
     fontSize: 13,
     fontWeight: active ? 700 : 400,
     cursor: 'pointer',
     border: 'none',
-    borderBottom: active ? '2px solid #f97316' : '2px solid transparent',
+    borderBottom: active ? `2px solid ${accent}` : '2px solid transparent',
     backgroundColor: 'transparent',
-    color: active ? '#f97316' : 'rgba(255,255,255,0.55)',
+    color: active ? accent : 'var(--sp-text-55)',
     transition: 'color 0.15s',
     minHeight: 44,
   });
 
   return (
     <div>
-      {/* Tab bar */}
-      <div
-        style={{
-          display: 'flex',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          marginBottom: 16,
-        }}
-      >
-        <button style={tabStyle(tab === 'grupos')} onClick={() => setTab('grupos')}>
-          🏟 Grupos
+      {/* Tab bar — solo muestra tabs con datos */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--sp-border-8)', marginBottom: 16 }}>
+        {hasPreliminary && (
+          <button style={tabStyle(effectiveTab === 'previa')} onClick={() => setTab('previa')}>
+            Fase Previa
+          </button>
+        )}
+        <button style={tabStyle(effectiveTab === 'grupos')} onClick={() => setTab('grupos')}>
+          Grupos
         </button>
-        <button style={tabStyle(tab === 'eliminatorias')} onClick={() => setTab('eliminatorias')}>
-          🏆 Eliminatorias
-        </button>
+        {hasKnockout && (
+          <button style={tabStyle(effectiveTab === 'eliminatorias')} onClick={() => setTab('eliminatorias')}>
+            Eliminatorias
+          </button>
+        )}
       </div>
 
-      {/* Tab content */}
-      {tab === 'grupos' ? (
+      {/* Contenido */}
+      {effectiveTab === 'previa' ? (
+        bracketLoading ? (
+          <LoadingState />
+        ) : bracketError ? (
+          <ErrorState message={bracketError} />
+        ) : (
+          <PreliminaryRoundsView rounds={bracketData?.preliminaryRounds ?? []} onSelectTeam={onSelectTeam} />
+        )
+      ) : effectiveTab === 'grupos' ? (
         groupLoading ? (
           <LoadingState />
         ) : groupError ? (
           <ErrorState message={groupError} />
-        ) : groupData ? (
+        ) : groupData && groupData.groups.length > 0 ? (
           <GroupStandingsView
             groups={groupData.groups}
+            startDate={startDate}
             bestThirds={
               groupData.bestThirdsCount > 0
                 ? computeBestThirds(
@@ -87,6 +117,8 @@ export function TournamentView({ competitionId }: TournamentViewProps) {
                 : undefined
             }
           />
+        ) : hasPreliminary ? (
+          <PreliminaryPendingState />
         ) : (
           <EmptyState label="datos de grupos" />
         )
@@ -95,10 +127,8 @@ export function TournamentView({ competitionId }: TournamentViewProps) {
           <LoadingState />
         ) : bracketError ? (
           <ErrorState message={bracketError} />
-        ) : bracketData ? (
-          <KnockoutBracket rounds={bracketData} />
         ) : (
-          <EmptyState label="cuadro eliminatorio" />
+          <KnockoutBracket rounds={bracketData?.knockoutRounds ?? []} />
         )
       )}
     </div>
@@ -109,7 +139,7 @@ export function TournamentView({ competitionId }: TournamentViewProps) {
 
 function LoadingState() {
   return (
-    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, padding: '24px 0' }}>
+    <div style={{ color: 'var(--sp-text-40)', fontSize: 13, padding: '24px 0' }}>
       Cargando...
     </div>
   );
@@ -125,8 +155,26 @@ function ErrorState({ message }: { message: string }) {
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, padding: '24px 0' }}>
+    <div style={{ color: 'var(--sp-text-40)', fontSize: 13, padding: '24px 0' }}>
       Sin {label} disponibles.
+    </div>
+  );
+}
+
+function PreliminaryPendingState() {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      gap: 8, padding: '32px 16px', textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 28 }}>⏳</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--sp-text-70)' }}>
+        Los grupos se definirán al finalizar la Fase Previa
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--sp-text-40)', maxWidth: 320 }}>
+        Los equipos clasificados completarán los grupos existentes.
+        Revisá el tab <strong>Fase Previa</strong> para ver el estado de los cruces.
+      </div>
     </div>
   );
 }

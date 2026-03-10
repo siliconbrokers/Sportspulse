@@ -112,7 +112,7 @@ export function LeagueSelector({ value, onChange, options }: LeagueSelectorProps
 
   // Filtrar por IDs disponibles
   const availableMeta = COMPETITION_META.filter((m) =>
-    options.some((o) => o.id === m.id && !o.isTournament)
+    options.some((o) => o.id === m.id)
   );
 
   // Cerrar con Escape o click fuera (solo desktop)

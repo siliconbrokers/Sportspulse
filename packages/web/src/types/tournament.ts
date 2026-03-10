@@ -51,6 +51,20 @@ export interface TieSlotDTO {
   crestUrl?: string;
 }
 
+/**
+ * Resultado de una pierna individual desde la perspectiva de los slots del cruce.
+ * scoreA = goles del slotA; scoreB = goles del slotB.
+ * Solo presente en cruces de ida+vuelta (legs.length === 2).
+ */
+export interface LegDTO {
+  legNumber: 1 | 2;
+  utcDate: string;
+  scoreA: number | null;
+  scoreB: number | null;
+  penA?: number | null;
+  penB?: number | null;
+}
+
 export interface TieDTO {
   tieId: string;
   name: string; // "Quarter-final 1"
@@ -67,6 +81,8 @@ export interface TieDTO {
   scoreBPenalties?: number | null;
   /** teamId del ganador, si está definido. */
   winnerId?: string | null;
+  /** Piernas individuales. Solo presente para cruces de ida+vuelta. */
+  legs?: LegDTO[];
 }
 
 export interface RoundDTO {
@@ -75,4 +91,11 @@ export interface RoundDTO {
   stageType: StageType;
   orderIndex: number;
   ties: TieDTO[];
+}
+
+export interface BracketViewDTO {
+  /** Rondas previas a grupos (ROUND_1/2/3 — clasificación). Vacío si no aplica. */
+  preliminaryRounds: RoundDTO[];
+  /** Rondas eliminatorias post-grupos (R16, QF, SF, FINAL). Vacío hasta que existan. */
+  knockoutRounds: RoundDTO[];
 }

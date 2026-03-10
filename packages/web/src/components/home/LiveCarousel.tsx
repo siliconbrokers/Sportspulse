@@ -42,17 +42,23 @@ const CARD_GAP       = 12;
 // ZOMBIE_THRESHOLD_MIN y AUTOFINISH_THRESHOLD_MIN vienen de match-status.ts (importados arriba)
 
 const LEAGUE_ACCENT: Record<string, string> = {
-  URUGUAY_PRIMERA: '#3b82f6',
-  LALIGA:          '#f59e0b',
-  PREMIER_LEAGUE:  '#a855f7',
-  BUNDESLIGA:      '#ef4444',
+  URUGUAY_PRIMERA:   '#3b82f6',
+  LALIGA:            '#f59e0b',
+  PREMIER_LEAGUE:    '#a855f7',
+  BUNDESLIGA:        '#ef4444',
+  MUNDIAL:           '#22c55e',
+  COPA_AMERICA:      '#3b82f6',
+  COPA_LIBERTADORES: '#eab308',
 };
 
 const LEAGUE_LABEL: Record<string, string> = {
-  URUGUAY_PRIMERA: 'Uruguay · 1ª',
-  LALIGA:          'LaLiga EA',
-  PREMIER_LEAGUE:  'Premier League',
-  BUNDESLIGA:      'Bundesliga',
+  URUGUAY_PRIMERA:   'Uruguay · 1ª',
+  LALIGA:            'LaLiga EA',
+  PREMIER_LEAGUE:    'Premier League',
+  BUNDESLIGA:        'Bundesliga',
+  MUNDIAL:           'Mundial 2026',
+  COPA_AMERICA:      'Copa América',
+  COPA_LIBERTADORES: 'Libertadores',
 };
 
 // ── CSS animations (inyectado una vez) ───────────────────────────────────────
@@ -529,11 +535,16 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
 
   // Datos del partido seleccionado para el DetailPanel
   const focusedMatch = focusEventId ? upcomingMap.get(focusEventId) ?? null : null;
+  // dateLocal: fallback para partidos de torneo que no tienen matchday (CLI, WC, CA)
+  const focusedDateLocal = focusedMatch?.currentMatchday == null
+    ? (focusedMatch?.startsAtPortalTz?.slice(0, 10) ?? null)
+    : null;
   const { data: teamDetail } = useTeamDetail(
     focusedMatch?.competitionId ?? '',
     focusedMatch?.homeTeamId ?? null,
     focusedMatch?.currentMatchday ?? null,
     'America/Montevideo',
+    focusedDateLocal,
   );
 
   function handleDetailClick(eventId: string) {
@@ -547,7 +558,7 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
 
   // Ligas con cobertura canónica — streamtp NO aporta para estas (evita confusión entre
   // equipos homónimos de distintas ligas, ej. Liverpool EPL vs Liverpool URU)
-  const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA']);
+  const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA', 'MUNDIAL', 'COPA_AMERICA', 'COPA_LIBERTADORES']);
 
   // Streamtp: solo ligas NO cubiertas por canónico (Champions, Libertadores, etc.) + con stream URL
   const streamEvents = (feed?.events ?? []).filter(

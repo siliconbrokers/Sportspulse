@@ -110,6 +110,14 @@ export * from './metrics/index.js';
 // ── Competition Engine (Phase 3 — §5.2, §7.7, §8.2-§8.4, §18) ───────────
 export * from './competition/index.js';
 
+// ── Historical Team State Replay (H2) ─────────────────────────────────────
+export { computePreMatchTeamState } from './engine/team-state-replay.js';
+export type {
+  FinishedMatchRecord,
+  TeamHistoricalState,
+  PreMatchTeamState,
+} from './engine/team-state-replay.js';
+
 // ── Response Builder (Phase 4 — §21) ──────────────────────────────────────
 export { buildPredictionResponse } from './response-builder.js';
 export type {

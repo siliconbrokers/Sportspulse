@@ -12,6 +12,8 @@ export function useTeamDetail(
   teamId: string | null,
   matchday: number | null,
   timezone: string,
+  /** Fecha local YYYY-MM-DD — alternativa a matchday para partidos de torneo sin jornada */
+  dateLocal?: string | null,
 ): UseTeamDetailResult {
   const [data, setData] = useState<TeamDetailDTO | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,7 +21,8 @@ export function useTeamDetail(
   const [trigger, setTrigger] = useState(0);
 
   useEffect(() => {
-    if (!teamId || matchday === null) {
+    // Necesita teamId + (matchday ó dateLocal)
+    if (!teamId || (matchday === null && !dateLocal)) {
       setData(null);
       setLoading(false);
       setError(null);
@@ -31,12 +34,13 @@ export function useTeamDetail(
     if (trigger === 0) setLoading(true);
     setError(null);
 
-    const params = new URLSearchParams({
-      competitionId,
-      teamId,
-      matchday: String(matchday),
-      timezone,
-    });
+    const params = new URLSearchParams({ competitionId, teamId, timezone });
+    if (matchday !== null) {
+      params.set('matchday', String(matchday));
+    } else if (dateLocal) {
+      params.set('dateLocal', dateLocal);
+    }
+
     fetch(`/api/ui/team?${params}`)
       .then(async (res) => {
         if (cancelled) return;
@@ -62,7 +66,7 @@ export function useTeamDetail(
     return () => {
       cancelled = true;
     };
-  }, [competitionId, teamId, matchday, timezone, trigger]);
+  }, [competitionId, teamId, matchday, dateLocal, timezone, trigger]);
 
   // Polling adaptativo: 60s cuando el partido está IN_PROGRESS
   useEffect(() => {
@@ -75,7 +79,7 @@ export function useTeamDetail(
   // Reset trigger cuando cambia el equipo o la jornada
   useEffect(() => {
     setTrigger(0);
-  }, [teamId, matchday]);
+  }, [teamId, matchday, dateLocal]);
 
   return { data, loading, error };
 }
