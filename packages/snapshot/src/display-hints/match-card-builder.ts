@@ -34,6 +34,9 @@ export interface MatchCardDTO {
   status?: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'UNKNOWN';
   scoreHome?: number | null;
   scoreAway?: number | null;
+  /** Goles convertidos en tanda de penales (undefined si no hubo penales). */
+  scoreHomePenalties?: number | null;
+  scoreAwayPenalties?: number | null;
   timeChip: DisplayChipDTO;
   home: MatchCardTeam;
   away: MatchCardTeam;
@@ -285,6 +288,8 @@ export function buildMatchCards(
       status: toCardStatus(match.status),
       scoreHome: isFinished || isLive || isHeuristicallyLive ? match.scoreHome : undefined,
       scoreAway: isFinished || isLive || isHeuristicallyLive ? match.scoreAway : undefined,
+      scoreHomePenalties: isFinished ? (match.scoreHomePenalties ?? undefined) : undefined,
+      scoreAwayPenalties: isFinished ? (match.scoreAwayPenalties ?? undefined) : undefined,
       timeChip,
       home: {
         teamId: match.homeTeamId,

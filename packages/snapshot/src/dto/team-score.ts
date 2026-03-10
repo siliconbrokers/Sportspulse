@@ -65,6 +65,9 @@ export interface NextMatchDTO {
   venue?: 'HOME' | 'AWAY' | 'NEUTRAL' | 'UNKNOWN';
   scoreHome?: number | null;
   scoreAway?: number | null;
+  /** Goles convertidos en tanda de penales (undefined si no hubo penales). */
+  scoreHomePenalties?: number | null;
+  scoreAwayPenalties?: number | null;
   /** Canonical match status: 'SCHEDULED' | 'IN_PROGRESS' | 'FINISHED' | 'POSTPONED' | 'CANCELED' */
   matchStatus?: string;
   prediction?: PredictionDTO;
