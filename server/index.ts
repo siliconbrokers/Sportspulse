@@ -13,6 +13,9 @@ import { EventosService, buildEventSource } from './eventos/index.js';
 import { MatchEventsService } from './match-events-service.js';
 import { IncidentService } from './incidents/incident-service.js';
 import { PredictionService } from './prediction/prediction-service.js';
+import { PredictionStore } from './prediction/prediction-store.js';
+import { runShadow } from './prediction/shadow-runner.js';
+import { registerInspectionRoute } from './prediction/inspection-route.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
 import {
@@ -300,6 +303,7 @@ async function main() {
   };
 
   const predictionService = new PredictionService();
+  const predictionStore = new PredictionStore();
 
   const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: wcSource, upcomingService, predictionService });
 
@@ -415,6 +419,15 @@ async function main() {
     } catch (err) {
       console.error('Refresh failed for Copa del Mundo 2026:', err);
     }
+    // Shadow prediction pipeline — fire-and-forget, fault-isolated
+    // Runs out-of-band: errors never propagate to the refresh cycle
+    void runShadow(dataSource, ALL_COMP_IDS, predictionService, predictionStore);
+
+    // Invalidate snapshot cache after every data source refresh.
+    // This ensures MatchCardList (snapshot) and PronosticoCard/Radar (reads DataSource live)
+    // always reflect the same canonical data — no inconsistency between sections.
+    snapshotService.invalidateAll();
+    console.log('[Scheduler] Snapshot cache invalidated after data refresh');
   }
 
   function scheduleNextRefresh(): void {
@@ -513,6 +526,9 @@ async function main() {
       return reply.code(404).send({ error: 'Not found' });
     }
   });
+
+  // ── Internal predictions inspection endpoint (PE-75) ──────────────────────
+  registerInspectionRoute(app, predictionStore);
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`SportsPulse API running at http://localhost:${PORT}`);

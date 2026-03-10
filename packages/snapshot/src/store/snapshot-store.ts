@@ -8,6 +8,9 @@ export interface SnapshotStore {
   /** @param ttlMs — optional override; defaults to store's configured TTL. */
   set(key: string, snapshot: DashboardSnapshotDTO, ttlMs?: number): void;
   has(key: string): boolean;
+  /** Clears all cached entries — call after a data source refresh so the
+   *  next dashboard request rebuilds with the latest data. */
+  invalidateAll(): void;
 }
 
 interface CacheEntry {
@@ -47,5 +50,10 @@ export class InMemorySnapshotStore implements SnapshotStore {
     const entry = this.cache.get(key);
     if (!entry) return false;
     return Date.now() <= entry.expiresAt;
+  }
+
+  /** Clears all cached entries — call after a data source refresh. */
+  invalidateAll(): void {
+    this.cache.clear();
   }
 }

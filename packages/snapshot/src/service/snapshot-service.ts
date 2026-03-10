@@ -113,4 +113,14 @@ export class SnapshotService {
       throw new SnapshotBuildFailed('Snapshot build failed and no cached version available', err);
     }
   }
+
+  /**
+   * Clears all cached snapshots.
+   * Call after each data source refresh so the next dashboard request rebuilds
+   * with the latest canonical data, keeping MatchCardList and PronosticoCard
+   * (which reads live from DataSource) consistent.
+   */
+  invalidateAll(): void {
+    this.store.invalidateAll();
+  }
 }
