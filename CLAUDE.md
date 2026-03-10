@@ -27,18 +27,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Nuevo paquete workspace — Regla CRÍTICA
 
-Cada vez que se crea un nuevo paquete en `packages/`, se deben hacer **obligatoriamente** estas tres cosas antes de terminar la tarea:
+Cada vez que se crea un nuevo paquete en `packages/`, se deben hacer **obligatoriamente** estas cuatro cosas antes de terminar la tarea:
 
 1. Agregar el path alias en `tsconfig.server.json` bajo `compilerOptions.paths`:
    ```json
    "@sportpulse/<nombre>": ["./packages/<nombre>/src/index.ts"]
    ```
 2. Correr `pnpm install` para actualizar `pnpm-lock.yaml` con las dependencias del nuevo paquete.
-3. Verificar que el paquete compile: `pnpm build` debe terminar sin errores.
+3. Agregar el paquete en `Dockerfile` en **dos lugares**:
+   - Sección de manifests (antes de `RUN pnpm install`): `COPY packages/<nombre>/package.json ./packages/<nombre>/`
+   - Sección de fuentes (después de `RUN pnpm install`): `COPY packages/<nombre> ./packages/<nombre>`
+4. Verificar que el paquete compile: `pnpm build` debe terminar sin errores.
 
 **Por qué:**
 - El alias en `tsconfig.server.json` es necesario porque `tsx` (dev server) resuelve `@sportpulse/*` desde ahí. Sin él, el API server crashea con `Cannot find module`.
 - `pnpm install` es obligatorio porque Render usa `--frozen-lockfile` en CI. Si `pnpm-lock.yaml` no refleja el nuevo paquete, el deploy falla con exit code 1 antes de llegar al build.
+- El `Dockerfile` lista los paquetes explícitamente — no hay glob. Si no se agrega el paquete, el contenedor no lo incluye y el servidor falla al iniciar.
 
 ---
 
