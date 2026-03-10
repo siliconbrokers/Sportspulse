@@ -143,6 +143,8 @@ export interface UpcomingMatchDTO {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  homeTla?: string;
+  awayTla?: string;
   homeCrestUrl: string | null;
   awayCrestUrl: string | null;
   homeTeamId: string;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useWindowWidth } from '../hooks/use-window-width.js';
+import { resolveTeamName } from '../utils/resolve-team-name.js';
 
 // ─── Types (§ 4.1) ────────────────────────────────────────────────────────────
 
@@ -9,6 +10,7 @@ export type MatchMapCardTeam = {
   id: string;
   name: string;
   shortName?: string;
+  tla?: string;
   crestUrl?: string | null;
 };
 
@@ -209,8 +211,8 @@ export function MatchMapCard({
   const isCompact = breakpoint === 'mobile';
 
   // ── Content resolution (§ 24 pseudocode) ────────────────────────────────────
-  const homeName = homeTeam.shortName?.trim() || homeTeam.name?.trim() || '—';
-  const awayName = awayTeam.shortName?.trim() || awayTeam.name?.trim() || '—';
+  const homeName = resolveTeamName(homeTeam.name?.trim() || '—', { tla: homeTeam.tla, compact: isCompact });
+  const awayName = resolveTeamName(awayTeam.name?.trim() || '—', { tla: awayTeam.tla, compact: isCompact });
 
   const scoreDisplay = resolveScoreDisplay(score);
 

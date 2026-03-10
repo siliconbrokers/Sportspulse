@@ -4,6 +4,7 @@
  */
 import type { StandingEntry } from '../hooks/use-standings.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
+import { resolveTeamName } from '../utils/resolve-team-name.js';
 
 // ─── Zonas de clasificación ───────────────────────────────────────────────────
 type ZoneType = 'ucl' | 'uel' | 'uecl' | 'playoff' | 'relegation' | null;
@@ -373,7 +374,7 @@ export function StandingsTable({
                           fontSize: isMobile ? 12 : 13,
                         }}
                       >
-                        {row.teamName}
+                        {resolveTeamName(row.teamName, { tla: row.tla, compact: isMobile })}
                       </span>
                       {isLiveNow && (
                         <span

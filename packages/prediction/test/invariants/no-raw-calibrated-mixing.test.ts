@@ -56,12 +56,12 @@ function mkMatchInput(matchId = 'mixing-test-001'): MatchInput {
     competition_profile: {
       team_domain: 'CLUB',
       competition_family: 'DOMESTIC_LEAGUE',
-      stage_type: 'REGULAR_SEASON',
-      format_type: 'LEAGUE',
+      stage_type: 'GROUP_STAGE',
+      format_type: 'ROUND_ROBIN',
       leg_type: 'SINGLE',
       neutral_venue: false,
       competition_profile_version: '1.0',
-    } as any,
+    },
     historical_context: {
       home_completed_official_matches_last_365d: 30,
       away_completed_official_matches_last_365d: 28,
@@ -361,11 +361,17 @@ describe('No raw-calibrated mixing — internals separate fields (§19.5, §15.4
   });
 });
 
-// ── LIMITED_MODE: raw probs exposed, not calibrated ───────────────────────
+// ── LIMITED_MODE: calibration-derived fields are null, not raw ────────────
+//
+// FIX #64 (F-002): LIMITED_MODE core must NOT use raw probs in calibrated slots.
+// Per §16.2: "los outputs visibles 1X2 deben ser calibrated_1x2_probs".
+// Since calibration is not applied in LIMITED_MODE, the fields are null.
+// This is the CORRECT family separation behavior per spec.
 
-describe('No raw-calibrated mixing — LIMITED_MODE core from raw (§21.3)', () => {
-  it('p_home_win comes from raw_1x2_probs in LIMITED_MODE', () => {
-    // §21.3: "In LIMITED_MODE, core uses raw_1x2_probs as best available estimate"
+describe('No raw-calibrated mixing — LIMITED_MODE core fields are null (§16.2, §21.3, FIX#64)', () => {
+  it('p_home_win is null in LIMITED_MODE — raw probs must NOT substitute (§16.2)', () => {
+    // FIX #64: raw probs must not fill calibrated slots.
+    // Spec §16.2: visible 1X2 = calibrated_1x2_probs. When calibration not applied → null.
     const params: BuildPredictionResponseParams = {
       matchInput: mkMatchInput(),
       validationResult: limitedValidation,
@@ -375,8 +381,10 @@ describe('No raw-calibrated mixing — LIMITED_MODE core from raw (§21.3)', () 
     };
     const result = buildPredictionResponse(params);
     if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
-    // Must be raw value (0.48), not the calibrated value (0.55)
-    expect(result.predictions.core.p_home_win).toBeCloseTo(RAW_HOME, 8);
+    // Must be null — NOT the raw value (0.48)
+    expect(result.predictions.core.p_home_win).toBeNull();
+    expect(result.predictions.core.p_draw).toBeNull();
+    expect(result.predictions.core.p_away_win).toBeNull();
   });
 
   it('predictions.secondary is null in LIMITED_MODE — calibrated outputs not exposed', () => {

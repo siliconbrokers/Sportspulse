@@ -9,6 +9,7 @@ import { useWindowWidth } from '../../hooks/use-window-width.js';
 import { useTheme } from '../../hooks/use-theme.js';
 import { getMatchDisplayStatus } from '../../utils/match-status.js';
 import { ProbabilityBars } from '../shared/ProbabilityBars.js';
+import { resolveTeamName } from '../../utils/resolve-team-name.js';
 
 // ── Animations (injected once) ────────────────────────────────────────────────
 
@@ -128,8 +129,8 @@ export function RadarCard({ card, live, competitionKey, matchday, onViewMatch, a
   const isFinished = displayStatus === 'FINISHED';
   const isActive   = isLive || isZombie;
 
-  const homeTeamName = live?.homeTeamName ?? card.matchId;
-  const awayTeamName = live?.awayTeamName ?? '';
+  const homeTeamName = resolveTeamName(live?.homeTeamName ?? card.matchId, { compact: isMobile });
+  const awayTeamName = resolveTeamName(live?.awayTeamName ?? '', { compact: isMobile });
   const homeCrest    = live?.homeTeamCrest;
   const awayCrest    = live?.awayTeamCrest;
 

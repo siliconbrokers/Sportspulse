@@ -21,7 +21,7 @@ interface FDStandingsResponse {
     type: string;
     table: Array<{
       position: number;
-      team: { id: number; name: string; shortName: string; crest: string };
+      team: { id: number; name: string; shortName: string; tla?: string; crest: string };
       playedGames: number;
       won: number;
       draw: number;
@@ -428,6 +428,7 @@ export class FootballDataSource implements DataSource {
             position: row.position,
             teamId: canonicalTeamId(PROVIDER_KEY, String(row.team.id)),
             teamName: row.team.name,
+            tla: row.team.tla || undefined,
             crestUrl: row.team.crest || undefined,
             playedGames: row.playedGames,
             won: row.won,

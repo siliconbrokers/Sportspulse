@@ -76,6 +76,7 @@ export interface NextMatchDTO {
 export interface TeamScoreDTO {
   teamId: string;
   teamName: string;
+  tla?: string;
   crestUrl?: string;
   venueName?: string;
   coachName?: string;

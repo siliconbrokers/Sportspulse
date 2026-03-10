@@ -14,6 +14,8 @@ interface UpcomingMatchDTO {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  homeTla?: string;
+  awayTla?: string;
   homeCrestUrl: string | null;
   awayCrestUrl: string | null;
   homeTeamId: string;
@@ -130,6 +132,8 @@ function upcomingToEvent(m: UpcomingMatchDTO): ParsedEvent {
     sourceStatusText:            null,
     homeTeam:                    m.homeTeam,
     awayTeam:                    m.awayTeam,
+    homeTla:                     m.homeTla,
+    awayTla:                     m.awayTla,
     normalizedLeague:            m.normalizedLeague,
     normalizedStatus:            m.normalizedStatus,
     sourceTimezoneOffsetMinutes: null,

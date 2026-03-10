@@ -8,6 +8,8 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import type { MatchCardDTO } from '../types/snapshot.js';
 import { computeLiveTimeChip } from '../utils/time-chip.js';
 import { getMatchDisplayStatus, type DisplayMatchStatus } from '../utils/match-status.js';
+import { useWindowWidth } from '../hooks/use-window-width.js';
+import { resolveTeamName } from '../utils/resolve-team-name.js';
 import './match-map.css';
 
 // ─── Utilidades de fecha ──────────────────────────────────────────────────────
@@ -181,8 +183,11 @@ function TeamRow({
 }) {
   const team = side === 'home' ? card.home : card.away;
   const score = side === 'home' ? card.scoreHome : card.scoreAway;
-  const displayName =
-    team.shortName && team.shortName.length < team.name.length - 5 ? team.shortName : team.name;
+  const { breakpoint } = useWindowWidth();
+  const displayName = resolveTeamName(team.name, {
+    tla: team.tla,
+    compact: breakpoint === 'mobile',
+  });
 
   const isLive   = cardState === 'LIVE';
   const isZombie = cardState === 'ZOMBIE';

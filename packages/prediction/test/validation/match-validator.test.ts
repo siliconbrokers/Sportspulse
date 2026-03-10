@@ -16,6 +16,10 @@ import type { MatchInput } from '../../src/contracts/types/match-input.js';
 import type { CompetitionProfile } from '../../src/contracts/types/competition-profile.js';
 import type { LeagueStrengthFactorRecord } from '../../src/contracts/types/league-strength.js';
 import type { PriorRating } from '../../src/contracts/types/prior-rating.js';
+import {
+  isKnownOfficialSenior11v11,
+  OFFICIAL_SENIOR_11V11_COMPETITION_IDS,
+} from '../../src/contracts/constants.js';
 
 // ── Test fixtures ──────────────────────────────────────────────────────────
 
@@ -807,5 +811,155 @@ describe('validateMatch — CRITICAL-004: §11.2 DOMAIN_POOL_UNAVAILABLE', () =>
     const result = validateMatch(makeContext(input)); // no domain_pool_available field
     expect(result.operating_mode).toBe('FULL_MODE');
     expect(result.reasons).not.toContain('DOMAIN_POOL_UNAVAILABLE');
+  });
+});
+
+// ── F-005: §7.6 isKnownOfficialSenior11v11 catalog lookup ─────────────────
+
+/**
+ * F-005 — catalog_confirms_official_senior_11v11 must come from a real catalog
+ * lookup, never from a hardcoded true.
+ *
+ * §7.6: "la clasificación de partido como oficial, senior, 11v11 no viene
+ * resuelta por flags ad hoc del MatchInput, sino por un catálogo confiable de
+ * competición asociado a competition_id y season_id."
+ *
+ * §7.6 invariant: queda PROHIBIDO inferir esta clasificación por heurística
+ * blanda o por nombre libre del torneo.
+ */
+describe('F-005 — §7.6 isKnownOfficialSenior11v11 catalog', () => {
+  // ── MVP competitions must be in the catalog ──────────────────────────────
+
+  it('PD (LaLiga short code) → true', () => {
+    // §7.6 + §2.1: LaLiga is official/senior/11v11 in MVP scope
+    expect(isKnownOfficialSenior11v11('PD')).toBe(true);
+  });
+
+  it('comp:football-data:PD (LaLiga namespaced) → true', () => {
+    expect(isKnownOfficialSenior11v11('comp:football-data:PD')).toBe(true);
+  });
+
+  it('PL (Premier League short code) → true', () => {
+    expect(isKnownOfficialSenior11v11('PL')).toBe(true);
+  });
+
+  it('comp:football-data:PL (Premier League namespaced) → true', () => {
+    expect(isKnownOfficialSenior11v11('comp:football-data:PL')).toBe(true);
+  });
+
+  it('BL1 (Bundesliga short code) → true', () => {
+    expect(isKnownOfficialSenior11v11('BL1')).toBe(true);
+  });
+
+  it('comp:football-data:BL1 (Bundesliga namespaced) → true', () => {
+    expect(isKnownOfficialSenior11v11('comp:football-data:BL1')).toBe(true);
+  });
+
+  it('4432 (Liga Uruguaya TheSportsDB short ID) → true', () => {
+    expect(isKnownOfficialSenior11v11('4432')).toBe(true);
+  });
+
+  it('TheSportsDB:4432 (Liga Uruguaya namespaced) → true', () => {
+    expect(isKnownOfficialSenior11v11('TheSportsDB:4432')).toBe(true);
+  });
+
+  it('comp:thesportsdb:4432 (Liga Uruguaya server form) → true', () => {
+    expect(isKnownOfficialSenior11v11('comp:thesportsdb:4432')).toBe(true);
+  });
+
+  // ── Unknown competitions must return false ───────────────────────────────
+
+  it('unknown competition "comp:unknown:999" → false', () => {
+    // §7.6: competitions not in the catalog are NOT confirmed official/senior/11v11
+    expect(isKnownOfficialSenior11v11('comp:unknown:999')).toBe(false);
+  });
+
+  it('empty string → false', () => {
+    expect(isKnownOfficialSenior11v11('')).toBe(false);
+  });
+
+  it('free-form tournament name → false (heuristics prohibited by §7.6)', () => {
+    // §7.6: queda prohibido inferir clasificación por nombre libre del torneo
+    expect(isKnownOfficialSenior11v11('UEFA Champions League')).toBe(false);
+    expect(isKnownOfficialSenior11v11('World Cup 2026')).toBe(false);
+    expect(isKnownOfficialSenior11v11('friendly match')).toBe(false);
+  });
+
+  it('near-miss spellings → false (no soft matching)', () => {
+    // Exact membership only — no prefix/suffix/case-insensitive matching
+    expect(isKnownOfficialSenior11v11('pd')).toBe(false); // wrong case
+    expect(isKnownOfficialSenior11v11('pl')).toBe(false); // wrong case
+    expect(isKnownOfficialSenior11v11('bl1')).toBe(false); // wrong case
+    expect(isKnownOfficialSenior11v11(' PD')).toBe(false); // leading space
+    expect(isKnownOfficialSenior11v11('PD ')).toBe(false); // trailing space
+  });
+
+  // ── OFFICIAL_SENIOR_11V11_COMPETITION_IDS set structure ─────────────────
+
+  it('catalog set contains exactly the 9 expected entries', () => {
+    // §7.6: catalog is frozen for MVP v1 scope — exactly these IDs
+    const expectedIds = [
+      'PD',
+      'comp:football-data:PD',
+      'PL',
+      'comp:football-data:PL',
+      'BL1',
+      'comp:football-data:BL1',
+      '4432',
+      'TheSportsDB:4432',
+      'comp:thesportsdb:4432',
+    ];
+    expect(OFFICIAL_SENIOR_11V11_COMPETITION_IDS.size).toBe(expectedIds.length);
+    for (const id of expectedIds) {
+      expect(OFFICIAL_SENIOR_11V11_COMPETITION_IDS.has(id)).toBe(true);
+    }
+  });
+
+  // ── Integration: unknown competition → NOT_ELIGIBLE via validator ─────────
+
+  it('validateMatch with unknown competition_id and catalog_confirms=false → NOT_ELIGIBLE + UNSUPPORTED_MATCH_TYPE', () => {
+    // §7.6: caller must use isKnownOfficialSenior11v11 to populate
+    // catalog_confirms_official_senior_11v11. When the competition is not in
+    // the catalog, the field is false → NOT_ELIGIBLE.
+    const input = makeFullInput(DOMESTIC_LEAGUE_PROFILE, {
+      competition_id: 'comp:unknown:999', // not in the catalog
+      historical_context: {
+        home_completed_official_matches_last_365d: 20,
+        away_completed_official_matches_last_365d: 18,
+        home_prior_rating_available: false,
+        away_prior_rating_available: false,
+      },
+    });
+    // Caller uses isKnownOfficialSenior11v11 to populate the field — returns false
+    const ctx: MatchValidationContext = {
+      input,
+      catalog_confirms_official_senior_11v11: isKnownOfficialSenior11v11(input.competition_id),
+    };
+    const result = validateMatch(ctx);
+    expect(result.operating_mode).toBe('NOT_ELIGIBLE');
+    expect(result.eligibility_status).toBe('NOT_ELIGIBLE');
+    expect(result.reasons).toContain('UNSUPPORTED_MATCH_TYPE');
+  });
+
+  it('validateMatch with known competition_id and catalog_confirms derived from lookup → ELIGIBLE', () => {
+    // §7.6: when the competition IS in the catalog, the lookup returns true
+    // and the validator proceeds normally
+    const input = makeFullInput(DOMESTIC_LEAGUE_PROFILE, {
+      competition_id: 'PD', // LaLiga — in the catalog
+      historical_context: {
+        home_completed_official_matches_last_365d: 20,
+        away_completed_official_matches_last_365d: 18,
+        home_prior_rating_available: false,
+        away_prior_rating_available: false,
+      },
+    });
+    const ctx: MatchValidationContext = {
+      input,
+      catalog_confirms_official_senior_11v11: isKnownOfficialSenior11v11(input.competition_id),
+    };
+    const result = validateMatch(ctx);
+    expect(result.eligibility_status).toBe('ELIGIBLE');
+    expect(result.operating_mode).toBe('FULL_MODE');
+    expect(result.reasons).not.toContain('UNSUPPORTED_MATCH_TYPE');
   });
 });

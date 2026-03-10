@@ -61,6 +61,64 @@ export const PRIOR_RATING_MIN_UPDATES_LAST_730D: number = 3;
  */
 export const PRIOR_RATING_CROSS_SEASON_CARRY_ALLOWED: boolean = true;
 
+// ── §7.5 / §7.6 Official / senior / 11v11 competition catalog ──────────────
+
+/**
+ * Authoritative set of competition IDs confirmed as official, senior, and
+ * 11v11 for the SportPulse v1 MVP scope.
+ *
+ * §7.6: "la clasificación de partido como oficial, senior, 11v11 no viene
+ * resuelta por flags ad hoc del MatchInput, sino por un catálogo confiable de
+ * competición asociado a competition_id y season_id."
+ *
+ * §7.6 invariant: queda PROHIBIDO inferir esta clasificación por heurística
+ * blanda o por nombre libre del torneo.
+ *
+ * This catalog covers all ID representations used across the system:
+ *   - Short codes (PD, PL, BL1, 4432) — as supplied by the prediction engine
+ *   - Namespaced forms (comp:football-data:PD, comp:thesportsdb:4432) — as used
+ *     by the server routing layer
+ *
+ * Any competition_id NOT in this set → catalog_confirms_official_senior_11v11 = false
+ * → NOT_ELIGIBLE per §7.6.
+ *
+ * To add a new competition: update this set AND bump policyVersion (scoring
+ * semantics change gate per SDD versioning rules).
+ */
+export const OFFICIAL_SENIOR_11V11_COMPETITION_IDS: ReadonlySet<string> = new Set([
+  // ── LaLiga (football-data.org competition code PD) ──────────────────────
+  'PD',
+  'comp:football-data:PD',
+
+  // ── Premier League (football-data.org competition code PL) ──────────────
+  'PL',
+  'comp:football-data:PL',
+
+  // ── Bundesliga (football-data.org competition code BL1) ─────────────────
+  'BL1',
+  'comp:football-data:BL1',
+
+  // ── Liga Uruguaya (TheSportsDB league ID 4432) ───────────────────────────
+  '4432',
+  'TheSportsDB:4432',
+  'comp:thesportsdb:4432',
+]);
+
+/**
+ * Returns true iff the given competition_id is in the authoritative catalog
+ * of official / senior / 11v11 competitions for the MVP v1 scope.
+ *
+ * This is the ONLY permitted way to resolve catalog_confirms_official_senior_11v11
+ * for a MatchValidationContext. Callers MUST NOT pass true without calling this
+ * function (or an equivalent authoritative source).
+ *
+ * §7.6: "si el catálogo no permite determinar que el partido pertenece a una
+ * competición oficial senior 11v11, el partido debe pasar a NOT_ELIGIBLE."
+ */
+export function isKnownOfficialSenior11v11(competition_id: string): boolean {
+  return OFFICIAL_SENIOR_11V11_COMPETITION_IDS.has(competition_id);
+}
+
 /**
  * Default business-level indecision threshold for predicted_result. If the
  * margin between the top-1 and top-2 calibrated probabilities is below this

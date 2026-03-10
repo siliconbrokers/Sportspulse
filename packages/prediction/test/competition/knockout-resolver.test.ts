@@ -369,7 +369,7 @@ describe('resolveKnockout — edge cases', () => {
   it('returns BLOCKED for non-knockout format_type', () => {
     const match: KnockoutMatchData = {
       match_id: 'edge2',
-      format_type: 'ROUND_ROBIN' as any,
+      format_type: 'ROUND_ROBIN',
       leg_type: 'SINGLE',
       current_leg_score: { home_score: 1, away_score: 0 },
       aggregate_state_before_match: null,

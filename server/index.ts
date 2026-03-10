@@ -270,6 +270,8 @@ async function main() {
             id:               m.matchId,
             homeTeam:         home?.name ?? home?.shortName ?? m.homeTeamId,
             awayTeam:         away?.name ?? away?.shortName ?? m.awayTeamId,
+            homeTla:          home?.tla,
+            awayTla:          away?.tla,
             homeCrestUrl:     home?.crestUrl ?? null,
             awayCrestUrl:     away?.crestUrl ?? null,
             homeTeamId:       m.homeTeamId,

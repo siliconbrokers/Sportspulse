@@ -92,6 +92,7 @@ export function buildTeamTile(
   return {
     teamId: team.teamId,
     teamName: team.name,
+    tla: team.tla,
     crestUrl: team.crestUrl,
     venueName: team.venueName,
     coachName: team.coachName,

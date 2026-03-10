@@ -1,5 +1,6 @@
 import type { TeamScoreDTO } from '../types/snapshot.js';
 import { venueLabel } from '../utils/labels.js';
+import { resolveTeamName } from '../utils/resolve-team-name.js';
 
 interface TeamTileProps {
   team: TeamScoreDTO;
@@ -81,9 +82,10 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
   const nameLineH = nameFontSize * 1.3;
 
   // Label: abbreviate for small tiles
-  const label = tier === 'xs' || tier === 'sm'
-    ? team.teamName.slice(0, 3).toUpperCase()
-    : team.teamName;
+  const label = resolveTeamName(team.teamName, {
+    tla: team.tla,
+    compact: tier === 'xs' || tier === 'sm',
+  });
 
   // Crest sizing: use available space after name and bottom bar
   const bottomBarH = tier === 'xl' || tier === 'lg' ? 18 : 0;

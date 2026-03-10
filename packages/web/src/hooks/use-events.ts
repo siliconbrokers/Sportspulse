@@ -19,6 +19,8 @@ export interface ParsedEvent {
   sourceStatusText: string | null;
   homeTeam: string | null;
   awayTeam: string | null;
+  homeTla?: string | null;
+  awayTla?: string | null;
   normalizedLeague: NormalizedLeague;
   normalizedStatus: EventStatus;
   sourceTimezoneOffsetMinutes: number | null;

@@ -130,6 +130,7 @@ export interface SignalDTO {
 export interface TeamScoreDTO {
   teamId: string;
   teamName: string;
+  tla?: string;
   crestUrl?: string;
   venueName?: string;
   coachName?: string;
@@ -179,6 +180,7 @@ export interface MatchCardTeam {
   teamId: string;
   name: string;
   shortName?: string;
+  tla?: string;
   crestUrl?: string;
   formChip?: DisplayChipDTO;
 }

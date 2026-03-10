@@ -27,6 +27,8 @@ export {
   STRONG_BRIDGING_CONFIDENCE_LEVELS,
   MIN_BUCKET_SAMPLE_FOR_CALIBRATION_EVAL,
   MATRIX_MAX_GOAL_DEFAULT,
+  OFFICIAL_SENIOR_11V11_COMPETITION_IDS,
+  isKnownOfficialSenior11v11,
 } from './constants.js';
 
 // ── Competition Profile types (§8) ────────────────────────────────────────

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { MatchCardDTO, UrgencyColorKey, HeatBorderKey } from '../types/snapshot.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import { computeLiveTimeChip } from '../utils/time-chip.js';
+import { resolveTeamName } from '../utils/resolve-team-name.js';
 import './match-map.css';
 
 interface MatchMapCardGridProps {
@@ -104,9 +105,9 @@ function isEffectivelyLive(card: MatchCardDTO): boolean {
   return false;
 }
 
-function TileContent({ card, crestSize, showForm }: { card: MatchCardDTO; crestSize: number; showForm: boolean }) {
-  const homeName = card.home.name || '—';
-  const awayName = card.away.name || '—';
+function TileContent({ card, crestSize, showForm, compact }: { card: MatchCardDTO; crestSize: number; showForm: boolean; compact: boolean }) {
+  const homeName = resolveTeamName(card.home.name || '—', { tla: card.home.tla, compact });
+  const awayName = resolveTeamName(card.away.name || '—', { tla: card.away.tla, compact });
   const nameSize = crestSize <= 28 ? 10 : 11;
   const scoreSize = crestSize <= 28 ? 15 : 18;
   const pad = crestSize <= 28 ? '8px 10px' : '10px 12px';
@@ -340,7 +341,7 @@ export function MatchMapCardGrid({
             {isFeatured && heatKey === 'BOTH_HOT' && (
               <span className="mm-tile__badge" aria-hidden="true">🔥</span>
             )}
-            <TileContent card={card} crestSize={crestSize} showForm={showForm} />
+            <TileContent card={card} crestSize={crestSize} showForm={showForm} compact={isMobile} />
           </div>
         );
       })}

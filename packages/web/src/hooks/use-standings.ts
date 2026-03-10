@@ -4,6 +4,7 @@ export interface StandingEntry {
   position: number;
   teamId: string;
   teamName: string;
+  tla?: string;
   crestUrl?: string;
   playedGames: number;
   won: number;

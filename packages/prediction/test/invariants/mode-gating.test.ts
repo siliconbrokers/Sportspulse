@@ -24,10 +24,9 @@ import type {
   CalibratedOutputs,
 } from '../../src/response-builder.js';
 import type { MatchInput } from '../../src/contracts/types/match-input.js';
+import type { CompetitionProfile } from '../../src/contracts/types/competition-profile.js';
 import type { ValidationResult } from '../../src/contracts/types/validation-result.js';
 import type {
-  Raw1x2Probs,
-  Calibrated1x2Probs,
   DerivedRawOutputs,
   DerivedCalibratedOutputs,
 } from '../../src/contracts/types/prediction-response.js';
@@ -35,8 +34,27 @@ import type { CalibrationVersionMetadata } from '../../src/calibration/version-m
 import type { PredictedResultOutput } from '../../src/engine/decision-policy.js';
 import type { RawMatchDistributionResult } from '../../src/engine/scoreline-matrix.js';
 import type { LambdaResult } from '../../src/engine/lambda-computer.js';
+import {
+  buildTestRaw1x2Probs,
+  buildTestCalibratedProbs,
+  buildTestRawDistribution,
+} from '../helpers/branded-factories.js';
 
 // ── Test fixtures ──────────────────────────────────────────────────────────
+
+// Spec §8.1: valid CompetitionProfile for a domestic league round-robin match.
+// stage_type: 'GROUP_STAGE' is the correct spec-defined value for a league
+// matchday. §8.1 enumerates valid PredictiveStageType values — 'REGULAR_SEASON'
+// and 'LEAGUE' are NOT in the spec enum and must not be used in tests.
+const BASE_COMPETITION_PROFILE: CompetitionProfile = {
+  team_domain: 'CLUB',
+  competition_family: 'DOMESTIC_LEAGUE',
+  stage_type: 'GROUP_STAGE', // §8.1: valid PredictiveStageType
+  format_type: 'ROUND_ROBIN', // §8.1: valid FormatType for domestic league
+  leg_type: 'SINGLE',
+  neutral_venue: false,
+  competition_profile_version: '1.0',
+};
 
 function mkMatchInput(matchId = 'test-match-001'): MatchInput {
   return {
@@ -49,15 +67,8 @@ function mkMatchInput(matchId = 'test-match-001'): MatchInput {
     away_team_id: 'team-B',
     home_team_domain_id: 'CLUB',
     away_team_domain_id: 'CLUB',
-    competition_profile: {
-      team_domain: 'CLUB',
-      competition_family: 'DOMESTIC_LEAGUE',
-      stage_type: 'REGULAR_SEASON',
-      format_type: 'LEAGUE',
-      leg_type: 'SINGLE',
-      neutral_venue: false,
-      competition_profile_version: '1.0',
-    } as any,
+    // Spec §7.2: competition_profile uses valid CompetitionProfile type (no as any).
+    competition_profile: BASE_COMPETITION_PROFILE,
     historical_context: {
       home_completed_official_matches_last_365d: 20,
       away_completed_official_matches_last_365d: 20,
@@ -79,7 +90,8 @@ function mkVersionMetadata(): CalibrationVersionMetadata {
 }
 
 function mkEngineOutputs(): RawEngineOutputs {
-  const distribution = { '0-0': 1.0 } as unknown as RawMatchDistributionResult['distribution'];
+  // §14.2: RawMatchDistribution branded type — use factory helper, not as any.
+  const distribution = buildTestRawDistribution({ '0-0': 1.0 });
   const lambdaResult: LambdaResult = {
     lambda_home: 1.4,
     lambda_away: 1.1,
@@ -94,7 +106,8 @@ function mkEngineOutputs(): RawEngineOutputs {
     lambda_home: 1.4,
     lambda_away: 1.1,
   };
-  const raw1x2: Raw1x2Probs = { home: 0.45, draw: 0.27, away: 0.28 } as unknown as Raw1x2Probs;
+  // §16.1: Raw1x2Probs branded type — use factory helper, not as any.
+  const raw1x2 = buildTestRaw1x2Probs(0.45, 0.27, 0.28);
   const derivedRaw: DerivedRawOutputs = {
     over_2_5: 0.5,
     under_2_5: 0.5,
@@ -129,11 +142,8 @@ function mkEngineOutputs(): RawEngineOutputs {
 }
 
 function mkCalibratedOutputs(): CalibratedOutputs {
-  const calibrated1x2: Calibrated1x2Probs = {
-    home: 0.48,
-    draw: 0.25,
-    away: 0.27,
-  } as unknown as Calibrated1x2Probs;
+  // §16.2: Calibrated1x2Probs branded type — use factory helper, not as any.
+  const calibrated1x2 = buildTestCalibratedProbs(0.48, 0.25, 0.27);
   const derivedCalibrated: DerivedCalibratedOutputs = {
     home_or_draw: 0.73,
     draw_or_away: 0.52,
@@ -334,7 +344,11 @@ describe('Operating mode gating — LIMITED_MODE (§21.3, §25.3)', () => {
     expect(result.eligibility_status).toBe('ELIGIBLE');
   });
 
-  it('predictions.core contains all required fields (§15.1)', () => {
+  it('predictions.core contains all required fields (§15.1, FIX#64)', () => {
+    // FIX #64 (F-002): In LIMITED_MODE, calibration-derived fields MUST be null.
+    // Per §16.2: visible 1X2 outputs must be from calibrated_1x2_probs.
+    // Since calibration is not applied in LIMITED_MODE, those fields are null.
+    // Only lambda-derived fields (expected_goals_home/away) are always present.
     const params: BuildPredictionResponseParams = {
       matchInput: mkMatchInput(),
       validationResult: limitedValidation,
@@ -344,15 +358,18 @@ describe('Operating mode gating — LIMITED_MODE (§21.3, §25.3)', () => {
     const result = buildPredictionResponse(params);
     if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
     const core = result.predictions.core;
-    expect(typeof core.p_home_win).toBe('number');
-    expect(typeof core.p_draw).toBe('number');
-    expect(typeof core.p_away_win).toBe('number');
+    // Calibration-derived fields: null in LIMITED_MODE (§16.2, §21.3)
+    expect(core.p_home_win).toBeNull();
+    expect(core.p_draw).toBeNull();
+    expect(core.p_away_win).toBeNull();
+    // Lambda-derived fields: always present (§15.1)
     expect(typeof core.expected_goals_home).toBe('number');
     expect(typeof core.expected_goals_away).toBe('number');
-    expect(typeof core.predicted_result).toBe('string');
-    expect(typeof core.predicted_result_conflict).toBe('boolean');
-    expect(typeof core.favorite_margin).toBe('number');
-    expect(typeof core.draw_risk).toBe('number');
+    // Decision policy fields: null in LIMITED_MODE (require calibrated probs)
+    expect(core.predicted_result).toBeNull();
+    expect(core.predicted_result_conflict).toBeNull();
+    expect(core.favorite_margin).toBeNull();
+    expect(core.draw_risk).toBeNull();
   });
 });
 

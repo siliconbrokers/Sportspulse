@@ -11,6 +11,7 @@ import { useWindowWidth } from '../../hooks/use-window-width.js';
 import { useTheme } from '../../hooks/use-theme.js';
 import { getMatchDisplayStatus } from '../../utils/match-status.js';
 import { ProbabilityBars } from '../shared/ProbabilityBars.js';
+import { resolveTeamName } from '../../utils/resolve-team-name.js';
 
 // ── CSS injected once ─────────────────────────────────────────────────────────
 
@@ -149,10 +150,8 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
   const isPost   = ds === 'FINISHED' || radarCard?.editorialState === 'POST_MATCH';
 
   // ── Teams ─────────────────────────────────────────────────────────────────
-  const homeName  = matchCard.home.shortName && matchCard.home.shortName.length < matchCard.home.name.length - 5
-    ? matchCard.home.shortName : matchCard.home.name;
-  const awayName  = matchCard.away.shortName && matchCard.away.shortName.length < matchCard.away.name.length - 5
-    ? matchCard.away.shortName : matchCard.away.name;
+  const homeName = resolveTeamName(matchCard.home.name, { tla: matchCard.home.tla, compact: isMobile });
+  const awayName = resolveTeamName(matchCard.away.name, { tla: matchCard.away.tla, compact: isMobile });
   const homeCrest = matchCard.home.crestUrl;
   const awayCrest = matchCard.away.crestUrl;
 

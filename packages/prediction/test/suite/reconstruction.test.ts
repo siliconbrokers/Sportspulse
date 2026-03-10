@@ -76,12 +76,12 @@ function mkBaseMatchInput(matchId: string): MatchInput {
     competition_profile: {
       team_domain: 'CLUB',
       competition_family: 'DOMESTIC_LEAGUE',
-      stage_type: 'REGULAR_SEASON',
-      format_type: 'LEAGUE',
+      stage_type: 'GROUP_STAGE',
+      format_type: 'ROUND_ROBIN',
       leg_type: 'SINGLE',
       neutral_venue: false,
       competition_profile_version: '1.0',
-    } as any,
+    },
     historical_context: {
       home_completed_official_matches_last_365d: 25,
       away_completed_official_matches_last_365d: 22,

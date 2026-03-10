@@ -174,9 +174,17 @@ function buildNotEligibleResponse(
  * In LIMITED_MODE: core present (from raw lambdas only, no calibration).
  * secondary and explainability are null. §21.3
  *
- * Note: In LIMITED_MODE, calibration is not applied. The core probabilities
- * are taken directly from raw_1x2_probs since calibrated outputs are unavailable.
- * §11.3: "predictions.core debe estar presente"
+ * Per §16.2: "los outputs visibles 1X2 deben ser calibrated_1x2_probs".
+ * Since calibration is not applied in LIMITED_MODE, the calibration-derived
+ * fields (p_home_win, p_draw, p_away_win, predicted_result, predicted_result_conflict,
+ * favorite_margin, draw_risk) are set to null. Raw probabilities MUST NOT fill
+ * these fields — that would violate the family separation invariant.
+ *
+ * expected_goals_home and expected_goals_away (lambda-derived, not calibration-derived)
+ * remain present since they are always computable from the engine outputs.
+ *
+ * §11.3: "predictions.core debe estar presente" — satisfied (core object exists).
+ * §16.2: visible 1X2 fields must be null, not raw — enforced here.
  *
  * When called with tailMassExceeded = true (tail mass policy v1, §14.2), the
  * reason EXCESSIVE_TAIL_MASS_FOR_REQUESTED_OUTPUTS is already present in
@@ -201,34 +209,25 @@ function buildLimitedModeResponse(
       ? [...validationResult.reasons, 'EXCESSIVE_TAIL_MASS_FOR_REQUESTED_OUTPUTS']
       : validationResult.reasons;
 
-  const { lambdaResult, raw1x2, derivedRaw } = engineOutputs;
+  const { lambdaResult } = engineOutputs;
 
-  // In LIMITED_MODE, core uses raw probabilities as best available estimate.
-  // TOO_CLOSE is used as predicted_result since no calibration → no reliable decision.
-  // favorite_margin computed on raw probs, draw_risk from raw p_draw. §21.3
-  const rawProbs = [
-    { class: 'HOME' as const, p: raw1x2.home },
-    { class: 'DRAW' as const, p: raw1x2.draw },
-    { class: 'AWAY' as const, p: raw1x2.away },
-  ].sort((a, b) => b.p - a.p);
-
-  const top1 = rawProbs[0]!.p;
-  const top2 = rawProbs[1]!.p;
-  const favoriteMargin = top1 - top2;
-  const tooClose = favoriteMargin < versionMetadata.too_close_margin_threshold;
-
+  // In LIMITED_MODE, calibration was not applied. Per §16.2, visible 1X2 outputs
+  // MUST derive from calibrated_1x2_probs — since these are unavailable, all
+  // calibration-derived fields in core are null. Only lambda-derived fields remain.
   const core: PredictionCore = {
-    // §21.3: In LIMITED_MODE, use raw_1x2_probs as the best available estimate.
-    // These are raw (not calibrated) — the LIMITED_MODE reason codes explain why.
-    p_home_win: raw1x2.home,
-    p_draw: raw1x2.draw,
-    p_away_win: raw1x2.away,
+    // Calibration-derived fields: null per §16.2 (calibration not applied in LIMITED_MODE).
+    // Raw probs MUST NOT substitute here — that would violate family separation.
+    p_home_win: null,
+    p_draw: null,
+    p_away_win: null,
+    // Lambda-derived: always computable regardless of mode. §15.1
     expected_goals_home: lambdaResult.lambda_home,
     expected_goals_away: lambdaResult.lambda_away,
-    predicted_result: tooClose ? 'TOO_CLOSE' : rawProbs[0]!.class,
-    predicted_result_conflict: tooClose,
-    favorite_margin: favoriteMargin,
-    draw_risk: raw1x2.draw,
+    // Decision policy requires calibrated probs → null in LIMITED_MODE.
+    predicted_result: null,
+    predicted_result_conflict: null,
+    favorite_margin: null,
+    draw_risk: null,
   };
 
   const predictions: PredictionOutputs = {
@@ -409,10 +408,19 @@ function buildInternals(
   const eloDiff = eloHome - eloAway;
   const homeAdvantageEffect = effectiveElo?.homAdvantageEffect ?? 0;
 
-  // calibrated_1x2_probs in internals: use calibrated if available, else raw
-  // but keep them in SEPARATE fields per §19.5.
-  // In LIMITED_MODE, calibrated_1x2_probs matches raw (best available). §21.3
-  const calibratedForInternals = calibrated1x2 ?? raw1x2;
+  // Determine calibration_mode (§17.2):
+  // - 'not_applied': calibrated1x2 is null → LIMITED_MODE, calibration was not applied.
+  // - 'bootstrap': calibrated1x2 is present but is the identity pass-through (no trained data).
+  //               The identity calibrator preserves raw probs unchanged before renormalization.
+  // - 'trained': calibrated1x2 is present from a fitted isotonic calibrator.
+  // Currently, bootstrap vs trained cannot be distinguished at this level without coupling to
+  // the CalibrationRegistry. We surface 'trained' for all non-null calibrated outputs and
+  // 'not_applied' for null. Bootstrap mode requires a dedicated flag from the registry caller.
+  // SPEC_AMBIGUITY: §17.2 does not specify the exact output field placement for calibration_mode.
+  // Assumption: internals block (Priority C, §22.3) is the appropriate location since it holds
+  // all audit/reconstruction data. 'bootstrap' requires CalibrationVersionMetadata extension.
+  const calibration_mode: 'bootstrap' | 'trained' | 'not_applied' =
+    calibrated1x2 === null ? 'not_applied' : (versionMetadata.calibration_mode ?? 'trained');
 
   return {
     elo_home_pre: eloHome,
@@ -423,17 +431,22 @@ function buildInternals(
       draw: raw1x2.draw,
       away: raw1x2.away,
     },
-    // §19.5: calibrated_1x2_probs in a SEPARATE field from raw_1x2_probs
-    calibrated_1x2_probs: {
-      home: calibratedForInternals.home,
-      draw: calibratedForInternals.draw,
-      away: calibratedForInternals.away,
-    },
+    // §19.5: calibrated_1x2_probs in a SEPARATE field from raw_1x2_probs.
+    // Null in LIMITED_MODE — raw probs MUST NOT substitute here.
+    calibrated_1x2_probs:
+      calibrated1x2 !== null
+        ? {
+            home: calibrated1x2.home,
+            draw: calibrated1x2.draw,
+            away: calibrated1x2.away,
+          }
+        : null,
     lambda_home: lambdaResult.lambda_home,
     lambda_away: lambdaResult.lambda_away,
     tail_mass_raw: distributionResult.tail_mass_raw,
     matrix_max_goal: distributionResult.matrix_max_goal,
     home_advantage_effect: homeAdvantageEffect,
     score_model_type: 'INDEPENDENT_POISSON',
+    calibration_mode,
   };
 }

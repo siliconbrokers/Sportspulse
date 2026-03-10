@@ -9,6 +9,7 @@ import {
 } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
 import { persistTeamsCache, loadTeamsCache } from './matchday-cache.js';
+import { resolveTla } from './tla-overrides.js';
 
 // ── Provider key ─────────────────────────────────────────────────────────────
 
@@ -188,7 +189,7 @@ export class TheSportsDbSource implements DataSource {
           teamId: canonId,
           sportId: Sport.FOOTBALL,
           name,
-          shortName: name.slice(0, 3).toUpperCase(),
+          tla: resolveTla(name),
           crestUrl: badgeUrl || undefined,
           providerKey: SPORTSDB_PROVIDER_KEY,
           providerTeamId: id,
@@ -388,6 +389,7 @@ function computeStandings(matches: Match[], teams: Team[]): StandingEntry[] {
       position: i + 1,
       teamId: r.teamId,
       teamName: team?.name ?? r.teamId,
+      tla: team?.tla ?? resolveTla(team?.name ?? r.teamId),
       crestUrl: team?.crestUrl,
       playedGames: r.played,
       won: r.won,

@@ -34,6 +34,7 @@ export interface Team {
   sportId: Sport;
   name: string;
   shortName?: string;
+  tla?: string;
   crestUrl?: string;
   venueName?: string;
   coachName?: string;

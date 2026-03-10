@@ -59,12 +59,12 @@ function mkMatchInput(): MatchInput {
     competition_profile: {
       team_domain: 'CLUB',
       competition_family: 'DOMESTIC_LEAGUE',
-      stage_type: 'REGULAR_SEASON',
-      format_type: 'LEAGUE',
+      stage_type: 'GROUP_STAGE',
+      format_type: 'ROUND_ROBIN',
       leg_type: 'SINGLE',
       neutral_venue: false,
       competition_profile_version: '1.0',
-    } as any,
+    },
     historical_context: {
       home_completed_official_matches_last_365d: 20,
       away_completed_official_matches_last_365d: 18,
@@ -353,9 +353,12 @@ describe('buildPredictionResponse — LIMITED_MODE (§21.3)', () => {
     expect(result.predictions.explainability).toBeNull();
   });
 
-  it('calibrated fields are absent from core probs (uses raw in LIMITED_MODE)', () => {
+  it('calibrated fields are null in LIMITED_MODE core (FIX#64 §16.2, §21.3)', () => {
+    // FIX #64 (F-002): In LIMITED_MODE, calibration was not applied.
+    // Per §16.2: "los outputs visibles 1X2 deben ser calibrated_1x2_probs".
+    // Since calibrated_1x2_probs is unavailable in LIMITED_MODE, the fields must be null.
+    // Raw probs MUST NOT fill these slots — that violates family separation.
     const engineOutputs = mkEngineOutputs();
-    // raw1x2 is 0.48/0.28/0.24 — should appear in core for LIMITED_MODE
     const params: BuildPredictionResponseParams = {
       matchInput: mkMatchInput(),
       validationResult: limitedValidation,
@@ -364,10 +367,17 @@ describe('buildPredictionResponse — LIMITED_MODE (§21.3)', () => {
     };
     const result = buildPredictionResponse(params);
     if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
-    // core probs should be raw in LIMITED_MODE
-    expect(result.predictions.core.p_home_win).toBeCloseTo(0.48);
-    expect(result.predictions.core.p_draw).toBeCloseTo(0.28);
-    expect(result.predictions.core.p_away_win).toBeCloseTo(0.24);
+    // Calibration-derived core fields: null (no raw substitution allowed)
+    expect(result.predictions.core.p_home_win).toBeNull();
+    expect(result.predictions.core.p_draw).toBeNull();
+    expect(result.predictions.core.p_away_win).toBeNull();
+    expect(result.predictions.core.predicted_result).toBeNull();
+    expect(result.predictions.core.predicted_result_conflict).toBeNull();
+    expect(result.predictions.core.favorite_margin).toBeNull();
+    expect(result.predictions.core.draw_risk).toBeNull();
+    // Lambda-derived fields remain present
+    expect(result.predictions.core.expected_goals_home).toBeCloseTo(1.45);
+    expect(result.predictions.core.expected_goals_away).toBeCloseTo(1.25);
   });
 });
 
@@ -834,5 +844,235 @@ describe('Tail mass policy v1 — LIMITED_MODE input with tailMassExceeded=true'
       (r) => r === 'EXCESSIVE_TAIL_MASS_FOR_REQUESTED_OUTPUTS',
     ).length;
     expect(tailReasonCount).toBe(1);
+  });
+});
+
+// ── Tail mass policy v1 — Full degradation path internals (§14.2, §15.4, §19.5) ──
+//
+// This describe block targets the exact execution path inside buildFullModeResponse
+// when tailMassExceeded = true:
+//
+//   buildFullModeResponse → [tailMassExceeded branch]
+//     → buildLimitedModeResponse(matchInput, degradedValidation, engineOutputs, versionMetadata)
+//        (calibratedOutputs is NOT forwarded — dropped entirely)
+//
+// Consequence: the response is a LIMITED_MODE response assembled without any
+// calibrated outputs, even though the caller passed calibratedOutputs in.
+// This must be reflected in:
+//   - predictions.core: all calibration-derived fields null (§16.2, §21.3)
+//   - internals.calibrated_1x2_probs: null (§19.5 — raw substitution forbidden)
+//   - internals.calibration_mode: 'not_applied' (§17.2)
+//
+// tail_mass_policy_version: 1
+
+describe('Tail mass policy v1 — FULL_MODE degradation path: calibrated outputs dropped (§14.2, §15.4, §19.5)', () => {
+  const fullValidation: ValidationResult = {
+    match_id: 'match-001',
+    eligibility_status: 'ELIGIBLE',
+    operating_mode: 'FULL_MODE',
+    applicability_level: 'STRONG',
+    reasons: [],
+    data_integrity_flags: {
+      teams_distinct: true,
+      kickoff_present: true,
+      profile_complete: true,
+      stage_consistent_with_format: true,
+      aggregate_state_consistent_with_leg_type: true,
+      neutral_venue_consistent: true,
+      domain_pool_available: true,
+      leakage_guard_passed: true,
+      knockout_rules_consistent: true,
+      prior_rating_consistent: true,
+    },
+  };
+
+  function mkEngineOutputsWithExceededTail(): RawEngineOutputs {
+    const distribution = { '0-0': 1.0 } as unknown as RawMatchDistributionResult['distribution'];
+    const distributionResult: RawMatchDistributionResult = {
+      distribution,
+      tail_mass_raw: 0.05, // exceeds MAX_TAIL_MASS_RAW = 0.01
+      tailMassExceeded: true,
+      matrix_max_goal: 7,
+      lambda_home: 1.45,
+      lambda_away: 1.25,
+    };
+    return {
+      lambdaResult: mkLambdaResult(),
+      distributionResult,
+      raw1x2: mkRaw1x2(0.48, 0.28, 0.24),
+      derivedRaw: mkDerivedRaw(),
+      effectiveElo: { home: 1550, away: 1500, homAdvantageEffect: 50 },
+    };
+  }
+
+  // Spec §14.2, §16.2, §21.3:
+  // buildFullModeResponse delegates to buildLimitedModeResponse without calibratedOutputs.
+  // All calibration-derived core fields must be null — raw probs must NOT substitute.
+  it('predictions.core calibration-derived fields are null after FULL_MODE degradation (§16.2, §21.3)', () => {
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation, // FULL_MODE requested
+      engineOutputs: mkEngineOutputsWithExceededTail(),
+      calibratedOutputs: mkCalibratedOutputs(), // available but must be dropped on degradation
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    // Calibration-derived fields: null (not the calibrated values 0.50/0.25/0.25)
+    // and not the raw values (0.48/0.28/0.24) — any numeric value here is a bug
+    expect(result.predictions.core.p_home_win).toBeNull();
+    expect(result.predictions.core.p_draw).toBeNull();
+    expect(result.predictions.core.p_away_win).toBeNull();
+    expect(result.predictions.core.predicted_result).toBeNull();
+    expect(result.predictions.core.predicted_result_conflict).toBeNull();
+    expect(result.predictions.core.favorite_margin).toBeNull();
+    expect(result.predictions.core.draw_risk).toBeNull();
+  });
+
+  // Lambda-derived fields must survive degradation — they come from engineOutputs,
+  // which IS forwarded to buildLimitedModeResponse. §15.1
+  it('predictions.core lambda-derived fields survive FULL_MODE degradation (§15.1)', () => {
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputsWithExceededTail(),
+      calibratedOutputs: mkCalibratedOutputs(),
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    // expected_goals come from lambdaResult (always available in engineOutputs)
+    expect(result.predictions.core.expected_goals_home).toBeCloseTo(1.45, 6);
+    expect(result.predictions.core.expected_goals_away).toBeCloseTo(1.25, 6);
+  });
+
+  // Spec §19.5: raw_1x2_probs and calibrated_1x2_probs must be in SEPARATE fields.
+  // After degradation, calibrated outputs are dropped → calibrated_1x2_probs must be null.
+  // Raw probs must NOT be placed in calibrated_1x2_probs (family separation invariant).
+  it('internals.calibrated_1x2_probs is null after FULL_MODE degradation (§19.5 family separation)', () => {
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputsWithExceededTail(),
+      calibratedOutputs: mkCalibratedOutputs(), // available but must be dropped
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    // calibrated_1x2_probs must be null — not the calibrated values (0.50/0.25/0.25)
+    // and not the raw values (0.48/0.28/0.24)
+    expect(result.internals?.calibrated_1x2_probs).toBeNull();
+  });
+
+  // Spec §19.5: raw_1x2_probs must still be present in internals after degradation.
+  // raw probs come from engineOutputs, which is forwarded.
+  it('internals.raw_1x2_probs is still populated after FULL_MODE degradation (§19.5)', () => {
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputsWithExceededTail(),
+      calibratedOutputs: mkCalibratedOutputs(),
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    // raw_1x2_probs must be present (from engineOutputs.raw1x2)
+    expect(result.internals?.raw_1x2_probs).not.toBeNull();
+    expect(result.internals?.raw_1x2_probs.home).toBeCloseTo(0.48, 6);
+    expect(result.internals?.raw_1x2_probs.draw).toBeCloseTo(0.28, 6);
+    expect(result.internals?.raw_1x2_probs.away).toBeCloseTo(0.24, 6);
+  });
+
+  // Spec §17.2: calibration_mode must reflect that calibration was NOT applied.
+  // buildLimitedModeResponse passes null as calibrated1x2 → buildInternals returns 'not_applied'.
+  it('internals.calibration_mode is not_applied after FULL_MODE degradation (§17.2)', () => {
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputsWithExceededTail(),
+      calibratedOutputs: mkCalibratedOutputs(), // available but must be dropped
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    // calibration_mode must be 'not_applied' — not 'trained' (which would imply
+    // calibration was applied, contradicting the degradation)
+    expect(result.internals?.calibration_mode).toBe('not_applied');
+  });
+
+  // The tail_mass_raw value in internals must reflect the actual exceeded value,
+  // not a clamped or modified value. §14.3 requires persistence of tail_mass_raw always.
+  it('internals.tail_mass_raw reflects the actual exceeded value after degradation (§14.3)', () => {
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputsWithExceededTail(),
+      calibratedOutputs: mkCalibratedOutputs(),
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    // Must be 0.05 (the actual exceeded tail mass), not 0 or 0.01 (threshold)
+    expect(result.internals?.tail_mass_raw).toBeCloseTo(0.05, 6);
+  });
+
+  // G-1: operating_mode must be LIMITED_MODE after degradation.
+  // buildFullModeResponse delegates to buildLimitedModeResponse, which sets
+  // operating_mode = 'LIMITED_MODE' in the degraded ValidationResult. §14.2, §21
+  it('operating_mode is LIMITED_MODE after FULL_MODE degradation (§14.2, §21)', () => {
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation, // FULL_MODE requested
+      engineOutputs: mkEngineOutputsWithExceededTail(),
+      calibratedOutputs: mkCalibratedOutputs(),
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    // The response is LIMITED_MODE even though FULL_MODE was requested —
+    // the degradation overrides the requested mode
+    expect(result.operating_mode).toBe('LIMITED_MODE');
+  });
+
+  // G-2: predictions.secondary must be null after degradation.
+  // secondary fields (double_chance, dnb_home/away, goal totals) derive from
+  // calibrated probs or scoreline distribution. In LIMITED_MODE, secondary is null. §21.3
+  it('predictions.secondary is null after FULL_MODE degradation (§21.3)', () => {
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputsWithExceededTail(),
+      calibratedOutputs: mkCalibratedOutputs(),
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    // secondary block must be null — not partially populated, not omitted
+    expect(result.predictions.secondary ?? null).toBeNull();
+  });
+
+  // G-3: EXCESSIVE_TAIL_MASS_FOR_REQUESTED_OUTPUTS reason must be present.
+  // The degraded ValidationResult constructed by buildFullModeResponse must include
+  // this reason code so consumers know why the mode was downgraded. §14.2
+  it('reasons includes EXCESSIVE_TAIL_MASS_FOR_REQUESTED_OUTPUTS after degradation (§14.2)', () => {
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputsWithExceededTail(),
+      calibratedOutputs: mkCalibratedOutputs(),
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    expect(result.reasons).toContain('EXCESSIVE_TAIL_MASS_FOR_REQUESTED_OUTPUTS');
   });
 });

@@ -146,52 +146,73 @@ export type TopScorelinesOutput = readonly ScorelineProbability[];
 /**
  * Nucleus of visible prediction outputs.
  *
- * All fields are required — this block must be present for any ELIGIBLE match
- * (both FULL_MODE and LIMITED_MODE). §21.3
+ * `predictions.core` must be present for any ELIGIBLE match (§21.3).
+ * However, calibration-derived fields (p_home_win, p_draw, p_away_win,
+ * predicted_result, predicted_result_conflict, favorite_margin, draw_risk)
+ * MUST be null in LIMITED_MODE because calibration is not applied in that mode.
+ * Per §16.2: "los outputs visibles 1X2 deben ser calibrated_1x2_probs" — raw
+ * probabilities are explicitly prohibited from occupying these fields.
+ *
+ * Only expected_goals_home and expected_goals_away (lambda-derived, not
+ * calibration-derived) are always non-null for any ELIGIBLE match.
  *
  * Sources per §19.5:
- * - p_home_win, p_draw, p_away_win: from calibrated_1x2_probs
- * - expected_goals_home, expected_goals_away: from raw (lambda values)
- * - predicted_result, favorite_margin, draw_risk: derived from calibrated
+ * - p_home_win, p_draw, p_away_win: from calibrated_1x2_probs (null in LIMITED_MODE)
+ * - expected_goals_home, expected_goals_away: from raw (lambda values) — always present
+ * - predicted_result, favorite_margin, draw_risk: derived from calibrated (null in LIMITED_MODE)
  *
- * Spec §15.1, §16.2, §16.12, §16.13, §21
+ * Spec §15.1, §16.2, §16.12, §16.13, §21, §21.3
  */
 export interface PredictionCore {
-  /** Calibrated probability of home team winning 90'. §16.2 */
-  p_home_win: number;
-  /** Calibrated probability of a draw after 90'. §16.2 */
-  p_draw: number;
-  /** Calibrated probability of away team winning 90'. §16.2 */
-  p_away_win: number;
+  /**
+   * Calibrated probability of home team winning 90'. §16.2
+   * Null in LIMITED_MODE — calibration not applied; raw probs must never fill this field.
+   */
+  p_home_win: number | null;
+  /**
+   * Calibrated probability of a draw after 90'. §16.2
+   * Null in LIMITED_MODE — calibration not applied.
+   */
+  p_draw: number | null;
+  /**
+   * Calibrated probability of away team winning 90'. §16.2
+   * Null in LIMITED_MODE — calibration not applied.
+   */
+  p_away_win: number | null;
 
-  /** Expected goals for home team (= lambda_home in Poisson v1 baseline). §15.1 */
+  /** Expected goals for home team (= lambda_home in Poisson v1 baseline). §15.1 — always present */
   expected_goals_home: number;
-  /** Expected goals for away team (= lambda_away in Poisson v1 baseline). §15.1 */
+  /** Expected goals for away team (= lambda_away in Poisson v1 baseline). §15.1 — always present */
   expected_goals_away: number;
 
   /**
    * Predicted match result. TOO_CLOSE when decision_margin < threshold.
+   * Null in LIMITED_MODE — requires calibrated probs.
    * §15.1, §16.12
    */
-  predicted_result: PredictedResult;
+  predicted_result: PredictedResult | null;
 
   /**
-   * True when predicted_result = TOO_CLOSE.
-   * False otherwise. §15.1, §16.12
+   * True when predicted_result = TOO_CLOSE. False otherwise.
+   * Null in LIMITED_MODE — requires calibrated probs.
+   * §15.1, §16.12
    */
-  predicted_result_conflict: boolean;
+  predicted_result_conflict: boolean | null;
 
   /**
    * top_1_calibrated_prob - top_2_calibrated_prob.
-   * Always >= 0. Calculated on non-rounded values. §15.1, §16.13
+   * Always >= 0. Calculated on non-rounded values.
+   * Null in LIMITED_MODE — requires calibrated probs.
+   * §15.1, §16.13
    */
-  favorite_margin: number;
+  favorite_margin: number | null;
 
   /**
    * draw_risk = p_draw (convenience alias exposed at core level).
+   * Null in LIMITED_MODE — requires calibrated probs.
    * §15.1, §16.11
    */
-  draw_risk: number;
+  draw_risk: number | null;
 }
 
 // ── Secondary (derived) outputs ───────────────────────────────────────────
@@ -348,12 +369,13 @@ export interface PredictionResponseInternals {
   /**
    * Calibrated 1X2 probabilities — source for all visible 1X2-consistent outputs.
    * Distinct from raw_1x2_probs. §15.4, §16.2, §19.5
+   * Null in LIMITED_MODE (calibration not applied — raw MUST NOT substitute here).
    */
   calibrated_1x2_probs: {
     home: number;
     draw: number;
     away: number;
-  };
+  } | null;
 
   /** Lambda (expected goals) for home team before any normalization. §15.4 */
   lambda_home: number;
@@ -382,6 +404,16 @@ export interface PredictionResponseInternals {
    * Score model type used. Literal "INDEPENDENT_POISSON" in v1. §21
    */
   score_model_type: 'INDEPENDENT_POISSON';
+
+  /**
+   * Calibration mode applied for this prediction. §17.2
+   * - 'bootstrap': identity calibrator in use — no historical calibration data available.
+   *                The system passes raw probs through unchanged before renormalization.
+   *                Must be declared explicitly so consumers know calibration is not trained.
+   * - 'trained':  a fitted isotonic calibrator was applied (segmented, intermediate, or global).
+   * - 'not_applied': calibration was not applied because operating_mode = LIMITED_MODE.
+   */
+  calibration_mode: 'bootstrap' | 'trained' | 'not_applied';
 }
 
 // ── Common header fields ──────────────────────────────────────────────────
@@ -470,9 +502,9 @@ export interface PredictionResponseNotEligible extends PredictionResponseHeader 
    * `predictions` is intentionally absent on this variant.
    * The spec states: "predictions = null" but also "queda prohibido devolver
    * probabilidades parciales". Structural absence is stronger than null.
-   * §21.1
+   * §21.1 — internals is required and must be explicitly null (never omitted).
    */
-  internals?: null;
+  internals: null;
 }
 
 /**

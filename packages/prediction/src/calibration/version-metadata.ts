@@ -47,6 +47,18 @@ export interface CalibrationVersionMetadata {
    * policy config registry. §17.4
    */
   readonly too_close_margin_threshold: number;
+
+  /**
+   * Calibration mode for the current prediction run. §17.2
+   * - 'bootstrap': identity calibrators in use — no historical training data available.
+   *                The system passes raw probs through unchanged before renormalization.
+   *                Must be declared explicitly so the response can surface this state.
+   * - 'trained':  fitted isotonic calibrators were applied (segmented, intermediate, or global).
+   *
+   * This field is optional (defaults to 'trained' if absent) to preserve backward
+   * compatibility with existing callers that pre-date FIX #65.
+   */
+  readonly calibration_mode?: 'bootstrap' | 'trained';
 }
 
 // ── Decision policy registry ──────────────────────────────────────────────
@@ -123,13 +135,21 @@ export const CURRENT_CALIBRATION_VERSION = 'v1.0';
  * Uses the current registered versions.
  *
  * Spec §17.4: all four fields must be present in every prediction response.
+ *
+ * @param calibration_mode Optional override for the calibration mode. Defaults to
+ *   'bootstrap' (the current system state — no historical training data available).
+ *   When a trained CalibrationRegistry is provided by the caller, pass 'trained'.
+ *   This allows the response to declare its calibration state honestly per §17.2.
  */
-export function buildCurrentVersionMetadata(): CalibrationVersionMetadata {
+export function buildCurrentVersionMetadata(
+  calibration_mode: 'bootstrap' | 'trained' = 'bootstrap',
+): CalibrationVersionMetadata {
   const policyConfig = getDecisionPolicyConfig(CURRENT_DECISION_POLICY_VERSION);
   return {
     model_version: CURRENT_MODEL_VERSION,
     calibration_version: CURRENT_CALIBRATION_VERSION,
     decision_policy_version: CURRENT_DECISION_POLICY_VERSION,
     too_close_margin_threshold: policyConfig.too_close_margin_threshold,
+    calibration_mode,
   };
 }

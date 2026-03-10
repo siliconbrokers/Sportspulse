@@ -245,6 +245,28 @@ When proposing a spec change, provide: change description, rationale, affected d
 - Auditoría de cierre → `predictive-engine-auditor`
 - Cambio cross-cutting o fase nueva → `predictive-engine-orchestrator`
 
+### Auditorías PE — Persistencia obligatoria de resultados
+
+**Todo resultado de auditoría formal del `predictive-engine-auditor` DEBE persistirse en disco** en `docs/audits/` antes de cerrar la tarea.
+
+- **Nombre de archivo:** `PE-audit-YYYY-MM-DD.md` (fecha de ejecución)
+- **Contenido obligatorio:** dictamen (CONFORMANT / PARTIALLY_CONFORMANT / NON_CONFORMANT), lista de findings con severidad y estado (OPEN/CLOSED), secciones del spec verificadas, conteo de tests, notas de cobertura
+- **Si hay múltiples rondas** en la misma sesión: un único archivo con secciones por ronda
+- **Esta regla aplica también a re-auditorías** después de fixes — la segunda pasada se agrega como nueva sección al mismo archivo del día
+
+Un audit sin artefacto persistido no cuenta como evidencia de conformidad.
+
+**Append obligatorio al archivo de auditoría del día en estos casos:**
+
+| Evento | Qué appendear |
+|--------|--------------|
+| Se agregan tests nuevos al paquete (`packages/prediction/`) | Nombre del test / describe, qué cubre, spec refs, nuevo conteo de suite |
+| Se cierra una nota de cobertura pendiente documentada en el audit | Sección de cierre con tabla de tests y conteo actualizado |
+| Se corrige un finding post-audit sin nueva ronda formal | Nota de corrección con finding ID, cambio aplicado, conteo actualizado |
+| Se actualiza el conteo de tests por cualquier motivo | Actualizar la línea `Tests N passed` en "Suite final" |
+
+**Si no existe archivo de auditoría del día** (primera intervención del día sobre `packages/prediction/`): crear `PE-audit-YYYY-MM-DD.md` con el contexto mínimo antes de appendear.
+
 ### Cuándo usar Agent tool (subagentes)
 
 El Agent tool **usa el mismo modelo de la sesión**. Solo es útil para:

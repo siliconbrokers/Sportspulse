@@ -23,6 +23,7 @@ export interface MatchCardTeam {
   teamId: string;
   name: string;
   shortName?: string;
+  tla?: string;
   crestUrl?: string;
   formChip?: DisplayChipDTO;
 }
@@ -289,6 +290,7 @@ export function buildMatchCards(
         teamId: match.homeTeamId,
         name: homeTeam?.name ?? match.homeTeamId,
         shortName: homeTeam?.shortName,
+        tla: homeTeam?.tla,
         crestUrl: homeTeam?.crestUrl,
         formChip: homeFormChip,
       },
@@ -296,6 +298,7 @@ export function buildMatchCards(
         teamId: match.awayTeamId,
         name: awayTeam?.name ?? match.awayTeamId,
         shortName: awayTeam?.shortName,
+        tla: awayTeam?.tla,
         crestUrl: awayTeam?.crestUrl,
         formChip: awayFormChip,
       },

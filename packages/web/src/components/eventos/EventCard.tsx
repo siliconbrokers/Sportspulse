@@ -8,6 +8,7 @@ import type { ParsedEvent } from '../../hooks/use-events.js';
 import { openEventDirect } from '../../hooks/use-events.js';
 import { getMatchDisplayStatus } from '../../utils/match-status.js';
 import { useTheme } from '../../hooks/use-theme.js';
+import { resolveTeamName } from '../../utils/resolve-team-name.js';
 
 // ── CSS inyectado una vez ──────────────────────────────────────────────────────
 
@@ -208,7 +209,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
           </span>
         </div>
 
-        {/* Streaming indicator */}
+        {/* Streaming indicator — no mostrar si el partido ya terminó o está en zombie */}
         {hasSignal ? (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 4,
@@ -226,7 +227,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
               STREAM
             </span>
           </div>
-        ) : (
+        ) : !isZombie && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '3px 7px', borderRadius: 20,
@@ -255,7 +256,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             maxWidth: '100%',
           }}>
-            {event.homeTeam ?? '?'}
+            {resolveTeamName(event.homeTeam ?? '?', { tla: event.homeTla ?? undefined, compact: isMobile })}
           </span>
         </div>
 
@@ -286,7 +287,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             maxWidth: '100%',
           }}>
-            {event.awayTeam ?? '?'}
+            {resolveTeamName(event.awayTeam ?? '?', { tla: event.awayTla ?? undefined, compact: isMobile })}
           </span>
         </div>
       </div>
@@ -366,7 +367,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
               )
             ))}
           </div>
-        ) : !hasSignal ? (
+        ) : (!hasSignal && !isZombie) ? (
           <span style={{
             fontSize: 10, fontWeight: 600,
             color: 'var(--sp-text-30)',

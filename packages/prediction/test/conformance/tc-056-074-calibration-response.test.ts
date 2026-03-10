@@ -39,6 +39,7 @@ import type { PredictedResultOutput } from '../../src/engine/decision-policy.js'
 import type { RawMatchDistributionResult } from '../../src/engine/scoreline-matrix.js';
 import type { LambdaResult } from '../../src/engine/lambda-computer.js';
 import type { OneVsRestCalibrators } from '../../src/calibration/isotonic-calibrator.js';
+import { buildTestRawDistribution } from '../helpers/branded-factories.js';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 
@@ -65,11 +66,11 @@ function mkMatchInput(matchId = 'calib-test'): MatchInput {
       competition_profile_version: '1.0',
       team_domain: 'CLUB',
       competition_family: 'DOMESTIC_LEAGUE',
-      stage_type: 'REGULAR_SEASON',
+      stage_type: 'GROUP_STAGE',
       format_type: 'ROUND_ROBIN',
       leg_type: 'SINGLE',
       neutral_venue: false,
-    } as any,
+    },
     historical_context: {
       home_completed_official_matches_last_365d: 20,
       away_completed_official_matches_last_365d: 20,
@@ -110,7 +111,7 @@ function mkEngineOutputs(
     epsilonApplied: false,
   };
   const distributionResult: RawMatchDistributionResult = {
-    distribution: { '1-0': 0.5, '0-0': 0.5 } as any,
+    distribution: buildTestRawDistribution({ '1-0': 0.5, '0-0': 0.5 }),
     tail_mass_raw: 0.003,
     tailMassExceeded: false,
     matrix_max_goal: 7,
@@ -536,6 +537,148 @@ describe('TC-073 — Persistencia separada raw_1x2_probs y calibrated_1x2_probs 
     // And their values must differ (raw 0.48/0.28/0.24 vs calibrated 0.55/0.22/0.23)
     expect(result.internals?.raw_1x2_probs.home).toBeCloseTo(0.48, 6);
     expect(result.internals?.calibrated_1x2_probs.home).toBeCloseTo(0.55, 6);
+  });
+});
+
+// ── FIX #64 — F-002: LIMITED_MODE core calibration fields must be null ────
+
+describe('F-002 — LIMITED_MODE core calibration-derived fields must be null (§16.2, FIX#64)', () => {
+  it('PASS: p_home_win is null in LIMITED_MODE — raw probs must not fill calibrated slots', () => {
+    // FIX #64: §16.2 requires visible 1X2 outputs = calibrated_1x2_probs.
+    // In LIMITED_MODE, calibration is not applied → these fields must be null.
+    // Raw probabilities MUST NOT substitute — that violates family separation.
+    const limitedValidation: ValidationResult = {
+      ...fullValidation,
+      operating_mode: 'LIMITED_MODE',
+      applicability_level: 'WEAK',
+      reasons: ['INTERLEAGUE_FACTOR_UNAVAILABLE'],
+    };
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: limitedValidation,
+      engineOutputs: mkEngineOutputs(),
+      // No calibratedOutputs in LIMITED_MODE
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    const core = result.predictions.core;
+    // Calibration-derived fields: null (never raw)
+    expect(core.p_home_win).toBeNull();
+    expect(core.p_draw).toBeNull();
+    expect(core.p_away_win).toBeNull();
+    expect(core.predicted_result).toBeNull();
+    expect(core.predicted_result_conflict).toBeNull();
+    expect(core.favorite_margin).toBeNull();
+    expect(core.draw_risk).toBeNull();
+    // Lambda-derived fields: always present
+    expect(typeof core.expected_goals_home).toBe('number');
+    expect(typeof core.expected_goals_away).toBe('number');
+  });
+
+  it('PASS: internals.calibrated_1x2_probs is null in LIMITED_MODE (FIX#64)', () => {
+    // In LIMITED_MODE, there is no calibrated output — internals must reflect this honestly.
+    // Storing raw probs in internals.calibrated_1x2_probs would be misleading.
+    const limitedValidation: ValidationResult = {
+      ...fullValidation,
+      operating_mode: 'LIMITED_MODE',
+      applicability_level: 'WEAK',
+      reasons: ['INTERLEAGUE_FACTOR_UNAVAILABLE'],
+    };
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: limitedValidation,
+      engineOutputs: mkEngineOutputs(),
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    expect(result.internals?.calibrated_1x2_probs).toBeNull();
+    // raw_1x2_probs still present for audit
+    expect(result.internals?.raw_1x2_probs).toBeDefined();
+  });
+});
+
+// ── FIX #65 — F-003: bootstrap mode must be declared explicitly ───────────
+
+describe('F-003 — calibration_mode must be declared in internals (§17.2, FIX#65)', () => {
+  it('PASS: internals.calibration_mode = not_applied in LIMITED_MODE', () => {
+    // FIX #65: §17.2 requires honest declaration of calibration mode.
+    // LIMITED_MODE = calibration not applied → 'not_applied'.
+    const limitedValidation: ValidationResult = {
+      ...fullValidation,
+      operating_mode: 'LIMITED_MODE',
+      applicability_level: 'WEAK',
+      reasons: ['INTERLEAGUE_FACTOR_UNAVAILABLE'],
+    };
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: limitedValidation,
+      engineOutputs: mkEngineOutputs(),
+      versionMetadata: mkVersionMetadata(),
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    expect(result.internals?.calibration_mode).toBe('not_applied');
+  });
+
+  it('PASS: internals.calibration_mode = bootstrap when versionMetadata declares bootstrap', () => {
+    // FIX #65: §17.2 — identity calibrator in use → declare 'bootstrap'.
+    // When no historical training data is available, calibration_mode must be 'bootstrap'.
+    const bootstrapMeta: CalibrationVersionMetadata = {
+      ...mkVersionMetadata(),
+      calibration_mode: 'bootstrap',
+    };
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputs(),
+      calibratedOutputs: mkCalibratedOutputs(),
+      versionMetadata: bootstrapMeta,
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    expect(result.internals?.calibration_mode).toBe('bootstrap');
+  });
+
+  it('PASS: internals.calibration_mode = trained when versionMetadata declares trained', () => {
+    // FIX #65: When a fitted calibrator is applied, mode must be 'trained'.
+    const trainedMeta: CalibrationVersionMetadata = {
+      ...mkVersionMetadata(),
+      calibration_mode: 'trained',
+    };
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputs(),
+      calibratedOutputs: mkCalibratedOutputs(),
+      versionMetadata: trainedMeta,
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    expect(result.internals?.calibration_mode).toBe('trained');
+  });
+
+  it('PASS: internals.calibration_mode defaults to trained when calibrated output is present but mode not set', () => {
+    // FIX #65: Backward compatibility — if calibration_mode is not set in metadata
+    // but calibrated output IS present, default to 'trained'.
+    const params: BuildPredictionResponseParams = {
+      matchInput: mkMatchInput(),
+      validationResult: fullValidation,
+      engineOutputs: mkEngineOutputs(),
+      calibratedOutputs: mkCalibratedOutputs(),
+      versionMetadata: mkVersionMetadata(), // no calibration_mode field
+    };
+    const result = buildPredictionResponse(params);
+    if (result.eligibility_status !== 'ELIGIBLE') throw new Error('Expected ELIGIBLE');
+
+    // Default: 'trained' (calibrated output is present → assume fitted)
+    expect(result.internals?.calibration_mode).toBe('trained');
   });
 });
 
