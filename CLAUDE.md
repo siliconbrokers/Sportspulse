@@ -27,15 +27,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Nuevo paquete workspace — Regla CRÍTICA
 
-Cada vez que se crea un nuevo paquete en `packages/`, se deben hacer **obligatoriamente** estas dos cosas antes de terminar la tarea:
+Cada vez que se crea un nuevo paquete en `packages/`, se deben hacer **obligatoriamente** estas tres cosas antes de terminar la tarea:
 
 1. Agregar el path alias en `tsconfig.server.json` bajo `compilerOptions.paths`:
    ```json
    "@sportpulse/<nombre>": ["./packages/<nombre>/src/index.ts"]
    ```
-2. Verificar que el paquete compile: `pnpm build` debe terminar sin errores.
+2. Correr `pnpm install` para actualizar `pnpm-lock.yaml` con las dependencias del nuevo paquete.
+3. Verificar que el paquete compile: `pnpm build` debe terminar sin errores.
 
-**Por qué:** `tsx` (dev server) resuelve `@sportpulse/*` desde `tsconfig.server.json`. Si el alias no existe, el API server crashea con `Cannot find module` y el portal queda completamente caído.
+**Por qué:**
+- El alias en `tsconfig.server.json` es necesario porque `tsx` (dev server) resuelve `@sportpulse/*` desde ahí. Sin él, el API server crashea con `Cannot find module`.
+- `pnpm install` es obligatorio porque Render usa `--frozen-lockfile` en CI. Si `pnpm-lock.yaml` no refleja el nuevo paquete, el deploy falla con exit code 1 antes de llegar al build.
 
 ---
 
@@ -214,6 +217,29 @@ When proposing a spec change, provide: change description, rationale, affected d
 - **Snapshot Engine Engineer** → `packages/snapshot`
 - **UI API Engineer** → `packages/api`
 - **Frontend Engineer** → `packages/web`
+
+### Predictive Engine — Agentes especializados (FUENTE PRIMARIA OBLIGATORIA)
+
+**Toda tarea que toque `packages/prediction/` DEBE ejecutarse con el agente PE correspondiente** definido en `.claude/agents/`. No usar `backend-engineer` ni `frontend-engineer` como sustituto. El agente PE es fuente primaria; el agente genérico es fallback de último recurso únicamente si el agente PE no cubre el scope.
+
+| Agente PE | Scope primario en `packages/prediction/` |
+|-----------|------------------------------------------|
+| `predictive-engine-orchestrator` | Coordinación multi-fase, diseño cross-cutting, handoffs |
+| `domain-contracts-agent` | `src/contracts/` — tipos, enums, DTOs, schemas |
+| `match-prediction-engine` | `src/engine/elo-rating`, `lambda-computer`, `derived-raw`, `scoreline-matrix`, `raw-aggregator` |
+| `calibration-decision-policy` | `src/calibration/`, `src/engine/derived-calibrated`, `src/engine/decision-policy`, `src/metrics/` |
+| `validation-operating-modes` | `src/validation/`, modos operativos (FULL/LIMITED/NOT_ELIGIBLE), eligibilidad |
+| `competition-engine` | `src/competition/` — standings, grupos, knockout, bracket |
+| `predictive-engine-qa` | `test/` — invariantes, conformidad, anti-leakage, cobertura |
+| `predictive-engine-auditor` | Auditorías formales de conformidad — NO escribe código |
+
+**Regla de routing PE por tipo de tarea:**
+- Fix contractual en output shape → `calibration-decision-policy`
+- Fix de elegibilidad o modos → `validation-operating-modes`
+- Fix en distribución Poisson / Elo / lambdas → `match-prediction-engine`
+- Agregar/corregir tests de invariantes → `predictive-engine-qa`
+- Auditoría de cierre → `predictive-engine-auditor`
+- Cambio cross-cutting o fase nueva → `predictive-engine-orchestrator`
 
 ### Cuándo usar Agent tool (subagentes)
 

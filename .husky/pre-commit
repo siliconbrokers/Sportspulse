@@ -1,1 +1,11 @@
 npx lint-staged
+
+# Verify pnpm-lock.yaml is in sync with all package.json files.
+# Render (and most CI) uses --frozen-lockfile, so an outdated lockfile = deploy failure.
+if ! pnpm install --frozen-lockfile --silent 2>/dev/null; then
+  echo ""
+  echo "ERROR: pnpm-lock.yaml is out of date."
+  echo "Run 'pnpm install' and stage pnpm-lock.yaml before committing."
+  echo ""
+  exit 1
+fi
