@@ -107,10 +107,12 @@ async function main() {
   }
 
   // Football-data.org — Copa Libertadores 2026 (grupos + eliminatorias CONMEBOL)
+  // Delay mayor que WC para evitar 429: football-data free tier permite ~10 req/min.
+  // WC fetch consume varias requests; 20s garantiza ventana suficiente antes de CLI.
   const cliSource = new FootballDataTournamentSource(API_TOKEN, CLI_CONFIG);
   const CLI_COMPETITION_ID = cliSource.competitionId; // 'comp:football-data-cli:CLI'
   try {
-    await new Promise<void>((r) => setTimeout(r, 7000));
+    await new Promise<void>((r) => setTimeout(r, 20000));
     await cliSource.fetchTournament();
   } catch (err) {
     const cliErr = err instanceof Error ? err.message : String(err);

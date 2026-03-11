@@ -236,10 +236,13 @@ export function EventsSection({ activeTab, onTabChange }: EventsSectionProps) {
       return ev;
     });
 
-  // Streamtp10: solo ligas NO canónicas, con stream URL, estado conocido
+  // Ligas canónicas que sí tienen datos en este ciclo
+  const canonicalLeaguesWithData = new Set(canonicalEvents.map((e) => e.normalizedLeague));
+
+  // Streamtp10: ligas NO canónicas + fallback para canónicas sin datos (ej. CLI con 429 al startup)
   const streamOnlyEvents: ParsedEvent[] = streamAll.filter(
     (e) =>
-      !CANONICAL_LEAGUES.has(e.normalizedLeague) &&
+      (!CANONICAL_LEAGUES.has(e.normalizedLeague) || !canonicalLeaguesWithData.has(e.normalizedLeague)) &&
       e.normalizedLeague !== 'EXCLUIDA' &&
       e.normalizedLeague !== 'OTRA',
   );
