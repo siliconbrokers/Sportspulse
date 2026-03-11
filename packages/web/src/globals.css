@@ -134,3 +134,8 @@ body.light {
     color: var(--sp-bg);
   }
 }
+
+@keyframes sp-badge-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}

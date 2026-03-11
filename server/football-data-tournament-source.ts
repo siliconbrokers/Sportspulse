@@ -174,6 +174,8 @@ export interface TieBlock {
   scoreAPenalties?: number | null;
   scoreBPenalties?: number | null;
   winnerId?: string | null;
+  /** Fecha/hora UTC del partido (pierna única) o de la pierna más próxima (dos piernas). */
+  utcDate?: string;
   /** Piernas del cruce. Solo presente cuando hay 2 partidos (ida + vuelta). */
   legs?: LegBlock[];
 }
@@ -207,6 +209,17 @@ export interface TournamentBracketView {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Heurística temporal para detectar si una pierna está en juego.
+ * Espeja la lógica de match-status.ts (frontend).
+ * Aplica a cualquier proveedor que no actualice status en tiempo real.
+ */
+function isLegLiveByTime(utcDate: string | null | undefined): boolean {
+  if (!utcDate) return false;
+  const elapsed = (Date.now() - new Date(utcDate).getTime()) / 60_000;
+  return elapsed >= 0 && elapsed <= 240;
+}
+
 function normalizeStatus(fdStatus: string): Match['status'] {
   switch (fdStatus.toUpperCase()) {
     case 'FINISHED':                          return 'FINISHED';
@@ -239,7 +252,7 @@ function groupNameEs(fdGroupType: string): string {
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
 const CACHE_TTL_MS      = 30 * 60_000;          // 30 min — in-memory
-const DISK_CACHE_TTL_MS = 6 * 60 * 60 * 1000;   // 6h  — disco
+const DISK_CACHE_TTL_MS = 5 * 60_000;             // 5 min — permite refresh durante partidos en vivo
 
 interface TournamentRawCache {
   teams: { teams: FDWCTeam[] };
@@ -775,14 +788,18 @@ export class FootballDataTournamentSource implements DataSource {
 
       if (leg2) {
         // Agregado parcial o total: suma los goles jugados hasta ahora.
-        // Si leg2 aún no se jugó (scores null), se muestra solo el resultado de la ida.
         const leg1Played = leg1.scoreHome !== null || leg1.scoreAway !== null;
         const leg2Played = leg2.scoreHome !== null || leg2.scoreAway !== null;
-        if (leg1Played || leg2Played) {
+        // Heurística: API free tier no actualiza scores en tiempo real.
+        // Si leg2 está en curso (tiempo), tratar como 0-0 para mostrar agregado parcial correcto.
+        const leg2IsLive = !leg2Played && isLegLiveByTime(leg2.utcDate);
+
+        if (leg1Played || leg2Played || leg2IsLive) {
+          // Para leg2 en vivo sin score del API: asumir 0-0 (se actualizará al terminar el partido).
           // slotA juega de local en leg1 y de visitante en leg2
-          scoreA = (leg1.scoreHome ?? 0) + (leg2.scoreAway ?? 0);
+          scoreA = (leg1.scoreHome ?? 0) + (leg2Played ? (leg2.scoreAway ?? 0) : 0);
           // slotB juega de visitante en leg1 y de local en leg2
-          scoreB = (leg1.scoreAway ?? 0) + (leg2.scoreHome ?? 0);
+          scoreB = (leg1.scoreAway ?? 0) + (leg2Played ? (leg2.scoreHome ?? 0) : 0);
         }
         // Penales del leg2 (partido decisivo — slotA es visitante, slotB es local)
         if (leg2.penHome !== null || leg2.penAway !== null) {
@@ -790,7 +807,7 @@ export class FootballDataTournamentSource implements DataSource {
           penB = leg2.penHome; // slotB local en leg2
         }
         // Ganador del cruce: solo se determina cuando AMBAS piernas están jugadas.
-        // Si solo se jugó la ida, la serie sigue abierta → sin winner.
+        // Si solo se jugó la ida (o la vuelta está en curso), la serie sigue abierta → sin winner.
         if (leg2Played && scoreA !== null && scoreB !== null) {
           if (scoreA > scoreB) {
             winnerId = slotAId;
@@ -831,6 +848,9 @@ export class FootballDataTournamentSource implements DataSource {
       // scoreA/B en cada LegBlock se expresan desde la perspectiva de slotA:
       //   leg1: slotA juega de LOCAL  → scoreA=leg1.scoreHome, scoreB=leg1.scoreAway
       //   leg2: slotA juega de VISITA → scoreA=leg2.scoreAway,  scoreB=leg2.scoreHome
+      // Cuando leg2 está en vivo pero el API free tier devuelve null: mostrar 0-0.
+      const leg2Played2 = leg2 && (leg2.scoreHome !== null || leg2.scoreAway !== null);
+      const leg2IsLive2 = leg2 && !leg2Played2 && isLegLiveByTime(leg2.utcDate);
       const legs: LegBlock[] | undefined = leg2 ? [
         {
           legNumber: 1,
@@ -841,12 +861,18 @@ export class FootballDataTournamentSource implements DataSource {
         {
           legNumber: 2,
           utcDate: leg2.utcDate,
-          scoreA: leg2.scoreAway,
-          scoreB: leg2.scoreHome,
+          scoreA: leg2Played2 ? leg2.scoreAway : (leg2IsLive2 ? 0 : null),
+          scoreB: leg2Played2 ? leg2.scoreHome : (leg2IsLive2 ? 0 : null),
           penA: leg2.penAway ?? null,
           penB: leg2.penHome ?? null,
         },
       ] : undefined;
+
+      // utcDate del tie: apunta a la pierna actualmente relevante.
+      // - leg2 no jugada (o en curso) → leg2.utcDate (para detección LIVE del cruce)
+      // - ambas jugadas → leg2.utcDate (para referencia temporal del cruce terminado)
+      const utcDateForTie: string | undefined =
+        leg2 ? leg2.utcDate : leg1.utcDate;
 
       const tie: TieBlock = {
         tieId,
@@ -860,6 +886,7 @@ export class FootballDataTournamentSource implements DataSource {
         scoreAPenalties: penA,
         scoreBPenalties: penB,
         winnerId,
+        utcDate: utcDateForTie,
         legs,
       };
 

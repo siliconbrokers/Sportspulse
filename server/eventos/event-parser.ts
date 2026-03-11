@@ -9,12 +9,13 @@ const BUNDESLIGA_ALIASES = ['bundesliga', 'german bundesliga', 'bundesliga 1'];
 const LALIGA_ALIASES = ['laliga', 'spanish la liga', 'laliga ea sports', 'la liga'];
 const PREMIER_ALIASES = ['premier league', 'epl', 'english premier league'];
 const URUGUAY_ALIASES = ['primera división', 'primera division', 'liga auf uruguaya', 'apertura auf'];
+const LIBERTADORES_ALIASES = ['copa libertadores', 'conmebol libertadores', 'libertadores'];
 
 // spec §9.2 — torneos excluidos
 const EXCLUDED_COMPETITIONS = [
   'fa cup', 'copa del rey', 'dfb pokal', 'carabao cup',
   'champions league', 'europa league', 'conference league',
-  'copa libertadores', 'copa sudamericana',
+  'copa sudamericana',
 ];
 
 // spec §10.3 — whitelist inicial de equipos uruguayos
@@ -43,6 +44,7 @@ function normalizeLeague(competition: string, home: string | null, away: string 
     if (c.includes(ex)) return 'EXCLUIDA';
   }
 
+  if (LIBERTADORES_ALIASES.some((a) => c === a || c.includes(a))) return 'COPA_LIBERTADORES';
   if (BUNDESLIGA_ALIASES.some((a) => c === a || c.includes(a))) return 'BUNDESLIGA';
   if (LALIGA_ALIASES.some((a) => c === a || c.includes(a))) return 'LALIGA';
   if (PREMIER_ALIASES.some((a) => c === a || c.includes(a))) return 'PREMIER_LEAGUE';

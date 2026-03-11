@@ -33,23 +33,10 @@ function formatDatePill(dateKey: string): string {
 /**
  * Retorna el estado de visualización de una tarjeta.
  * Delega en getMatchDisplayStatus() (fuente única de verdad, match-status.ts).
- *
- * Caso especial: si la API aún reporta SCHEDULED pero el kickoff ya pasó hace
- * < 180 min, lo tratamos como LIVE heurístico (lag de la API).
+ * La heurística temporal (kickoff pasado → LIVE) está centralizada allí.
  */
 function getCardState(card: MatchCardDTO): DisplayMatchStatus {
-  const apiStatus = card.status ?? 'UNKNOWN';
-
-  // Heurístico: SCHEDULED pero kickoff ya pasó → tratar como LIVE para detectar zombie
-  if (apiStatus === 'SCHEDULED' && card.kickoffUtc) {
-    const elapsed = (Date.now() - new Date(card.kickoffUtc).getTime()) / 60_000;
-    if (elapsed >= 0) {
-      // Pasamos 'LIVE' artificialmente para que getMatchDisplayStatus aplique zombie guard
-      return getMatchDisplayStatus('LIVE', card.kickoffUtc);
-    }
-  }
-
-  return getMatchDisplayStatus(apiStatus, card.kickoffUtc);
+  return getMatchDisplayStatus(card.status ?? 'UNKNOWN', card.kickoffUtc);
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────

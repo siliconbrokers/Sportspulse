@@ -1,16 +1,20 @@
 /**
  * match-status — función centralizada de estado de partido.
  *
- * Fuente única de verdad para la lógica de zombie guard.
- * Usada en: LiveCarousel.tsx, match-detail-viewmodel.ts
+ * Fuente única de verdad para la lógica de zombie guard y detección LIVE.
+ * Usada en: LiveCarousel.tsx, match-detail-viewmodel.ts, MatchCardList.tsx
  *
  * Reglas:
- *   - API dice IN_PROGRESS + elapsed > 240 min → FINISHED (auto-terminado)
- *   - API dice IN_PROGRESS + elapsed > 180 min → ZOMBIE  (pendiente de confirmación)
- *   - API dice IN_PROGRESS + elapsed <= 180 min → LIVE
- *   - API dice FINISHED                         → FINISHED
- *   - API dice SCHEDULED/POSTPONED/CANCELED     → SCHEDULED
- *   - Cualquier otro valor                       → UNKNOWN
+ *   - API dice IN_PROGRESS/PAUSED/LIVE + elapsed > 240 min → FINISHED (auto-terminado)
+ *   - API dice IN_PROGRESS/PAUSED/LIVE + elapsed > 180 min → ZOMBIE  (pendiente de confirmación)
+ *   - API dice IN_PROGRESS/PAUSED/LIVE + elapsed <= 180 min → LIVE
+ *   - API dice FINISHED                                     → FINISHED
+ *   - API dice POSTPONED/CANCELED                           → SCHEDULED
+ *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (0-240 min) → LIVE o ZOMBIE
+ *     (heurístico para proveedores que no actualizan status en tiempo real,
+ *      como football-data.org free tier o OpenLigaDB — aplica a TODOS los proveedores)
+ *   - API dice SCHEDULED/TIMED/TBD + kickoff futuro        → SCHEDULED
+ *   - Cualquier otro valor                                  → UNKNOWN
  */
 
 export type DisplayMatchStatus =
@@ -38,13 +42,21 @@ export function getMatchDisplayStatus(
 ): DisplayMatchStatus {
   if (apiStatus === 'FINISHED') return 'FINISHED';
 
-  if (
-    apiStatus === 'SCHEDULED' ||
-    apiStatus === 'POSTPONED' ||
-    apiStatus === 'CANCELED' ||
-    apiStatus === 'TIMED' ||
-    apiStatus === 'TBD'
-  ) {
+  if (apiStatus === 'POSTPONED' || apiStatus === 'CANCELED') {
+    return 'SCHEDULED';
+  }
+
+  if (apiStatus === 'SCHEDULED' || apiStatus === 'TIMED' || apiStatus === 'TBD') {
+    // Heurística universal: proveedores que no actualizan status en tiempo real
+    // (football-data free tier, OpenLigaDB, etc.) mantienen SCHEDULED/TIMED durante el partido.
+    // Si el kickoff ya pasó y estamos dentro de la ventana de juego, tratar como LIVE.
+    if (kickoffUtc) {
+      const elapsed = (Date.now() - new Date(kickoffUtc).getTime()) / 60_000;
+      if (elapsed > 0 && elapsed <= AUTOFINISH_THRESHOLD_MIN) {
+        if (elapsed > ZOMBIE_THRESHOLD_MIN) return 'ZOMBIE';
+        return 'LIVE';
+      }
+    }
     return 'SCHEDULED';
   }
 

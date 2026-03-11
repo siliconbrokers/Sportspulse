@@ -81,6 +81,8 @@ export interface TieDTO {
   scoreBPenalties?: number | null;
   /** teamId del ganador, si está definido. */
   winnerId?: string | null;
+  /** Fecha/hora UTC del partido (pierna única) o de la pierna activa (dos piernas). */
+  utcDate?: string;
   /** Piernas individuales. Solo presente para cruces de ida+vuelta. */
   legs?: LegDTO[];
 }

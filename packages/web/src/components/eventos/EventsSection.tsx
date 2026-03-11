@@ -49,16 +49,19 @@ const SIGNALS_BY_LEAGUE: Record<string, { label: string; altUrl?: string }[]> = 
 // ── Colores de acento por liga ─────────────────────────────────────────────────
 
 const ACCENT: Record<string, string> = {
-  URUGUAY_PRIMERA: '#3b82f6',
-  LALIGA:          '#f59e0b',
-  PREMIER_LEAGUE:  '#a855f7',
-  BUNDESLIGA:      '#ef4444',
-  OTRA:            '#64748b',
+  URUGUAY_PRIMERA:   '#3b82f6',
+  LALIGA:            '#f59e0b',
+  PREMIER_LEAGUE:    '#a855f7',
+  BUNDESLIGA:        '#ef4444',
+  COPA_LIBERTADORES: '#eab308',
+  OTRA:              '#64748b',
 };
 
 // ── Ligas con cobertura canónica (no se usa streamtp10 para estas) ─────────────
+// COPA_LIBERTADORES incluida: cuando CLI está cargado, los partidos usan datos
+// canónicos con soporte completo de DetailPanel (crests, estado, pronóstico).
 
-const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA']);
+const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA', 'COPA_LIBERTADORES']);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

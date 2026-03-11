@@ -5,6 +5,7 @@ export type NormalizedLeague =
   | 'LALIGA'
   | 'PREMIER_LEAGUE'
   | 'BUNDESLIGA'
+  | 'COPA_LIBERTADORES'
   | 'OTRA'
   | 'EXCLUIDA';
 

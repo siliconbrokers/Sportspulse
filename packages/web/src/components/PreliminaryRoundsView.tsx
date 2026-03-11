@@ -40,6 +40,13 @@ function toTLA(name: string): string {
     .slice(0, 3);
 }
 
+/** Heurística: un partido está en juego si el kickoff fue hace 0–240 min (puramente temporal). */
+function isMatchLive(utcDate: string | null | undefined): boolean {
+  if (!utcDate) return false;
+  const elapsed = (Date.now() - new Date(utcDate).getTime()) / 60_000;
+  return elapsed >= 0 && elapsed <= 240;
+}
+
 interface PreliminaryRoundsViewProps {
   rounds: RoundDTO[];
   /** teamId + dateLocal opcional (para piernas de ida/vuelta). Sin dateLocal → usa fecha de hoy. */
@@ -96,7 +103,7 @@ interface LegTeam {
   crest?: string;
 }
 
-function LegTeamRow({ team, score, pen }: { team: LegTeam; score: number | null; pen?: number | null }) {
+function LegTeamRow({ team, score, pen, live }: { team: LegTeam; score: number | null; pen?: number | null; live?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
       {team.crest
@@ -106,7 +113,7 @@ function LegTeamRow({ team, score, pen }: { team: LegTeam; score: number | null;
       <span style={{ fontSize: 10, color: 'var(--sp-text-60)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {team.name ?? '?'}
       </span>
-      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--sp-text-75)', fontVariantNumeric: 'tabular-nums', flexShrink: 0, minWidth: 12, textAlign: 'right' }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: live ? '#f97316' : 'var(--sp-text-75)', fontVariantNumeric: 'tabular-nums', flexShrink: 0, minWidth: 12, textAlign: 'right' }}>
         {score ?? '–'}
       </span>
       {pen != null && (
@@ -148,6 +155,7 @@ function LegsSection({
     teamIdForDetail: string | null | undefined,
   ) => {
     const clickable = !!onSelectLeg && !!teamIdForDetail;
+    const live = isMatchLive(utcDate);
     return (
       <div
         style={{
@@ -155,7 +163,8 @@ function LegsSection({
           cursor: clickable ? 'pointer' : 'default',
           padding: '3px 4px',
           borderRadius: 4,
-          ...(clickable ? { ':hover': { backgroundColor: 'var(--sp-border-6)' } } : {}),
+          border: live ? '1px solid rgba(239,68,68,0.35)' : '1px solid transparent',
+          backgroundColor: live ? 'rgba(239,68,68,0.04)' : 'transparent',
         }}
         onClick={(e) => {
           if (!clickable) return;
@@ -163,11 +172,19 @@ function LegsSection({
           onSelectLeg!(teamIdForDetail!, legDate(utcDate));
         }}
       >
-        <span style={{ fontSize: 9, fontWeight: 700, color: clickable ? 'var(--sp-primary)' : 'var(--sp-text-30)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          {label} · {fmtLegDate(utcDate)}
-        </span>
-        <LegTeamRow team={homeTeam} score={homeScore} pen={homePen ?? null} />
-        <LegTeamRow team={awayTeam} score={awayScore} pen={awayPen ?? null} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {live && (
+            <span style={{
+              width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0,
+              animation: 'sp-badge-blink 2s ease-in-out infinite',
+            }} />
+          )}
+          <span style={{ fontSize: 9, fontWeight: 700, color: live ? '#ef4444' : (clickable ? 'var(--sp-primary)' : 'var(--sp-text-30)'), textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {label} · {fmtLegDate(utcDate)}
+          </span>
+        </div>
+        <LegTeamRow team={homeTeam} score={homeScore} pen={homePen ?? null} live={live} />
+        <LegTeamRow team={awayTeam} score={awayScore} pen={awayPen ?? null} live={live} />
       </div>
     );
   };
@@ -195,6 +212,14 @@ function PrelimTieCard({ tie, onSelectTeam }: { tie: TieDTO; onSelectTeam?: (tea
   const hasPen   = tie.scoreAPenalties != null && tie.scoreBPenalties != null;
   const hasLegs  = (tie.legs?.length ?? 0) >= 2;
 
+  // LIVE: cualquier pierna activa, o partido único dentro de ventana
+  const live = tie.legs
+    ? tie.legs.some((l) => isMatchLive(l.utcDate))
+    : isMatchLive(tie.utcDate);
+
+  const scoreColor = (isWinner: boolean) =>
+    live ? '#f97316' : isWinner ? '#22c55e' : 'var(--sp-text-55)';
+
   // Las filas de equipo del agregado NO abren el DetailPanel —
   // el único punto de entrada es hacer click en una pierna (Ida / Vuelta) expandida.
   const teamRow = (slot: TieDTO['slotA'], isWinner: boolean, score?: number | null, pen?: number | null) => (
@@ -202,7 +227,7 @@ function PrelimTieCard({ tie, onSelectTeam }: { tie: TieDTO; onSelectTeam?: (tea
       <div style={{ flex: 1, minWidth: 0 }}><PrelimSlot slot={slot} isWinner={isWinner} /></div>
       {hasScore && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, minWidth: 22 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: isWinner ? '#22c55e' : 'var(--sp-text-55)', lineHeight: 1 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: scoreColor(isWinner), lineHeight: 1 }}>
             {score ?? '–'}
           </span>
           {hasPen && pen != null && (
@@ -220,13 +245,25 @@ function PrelimTieCard({ tie, onSelectTeam }: { tie: TieDTO; onSelectTeam?: (tea
       style={{
         width: CARD_W,
         backgroundColor: 'var(--sp-surface-card)',
-        border: `1px solid ${expanded ? 'var(--sp-border-12)' : 'var(--sp-border-8)'}`,
+        border: live
+          ? '1.5px solid rgba(239,68,68,0.55)'
+          : `1px solid ${expanded ? 'var(--sp-border-12)' : 'var(--sp-border-8)'}`,
         borderRadius: 6, overflow: 'hidden',
         display: 'flex', flexDirection: 'column',
         cursor: hasLegs ? 'pointer' : 'default',
+        position: 'relative',
       }}
       onClick={() => hasLegs && setExpanded(v => !v)}
     >
+      {/* Dot LIVE */}
+      {live && (
+        <span style={{
+          position: 'absolute', top: 4, right: 4,
+          width: 5, height: 5, borderRadius: '50%',
+          background: '#ef4444',
+          animation: 'sp-badge-blink 2s ease-in-out infinite',
+        }} />
+      )}
       {teamRow(tie.slotA, winA, tie.scoreA, tie.scoreAPenalties)}
       <div style={{ borderTop: '1px solid var(--sp-border-6)', margin: '0 4px' }} />
       {teamRow(tie.slotB, winB, tie.scoreB, tie.scoreBPenalties)}

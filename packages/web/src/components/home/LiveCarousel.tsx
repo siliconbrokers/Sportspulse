@@ -100,11 +100,12 @@ function normStr(s: string) {
 function formatTime(isoStr: string | null): string {
   if (!isoStr) return '—';
   try {
-    return new Date(isoStr).toLocaleTimeString('es-UY', {
-      timeZone: 'America/Montevideo',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    // sv-SE con timeZone produce "YYYY-MM-DD HH:MM:SS" — formato determinista, 0-padded garantizado
+    const local = new Date(isoStr).toLocaleString('sv-SE', { timeZone: 'America/Montevideo' });
+    const [datePart, timePart] = local.split(' ');
+    const [, mm, dd] = datePart.split('-');
+    const [hh, min] = timePart.split(':');
+    return `${dd}/${mm} - ${hh}:${min}`;
   } catch {
     return '—';
   }
@@ -160,18 +161,17 @@ function getCanonicalId(eventId: string): string | null {
   return eventId.startsWith('canonical:') ? eventId.slice('canonical:'.length) : null;
 }
 
-/** Ordena: EN_VIVO (no-zombie) → PROXIMO hoy → PROXIMO mañana */
+/** Ordena: EN_VIVO → PROXIMO hoy → PROXIMO mañana */
 function sortEvents(events: ParsedEvent[]): ParsedEvent[] {
   const byTime = (a: ParsedEvent, b: ParsedEvent) =>
     (a.startsAtPortalTz ?? '').localeCompare(b.startsAtPortalTz ?? '');
 
-  const live     = events.filter((e) => e.normalizedStatus === 'EN_VIVO' && getLiveState(e) !== 'zombie').sort(byTime);
-  const zombies  = events.filter((e) => e.normalizedStatus === 'EN_VIVO' && getLiveState(e) === 'zombie').sort(byTime);
+  const live     = events.filter((e) => e.normalizedStatus === 'EN_VIVO').sort(byTime);
   const upcoming = events.filter((e) => e.normalizedStatus === 'PROXIMO').sort(byTime);
   const today    = upcoming.filter((e) => e.isTodayInPortalTz);
   const tomorrow = upcoming.filter((e) => !e.isTodayInPortalTz);
 
-  return [...live, ...today, ...tomorrow, ...zombies];
+  return [...live, ...today, ...tomorrow];
 }
 
 // ── CrestImg ──────────────────────────────────────────────────────────────────
@@ -280,28 +280,6 @@ function LiveMatchCard({
         (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
       }}
     >
-      {/* ── Badge LIVE flotante (top-right) ── */}
-      {isLive && !isZombie && (
-        <span style={{
-          position: 'absolute', top: 10, right: 10,
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-          fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
-          padding: '2px 7px', borderRadius: 20,
-          background: '#ef4444',
-          color: '#fff',
-          animation: 'sp-badge-blink 2s ease-in-out infinite',
-          lineHeight: 1.6,
-          boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
-        }}>
-          <span style={{
-            width: 4, height: 4, borderRadius: '50%',
-            background: '#fff',
-            flexShrink: 0,
-          }} />
-          LIVE
-        </span>
-      )}
-
       {/* ── Badge zombie (top-right) ── */}
       {isZombie && (
         <span style={{
@@ -322,8 +300,8 @@ function LiveMatchCard({
       <div style={{
         display: 'flex', alignItems: 'center',
         justifyContent: 'space-between',
-        // dejar espacio para el badge absoluto: CONFIRMANDO es más largo que LIVE
-        paddingRight: isZombie ? 108 : isLive ? 72 : 0,
+        // dejar espacio para el badge absoluto del zombie
+        paddingRight: isZombie ? 108 : 0,
       }}>
         <span style={{
           fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
@@ -364,35 +342,59 @@ function LiveMatchCard({
         const hasScore = isLive && !isZombie && event.scoreHome != null && event.scoreAway != null;
         const scoreColor = '#f97316';
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <CrestImg src={event.homeCrestUrl} alt={event.homeTeam ?? 'L'} size={crestSz} />
-              <span style={{
-                fontSize: 13, fontWeight: 700, color: 'var(--sp-text)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-              }}>
-                {event.homeTeam ?? 'Local'}
-              </span>
-              {hasScore && (
-                <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                  {event.scoreHome}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Nombres + crests */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CrestImg src={event.homeCrestUrl} alt={event.homeTeam ?? 'L'} size={crestSz} />
+                <span style={{
+                  fontSize: 13, fontWeight: 700, color: 'var(--sp-text)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                }}>
+                  {event.homeTeam ?? 'Local'}
                 </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? 'V'} size={crestSz} />
-              <span style={{
-                fontSize: 13, fontWeight: 700, color: 'var(--sp-text)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-              }}>
-                {event.awayTeam ?? 'Visitante'}
-              </span>
-              {hasScore && (
-                <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                  {event.scoreAway}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? 'V'} size={crestSz} />
+                <span style={{
+                  fontSize: 13, fontWeight: 700, color: 'var(--sp-text)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                }}>
+                  {event.awayTeam ?? 'Visitante'}
                 </span>
-              )}
+              </div>
             </div>
+
+            {/* Columna derecha: badge LIVE + scores */}
+            {isLive && !isZombie && (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', gap: 3, flexShrink: 0,
+              }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
+                  padding: '2px 7px', borderRadius: 20,
+                  background: '#ef4444', color: '#fff',
+                  animation: 'sp-badge-blink 2s ease-in-out infinite',
+                  lineHeight: 1.6,
+                  boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+                }}>
+                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+                  LIVE
+                </span>
+                {hasScore && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {event.scoreHome}
+                    </span>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {event.scoreAway}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })()}
@@ -556,29 +558,39 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
   // Canónicas: siempre son la fuente de verdad (nombres completos, detail panel, status exacto)
   const canonicalAll = upcoming.map(upcomingToEvent);
 
-  // Ligas con cobertura canónica — streamtp NO aporta para estas (evita confusión entre
-  // equipos homónimos de distintas ligas, ej. Liverpool EPL vs Liverpool URU)
-  const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA', 'MUNDIAL', 'COPA_AMERICA', 'COPA_LIBERTADORES']);
+  // Ligas con cobertura canónica completa — streamtp NO aporta para estas (evita confusión
+  // entre equipos homónimos de distintas ligas, ej. Liverpool EPL vs Liverpool URU).
+  // COPA_LIBERTADORES no está aquí: cuando hay caché canónica aparece en canonicalAll;
+  // cuando no hay caché (server frío), los eventos de streamtp llenan el hueco.
+  const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA', 'MUNDIAL', 'COPA_AMERICA']);
 
-  // Streamtp: solo ligas NO cubiertas por canónico (Champions, Libertadores, etc.) + con stream URL
+  // Par de equipos normalizados de los eventos canónicos — para evitar duplicados cuando
+  // Copa Libertadores tiene cobertura canónica Y cobertura de streamtp simultáneamente.
+  const canonicalTeamPairs = new Set(
+    canonicalAll.map((e) => `${normStr(e.homeTeam ?? '')}|${normStr(e.awayTeam ?? '')}`),
+  );
+
+  // Streamtp: ligas NO cubiertas canónicamente + con stream URL + sin duplicado canónico
   const streamEvents = (feed?.events ?? []).filter(
     (e) =>
       !!e.openUrl &&
       !CANONICAL_LEAGUES.has(e.normalizedLeague) &&
       e.normalizedLeague !== 'EXCLUIDA' &&
       e.normalizedLeague !== 'OTRA' &&
-      (e.normalizedStatus === 'EN_VIVO' || e.normalizedStatus === 'PROXIMO'),
+      (e.normalizedStatus === 'EN_VIVO' || e.normalizedStatus === 'PROXIMO') &&
+      !canonicalTeamPairs.has(`${normStr(e.homeTeam ?? '')}|${normStr(e.awayTeam ?? '')}`),
   );
 
-  // Aplicar zombie guard: eliminar auto-finalizados (>240 min)
-  const allEvents = [...canonicalAll, ...streamEvents].filter(
-    (e) => getLiveState(e) !== 'finished',
-  );
+  // Aplicar zombie guard: eliminar auto-finalizados (>240 min) y zombies (>180 min).
+  // A 180 min de cualquier partido, el resultado ya debería estar confirmado.
+  // Los zombies no aportan valor al usuario y generan confusión ("CONFIRMANDO" estancado).
+  const allEvents = [...canonicalAll, ...streamEvents].filter((e) => {
+    const state = getLiveState(e);
+    return state !== 'finished' && state !== 'zombie';
+  });
 
   const sorted    = sortEvents(allEvents);
-  const liveCount = sorted.filter(
-    (e) => e.normalizedStatus === 'EN_VIVO' && getLiveState(e) === 'live',
-  ).length;
+  const liveCount = sorted.filter((e) => e.normalizedStatus === 'EN_VIVO').length;
   const hasLive   = liveCount > 0;
 
   // Título dinámico

@@ -36,7 +36,7 @@ const FORM_COLORS: Record<FormResult, string> = {
 };
 const FORM_LABELS: Record<FormResult, string> = { W: 'G', D: 'E', L: 'P' };
 
-function FormGuide({ form, label }: { form: string[]; label: string }) {
+function FormGuide({ form, label, isMobile }: { form: string[]; label: string; isMobile?: boolean }) {
   const typed = form as FormResult[];
   const pts = typed.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
   const max = typed.length * 3;
@@ -47,7 +47,7 @@ function FormGuide({ form, label }: { form: string[]; label: string }) {
         <div style={{ fontSize: 11, color: 'var(--sp-text-35)', fontStyle: 'italic' }}>Sin datos</div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 3, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             {typed.map((r, i) => (
               <div
                 key={i}
@@ -305,10 +305,12 @@ function PreMatchBody({
   vm,
   detail,
   uiState,
+  isMobile,
 }: {
   vm: MatchDetailViewModel;
   detail: TeamDetailDTO;
   uiState: string;
+  isMobile?: boolean;
 }) {
   const nm = detail.nextMatch;
   const isHome = nm?.venue === 'HOME';
@@ -410,9 +412,9 @@ function PreMatchBody({
           border: '1px solid var(--sp-border)',
           overflow: 'hidden',
         }}>
-          <FormGuide form={vm.form.home} label={vm.homeTeam.name} />
+          <FormGuide form={vm.form.home} label={vm.homeTeam.name} isMobile={isMobile} />
           <div style={{ width: 1, background: 'var(--sp-border)', flexShrink: 0 }} />
-          <FormGuide form={vm.form.away} label={vm.awayTeam.name} />
+          <FormGuide form={vm.form.away} label={vm.awayTeam.name} isMobile={isMobile} />
         </div>
       )}
 
@@ -1182,7 +1184,7 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
 
           {/* PRE_MATCH */}
           {vm.uiState === 'PRE_MATCH' && (
-            <PreMatchBody vm={vm} detail={detail} uiState="PRE_MATCH" />
+            <PreMatchBody vm={vm} detail={detail} uiState="PRE_MATCH" isMobile={isMobile} />
           )}
 
           {/* PRE_MATCH — experimental prediction section (auto-hides if flag off or no data) */}
@@ -1330,7 +1332,7 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
 
           {/* UNKNOWN */}
           {vm.uiState === 'UNKNOWN' && (
-            <PreMatchBody vm={vm} detail={detail} uiState="UNKNOWN" />
+            <PreMatchBody vm={vm} detail={detail} uiState="UNKNOWN" isMobile={isMobile} />
           )}
         </section>
       )}
