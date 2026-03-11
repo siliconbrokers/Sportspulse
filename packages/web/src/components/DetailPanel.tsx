@@ -340,7 +340,7 @@ function PreMatchBody({
                 Pronóstico
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                {statusBadge && (
+                {statusBadge && !predictionLabel && (
                   <span style={{
                     fontSize: 10, fontWeight: 700,
                     padding: '3px 10px', borderRadius: 20,

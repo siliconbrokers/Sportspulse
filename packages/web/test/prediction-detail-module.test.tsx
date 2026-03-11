@@ -62,9 +62,12 @@ describe('PredictionDetailModule — visibility', () => {
 });
 
 describe('PredictionDetailModule — badges por estado', () => {
-  it('SCHEDULED → badge "Pendiente"', () => {
+  it('SCHEDULED con predicción → muestra label, sin badge "Pendiente"', () => {
     render(<DetailPanel detail={makeDetail('SCHEDULED', basePrediction, { status: 'pending' })} onClose={() => {}} />);
-    expect(screen.getByTestId('match-estimate').textContent).toContain('Pendiente');
+    const el = screen.getByTestId('match-estimate');
+    // Cuando hay label de predicción, el badge "Pendiente" no debe aparecer (redundante y confuso)
+    expect(el.textContent).toContain('Ganador: FC Barcelona');
+    expect(el.textContent).not.toContain('Pendiente');
   });
 
   it('IN_PROGRESS → badge "Pendiente" (en vivo, pendiente de evaluación)', () => {

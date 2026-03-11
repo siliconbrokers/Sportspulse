@@ -1,4 +1,6 @@
 /** Metadatos visuales de cada competición — logos, colores, nombres */
+export type TournamentPhase = 'previa' | 'grupos' | 'eliminatorias';
+
 export interface CompetitionMeta {
   id: string;
   name: string;
@@ -8,6 +10,12 @@ export interface CompetitionMeta {
   season: string;
   /** Fecha ISO de inicio del torneo (solo torneos). Usada para banner pre-torneo. */
   startDate?: string;
+  /**
+   * Fases que tiene este torneo — determina qué tabs muestra TournamentView.
+   * Si no se define, TournamentView infiere las fases a partir de los datos de la API.
+   * DEBE definirse para que los tabs sean visibles incluso cuando la API no responde.
+   */
+  phases?: TournamentPhase[];
 }
 
 export const COMPETITION_META: CompetitionMeta[] = [
@@ -51,6 +59,7 @@ export const COMPETITION_META: CompetitionMeta[] = [
     accent: '#22c55e',
     season: '2026',
     startDate: '2026-06-11',
+    phases: ['grupos', 'eliminatorias'],
   },
   {
     id: 'comp:football-data-cli:CLI',
@@ -59,6 +68,7 @@ export const COMPETITION_META: CompetitionMeta[] = [
     logoUrl: 'https://crests.football-data.org/CLI.svg',
     accent: '#eab308',
     season: '2026',
+    phases: ['previa', 'grupos', 'eliminatorias'],
   },
 ];
 

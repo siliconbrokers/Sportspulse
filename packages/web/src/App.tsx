@@ -183,6 +183,7 @@ function App() {
               competitionId={competitionId}
               accent={getCompMeta(competitionId)?.accent}
               startDate={getCompMeta(competitionId)?.startDate}
+              phases={getCompMeta(competitionId)?.phases}
               onSelectTeam={(id, dateLocal) => {
                 setTournamentFocusId((prev) => (prev === id ? null : id));
                 setTournamentFocusDate(dateLocal ?? todayLocal);

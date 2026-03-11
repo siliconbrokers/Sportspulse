@@ -16,6 +16,7 @@ import { KnockoutBracket } from './KnockoutBracket.js';
 import { PreliminaryRoundsView } from './PreliminaryRoundsView.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import { computeBestThirds } from '../utils/best-thirds.js';
+import type { TournamentPhase } from '../utils/competition-meta.js';
 
 interface TournamentViewProps {
   competitionId: string;
@@ -24,42 +25,54 @@ interface TournamentViewProps {
   /** Fecha ISO de inicio del torneo — para banner pre-torneo */
   startDate?: string;
   onSelectTeam?: (teamId: string, dateLocal?: string) => void;
+  /**
+   * Fases configuradas para este torneo (desde competition-meta).
+   * Determina qué tabs son visibles INDEPENDIENTEMENTE del estado de la API.
+   * Si no se provee, los tabs se infieren de los datos de la API (comportamiento anterior).
+   */
+  phases?: TournamentPhase[];
 }
 
-type TournamentTab = 'previa' | 'grupos' | 'eliminatorias';
+type TournamentTab = TournamentPhase;
 
-export function TournamentView({ competitionId, accent = 'var(--sp-primary)', startDate, onSelectTeam }: TournamentViewProps) {
+export function TournamentView({ competitionId, accent = 'var(--sp-primary)', startDate, onSelectTeam, phases }: TournamentViewProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
 
-  // Cargamos bracket siempre para saber qué tabs mostrar
   const {
     data: bracketData,
     loading: bracketLoading,
     error: bracketError,
   } = useKnockoutBracket(competitionId, true);
 
-  const hasPreliminary  = (bracketData?.preliminaryRounds?.length ?? 0) > 0;
-  const hasKnockout     = (bracketData?.knockoutRounds?.length ?? 0) > 0;
+  // Visibilidad de tabs: si hay config estática (phases), úsala siempre.
+  // Si no, infiere desde la API (comportamiento legacy).
+  const hasPreliminary = phases
+    ? phases.includes('previa')
+    : (bracketData?.preliminaryRounds?.length ?? 0) > 0;
+  const hasKnockout = phases
+    ? phases.includes('eliminatorias')
+    : (bracketData?.knockoutRounds?.length ?? 0) > 0;
 
-  // Tab state — arranca en null (sin datos aún). Se fija una sola vez cuando
-  // llegan los datos del bracket, priorizando 'previa' > 'grupos' > 'eliminatorias'.
-  const [tab, setTab] = useState<TournamentTab | null>(null);
+  // Tab activo — arranca en el primer tab configurado (o 'grupos' como fallback).
+  // No espera a que cargue la API para mostrar la UI.
+  const defaultTab: TournamentTab = phases?.[0] ?? 'grupos';
+  const [tab, setTab] = useState<TournamentTab>(defaultTab);
 
-  // Fija el tab por defecto la primera vez que bracketData carga
+  // Si llegan datos de la API, selecciona el tab más activo (solo una vez al montar).
+  // Prioridad: previa activa > eliminatorias activas > primer tab configurado.
   useEffect(() => {
-    if (!bracketData || tab !== null) return;
-    if ((bracketData.preliminaryRounds?.length ?? 0) > 0) setTab('previa');
-    else if ((bracketData.knockoutRounds?.length ?? 0) > 0) setTab('eliminatorias');
-    else setTab('grupos');
-  }, [bracketData, tab]);
+    if (!bracketData) return;
+    const apiHasPrevia = (bracketData.preliminaryRounds?.length ?? 0) > 0;
+    const apiHasKnockout = (bracketData.knockoutRounds?.length ?? 0) > 0;
+    if (apiHasPrevia && hasPreliminary) setTab('previa');
+    else if (apiHasKnockout && hasKnockout) setTab('eliminatorias');
+    // else: mantener tab actual
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bracketData]);
 
-  // Resuelve el tab efectivo: usa el seleccionado o 'grupos' como fallback mientras carga
-  const resolvedTab = tab ?? 'grupos';
-  const effectiveTab: TournamentTab =
-    resolvedTab === 'previa'       && !hasPreliminary ? 'grupos'
-    : resolvedTab === 'eliminatorias' && !hasKnockout ? 'grupos'
-    : resolvedTab;
+  // El tab efectivo es siempre el seleccionado; el contenido maneja el estado vacío.
+  const effectiveTab: TournamentTab = tab;
 
   const {
     data: groupData,
