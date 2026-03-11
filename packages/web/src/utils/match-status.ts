@@ -10,10 +10,12 @@
  *   - API dice IN_PROGRESS/PAUSED/LIVE + elapsed <= 180 min → LIVE
  *   - API dice FINISHED                                     → FINISHED
  *   - API dice POSTPONED/CANCELED                           → SCHEDULED
- *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (0-240 min) → LIVE o ZOMBIE
+ *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (0-180 min)   → LIVE
+ *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (180-240 min) → ZOMBIE
+ *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (> 240 min)   → FINISHED
  *     (heurístico para proveedores que no actualizan status en tiempo real,
  *      como football-data.org free tier o OpenLigaDB — aplica a TODOS los proveedores)
- *   - API dice SCHEDULED/TIMED/TBD + kickoff futuro        → SCHEDULED
+ *   - API dice SCHEDULED/TIMED/TBD + kickoff futuro                 → SCHEDULED
  *   - Cualquier otro valor                                  → UNKNOWN
  */
 
@@ -52,7 +54,8 @@ export function getMatchDisplayStatus(
     // Si el kickoff ya pasó y estamos dentro de la ventana de juego, tratar como LIVE.
     if (kickoffUtc) {
       const elapsed = (Date.now() - new Date(kickoffUtc).getTime()) / 60_000;
-      if (elapsed > 0 && elapsed <= AUTOFINISH_THRESHOLD_MIN) {
+      if (elapsed > AUTOFINISH_THRESHOLD_MIN) return 'FINISHED';
+      if (elapsed > 0) {
         if (elapsed > ZOMBIE_THRESHOLD_MIN) return 'ZOMBIE';
         return 'LIVE';
       }

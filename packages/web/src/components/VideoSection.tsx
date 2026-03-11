@@ -2,13 +2,14 @@ import type { VideoFeed, VideoBlock } from '../hooks/use-videos.js';
 import { FeaturedVideoCard } from './FeaturedVideoCard.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 
-const BLOCK_ORDER = ['URU', 'LL', 'EPL', 'BUN'];
+const BLOCK_ORDER = ['URU', 'LL', 'EPL', 'BUN', 'CLI'];
 
 const LEAGUE_ACCENT: Record<string, string> = {
   URU: '#3b82f6',
   LL:  '#f59e0b',
   EPL: '#a855f7',
   BUN: '#ef4444',
+  CLI: '#eab308',
 };
 
 const LEAGUE_LABEL: Record<string, string> = {
@@ -16,6 +17,7 @@ const LEAGUE_LABEL: Record<string, string> = {
   LL:  '🇪🇸 LaLiga',
   EPL: '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League',
   BUN: '🇩🇪 Bundesliga',
+  CLI: '🏆 Copa Libertadores',
 };
 
 function SkeletonVideo() {

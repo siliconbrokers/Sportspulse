@@ -25,6 +25,7 @@ function formatTime(isoStr: string | null): string {
       timeZone: 'America/Montevideo',
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     });
   } catch {
     return isoStr;

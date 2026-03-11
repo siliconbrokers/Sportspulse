@@ -56,6 +56,7 @@ function fmtTime(isoStr: string | null): string {
       timeZone: 'America/Montevideo',
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     }).format(new Date(isoStr));
   } catch { return '—'; }
 }
@@ -140,9 +141,10 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
 
   // Estado de visualización — zombie guard incluido
   const ds = getMatchDisplayStatus(toApiStatus(event.normalizedStatus), event.startsAtPortalTz);
-  const isLive    = ds === 'LIVE';
-  const isZombie  = ds === 'ZOMBIE';
-  const isActive  = isLive || isZombie;
+  const isLive     = ds === 'LIVE';
+  const isZombie   = ds === 'ZOMBIE';
+  const isFinished = ds === 'FINISHED';
+  const isActive   = isLive || isZombie;
 
   const crestSize = isMobile ? 22 : 26;
 
@@ -159,7 +161,9 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
   function handleCardClick(e: React.MouseEvent) {
     if (!hasSignal && !onCardClick) return;
     if ((e.target as HTMLElement).closest('[data-signal-badge]')) return;
-    // Si hay onCardClick (evento canónico), muestra detalle; si no, abre stream directamente
+    // Partido activo con señal → stream tiene prioridad sobre DetailPanel
+    if (isActive && hasSignal) { openEventDirect(event); return; }
+    // Partido próximo con evento canónico → DetailPanel
     if (onCardClick) { onCardClick(); return; }
     if (hasSignal) openEventDirect(event);
   }
@@ -227,7 +231,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
               STREAM
             </span>
           </div>
-        ) : !isZombie && (
+        ) : !isActive && !isFinished && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '3px 7px', borderRadius: 20,
@@ -316,6 +320,10 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
           <span style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>
             ⚠️ Pendiente de confirmación
           </span>
+        ) : isFinished ? (
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-30)' }}>
+            Finalizado
+          </span>
         ) : (
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-40)' }}>
             Próximo · {timeStr}
@@ -367,7 +375,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
               )
             ))}
           </div>
-        ) : (!hasSignal && !isZombie) ? (
+        ) : (!hasSignal && !isActive && !isFinished) ? (
           <span style={{
             fontSize: 10, fontWeight: 600,
             color: 'var(--sp-text-30)',

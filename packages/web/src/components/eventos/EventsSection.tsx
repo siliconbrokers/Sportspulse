@@ -244,14 +244,15 @@ export function EventsSection({ activeTab, onTabChange }: EventsSectionProps) {
       e.normalizedLeague !== 'OTRA',
   );
 
-  // Filtrar eventos que el auto-detector marca como FINISHED (kickoff > 240 min).
-  // Aplica principalmente a eventos de streamtp10 que quedan en el feed del proveedor
-  // después de que el partido terminó. Los eventos canónicos ya se filtran en el servidor.
+  // Filtrar eventos con kickoff > 240 min (partido efectivamente terminado).
+  // Aplica a TODOS los eventos independientemente de normalizedStatus:
+  // - streamtp10 puede dejar eventos con openUrl=null después del partido
+  // - football-data free tier mantiene PROXIMO (nunca actualiza a EN_VIVO durante el partido)
+  // En ambos casos el partido terminó y no debe mostrarse en la lista.
   function isEffectivelyFinished(e: ParsedEvent): boolean {
     if (!e.startsAtPortalTz) return false;
     const elapsed = (Date.now() - new Date(e.startsAtPortalTz).getTime()) / 60_000;
-    const isLiveSource = e.normalizedStatus === 'EN_VIVO';
-    return isLiveSource && elapsed > AUTOFINISH_THRESHOLD_MIN;
+    return elapsed > AUTOFINISH_THRESHOLD_MIN;
   }
 
   const allEvents = [...canonicalEvents, ...streamOnlyEvents].filter((e) => !isEffectivelyFinished(e));
