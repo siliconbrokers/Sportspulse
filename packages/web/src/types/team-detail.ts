@@ -31,6 +31,7 @@ export interface TeamDetailDTO {
     venueName?: string;
     coachName?: string;
     recentForm?: FormResult[];
+    recentFormCrests?: (string | null)[];
     goalStats?: GoalStatsDTO;
     homeGoalStats?: GoalStatsDTO;
     awayGoalStats?: GoalStatsDTO;

@@ -131,11 +131,7 @@ async function main() {
     { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
   ]);
 
-  // News service — demand-pull, cached per league (30-60 min TTL)
-  const GNEWS_API_KEY = process.env.SERPAPI_KEY ?? process.env.GNEWS_API_KEY ?? '';
-  if (!GNEWS_API_KEY) {
-    console.warn('[NewsService] SERPAPI_KEY not set — league news will return empty blocks');
-  }
+  // News service — demand-pull, cached per league (30-60 min TTL). Uses RSS feeds (no API key required).
 
   // Video service — YouTube Data API v3, cached 45 min
   const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY ?? '';
@@ -154,7 +150,7 @@ async function main() {
       return dataSource.getLastPlayedMatchday?.(competitionId);
     },
   };
-  const newsService = new NewsService(GNEWS_API_KEY, standingsProvider);
+  const newsService = new NewsService(standingsProvider);
 
   const snapshotService = new SnapshotService({
     store: new InMemorySnapshotStore(),

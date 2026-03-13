@@ -4,9 +4,11 @@ import { StandingsTable } from './components/StandingsTable.js';
 import { TopScorers } from './components/TopScorers.js';
 import { MatchdayCarousel } from './components/MatchdayCarousel.js';
 import { TournamentView } from './components/TournamentView.js';
+import { TournamentPartidosView } from './components/TournamentPartidosView.js';
 import { DetailPanel } from './components/DetailPanel.js';
 import { HomePortal } from './components/HomePortal.js';
 import { PronosticosView } from './components/pronosticos/PronosticosView.js';
+import { TournamentPronosticosView } from './components/pronosticos/TournamentPronosticosView.js';
 import { Navbar } from './components/Navbar.js';
 import type { ViewMode } from './components/Navbar.js';
 import { useStandings } from './hooks/use-standings.js';
@@ -39,8 +41,7 @@ const COMPETITIONS = [
   { id: 'comp:football-data:PL', code: 'PL', isTournament: false },
   { id: 'comp:openligadb:bl1', code: 'BL1', isTournament: false },
   { id: 'comp:football-data-cli:CLI', code: 'CLI', isTournament: true },
-  // Oculto del menú hasta que haya datos disponibles
-  { id: 'comp:football-data-wc:WC', code: 'WC', isTournament: true, hidden: true },
+  { id: 'comp:football-data-wc:WC', code: 'WC', isTournament: true },
 ];
 
 export function AppRoot() {
@@ -98,13 +99,12 @@ function App() {
     view === 'standings' && !isTournament,
   );
 
-  // Cuando cambia la liga: resetear jornada y foco; navegar siempre a standings
+  // Cuando cambia la liga: resetear jornada y foco; mantener la vista activa
   useEffect(() => {
     setMatchday(null);
     setStandingsFocusId(null);
     setTournamentFocusId(null);
     setTournamentFocusDate(null);
-    setView('standings');
   }, [competitionId]);
 
   // Cuando carga compInfo: setear jornada por defecto
@@ -150,7 +150,6 @@ function App() {
         tvTab={tvTab}
         onTvTabChange={setTvTab}
         isTournament={isTournament}
-        onStandingsClick={() => setView('standings')}
       />
 
       {/* ── Contenido principal ─────────────────────────────────────────── */}
@@ -158,43 +157,36 @@ function App() {
         <HomePortal />
       ) : view === 'pronosticos' ? (
         <div style={{ padding: isMobile ? '12px 12px' : '16px 20px', maxWidth: 1400, margin: '0 auto' }}>
-          {/* Carousel de jornada */}
-          <div style={{ marginBottom: isMobile ? 12 : 16 }}>
-            <MatchdayCarousel
-              totalMatchdays={totalMatchdays}
-              selected={matchday}
-              currentMatchday={activeMatchday}
-              onChange={setMatchday}
-              isMobile={isMobile}
-            />
-          </div>
-          <PronosticosView
-            competitionId={competitionId}
-            matchday={matchday}
-          />
+          {isTournament ? (
+            <TournamentPronosticosView competitionId={competitionId} />
+          ) : (
+            <>
+              {/* Carousel de jornada — solo en ligas */}
+              <div style={{ marginBottom: isMobile ? 12 : 16 }}>
+                <MatchdayCarousel
+                  totalMatchdays={totalMatchdays}
+                  selected={matchday}
+                  currentMatchday={activeMatchday}
+                  onChange={setMatchday}
+                  isMobile={isMobile}
+                />
+              </div>
+              <PronosticosView
+                competitionId={competitionId}
+                matchday={matchday}
+              />
+            </>
+          )}
         </div>
       ) : view === 'tv' ? (
         <EventsSection activeTab={tvTab} onTabChange={setTvTab} />
       ) : view === 'partidos' ? (
         isTournament ? (
-          /* Torneos en vista "Partidos" → mostrar fases del torneo (mismo que standings) */
           <div style={{ padding: isMobile ? '12px' : '16px 20px', maxWidth: 1100, margin: '0 auto' }}>
-            <TournamentView
+            <TournamentPartidosView
               competitionId={competitionId}
               accent={getCompMeta(competitionId)?.accent}
-              startDate={getCompMeta(competitionId)?.startDate}
-              phases={getCompMeta(competitionId)?.phases}
-              onSelectTeam={(id, dateLocal) => {
-                setTournamentFocusId((prev) => (prev === id ? null : id));
-                setTournamentFocusDate(dateLocal ?? todayLocal);
-              }}
             />
-            {tournamentFocusId && tournamentTeamDetail && (
-              <DetailPanel
-                detail={tournamentTeamDetail}
-                onClose={() => setTournamentFocusId(null)}
-              />
-            )}
           </div>
         ) : (
           <>
@@ -227,6 +219,7 @@ function App() {
                 competitionId={competitionId}
                 accent={getCompMeta(competitionId)?.accent}
                 startDate={getCompMeta(competitionId)?.startDate}
+                phases={getCompMeta(competitionId)?.phases ?? ['grupos', 'eliminatorias']}
                 onSelectTeam={(id, dateLocal) => {
                   setTournamentFocusId((prev) => (prev === id ? null : id));
                   setTournamentFocusDate(dateLocal ?? todayLocal);

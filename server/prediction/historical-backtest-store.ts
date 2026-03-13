@@ -163,6 +163,30 @@ export class HistoricalBacktestStore {
     ];
   }
 
+  /**
+   * Replaces snapshots for a given competition + season only.
+   * Season boundary: kickoff_utc >= `${seasonStartYear}-07-01` and
+   *                  kickoff_utc <  `${seasonStartYear + 1}-07-01`.
+   * Other competitions and other seasons are preserved.
+   */
+  replaceForCompetitionSeason(
+    competitionCode: string,
+    seasonStartYear: number,
+    newSnapshots: HistoricalBacktestSnapshot[],
+  ): void {
+    const lo = `${seasonStartYear}-07-01`;
+    const hi = `${seasonStartYear + 1}-07-01`;
+    this.snapshots = [
+      ...this.snapshots.filter(
+        (s) =>
+          s.competition_code !== competitionCode ||
+          s.kickoff_utc < lo ||
+          s.kickoff_utc >= hi,
+      ),
+      ...newSnapshots,
+    ];
+  }
+
   // ── Query ─────────────────────────────────────────────────────────────────
 
   findByCompetition(competitionCode: string): HistoricalBacktestSnapshot[] {

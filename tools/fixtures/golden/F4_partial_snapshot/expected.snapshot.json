@@ -43,6 +43,13 @@
         "D",
         "W"
       ],
+      "recentFormCrests": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
       "goalStats": {
         "goalsFor": 9,
         "goalsAgainst": 2,
@@ -144,6 +151,7 @@
         "opponentTeamId": "team:football-data:200",
         "opponentName": "Newly Promoted FC",
         "opponentRecentForm": [],
+        "opponentRecentFormCrests": [],
         "opponentGoalStats": {
           "goalsFor": 0,
           "goalsAgainst": 0,
@@ -199,6 +207,7 @@
       "teamId": "team:football-data:200",
       "teamName": "Newly Promoted FC",
       "recentForm": [],
+      "recentFormCrests": [],
       "goalStats": {
         "goalsFor": 0,
         "goalsAgainst": 0,
@@ -292,6 +301,13 @@
           "W",
           "D",
           "W"
+        ],
+        "opponentRecentFormCrests": [
+          null,
+          null,
+          null,
+          null,
+          null
         ],
         "opponentGoalStats": {
           "goalsFor": 9,

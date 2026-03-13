@@ -21,6 +21,7 @@ const NAV_ITEMS: {
   { id: 'home',         Icon: Home,        label: 'Inicio'      },
   { id: 'tv',           Icon: Tv,          label: 'TV'          },
   { id: 'partidos',     Icon: CalendarDays, label: 'Partidos'   },
+  { id: 'standings',    Icon: Trophy,      label: 'Tabla'       },
   { id: 'pronosticos',  Icon: TrendingUp,  label: 'Pronósticos' },
 ];
 
@@ -39,7 +40,6 @@ interface NavbarProps {
   tvTab?: 'hoy' | 'manana';
   onTvTabChange?: (tab: 'hoy' | 'manana') => void;
   isTournament?: boolean;
-  onStandingsClick?: () => void;
 }
 
 export function Navbar({
@@ -52,7 +52,6 @@ export function Navbar({
   tvTab = 'hoy',
   onTvTabChange,
   isTournament = false,
-  onStandingsClick,
 }: NavbarProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
@@ -142,12 +141,7 @@ export function Navbar({
                   })}
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {onStandingsClick && view !== 'standings' && (
-                    <StandingsButton onClick={onStandingsClick} />
-                  )}
-                  <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
-                </div>
+                <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
               )}
             </div>
           )}
@@ -184,12 +178,7 @@ export function Navbar({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
             {isLeagueView && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {onStandingsClick && view !== 'standings' && (
-                  <StandingsButton onClick={onStandingsClick} />
-                )}
-                <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
-              </div>
+              <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
             )}
           </div>
         </div>
@@ -199,8 +188,6 @@ export function Navbar({
 }
 
 // ─── NavPill — contenedor con floating glow pill ──────────────────────────────
-
-const TOURNAMENT_HIDDEN: ViewMode[] = ['pronosticos'];
 
 function NavPill({
   view,
@@ -215,9 +202,7 @@ function NavPill({
   hasLive: boolean;
   isTournament: boolean;
 }) {
-  const visibleItems = isTournament
-    ? NAV_ITEMS.filter((item) => !TOURNAMENT_HIDDEN.includes(item.id))
-    : NAV_ITEMS;
+  const visibleItems = NAV_ITEMS;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);

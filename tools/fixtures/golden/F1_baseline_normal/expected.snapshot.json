@@ -36,6 +36,13 @@
         "W",
         "W"
       ],
+      "recentFormCrests": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
       "goalStats": {
         "goalsFor": 11,
         "goalsAgainst": 2,
@@ -143,6 +150,13 @@
           "D",
           "W"
         ],
+        "opponentRecentFormCrests": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
         "opponentGoalStats": {
           "goalsFor": 9,
           "goalsAgainst": 2,
@@ -174,7 +188,7 @@
         "matchStatus": "SCHEDULED",
         "prediction": {
           "type": "winner",
-          "label": "Ganador: FC Barcelona",
+          "label": "FC Barcelona",
           "value": {
             "winner": "AWAY",
             "probHome": 0.3383075442785222,
@@ -218,6 +232,13 @@
         "W",
         "D",
         "W"
+      ],
+      "recentFormCrests": [
+        null,
+        null,
+        null,
+        null,
+        null
       ],
       "goalStats": {
         "goalsFor": 9,
@@ -326,6 +347,13 @@
           "W",
           "W"
         ],
+        "opponentRecentFormCrests": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
         "opponentGoalStats": {
           "goalsFor": 11,
           "goalsAgainst": 2,
@@ -357,7 +385,7 @@
         "matchStatus": "SCHEDULED",
         "prediction": {
           "type": "winner",
-          "label": "Ganador: FC Barcelona",
+          "label": "FC Barcelona",
           "value": {
             "winner": "AWAY",
             "probHome": 0.3383075442785222,
@@ -401,6 +429,13 @@
         "W",
         "D",
         "W"
+      ],
+      "recentFormCrests": [
+        null,
+        null,
+        null,
+        null,
+        null
       ],
       "goalStats": {
         "goalsFor": 5,
@@ -509,6 +544,13 @@
           "W",
           "L"
         ],
+        "opponentRecentFormCrests": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
         "opponentGoalStats": {
           "goalsFor": 6,
           "goalsAgainst": 5,
@@ -540,7 +582,7 @@
         "matchStatus": "SCHEDULED",
         "prediction": {
           "type": "winner",
-          "label": "Ganador: Atletico Madrid",
+          "label": "Atletico Madrid",
           "value": {
             "winner": "HOME",
             "probHome": 0.4901212980762581,
@@ -584,6 +626,13 @@
         "D",
         "W",
         "L"
+      ],
+      "recentFormCrests": [
+        null,
+        null,
+        null,
+        null,
+        null
       ],
       "goalStats": {
         "goalsFor": 6,
@@ -692,6 +741,13 @@
           "D",
           "W"
         ],
+        "opponentRecentFormCrests": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
         "opponentGoalStats": {
           "goalsFor": 5,
           "goalsAgainst": 2,
@@ -723,7 +779,7 @@
         "matchStatus": "SCHEDULED",
         "prediction": {
           "type": "winner",
-          "label": "Ganador: Atletico Madrid",
+          "label": "Atletico Madrid",
           "value": {
             "winner": "HOME",
             "probHome": 0.4901212980762581,

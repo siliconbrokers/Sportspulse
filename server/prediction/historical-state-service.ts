@@ -72,6 +72,18 @@ export class HistoricalStateService {
     await this._getMatches(competitionCode, currentSeasonStartYear);
   }
 
+  /**
+   * Devuelve todos los partidos históricos cargados para una competencia.
+   * Incluye la temporada actual y las anteriores (PAST_SEASONS_COUNT = 2).
+   * Útil para el motor V2, que necesita separar current vs prev season.
+   */
+  async getAllMatches(
+    competitionCode: string,
+    currentSeasonStartYear: number,
+  ): Promise<FinishedMatchRecord[]> {
+    return this._getMatches(competitionCode, currentSeasonStartYear);
+  }
+
   // ── Private ──────────────────────────────────────────────────────────────
 
   private async _getMatches(

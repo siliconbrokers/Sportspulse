@@ -1,5 +1,58 @@
 import type { NewsHeadline } from './types.js';
 
+// ── Non-football sport filter ─────────────────────────────────────────────────
+// Bloquea noticias/snippets de deportes que el sistema no cubre.
+
+const NON_FOOTBALL_PHRASES = [
+  'fútbol playa',
+  'futbol playa',
+  'beach soccer',
+  'beach football',
+  'fútbol de salón',
+  'futsal',
+  'fútbol sala',
+];
+
+const NON_FOOTBALL_WORDS = [
+  'básquetbol',
+  'basquetbol',
+  'basketball',
+  'baloncesto',
+  'basquet',
+  'tenis',
+  'tennis',
+  'rugby',
+  'hockey',
+  'béisbol',
+  'beisbol',
+  'baseball',
+  'voleibol',
+  'volleyball',
+  'voley',
+  'vóley',
+  'atletismo',
+  'natación',
+  'ciclismo',
+  'boxeo',
+  'mma',
+  'ufc',
+  'nba',
+  'nfl',
+  'mlb',
+  'nhl',
+];
+
+export function isBlockedByNonFootball(title: string, snippet = ''): boolean {
+  const text = norm(title + ' ' + snippet);
+  for (const phrase of NON_FOOTBALL_PHRASES) {
+    if (text.includes(norm(phrase))) return true;
+  }
+  for (const word of NON_FOOTBALL_WORDS) {
+    if (new RegExp(`\\b${word}\\b`).test(text)) return true;
+  }
+  return false;
+}
+
 // ── Anti-politics filter (spec §8) ────────────────────────────────────────────
 // NOTE: "presidente" solo NO está bloqueado (spec §8 observación)
 

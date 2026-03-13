@@ -100,6 +100,7 @@ export interface NextMatchDTO {
   opponentCrestUrl?: string;
   opponentCoachName?: string;
   opponentRecentForm?: FormResult[];
+  opponentRecentFormCrests?: (string | null)[];
   opponentGoalStats?: GoalStatsDTO;
   opponentHomeGoalStats?: GoalStatsDTO;
   opponentAwayGoalStats?: GoalStatsDTO;
@@ -137,6 +138,7 @@ export interface TeamScoreDTO {
   venueName?: string;
   coachName?: string;
   recentForm?: FormResult[];
+  recentFormCrests?: (string | null)[];
   goalStats?: GoalStatsDTO;
   homeGoalStats?: GoalStatsDTO;
   awayGoalStats?: GoalStatsDTO;

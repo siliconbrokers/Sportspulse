@@ -1,4 +1,4 @@
-import { isBlockedByPolitics } from './filter.js';
+import { isBlockedByPolitics, isBlockedByNonFootball } from './filter.js';
 import type { LeagueKey, NewsHeadline } from './types.js';
 
 // SerpAPI Google News — para LaLiga, Premier League, Bundesliga
@@ -39,17 +39,17 @@ export const LEAGUE_CONFIG: Record<
   LL: {
     competitionLabel: 'LaLiga',
     competitionId: 'comp:football-data:PD',
-    query: 'LaLiga fútbol',
+    query: 'LaLiga fútbol -básquetbol -baloncesto -tenis -rugby -béisbol -voleibol',
   },
   EPL: {
     competitionLabel: 'Premier League',
     competitionId: 'comp:football-data:PL',
-    query: 'Premier League fútbol',
+    query: 'Premier League fútbol -basketball -tennis -rugby -baseball -volleyball',
   },
   BUN: {
     competitionLabel: 'Bundesliga',
     competitionId: 'comp:football-data:BL1',
-    query: 'Bundesliga fútbol',
+    query: 'Bundesliga fútbol -Basketball -Tennis -Rugby -Baseball -Volleyball',
   },
 };
 
@@ -136,6 +136,7 @@ export async function fetchGNewsLeague(
     const articleUrl = item.link?.trim() ?? '';
     if (!title || !articleUrl) continue;
     if (isBlockedByPolitics(title, item.snippet ?? '')) continue;
+    if (isBlockedByNonFootball(title, item.snippet ?? '')) continue;
 
     results.push({
       id: simpleHash(articleUrl),

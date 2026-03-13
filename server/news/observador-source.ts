@@ -1,5 +1,5 @@
 import Parser from 'rss-parser';
-import { isBlockedByPolitics, isTodayInMontevideo } from './filter.js';
+import { isBlockedByPolitics, isBlockedByNonFootball, isTodayInMontevideo } from './filter.js';
 import type { NewsHeadline } from './types.js';
 
 // Fuente: Tenfield.com — feed 100% fútbol uruguayo (El Observador no tiene RSS público)
@@ -79,6 +79,7 @@ export async function fetchObservadorNews(): Promise<NewsHeadline[]> {
 
     const snippet = item.contentSnippet ?? '';
     if (isBlockedByPolitics(title, snippet)) continue;
+    if (isBlockedByNonFootball(title, snippet)) continue;
 
     results.push({
       id: simpleHash(url),

@@ -11,6 +11,7 @@ import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
 import { persistTeamsCache, loadTeamsCache } from './matchday-cache.js';
 import { resolveTla } from './tla-overrides.js';
 import { readRawCache, writeRawCache } from './raw-response-cache.js';
+import { CrestCache } from './crest-cache.js';
 
 // ── Provider key ─────────────────────────────────────────────────────────────
 
@@ -66,6 +67,7 @@ export class TheSportsDbSource implements DataSource {
   private readonly leagueName: string;
   private readonly _competitionId: string;
   private cache: CachedData | null = null;
+  private readonly crestCache = new CrestCache();
 
   constructor(
     apiKey: string,
@@ -324,6 +326,26 @@ export class TheSportsDbSource implements DataSource {
       currentMatchday,
       fetchedAt: Date.now(),
     };
+
+    // Fire-and-forget: download and cache crest images locally.
+    this.crestCache.warmup(
+      teams
+        .filter((t) => t.providerTeamId)
+        .map((t) => ({ providerTeamId: t.providerTeamId!, crestUrl: t.crestUrl })),
+      SPORTSDB_PROVIDER_KEY,
+    ).then((urlMap) => {
+      if (!this.cache) return;
+      this.cache = {
+        ...this.cache,
+        teams: this.cache.teams.map((t) => ({
+          ...t,
+          crestUrl: t.providerTeamId ? (urlMap.get(t.providerTeamId) ?? t.crestUrl) : t.crestUrl,
+        })),
+      };
+      console.log(`[TheSportsDbSource] crest cache warm (${urlMap.size} teams)`);
+    }).catch((err) => {
+      console.warn('[TheSportsDbSource] crest warmup error:', err);
+    });
   }
 
   private owns(compId: string): boolean {

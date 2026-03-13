@@ -66,6 +66,68 @@ export function isTodayInMontevideo(publishedAtUtc: string): boolean {
   return fmt.format(pub) === fmt.format(new Date()) && pub <= new Date();
 }
 
+// ── Non-football sport filter ─────────────────────────────────────────────────
+
+const NON_FOOTBALL_PHRASES_V = [
+  'fútbol playa',
+  'futbol playa',
+  'beach soccer',
+  'beach football',
+  'futsal',
+  'fútbol sala',
+  'fútbol de salón',
+];
+
+const NON_FOOTBALL_WORDS_V = [
+  'básquetbol',
+  'basquetbol',
+  'basketball',
+  'baloncesto',
+  'basquet',
+  'tenis',
+  'tennis',
+  'rugby',
+  'hockey',
+  'béisbol',
+  'beisbol',
+  'baseball',
+  'voleibol',
+  'volleyball',
+  'voley',
+  'vóley',
+  'atletismo',
+  'natación',
+  'ciclismo',
+  'boxeo',
+  'mma',
+  'ufc',
+  'nba',
+  'nfl',
+  'mlb',
+  'nhl',
+];
+
+function normV(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function isBlockedByNonFootball(title: string): boolean {
+  const text = normV(title);
+  for (const phrase of NON_FOOTBALL_PHRASES_V) {
+    if (text.includes(normV(phrase))) return true;
+  }
+  for (const word of NON_FOOTBALL_WORDS_V) {
+    if (new RegExp(`\\b${word}\\b`).test(text)) return true;
+  }
+  return false;
+}
+
 /**
  * Returns true if the video is available in the given region.
  * Uses the availability data from videos.list (contentDetails.regionRestriction).

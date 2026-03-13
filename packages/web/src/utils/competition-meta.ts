@@ -55,7 +55,7 @@ export const COMPETITION_META: CompetitionMeta[] = [
     id: 'comp:football-data-wc:WC',
     name: 'Mundial 2026',
     shortName: 'Mundial',
-    logoUrl: 'https://crests.football-data.org/2000.png',
+    logoUrl: 'https://r2.thesportsdb.com/images/media/league/badge/e7er5g1696521789.png',
     accent: '#22c55e',
     season: '2026',
     startDate: '2026-06-11',

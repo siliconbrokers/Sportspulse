@@ -58,6 +58,8 @@ export interface NextMatchDTO {
   opponentCrestUrl?: string;
   opponentCoachName?: string;
   opponentRecentForm?: FormResult[];
+  /** Opponent crest URLs parallel to opponentRecentForm (same index = same match). */
+  opponentRecentFormCrests?: (string | null)[];
   opponentGoalStats?: GoalStatsDTO;
   opponentHomeGoalStats?: GoalStatsDTO;
   opponentAwayGoalStats?: GoalStatsDTO;
@@ -84,6 +86,8 @@ export interface TeamScoreDTO {
   venueName?: string;
   coachName?: string;
   recentForm?: FormResult[];
+  /** Opponent crest URLs parallel to recentForm (same index = same match). */
+  recentFormCrests?: (string | null)[];
   goalStats?: GoalStatsDTO;
   homeGoalStats?: GoalStatsDTO;
   awayGoalStats?: GoalStatsDTO;

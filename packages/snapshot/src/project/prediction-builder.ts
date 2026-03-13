@@ -134,13 +134,13 @@ export function buildPrediction(
   const maxOther = Math.max(probs.homeWin, probs.awayWin);
   if (probs.draw >= DRAW_THRESHOLD && probs.draw >= maxOther * DRAW_RATIO) {
     winner = 'DRAW';
-    label = 'Empate favorecido';
+    label = 'Empate';
   } else if (probs.homeWin >= probs.awayWin) {
     winner = 'HOME';
-    label = `Ganador: ${isHome ? teamName : opponentName}`;
+    label = isHome ? teamName : opponentName;
   } else {
     winner = 'AWAY';
-    label = `Ganador: ${isHome ? opponentName : teamName}`;
+    label = isHome ? opponentName : teamName;
   }
 
   // Confidence based on margin over second-best outcome

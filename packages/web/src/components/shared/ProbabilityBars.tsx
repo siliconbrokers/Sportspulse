@@ -52,9 +52,7 @@ export function ProbabilityBars({
         </div>
         <div style={{ width: `${pD}%`, textAlign: 'center', minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-50)' }}>{pD}%</div>
-          {showTeamNames && (
-            <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1 }}>Empate</div>
-          )}
+          <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1 }}>Empate</div>
         </div>
         <div style={{ width: `${pA}%`, textAlign: 'right', minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>{pA}%</div>

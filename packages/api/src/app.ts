@@ -14,6 +14,7 @@ import { radarRoute } from './ui/radar-route.js';
 import { eventosRoute } from './ui/eventos-route.js';
 import { groupStandingsRoute } from './ui/group-standings-route.js';
 import { bracketRoute } from './ui/bracket-route.js';
+import { tournamentMatchesRoute } from './ui/tournament-matches-route.js';
 import { scorersRoute } from './ui/scorers-route.js';
 import { upcomingRoute } from './ui/upcoming-route.js';
 import { predictionRoute } from './ui/prediction-route.js';
@@ -36,6 +37,7 @@ export function buildApp(deps: AppDependencies): FastifyInstance {
   app.register(eventosRoute(deps));
   app.register(groupStandingsRoute(deps));
   app.register(bracketRoute(deps));
+  app.register(tournamentMatchesRoute(deps));
   app.register(scorersRoute(deps));
   app.register(upcomingRoute(deps));
   app.register(predictionRoute(deps));

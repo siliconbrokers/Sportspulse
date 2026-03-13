@@ -59,6 +59,7 @@ export function buildTeamTile(
 
   // Extract recent form, goal stats, and next match info
   const recentForm = extractRecentForm(team.teamId, matches, buildNowUtc);
+  const recentFormCrests = extractRecentFormCrests(team.teamId, allTeams, matches, buildNowUtc);
   const goalStats = extractGoalStats(team.teamId, matches, buildNowUtc);
   const homeGoalStats = extractGoalStats(team.teamId, matches, buildNowUtc, 'HOME');
   const awayGoalStats = extractGoalStats(team.teamId, matches, buildNowUtc, 'AWAY');
@@ -97,6 +98,7 @@ export function buildTeamTile(
     venueName: team.venueName,
     coachName: team.coachName,
     recentForm,
+    recentFormCrests,
     goalStats,
     homeGoalStats,
     awayGoalStats,
@@ -187,6 +189,9 @@ function extractNextMatch(
     opponentCrestUrl: opponent?.crestUrl,
     opponentCoachName: opponent?.coachName,
     opponentRecentForm: extractRecentForm(opponentId, matches, buildNowUtc),
+    opponentRecentFormCrests: opponentId
+      ? extractRecentFormCrests(opponentId, allTeams, matches, buildNowUtc)
+      : undefined,
     opponentGoalStats: extractGoalStats(opponentId, matches, buildNowUtc),
     opponentHomeGoalStats: extractGoalStats(opponentId, matches, buildNowUtc, 'HOME'),
     opponentAwayGoalStats: extractGoalStats(opponentId, matches, buildNowUtc, 'AWAY'),
@@ -210,12 +215,12 @@ function extractNextMatch(
 
 const FORM_WINDOW = 5;
 
-function extractRecentForm(
+function extractFinishedFormMatches(
   teamId: string,
   matches: readonly Match[],
   buildNowUtc: string,
-): FormResult[] {
-  const finished = matches
+): readonly Match[] {
+  return matches
     .filter(
       (m) =>
         m.status === EventStatus.FINISHED &&
@@ -226,16 +231,36 @@ function extractRecentForm(
         m.scoreAway !== null,
     )
     .sort((a, b) => (a.startTimeUtc! > b.startTimeUtc! ? -1 : 1))
-    .slice(0, FORM_WINDOW);
+    .slice(0, FORM_WINDOW)
+    .reverse(); // oldest first (left to right)
+}
 
-  // Reverse so oldest is first (left to right = old to recent)
-  return finished.reverse().map((m) => {
+function extractRecentForm(
+  teamId: string,
+  matches: readonly Match[],
+  buildNowUtc: string,
+): FormResult[] {
+  return extractFinishedFormMatches(teamId, matches, buildNowUtc).map((m) => {
     const isHome = m.homeTeamId === teamId;
     const teamScore = isHome ? m.scoreHome! : m.scoreAway!;
     const oppScore = isHome ? m.scoreAway! : m.scoreHome!;
     if (teamScore > oppScore) return 'W';
     if (teamScore === oppScore) return 'D';
     return 'L';
+  });
+}
+
+function extractRecentFormCrests(
+  teamId: string,
+  allTeams: readonly Team[],
+  matches: readonly Match[],
+  buildNowUtc: string,
+): (string | null)[] {
+  const teamMap = new Map(allTeams.map((t) => [t.teamId, t]));
+  return extractFinishedFormMatches(teamId, matches, buildNowUtc).map((m) => {
+    const isHome = m.homeTeamId === teamId;
+    const oppId = isHome ? m.awayTeamId : m.homeTeamId;
+    return oppId ? (teamMap.get(oppId)?.crestUrl ?? null) : null;
   });
 }
 

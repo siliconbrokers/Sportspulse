@@ -1,5 +1,6 @@
-// LiveCarousel v2 — carrusel de partidos en vivo / próximos
-// Fuentes: streamtp10 (eventos con stream) + /api/ui/upcoming (canónicas: LL/PL/BL1/URU)
+// LiveCarousel v3 — carrusel de partidos en vivo / próximos
+// Fuente única de tarjetas: /api/ui/upcoming (canónicas: LL/PL/BL1/URU/WC/CLI)
+// streamtp10 solo se consulta para enriquecer tarjetas canónicas con openUrl cuando cubre el partido.
 // Features: liga permanente · borde neon live · zombie guard centralizado · título dinámico · Night/Day
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ParsedEvent, EventosFeed } from '../../hooks/use-events.js';
@@ -36,7 +37,7 @@ type LiveState = 'live' | 'zombie' | 'finished';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
-const CARD_W_DESKTOP = 220;
+const CARD_W_DESKTOP = 260;
 const CARD_GAP       = 12;
 
 // ZOMBIE_THRESHOLD_MIN y AUTOFINISH_THRESHOLD_MIN vienen de match-status.ts (importados arriba)
@@ -127,8 +128,14 @@ function getLiveState(event: ParsedEvent): LiveState {
   return 'live';
 }
 
-/** Convierte UpcomingMatchDTO → ParsedEvent */
-function upcomingToEvent(m: UpcomingMatchDTO): ParsedEvent {
+/**
+ * Convierte UpcomingMatchDTO → ParsedEvent.
+ *
+ * Si streamUrlMap contiene una URL para este par de equipos, se adjunta como openUrl.
+ * El click en tarjeta usa openUrl != null como señal de "abrir stream" (vs. DetailPanel).
+ */
+function upcomingToEvent(m: UpcomingMatchDTO, streamUrlMap: Map<string, string>): ParsedEvent {
+  const key = `${normStr(m.homeTeam)}|${normStr(m.awayTeam)}`;
   return {
     id:                          `canonical:${m.id}`,
     rawText:                     `${m.homeTeam} vs ${m.awayTeam}`,
@@ -148,7 +155,7 @@ function upcomingToEvent(m: UpcomingMatchDTO): ParsedEvent {
     startsAtPortalTz:            m.startsAtPortalTz,
     isTodayInPortalTz:           m.isTodayInPortalTz,
     isDebugVisible:              false,
-    openUrl:                     null,
+    openUrl:                     streamUrlMap.get(key) ?? null,
     homeCrestUrl:                m.homeCrestUrl,
     awayCrestUrl:                m.awayCrestUrl,
     scoreHome:                   m.scoreHome,
@@ -553,38 +560,24 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
     setFocusEventId((prev) => (prev === eventId ? null : eventId));
   }
 
-  // ── Fusión y filtrado ─────────────────────────────────────────────────────
+  // ── Enriquecimiento con openUrl de streamtp ──────────────────────────────
+  // streamtp es consultado exclusivamente para adjuntar links de stream a tarjetas canónicas.
+  // No genera tarjetas propias. El par de equipos normalizado es la clave de matching.
+  const streamUrlMap = new Map<string, string>();
+  for (const ev of feed?.events ?? []) {
+    if (!ev.openUrl) continue;
+    if (!ev.isTodayInPortalTz) continue;
+    if (ev.normalizedLeague === 'EXCLUIDA') continue;
+    if (ev.normalizedStatus === 'DESCONOCIDO') continue;
+    const key = `${normStr(ev.homeTeam ?? '')}|${normStr(ev.awayTeam ?? '')}`;
+    if (!streamUrlMap.has(key)) streamUrlMap.set(key, ev.openUrl); // primer match gana (preferencia español ya viene del parser)
+  }
 
-  // Canónicas: siempre son la fuente de verdad (nombres completos, detail panel, status exacto)
-  const canonicalAll = upcoming.map(upcomingToEvent);
+  // Canónico es la única fuente de tarjetas. Enriquecemos con openUrl cuando streamtp cubre el partido.
+  const canonicalAll = upcoming.map((m) => upcomingToEvent(m, streamUrlMap));
 
-  // Ligas con cobertura canónica completa — streamtp NO aporta para estas (evita confusión
-  // entre equipos homónimos de distintas ligas, ej. Liverpool EPL vs Liverpool URU).
-  // COPA_LIBERTADORES no está aquí: cuando hay caché canónica aparece en canonicalAll;
-  // cuando no hay caché (server frío), los eventos de streamtp llenan el hueco.
-  const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA', 'MUNDIAL', 'COPA_AMERICA']);
-
-  // Par de equipos normalizados de los eventos canónicos — para evitar duplicados cuando
-  // Copa Libertadores tiene cobertura canónica Y cobertura de streamtp simultáneamente.
-  const canonicalTeamPairs = new Set(
-    canonicalAll.map((e) => `${normStr(e.homeTeam ?? '')}|${normStr(e.awayTeam ?? '')}`),
-  );
-
-  // Streamtp: ligas NO cubiertas canónicamente + con stream URL + sin duplicado canónico
-  const streamEvents = (feed?.events ?? []).filter(
-    (e) =>
-      !!e.openUrl &&
-      !CANONICAL_LEAGUES.has(e.normalizedLeague) &&
-      e.normalizedLeague !== 'EXCLUIDA' &&
-      e.normalizedLeague !== 'OTRA' &&
-      (e.normalizedStatus === 'EN_VIVO' || e.normalizedStatus === 'PROXIMO') &&
-      !canonicalTeamPairs.has(`${normStr(e.homeTeam ?? '')}|${normStr(e.awayTeam ?? '')}`),
-  );
-
-  // Aplicar zombie guard: eliminar auto-finalizados (>240 min) y zombies (>180 min).
-  // A 180 min de cualquier partido, el resultado ya debería estar confirmado.
-  // Los zombies no aportan valor al usuario y generan confusión ("CONFIRMANDO" estancado).
-  const allEvents = [...canonicalAll, ...streamEvents].filter((e) => {
+  // Zombie guard: eliminar auto-finalizados (>240 min) y zombies (>180 min).
+  const allEvents = canonicalAll.filter((e) => {
     const state = getLiveState(e);
     return state !== 'finished' && state !== 'zombie';
   });

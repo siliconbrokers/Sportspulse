@@ -19,6 +19,7 @@ import { rankGroup } from '@sportpulse/prediction';
 import type { GroupData, MatchResult as PEMatchResult } from '@sportpulse/prediction';
 import { CA_GROUP_RANKING_RULES } from '@sportpulse/prediction';
 import { readRawCache, writeRawCache } from './raw-response-cache.js';
+import { CrestCache } from './crest-cache.js';
 
 /** @deprecated Usar TournamentConfig.providerKey directamente. Mantenido para compatibilidad. */
 export const WC_PROVIDER_KEY = 'football-data-wc';
@@ -207,6 +208,39 @@ export interface TournamentBracketView {
   knockoutRounds: RoundBlock[];
 }
 
+export interface TournamentMatchItem {
+  matchId: string;
+  kickoffUtc: string | null;
+  status: string;
+  homeTeam: { teamId: string; name: string; crestUrl?: string };
+  awayTeam: { teamId: string; name: string; crestUrl?: string };
+  scoreHome: number | null;
+  scoreAway: number | null;
+  scoreHomeExtraTime?: number | null;
+  scoreAwayExtraTime?: number | null;
+  scoreHomePenalties?: number | null;
+  scoreAwayPenalties?: number | null;
+}
+
+export interface TournamentRoundMatchesBlock {
+  stageId: string;
+  name: string;
+  orderIndex: number;
+  matches: TournamentMatchItem[];
+}
+
+export interface TournamentGroupMatchesBlock {
+  groupId: string;
+  name: string;
+  orderIndex: number;
+  matches: TournamentMatchItem[];
+}
+
+export interface TournamentMatchesView {
+  rounds: TournamentRoundMatchesBlock[];
+  groups: TournamentGroupMatchesBlock[];
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
@@ -285,6 +319,7 @@ export class FootballDataTournamentSource implements DataSource {
   readonly competitionId: string;
 
   private cache: TournamentCache | null = null;
+  private readonly crestCache = new CrestCache();
 
   constructor(apiToken: string, config: TournamentConfig, baseUrl = 'https://api.football-data.org/v4') {
     this.apiToken = apiToken;
@@ -336,6 +371,76 @@ export class FootballDataTournamentSource implements DataSource {
       groups,
       bestThirdsCount: this.config.bestThirdsCount,
     };
+  }
+
+  getTournamentMatches(_competitionId: string): TournamentMatchesView | null {
+    if (!this.cache) return null;
+
+    // ── Por ronda: agrupar todos los matches por stageId ────────────────────
+    const matchesByStage = new Map<string, TournamentMatchItem[]>();
+    for (const m of this.cache.matches) {
+      if (!m.stageId) continue;
+      const homeTeam = m.homeTeamId ? this.cache.teams.get(m.homeTeamId) : undefined;
+      const awayTeam = m.awayTeamId ? this.cache.teams.get(m.awayTeamId) : undefined;
+      if (!homeTeam || !awayTeam) continue;
+      const item: TournamentMatchItem = {
+        matchId: m.matchId,
+        kickoffUtc: m.startTimeUtc,
+        status: m.status,
+        homeTeam: { teamId: m.homeTeamId!, name: homeTeam.name, crestUrl: homeTeam.crestUrl },
+        awayTeam: { teamId: m.awayTeamId!, name: awayTeam.name, crestUrl: awayTeam.crestUrl },
+        scoreHome: m.scoreHome ?? null,
+        scoreAway: m.scoreAway ?? null,
+        scoreHomeExtraTime: m.scoreHomeExtraTime ?? null,
+        scoreAwayExtraTime: m.scoreAwayExtraTime ?? null,
+        scoreHomePenalties: m.scoreHomePenalties ?? null,
+        scoreAwayPenalties: m.scoreAwayPenalties ?? null,
+      };
+      const list = matchesByStage.get(m.stageId) ?? [];
+      list.push(item);
+      matchesByStage.set(m.stageId, list);
+    }
+
+    const rounds: TournamentRoundMatchesBlock[] = [];
+    for (const [stageId, matches] of matchesByStage) {
+      const meta = this.cache.stageMeta.get(stageId);
+      if (!meta) continue;
+      rounds.push({
+        stageId,
+        name: meta.name,
+        orderIndex: meta.orderIndex,
+        matches: matches.sort((a, b) => (a.kickoffUtc ?? '') < (b.kickoffUtc ?? '') ? -1 : 1),
+      });
+    }
+    rounds.sort((a, b) => a.orderIndex - b.orderIndex);
+
+    // ── Por grupo: solo matches de GROUP_STAGE ───────────────────────────────
+    const matchesByGroup = new Map<string, TournamentMatchItem[]>();
+    for (const stageRound of rounds) {
+      if (stageRound.orderIndex !== 0) continue; // solo GROUP_STAGE (orderIndex=0)
+      for (const m of stageRound.matches) {
+        const canonMatch = this.cache.matches.find((cm) => cm.matchId === m.matchId);
+        if (!canonMatch?.groupId) continue;
+        const list = matchesByGroup.get(canonMatch.groupId) ?? [];
+        list.push(m);
+        matchesByGroup.set(canonMatch.groupId, list);
+      }
+    }
+
+    const groups: TournamentGroupMatchesBlock[] = [];
+    for (const [groupId, matches] of matchesByGroup) {
+      const meta = this.cache.groupMeta.get(groupId);
+      if (!meta) continue;
+      groups.push({
+        groupId,
+        name: meta.name,
+        orderIndex: meta.orderIndex,
+        matches,
+      });
+    }
+    groups.sort((a, b) => a.orderIndex - b.orderIndex);
+
+    return { rounds, groups };
   }
 
   getBracketView(_competitionId: string): TournamentBracketView | null {
@@ -910,6 +1015,33 @@ export class FootballDataTournamentSource implements DataSource {
       `${teams.size} equipos, ${matches.length} partidos, ` +
       `${groupMeta.size} grupos, ${tiesByStageId.size} fases eliminatorias`,
     );
+
+    // Fire-and-forget: download and cache crest images locally.
+    this.crestCache.warmup(
+      [...teams.values()]
+        .filter((t) => t.providerTeamId)
+        .map((t) => ({ providerTeamId: t.providerTeamId!, crestUrl: t.crestUrl })),
+      FD_PROVIDER_KEY,
+    ).then((urlMap) => {
+      if (!this.cache) return;
+      // Update teams Map with local URLs
+      for (const [canonId, team] of this.cache.teams) {
+        if (team.providerTeamId) {
+          const localUrl = urlMap.get(team.providerTeamId);
+          if (localUrl) this.cache.teams.set(canonId, { ...team, crestUrl: localUrl });
+        }
+      }
+      // Update standings with local URLs
+      for (const [groupId, entries] of this.cache.standingsByGroupId) {
+        this.cache.standingsByGroupId.set(groupId, entries.map((e) => {
+          const provId = e.teamId.split(':')[2];
+          return provId ? { ...e, crestUrl: urlMap.get(provId) ?? e.crestUrl } : e;
+        }));
+      }
+      console.log(`[FootballDataTournamentSource] crest cache warm ${this.config.competitionCode} (${urlMap.size} teams)`);
+    }).catch((err) => {
+      console.warn(`[FootballDataTournamentSource] crest warmup error ${this.config.competitionCode}:`, err);
+    });
   }
 
   // ── HTTP helper ───────────────────────────────────────────────────────────

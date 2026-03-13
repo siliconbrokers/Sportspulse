@@ -1,5 +1,5 @@
 import { fetchObservadorNews } from './observador-source.js';
-import { fetchGNewsLeague, LEAGUE_CONFIG } from './gnews-source.js';
+import { fetchRssLeague, RSS_CONFIG } from './rss-source.js';
 import { NewsCache } from './news-cache.js';
 import { getTop5Teams } from './priority-resolver.js';
 import { deduplicate } from './filter.js';
@@ -40,10 +40,7 @@ function sortHeadlines(items: NewsHeadline[], priorityTeams: string[]): NewsHead
 export class NewsService {
   private cache = new NewsCache();
 
-  constructor(
-    private readonly gnewsApiKey: string,
-    private readonly standings: StandingsProvider,
-  ) {}
+  constructor(private readonly standings: StandingsProvider) {}
 
   async getNewsFeed(): Promise<NewsFeedDTO> {
     const blocks = await Promise.all(LEAGUE_ORDER.map((k) => this.getBlock(k)));
@@ -67,15 +64,13 @@ export class NewsService {
       if (leagueKey === 'URU') {
         raw = await fetchObservadorNews();
       } else {
-        const competitionId = LEAGUE_CONFIG[leagueKey].competitionId;
-        const top5 = getTop5Teams(competitionId, this.standings);
-        raw = await fetchGNewsLeague(leagueKey, top5, this.gnewsApiKey);
+        raw = await fetchRssLeague(leagueKey);
       }
 
       const priorityTeams =
         leagueKey === 'URU'
           ? []
-          : getTop5Teams(LEAGUE_CONFIG[leagueKey].competitionId, this.standings);
+          : getTop5Teams(RSS_CONFIG[leagueKey].competitionId, this.standings);
 
       const processed = sortHeadlines(deduplicate(raw), priorityTeams).slice(0, LIMITS[leagueKey]);
 

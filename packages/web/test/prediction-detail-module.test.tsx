@@ -111,9 +111,10 @@ describe('PredictionDetailModule — resultado final', () => {
 describe('PredictionDetailModule — label de predicción', () => {
   it('muestra las probabilidades del partido (home, draw, away)', () => {
     render(<DetailPanel detail={makeDetail('SCHEDULED', basePrediction)} onClose={() => {}} />);
-    // El componente muestra barras de probabilidad con los nombres de equipo y "Empate"
+    // El componente muestra barras de probabilidad con "Empate" en el centro.
+    // Los nombres de equipo se eliminaron del bloque de pronóstico (§6.4 spec correcciones UI)
+    // ya que son redundantes con la cabecera del partido.
     const el = screen.getByTestId('match-estimate');
     expect(el.textContent).toContain('Empate');
-    expect(el.textContent).toContain('Real Madrid');
   });
 });

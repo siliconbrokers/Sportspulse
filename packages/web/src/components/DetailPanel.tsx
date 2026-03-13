@@ -36,38 +36,43 @@ const FORM_COLORS: Record<FormResult, string> = {
 };
 const FORM_LABELS: Record<FormResult, string> = { W: 'G', D: 'E', L: 'P' };
 
-function FormGuide({ form, label, isMobile }: { form: string[]; label: string; isMobile?: boolean }) {
+function FormGuide({ form, formCrests }: { form: string[]; formCrests?: (string | null)[] }) {
   const typed = form as FormResult[];
   const pts = typed.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
   const max = typed.length * 3;
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
       {typed.length === 0 ? (
         <div style={{ fontSize: 11, color: 'var(--sp-text-35)', fontStyle: 'italic' }}>Sin datos</div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 3, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-            {typed.map((r, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 5,
-                  flexShrink: 0,
-                  backgroundColor: FORM_COLORS[r],
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: '#fff',
-                }}
-              >
-                {FORM_LABELS[r]}
-              </div>
-            ))}
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap' }}>
+            {typed.map((r, i) => {
+              const crest = formCrests?.[i];
+              return (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                  {/* Escudo del rival */}
+                  {crest ? (
+                    <img src={crest} alt="" style={{ width: 14, height: 14, objectFit: 'contain', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{
+                      width: 14, height: 14, borderRadius: '50%',
+                      border: '1px solid var(--sp-border)',
+                      background: 'var(--sp-surface)',
+                    }} />
+                  )}
+                  {/* Resultado */}
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 4,
+                    backgroundColor: FORM_COLORS[r],
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 800, color: '#fff',
+                  }}>
+                    {FORM_LABELS[r]}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <div style={{ fontSize: 11, color: 'var(--sp-text-35)', marginTop: 5 }}>{pts} de {max} pts</div>
         </>
@@ -176,7 +181,7 @@ function MatchHeader({
           <div style={{
             fontSize: 12, fontWeight: 900,
             color: 'var(--sp-text)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            wordBreak: 'break-word',
             paddingInline: 4, letterSpacing: '-0.01em',
           }}>
             {vm.homeTeam.name}
@@ -259,7 +264,7 @@ function MatchHeader({
           <div style={{
             fontSize: 12, fontWeight: 900,
             color: 'var(--sp-text)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            wordBreak: 'break-word',
             paddingInline: 4, letterSpacing: '-0.01em',
           }}>
             {vm.awayTeam.name}
@@ -373,9 +378,6 @@ function PreMatchBody({
                 probHomeWin={vm.prediction!.homeProbability!}
                 probDraw={vm.prediction!.drawProbability!}
                 probAwayWin={vm.prediction!.awayProbability!}
-                homeTeamName={vm.homeTeam.name}
-                awayTeamName={vm.awayTeam.name}
-                showTeamNames={true}
                 label=""
               />
             )}
@@ -412,9 +414,9 @@ function PreMatchBody({
           border: '1px solid var(--sp-border)',
           overflow: 'hidden',
         }}>
-          <FormGuide form={vm.form.home} label={vm.homeTeam.name} isMobile={isMobile} />
+          <FormGuide form={vm.form.home} formCrests={vm.form.homeCrests} />
           <div style={{ width: 1, background: 'var(--sp-border)', flexShrink: 0 }} />
-          <FormGuide form={vm.form.away} label={vm.awayTeam.name} isMobile={isMobile} />
+          <FormGuide form={vm.form.away} formCrests={vm.form.awayCrests} />
         </div>
       )}
 

@@ -69,6 +69,8 @@ export interface MatchDetailViewModel {
   form?: {
     home: string[];
     away: string[];
+    homeCrests: (string | null)[];
+    awayCrests: (string | null)[];
   };
 
   /** Always empty in v1 — no event data in current DTO (§10 fallback: hide block). */
@@ -139,8 +141,8 @@ function buildLabelFromWinner(
   homeTeamName: string,
   awayTeamName: string,
 ): string {
-  if (winner === 'HOME') return `Gana ${homeTeamName}`;
-  if (winner === 'AWAY') return `Gana ${awayTeamName}`;
+  if (winner === 'HOME') return homeTeamName;
+  if (winner === 'AWAY') return awayTeamName;
   if (winner === 'DRAW') return 'Empate';
   return 'Sin predicción';
 }
@@ -336,9 +338,18 @@ export function buildMatchDetailViewModel(
   // Form
   const homeForm = (isHome ? detail.team.recentForm : nm?.opponentRecentForm) ?? [];
   const awayForm = (isHome ? nm?.opponentRecentForm : detail.team.recentForm) ?? [];
+  const homeFormCrests =
+    (isHome ? detail.team.recentFormCrests : nm?.opponentRecentFormCrests) ?? [];
+  const awayFormCrests =
+    (isHome ? nm?.opponentRecentFormCrests : detail.team.recentFormCrests) ?? [];
   const form: MatchDetailViewModel['form'] =
     homeForm.length > 0 || awayForm.length > 0
-      ? { home: homeForm as string[], away: awayForm as string[] }
+      ? {
+          home: homeForm as string[],
+          away: awayForm as string[],
+          homeCrests: homeFormCrests,
+          awayCrests: awayFormCrests,
+        }
       : undefined;
 
   // Map events from DTO if available (FINISHED matches may have goals)

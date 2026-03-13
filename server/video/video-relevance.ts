@@ -1,6 +1,6 @@
 // spec §11: lógica de selección del mejor video — score basado en señales simples
 
-import { isBlockedByPolitics } from './video-filters.js';
+import { isBlockedByPolitics, isBlockedByNonFootball } from './video-filters.js';
 import { isTodayInMontevideo } from './video-filters.js';
 
 const POSITIVE_TERMS = [
@@ -74,6 +74,9 @@ export function scoreCandidate(candidate: VideoCandidate): number {
 
   // Discard immediately if politics
   if (isBlockedByPolitics(candidate.title)) return -100;
+
+  // Discard immediately if non-football sport
+  if (isBlockedByNonFootball(candidate.title)) return -100;
 
   // Discard immediately if non-match content type (interviews, VAR review, etc.)
   for (const term of CONTENT_TYPE_BLOCKLIST) {

@@ -31,6 +31,7 @@ export function projectTeamDetail(
       venueName: tile.venueName,
       coachName: tile.coachName,
       recentForm: tile.recentForm,
+      recentFormCrests: tile.recentFormCrests,
       goalStats: tile.goalStats,
       homeGoalStats: tile.homeGoalStats,
       awayGoalStats: tile.awayGoalStats,

@@ -137,6 +137,7 @@ export interface IMatchEventsService {
 export interface ITournamentSource {
   getGroupView(competitionId: string): unknown | null;
   getBracketView(competitionId: string): unknown | null;
+  getTournamentMatches(competitionId: string): unknown | null;
 }
 
 export interface UpcomingMatchDTO {

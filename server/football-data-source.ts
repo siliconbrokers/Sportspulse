@@ -8,6 +8,7 @@ import {
   mapMatch as mapFDMatch,
   PROVIDER_KEY,
 } from '@sportpulse/canonical';
+import { CrestCache } from './crest-cache.js';
 import type {
   FDCompetitionResponse,
   FDTeamResponse,
@@ -94,6 +95,7 @@ export class FootballDataSource implements DataSource {
   private readonly goalsCache = new Map<string, MatchGoalEventDTO[]>();
   private readonly scorersCache = new Map<string, { data: TopScorerEntry[]; fetchedAt: number }>();
   private static readonly SCORERS_TTL_MS = 60 * 60_000; // 1 hora
+  private readonly crestCache = new CrestCache();
 
   constructor(apiToken: string, baseUrl = 'https://api.football-data.org/v4') {
     this.apiToken = apiToken;
@@ -490,6 +492,32 @@ export class FootballDataSource implements DataSource {
       `[FootballDataSource] Fetched ${competitionCode}: ${allMatches.length} matches total` +
       ` (window=${windowMatches.length}, teams=${fdTeams ? normalizedTeams.length : 'cached'})`,
     );
+
+    // Fire-and-forget: download and cache crest images locally.
+    // Always runs (whether teams came from API or disk cache) — CrestCache handles already-cached files safely.
+    this.crestCache.warmup(
+      normalizedTeams
+        .filter((t) => t.providerTeamId)
+        .map((t) => ({ providerTeamId: t.providerTeamId!, crestUrl: t.crestUrl })),
+      PROVIDER_KEY,
+    ).then((urlMap) => {
+      const cached = this.cache.get(compId);
+      if (!cached) return;
+      this.cache.set(compId, {
+        ...cached,
+        teams: cached.teams.map((t) => ({
+          ...t,
+          crestUrl: t.providerTeamId ? (urlMap.get(t.providerTeamId) ?? t.crestUrl) : t.crestUrl,
+        })),
+        standings: cached.standings.map((s) => {
+          const teamProvId = s.teamId.split(':')[2];
+          return teamProvId ? { ...s, crestUrl: urlMap.get(teamProvId) ?? s.crestUrl } : s;
+        }),
+      });
+      console.log(`[FootballDataSource] crest cache warm ${competitionCode} (${urlMap.size} teams)`);
+    }).catch((err) => {
+      console.warn(`[FootballDataSource] crest warmup error ${competitionCode}:`, err);
+    });
   }
 
   async getMatchGoals(canonicalMatchId: string): Promise<MatchGoalEventDTO[]> {

@@ -43,6 +43,13 @@
         "D",
         "W"
       ],
+      "recentFormCrests": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
       "goalStats": {
         "goalsFor": 9,
         "goalsAgainst": 2,
@@ -147,6 +154,10 @@
           "W",
           "L"
         ],
+        "opponentRecentFormCrests": [
+          null,
+          null
+        ],
         "opponentGoalStats": {
           "goalsFor": 2,
           "goalsAgainst": 1,
@@ -204,6 +215,10 @@
       "recentForm": [
         "W",
         "L"
+      ],
+      "recentFormCrests": [
+        null,
+        null
       ],
       "goalStats": {
         "goalsFor": 2,
@@ -308,6 +323,13 @@
           "W",
           "D",
           "W"
+        ],
+        "opponentRecentFormCrests": [
+          null,
+          null,
+          null,
+          null,
+          null
         ],
         "opponentGoalStats": {
           "goalsFor": 9,
