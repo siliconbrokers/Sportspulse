@@ -25,6 +25,14 @@ import { HistoricalEvaluationLabPage } from './labs/HistoricalEvaluationLabPage.
 import { getCompMeta } from './utils/competition-meta.js';
 import { SubTournamentSelector } from './components/SubTournamentSelector.js';
 
+function SubTournamentEmptyState() {
+  return (
+    <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--sp-text-40)', fontSize: 14 }}>
+      Sin partidos para este torneo aún
+    </div>
+  );
+}
+
 // spec §16 — detectar si la ruta actual es el player de reproducción
 function isPlayerTestRoute(): boolean {
   const p = window.location.pathname;
@@ -123,9 +131,9 @@ function App() {
   // Cuando carga compInfo: setear jornada por defecto
   useEffect(() => {
     if (!compInfo) return;
-    // Prefer next upcoming matchday (between rounds); fall back to current/last played
+    // Prefer the current/last-played matchday; fall back to next upcoming
     const defaultMatchday =
-      compInfo.nextMatchday ?? compInfo.currentMatchday ?? compInfo.lastPlayedMatchday;
+      compInfo.currentMatchday ?? compInfo.lastPlayedMatchday ?? compInfo.nextMatchday;
     if (defaultMatchday) setMatchday(defaultMatchday);
   }, [compInfo]);
 
@@ -134,13 +142,18 @@ function App() {
   const totalMatchdays = compInfo?.totalMatchdays ?? 38;
   // The "active" matchday drives both the blue dot and showForm logic
   const activeMatchday = compInfo
-    ? (compInfo.nextMatchday ?? compInfo.currentMatchday ?? null)
+    ? (compInfo.currentMatchday ?? compInfo.nextMatchday ?? null)
     : null;
 
   function handleMatchdayChange(md: number) {
     setMatchday(md);
     if (view === 'standings') setView('tv');
   }
+
+  // True cuando el sub-torneo seleccionado no tiene datos todavía
+  const selectedSubTournamentEmpty =
+    !!subTournamentKey &&
+    compInfo?.subTournaments?.some((s) => s.key === subTournamentKey && !s.hasData) === true;
 
   return (
     <div
@@ -184,20 +197,26 @@ function App() {
                   />
                 </div>
               )}
-              {/* Carousel de jornada — solo en ligas */}
-              <div style={{ marginBottom: isMobile ? 12 : 16 }}>
-                <MatchdayCarousel
-                  totalMatchdays={totalMatchdays}
-                  selected={matchday}
-                  currentMatchday={activeMatchday}
-                  onChange={setMatchday}
-                  isMobile={isMobile}
-                />
-              </div>
-              <PronosticosView
-                competitionId={competitionId}
-                matchday={matchday}
-              />
+              {selectedSubTournamentEmpty ? (
+                <SubTournamentEmptyState />
+              ) : (
+                <>
+                  {/* Carousel de jornada — solo en ligas */}
+                  <div style={{ marginBottom: isMobile ? 12 : 16 }}>
+                    <MatchdayCarousel
+                      totalMatchdays={totalMatchdays}
+                      selected={matchday}
+                      currentMatchday={activeMatchday}
+                      onChange={setMatchday}
+                      isMobile={isMobile}
+                    />
+                  </div>
+                  <PronosticosView
+                    competitionId={competitionId}
+                    matchday={matchday}
+                  />
+                </>
+              )}
             </>
           )}
         </div>
@@ -223,25 +242,33 @@ function App() {
                 />
               </div>
             )}
-            {/* Carousel de jornada — solo en ligas */}
-            <div style={{ padding: isMobile ? '8px 12px 0' : '12px 20px 0', maxWidth: 1100, margin: '0 auto' }}>
-              <MatchdayCarousel
-                totalMatchdays={totalMatchdays}
-                selected={matchday}
-                currentMatchday={activeMatchday}
-                onChange={setMatchday}
-                isMobile={isMobile}
-              />
-            </div>
-            <DashboardLayout
-              competitionId={competitionId}
-              matchday={matchday}
-              currentMatchday={activeMatchday}
-              timezone="America/Montevideo"
-              viewMode={view}
-              onLiveMatchesChange={setHasLiveMatches}
-              subTournamentKey={subTournamentKey}
-            />
+            {selectedSubTournamentEmpty ? (
+              <div style={{ padding: isMobile ? '16px 12px' : '24px 20px', maxWidth: 1100, margin: '0 auto' }}>
+                <SubTournamentEmptyState />
+              </div>
+            ) : (
+              <>
+                {/* Carousel de jornada — solo en ligas */}
+                <div style={{ padding: isMobile ? '8px 12px 0' : '12px 20px 0', maxWidth: 1100, margin: '0 auto' }}>
+                  <MatchdayCarousel
+                    totalMatchdays={totalMatchdays}
+                    selected={matchday}
+                    currentMatchday={activeMatchday}
+                    onChange={setMatchday}
+                    isMobile={isMobile}
+                  />
+                </div>
+                <DashboardLayout
+                  competitionId={competitionId}
+                  matchday={matchday}
+                  currentMatchday={activeMatchday}
+                  timezone="America/Montevideo"
+                  viewMode={view}
+                  onLiveMatchesChange={setHasLiveMatches}
+                  subTournamentKey={subTournamentKey}
+                />
+              </>
+            )}
           </>
         )
       ) : (
@@ -279,7 +306,10 @@ function App() {
                 </div>
               )}
 
-              {/* ── Bento: Tabla (2/3) + Goleadores (1/3) ──────────────── */}
+              {selectedSubTournamentEmpty ? (
+                <SubTournamentEmptyState />
+              ) : (
+              /* ── Bento: Tabla (2/3) + Goleadores (1/3) ──────────────── */
               <div
                 style={{
                   display: 'grid',
@@ -315,6 +345,7 @@ function App() {
                 {/* Widget Goleadores */}
                 <TopScorers scorers={scorers} loading={scorersLoading} />
               </div>
+              )}
             </>
           )}
         </div>

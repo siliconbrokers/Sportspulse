@@ -4,6 +4,7 @@ export interface SubTournamentInfo {
   key: string;
   label: string;
   isActive: boolean;
+  hasData: boolean;
 }
 
 interface CompetitionInfo {

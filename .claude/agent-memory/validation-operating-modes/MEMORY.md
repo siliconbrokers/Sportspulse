@@ -9,12 +9,13 @@
 - Validation layer: `packages/prediction/src/validation/`
 - Contracts (Phase 1, frozen): `packages/prediction/src/contracts/`
 
-## Implemented Modules (Phase 2b + CRITICAL fixes)
+## Implemented Modules (Phase 2b + CRITICAL fixes + F-005)
 - `src/validation/competition-profile-validator.ts` — §8.3 + §8.4
 - `src/validation/history-validator.ts` — §7.4, §20.1, §20.2 + effectivePriorAvailable overrides
 - `src/validation/match-validator.ts` — main entry point, all §7–§13 rules + §19.6 + §20.2 real enforcement
 - `src/validation/index.ts` — barrel
-- Tests: `test/validation/` (84 tests, all passing — 642 total)
+- `src/contracts/constants.ts` — OFFICIAL_SENIOR_11V11_COMPETITION_IDS + isKnownOfficialSenior11v11 (F-005, §7.6)
+- Tests: `test/validation/match-validator.test.ts` — 55 tests (17 F-005 tests added)
 
 ## Hard Thresholds (§4.3 constants)
 - `PRIOR_RATING_MAX_AGE_DAYS = 400` — no contextual relaxation ever
@@ -58,10 +59,19 @@ Two-path design:
 Emitted when `context.domain_pool_available === false` (explicit signal from engine).
 Check happens at Step 4.5, before history/prior_rating checks. Default: pool available.
 
-### catalog_confirms_official_senior_11v11
+### catalog_confirms_official_senior_11v11 (F-005 resolved)
 §7.6 prohibits inferring match type from heuristics. The validator requires an
 explicit boolean `catalog_confirms_official_senior_11v11` in the context.
 If absent/false/null → NOT_ELIGIBLE + UNSUPPORTED_MATCH_TYPE. No exceptions.
+
+The authoritative lookup function is `isKnownOfficialSenior11v11(competition_id)`
+in `src/contracts/constants.ts`. Callers MUST use this (or an equivalent authoritative
+source) — never hardcode `true`. The catalog set `OFFICIAL_SENIOR_11V11_COMPETITION_IDS`
+covers 9 entries for 4 MVP competitions in all ID forms (short code, namespaced, server form):
+- PD / comp:football-data:PD (LaLiga)
+- PL / comp:football-data:PL (Premier League)
+- BL1 / comp:football-data:BL1 (Bundesliga)
+- 4432 / TheSportsDB:4432 / comp:thesportsdb:4432 (Liga Uruguaya)
 
 ### LIMITED_MODE invariant
 - §11.2: LIMITED_MODE with zero reasons → throws (hard invariant guard)
@@ -73,10 +83,13 @@ applicability = WEAK (not CAUTION). CAUTION requires FULL_MODE with at least
 one degraded-but-not-absent condition; WEAK is for accumulated degradations
 including history deficit.
 
-## Pre-existing Test Failure (NOT introduced by Phase 2b)
-- `test/engine/derived-calibrated.test.ts` — 1 DNB floating-point precision test
-- Uses `.toBe(1.0)` instead of `toBeCloseTo(1.0)` — pre-existing before Phase 2b
-- Do NOT "fix" this by updating expected outputs without spec/version discipline
+## Pre-existing Test Failures (NOT introduced by this agent's work)
+- `test/response-builder.test.ts` — 1 failure: LIMITED_MODE core probs return null (F-002 in-flight)
+- `test/invariants/no-raw-calibrated-mixing.test.ts` — 1 failure: same root cause
+- `test/invariants/mode-gating.test.ts` — 1 failure: same root cause
+- Root cause: `prediction-response.ts` + `response-builder.ts` have in-flight changes (F-002 scope)
+- Baseline before F-005: 3 failed | 840 passed (843). After F-005: 3 failed | 856 passed (859).
+- Do NOT fix these until F-002 is resolved with proper versioning.
 
 ## Spec Ambiguities Encountered
 

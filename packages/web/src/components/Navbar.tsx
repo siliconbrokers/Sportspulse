@@ -68,40 +68,34 @@ export function Navbar({
       }}
     >
       {isMobile ? (
-        /* ── MOBILE: logo centrado arriba · menú abajo · liga debajo ─────── */
+        /* ── MOBILE: fila única logo-izq · menú · toggle ────────────────── */
         <>
-          {/* Fila 1: logo centrado + theme toggle a la derecha */}
+          {/* Fila 1: logo izquierda + menú + theme toggle */}
           <div style={{
             maxWidth: 1200, margin: '0 auto',
-            padding: '10px 14px 6px',
-            display: 'flex', alignItems: 'center',
+            padding: '8px 10px',
+            display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            {/* Spacer izquierdo para centrar el logo */}
-            <div style={{ flex: 1 }} />
+            {/* Logo — siempre muestra el lado derecho (texto) si se achica */}
             <button
               onClick={() => onViewChange('home')}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
               aria-label="SportsPulse — Inicio"
             >
               <img
                 src="/logo.png"
-                alt=""
-                style={{ height: 28, width: 'auto' }}
+                alt="SportPulse"
+                style={{ height: 26, width: 56, objectFit: 'cover', objectPosition: 'right center' }}
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
               />
             </button>
-            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-              <ThemeToggle theme={theme} onToggle={toggleTheme} />
-            </div>
-          </div>
 
-          {/* Fila 2: menú centrado */}
-          <div style={{
-            maxWidth: 1200, margin: '0 auto',
-            padding: '0 10px 8px',
-            display: 'flex', justifyContent: 'center',
-          }}>
-            <NavPill view={view} onViewChange={onViewChange} isMobile={isMobile} hasLive={hasLiveMatches} isTournament={isTournament} />
+            {/* Menú — ocupa el espacio restante centrado */}
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+              <NavPill view={view} onViewChange={onViewChange} isMobile={isMobile} hasLive={hasLiveMatches} isTournament={isTournament} />
+            </div>
+
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
 
           {/* Fila 3: tabs TV -o- selector de liga según vista */}
@@ -164,7 +158,7 @@ export function Navbar({
             <img
               src="/logo.png"
               alt=""
-              style={{ height: 36, width: 'auto' }}
+              style={{ height: 56, width: 'auto', maxWidth: 260, objectFit: 'contain' }}
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
           </button>

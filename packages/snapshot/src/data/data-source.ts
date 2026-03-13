@@ -51,6 +51,11 @@ export interface SubTournamentInfo {
   label: string;
   /** True for the sub-tournament active based on today's date. */
   isActive: boolean;
+  /**
+   * False when the sub-tournament has no real data yet (no played matches and
+   * all fixtures are more than 60 days away). UI should show empty-state copy.
+   */
+  hasData: boolean;
 }
 
 export interface DataSource {

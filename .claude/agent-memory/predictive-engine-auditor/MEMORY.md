@@ -4,49 +4,83 @@
 Spec: `/Users/andres/Documents/04_Flux/SportsPulse/docs/specs/SportPulse_Predictive_Engine_Spec_v1.3_Final.md`
 Implementation: `/Users/andres/Documents/04_Flux/SportsPulse/packages/prediction/`
 
-## Phase 6 Audit (completed) — Key Findings Summary
+## Phase 8 Audit (third audit, closure) — Current Status: PARTIALLY_CONFORMANT
 
-### CRITICAL findings (Phase 6 audit)
-1. **§20.2 domain_mismatch not actively enforced** — `match-validator.ts` lines 287–293 compute `prior_rating_consistent` as `true` vacuously regardless of actual domain. The caller-trust model is by design but §19.6 says "prior_rating_domain_mismatch => NOT_ELIGIBLE" with no exceptions. The engine has no pathway to emit `INVALID_PRIOR_RATING` when a mismatch is actually detected in a rating record.
-2. **§14.2 tail_mass policy handler gap** — `scoreline-matrix.ts` exposes `tailMassExceeded` flag correctly but NO code in `response-builder.ts` or any pipeline stage handles it to degrade to LIMITED_MODE or emit `EXCESSIVE_TAIL_MASS_FOR_REQUESTED_OUTPUTS`. The policy action is structurally missing.
+### All 4 second-audit findings: CLOSED
+- **F1** (stage_type invalid enum in tc-056-074, no-raw-calibrated-mixing, reconstruction): CLOSED. All 3 files cleaned.
+- **F2** (distribution: {...} as any in tc-056-074): CLOSED. Now uses `buildTestRawDistribution()`.
+- **F3** (PredictionResponseNotEligible.internals optional): CLOSED. Field is now `internals: null` (required).
+- **F4** (knockout-resolver: ROUND_ROBIN as any): CLOSED. No as any in that file.
 
-### HIGH findings (Phase 6 audit)
-3. **§21.1 NOT_ELIGIBLE internals field not null** — The spec requires `internals = null` (or minimal diagnostic without probabilities). `buildNotEligibleResponse` in `response-builder.ts` sets `internals: null` which IS correct, but the type `PredictionResponseNotEligible` only enforces `internals?: null` (optional null). If a caller constructs a NOT_ELIGIBLE object manually they can pass non-null internals. Runtime guard only, no structural enforcement.
-4. **§20.2 five conditions not validated against actual PriorRating record** — `history-validator.ts` only receives `prior_rating_available: boolean` flag from MatchInput. The 5 conditions (age, updates, domain, carry, mismatch) are never independently checked by the engine — the caller is trusted. This is a design choice documented in a comment but creates a gap: the engine cannot detect stale ratings, insufficient updates, or invalid carries.
-5. **`DOMAIN_POOL_UNAVAILABLE` reason code never emitted** — Defined in `ReasonCode` type and spec §11.2, but no code path in match-validator.ts emits it. The closest condition (team_domain mismatch) falls under `prior_rating_consistent` vacuous logic.
+### One NEW finding discovered in Phase 8 audit (LOW)
+- `test/response-builder.test.ts` line 67: `stage_type: 'REGULAR_SEASON'`, `format_type: 'LEAGUE'`, `} as any` — same invalid-enum bypass pattern. This file was NOT tracked in Phase 6 or Phase 7 audits. It is the only remaining runtime `as any` in the test suite.
 
-### MEDIUM findings (Phase 6 audit)
-6. **§21.3 NOT_ELIGIBLE internals field optionality** — Spec says `internals = null` for NOT_ELIGIBLE; type allows `internals?: null` (absent is also valid). Structural divergence.
-7. **§17.4 wording ambiguous for NOT_ELIGIBLE** — Spec §17.4 says version fields "debe persistirse" without explicit scoping to FULL_MODE only. The implementation includes them in NOT_ELIGIBLE (which is correct per §21 schema), but the test at line 235 (response-builder.test.ts) labels this as "version fields are present (§17.4)" for NOT_ELIGIBLE responses, confirming this is intentional.
-8. **No test for `DOMAIN_POOL_UNAVAILABLE` emission** — Reason code exists in the catalog but zero test coverage.
-9. **No test for `INVALID_PRIOR_RATING` emission** — Same as above.
-10. **No test for tail_mass policy action** — `tailMassExceeded=true` triggers no degradation in any test.
+### Remaining open item
+- **NOT_ELIGIBLE internals optionality**: CLOSED in Phase 8 — `PredictionResponseNotEligible.internals: null` (required, not optional). Confirmed at line 507 of `src/contracts/types/prediction-response.ts`.
 
-### CONFORMANT areas (Phase 6 audit)
-- §3.1 raw/calibrated separation: PASS (branded types, separate fields)
-- §8.4 KnockoutResolutionRules as ordered array: PASS
-- §16.3 double_chance from calibrated: PASS
-- §16.4 DNB from calibrated, exact invariant: PASS (dnb_away = 1 - dnb_home)
-- §17.3 temporal leakage guard: PASS (TemporalLeakageError thrown correctly)
-- §17.4 version fields in FULL_MODE and NOT_ELIGIBLE: PASS
-- §19.5 raw vs calibrated split: PASS
-- §21.1 NOT_ELIGIBLE predictions absent: PASS (structural union type)
-- §21.3 LIMITED_MODE core present, secondary/explainability null: PASS
-- §23.2 metrics (all 4 classification metrics + log_loss + Brier + buckets): PASS
-- §4.1 constants (epsilon values): PASS
-- §4.3 thresholds (all 9 constants): PASS
-- §11.2 reason code catalog (all 10 codes defined): PASS (but 2 not emittable)
-- §12 ValidationResult schema: PASS
-- §13.1 applicability_level logic: PASS
+### `as any` in test/ — final state (Phase 8)
+Only runtime bypass: `test/response-builder.test.ts:67`. All other occurrences are JSDoc comments in `test/helpers/branded-factories.ts`.
 
-## Architecture Notes (confirmed)
-- `packages/prediction/src/` — 37 source files, 25 test files, 615 tests passing
+## Architecture Notes (confirmed, as of Phase 7)
+- `packages/prediction/src/` — 37 source files, 34 test files, 880 tests passing
 - Branded types: `RawMatchDistribution`, `Raw1x2Probs`, `Calibrated1x2Probs` use `unique symbol` branding
-- `prior_rating_available` in MatchInput is a pre-validated boolean — the 5 §20.2 conditions are NOT re-evaluated inside the engine
-- `tailMassExceeded` flag is computed but NOT acted upon — policy is incomplete
-- `DOMAIN_POOL_UNAVAILABLE` and `INVALID_PRIOR_RATING` are dead reason codes
+- `prior_rating_available`: can now be overridden by actual `PriorRating` records in `MatchValidationContext`
+- `tailMassExceeded` flag is computed and NOW acted upon — `buildFullModeResponse` degrades to `LIMITED_MODE`
+- `DOMAIN_POOL_UNAVAILABLE` and `INVALID_PRIOR_RATING` are now emittable from `match-validator.ts`
+- `PredictiveStageType` does NOT include `'REGULAR_SEASON'` or `'LEAGUE'` — those are invalid values used in several tests with `as any`
 
 ## Frequently Misimplemented Areas
-- §20.2: The "caller pre-validates" design pattern creates an unenforceable spec requirement. Future audits should check if the caller layer (above the engine) actually validates all 5 conditions.
-- §14.2 tail_mass policy: The flag is computed but the degradation pipeline is not wired.
-- §19.6: Domain mismatch check is vacuously true — this is a recurring gap.
+- `as any` bypasses in test files: `tc-056-074`, `no-raw-calibrated-mixing.test.ts`, `reconstruction.test.ts` use invalid `stage_type` values not in the spec enum. These require factory helpers or valid enum values.
+- `RawMatchDistribution` brand bypass in `tc-056-074` line 113: use `buildTestRawDistribution()` from `branded-factories.ts` instead.
+- `PredictiveStageType` enum does NOT include `REGULAR_SEASON` or `LEAGUE`. Valid values: `QUALIFYING`, `GROUP_STAGE`, `LEAGUE_PHASE`, `PLAYOFF`, `ROUND_OF_32`, `ROUND_OF_16`, `QUARTER_FINAL`, `SEMI_FINAL`, `THIRD_PLACE`, `FINAL`.
+- `FormatType` does NOT include `'LEAGUE'`. Valid values: `ROUND_ROBIN`, `GROUP_CLASSIC`, `LEAGUE_PHASE_SWISS_STYLE`, `KNOCKOUT_SINGLE_LEG`, `KNOCKOUT_TWO_LEG`.
+
+## Motor Predictivo V2 Audit (2026-03-11) — APROBABLE CON RIESGOS SERIOS
+Spec: `/Users/andres/Documents/04_Flux/SportsPulse/docs/specs/# Motor Predictivo V2.md`
+Implementation: `packages/prediction/src/engine/v2/`, `server/prediction/v2-runner.ts`
+
+### Patrones de fallo recurrentes en V2
+- **Tipos fantasma**: `PriorSource` declara `PARTIAL` y `LOWER_DIVISION` pero ninguna rama de código los asigna. `D_PROMOTED` (0.40) es constante huérfana sin uso. Siempre verificar que los valores de enums/unions sean alcanzables en runtime.
+- **Caller vs. callee**: `getRivalBaseline()` implementa correctamente 3 niveles de fallback (stats → prior → baseline), pero el caller en `v2-engine.ts` pasa `null` como prior del rival, cortocircuitando el nivel 2. Los tests unitarios de la función son insuficientes si el caller no la usa correctamente.
+- **Separación de temporadas por año calendario**: `matchYear(utcDate) >= currentSeasonYear` es incorrecto para ligas europeas bicanuales (2024-25). Enero-mayo de la temporada anterior caen en el mismo año que el inicio de la temporada actual.
+- **Validación §17**: Siempre verificar si existe walk-forward temporal con métricas (log-loss, Brier, calibración) para el motor auditado. Es criterio de aceptación, no opcional.
+- **aggPriorSource**: usar el equipo local como árbitro arbitrario del `prior_source` de nivel superior es un smell. Debe existir una regla coherente documentada (peor de los dos, o al menos declarado explícitamente).
+
+### Open items V2 (no resueltos — auditoría engine)
+- C-01: Ruta LOWER_DIVISION no implementada
+- C-02: PARTIAL no implementado / tipo a eliminar o activar
+- C-03: prior del rival siempre null en v2-engine.ts
+- C-04: separación de temporadas por año calendario (bug para ligas EU)
+- C-05: walk-forward V2 AHORA IMPLEMENTADO — ver auditoría walk-forward abajo
+- C-06: aggPriorSource arbitrario
+- C-07 a C-10: correcciones de tests y documentación
+
+## Walk-Forward Framework V2 Audit (2026-03-11) — APROBABLE CON RIESGOS SERIOS
+Archivos: `packages/prediction/src/validation/walk-forward.ts`, `metrics.ts`, `scripts/validate-v2-walkforward.ts`
+
+### Veredicto: anti-lookahead es correcto; comparación V1 vs V2 es inválida sin correcciones
+
+### Patrones de fallo críticos (walk-forward)
+- **Universos distintos V1 vs V2**: `loadV1Backtest` filtra solo por `competition_code` sin restricción temporal; V2 filtra por `seasonBoundaryIso(year)`. N(V1) != N(V2) sin advertencia. CRÍTICO.
+- **NOT_ELIGIBLE asimétrico**: V1 excluye `mode !== 'NOT_ELIGIBLE'` (string de pipeline V1); V2 excluye `eligibility_status !== 'NOT_ELIGIBLE'` (enum V2). Definiciones no equivalentes.
+- **V1 calibrado vs V2 sin calibrar**: V1 usa Elo+calibración Platt/Isotonic; V2 usa Poisson directo. Comparar Log Loss en valor absoluto es engañoso.
+- **Brier Score rango [0,2] no declarado en reporte**: el reporte imprime el número sin contexto de rango.
+- **Calibración combinada sin advertencia**: 3 outcomes mezclados en un mismo pool de buckets; oculta calibración por clase.
+- **Baselines de referencia no impresos**: Log Loss naive ≈ 1.099, Brier naive ≈ 0.667 están en comentarios del código pero no en stdout.
+- **Cold-start no desglosado**: primer partido evaluado con i=0 (cero contexto); no hay tabla de métricas cold-start vs steady-state.
+
+### Lo que SÍ está correcto (walk-forward)
+- Anti-lookahead: `slice(0,i)` + filtro interno engine `utcDate < kickoffUtc` — doble protección correcta
+- Rival-adjustment sin lookahead: opera sobre `currentFiltered` ya recortado
+- Recency sin lookahead: idem
+- Fórmulas Log Loss, Brier, Accuracy, DrawRate, Goals: correctas matemáticamente
+- NOT_ELIGIBLE excluido de todas las métricas: correcto
+- Engine real importado (no mock): correcto
+
+### Correcciones obligatorias (prioridad)
+1. Filtrar V1 snapshots por misma ventana temporal que V2 en `loadV1Backtest`
+2. Declarar en reporte si N(V1) != N(V2) con advertencia explícita
+3. Nota en reporte: "V1=Elo+calibrado, V2=Poisson sin calibrar — no comparables en valor absoluto"
+4. Imprimir baselines de referencia en stdout
+5. Declarar calibración como combinada, no por clase
+6. Añadir desglose de métricas cold-start (n_current_at_time < 10) vs steady-state

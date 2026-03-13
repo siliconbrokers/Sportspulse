@@ -59,6 +59,22 @@
 - After per-class calibration: renormalize so sum = 1.0 (§16.3)
 - Degenerate case (all three calibrated = 0): uniform fallback (1/3 each)
 
+## FIX #64 — F-002: LIMITED_MODE core calibration fields (§16.2)
+- In LIMITED_MODE: `p_home_win`, `p_draw`, `p_away_win`, `predicted_result`, `predicted_result_conflict`, `favorite_margin`, `draw_risk` = `null`
+- Raw probs MUST NOT substitute in calibrated slots — violates §16.2 family separation
+- Only `expected_goals_home/away` (lambda-derived) remain non-null in LIMITED_MODE core
+- `PredictionCore` type: all calibration-derived fields are `number | null` / `PredictedResult | null` / `boolean | null`
+- `internals.calibrated_1x2_probs` = `null` in LIMITED_MODE (never raw fallback)
+- `internals.calibration_mode` = `'not_applied'` in LIMITED_MODE
+
+## FIX #65 — F-003: calibration_mode bootstrap declaration (§17.2)
+- `CalibrationVersionMetadata` has optional field `calibration_mode?: 'bootstrap' | 'trained'`
+- `buildCurrentVersionMetadata(mode = 'bootstrap')` — defaults to bootstrap (no training data yet)
+- `PredictionResponseInternals.calibration_mode: 'bootstrap' | 'trained' | 'not_applied'`
+- `buildInternals()` resolves: `null calibrated1x2` → `'not_applied'`; else `versionMetadata.calibration_mode ?? 'trained'`
+- When plugging in a real trained CalibrationRegistry, pass `'trained'` to `buildCurrentVersionMetadata()`
+- Architecture allows swapping calibrators without structural changes — only the mode flag changes
+
 ## Build Verification
 - `pnpm --filter @sportpulse/prediction build` — compile check
-- `pnpm --filter @sportpulse/prediction test` — 190 tests pass (as of Phase 2c)
+- `pnpm --filter @sportpulse/prediction test` — 880 tests pass (as of FIX #64/#65)

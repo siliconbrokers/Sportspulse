@@ -2,11 +2,13 @@ import { buildApp } from '@sportpulse/api';
 import { FootballDataSource } from './football-data-source.js';
 import { FootballDataTournamentSource, WC_PROVIDER_KEY } from './football-data-tournament-source.js';
 import { WC_CONFIG, CLI_CONFIG } from './tournament-config.js';
-import { TheSportsDbSource, SPORTSDB_PROVIDER_KEY } from './the-sports-db-source.js';
+import { TheSportsDbSource, SPORTSDB_PROVIDER_KEY, type SubTournamentDef } from './the-sports-db-source.js';
 import { OpenLigaDBSource, OPENLIGADB_PROVIDER_KEY } from './openligadb-source.js';
 import { CrestCache } from './crest-cache.js';
 import { ApiFootballSource } from './api-football-source.js';
 import { RoutingDataSource } from './routing-data-source.js';
+import { ApifootballLiveOverlay } from './apifootball-live-overlay.js';
+import { LiveOverlayDataSource } from './live-overlay-data-source.js';
 import { NewsService } from './news/index.js';
 import { ApiFootballCLIOverlay } from './api-football-cli-overlay.js';
 import { VideoService } from './video/index.js';
@@ -90,8 +92,18 @@ async function main() {
     }
   }
 
+  // Liga Uruguaya: Apertura (Feb-Jun, H1) + Clausura (Aug-Nov, H2)
+  const UY_SUB_TOURNAMENTS: SubTournamentDef[] = [
+    { key: 'APERTURA', label: 'Apertura', isH1: true },
+    { key: 'CLAUSURA', label: 'Clausura', isH1: false },
+  ];
+
   // TheSportsDB — Liga Uruguaya
-  const sportsDbSource = new TheSportsDbSource(SPORTSDB_API_KEY, UY_LEAGUE_ID, UY_LEAGUE_NAME);
+  const sportsDbSource = new TheSportsDbSource(
+    SPORTSDB_API_KEY, UY_LEAGUE_ID, UY_LEAGUE_NAME,
+    'https://www.thesportsdb.com/api/v1/json', SPORTSDB_PROVIDER_KEY,
+    UY_SUB_TOURNAMENTS,
+  );
   try {
     await sportsDbSource.fetchSeason();
   } catch (err) {
@@ -153,13 +165,23 @@ async function main() {
   }
 
   // Routing: Liga Uruguaya/Argentina → TheSportsDB, BL1 → OpenLigaDB, WC/CA/CLI → tournament sources, resto → football-data.org
-  const dataSource = new RoutingDataSource(fdSource, [
+  const routingDataSource = new RoutingDataSource(fdSource, [
     { competitionId: UY_COMPETITION_ID, providerKey: SPORTSDB_PROVIDER_KEY, source: sportsDbSource },
     { competitionId: AR_COMPETITION_ID, providerKey: AR_PROVIDER_KEY, source: sportsDbArSource },
     { competitionId: OLG_COMPETITION_ID, providerKey: OPENLIGADB_PROVIDER_KEY, source: openLigaDbSource },
     { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
     { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
   ]);
+
+  // Live score overlay: API-Football v3 — refresh cada 2 min durante partidos,
+  // 15 min en idle. Score en fuente = 15s (vs ~5 min de football-data.org free tier).
+  const AF_LIVE_KEY = process.env.APIFOOTBALL_KEY ?? '';
+  const liveOverlay = new ApifootballLiveOverlay(AF_LIVE_KEY);
+  liveOverlay.start();
+
+  // Wraps routingDataSource: getMatches() parchea scores en vivo desde el overlay.
+  // Todos los demás métodos (standings, matchday, teams…) delegan sin cambios.
+  const dataSource = new LiveOverlayDataSource(routingDataSource, liveOverlay);
 
   // News service — demand-pull, cached per league (30-60 min TTL). Uses RSS feeds (no API key required).
 
@@ -323,8 +345,15 @@ async function main() {
           if (!m.startTimeUtc) continue;
           const kickoffMs = new Date(m.startTimeUtc).getTime();
 
-          const isLive = m.status === 'IN_PROGRESS';
-          const isUpcoming = m.status === 'SCHEDULED' && kickoffMs > now && kickoffMs <= cutoff;
+          // Heurística universal: IN_PROGRESS explícito O kickoff pasado < 180 min
+          // (football-data.org free tier mantiene TIMED/SCHEDULED durante el partido)
+          const minsElapsed = (now - kickoffMs) / 60_000;
+          const isLive = m.status === 'IN_PROGRESS' ||
+            (['SCHEDULED', 'TIMED', 'IN_PLAY', 'PAUSED'].includes(m.status) &&
+              minsElapsed >= 0 && minsElapsed < 180);
+          const isUpcoming = !isLive &&
+            ['SCHEDULED', 'TIMED'].includes(m.status) &&
+            kickoffMs > now && kickoffMs <= cutoff;
 
           if (!isLive && !isUpcoming) continue;
 

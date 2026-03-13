@@ -249,14 +249,17 @@ function LiveMatchCard({
     : 'none';
 
   function handleClick() {
-    if (isStream) {
+    if (isLive && !isZombie) {
+      // LIVE: solo ir a stream si hay transmisión disponible
+      if (isStream) openEventDirect(event);
+    } else if (isStream) {
       openEventDirect(event);
     } else if (isCanonical) {
       onDetailClick(event.id);
     }
   }
 
-  const isClickable = isStream || isCanonical;
+  const isClickable = (isLive && !isZombie) ? isStream : (isStream || isCanonical);
 
   return (
     <div
@@ -374,55 +377,56 @@ function LiveMatchCard({
               </div>
             </div>
 
-            {/* Columna derecha: badge LIVE + scores */}
-            {isLive && !isZombie && (
+            {/* Columna derecha: scores */}
+            {isLive && !isZombie && hasScore && (
               <div style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
-                justifyContent: 'center', gap: 3, flexShrink: 0,
+                justifyContent: 'center', gap: 4, flexShrink: 0,
               }}>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 3,
-                  fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
-                  padding: '2px 7px', borderRadius: 20,
-                  background: '#ef4444', color: '#fff',
-                  animation: 'sp-badge-blink 2s ease-in-out infinite',
-                  lineHeight: 1.6,
-                  boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
-                }}>
-                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
-                  LIVE
+                <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  {event.scoreHome}
                 </span>
-                {hasScore && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                      {event.scoreHome}
-                    </span>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                      {event.scoreAway}
-                    </span>
-                  </div>
-                )}
+                <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  {event.scoreAway}
+                </span>
               </div>
             )}
           </div>
         );
       })()}
 
-      {/* ── Footer ── */}
-      <div style={{
-        fontSize: 9.5, color: 'var(--sp-text-35)',
-        borderTop: '1px solid var(--sp-border)',
-        paddingTop: 7, textAlign: 'center',
-        letterSpacing: '0.02em',
-      }}>
-        {isZombie
-          ? 'Pendiente de confirmación'
-          : isLive
-          ? (isStream ? 'Tocá para ver en vivo' : 'Ver detalle del partido')
-          : isSelected
-          ? 'Ver detalle ↑'
-          : `${event.isTodayInPortalTz ? 'Hoy' : 'Mañana'} · Tocá para ver detalle`}
-      </div>
+      {/* ── LIVE pulse — bottom-right absoluto ── */}
+      {isLive && !isZombie && (
+        <span style={{
+          position: 'absolute', bottom: 10, right: 12,
+          display: 'inline-flex', alignItems: 'center', gap: 3,
+          fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
+          padding: '2px 7px', borderRadius: 20,
+          background: '#ef4444', color: '#fff',
+          animation: 'sp-badge-blink 2s ease-in-out infinite',
+          lineHeight: 1.6,
+          boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+        }}>
+          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+          LIVE
+        </span>
+      )}
+
+      {/* ── Footer — oculto cuando LIVE ── */}
+      {!isLive && (
+        <div style={{
+          fontSize: 9.5, color: 'var(--sp-text-35)',
+          borderTop: '1px solid var(--sp-border)',
+          paddingTop: 7, textAlign: 'center',
+          letterSpacing: '0.02em',
+        }}>
+          {isZombie
+            ? 'Pendiente de confirmación'
+            : isSelected
+            ? 'Ver detalle ↑'
+            : `${event.isTodayInPortalTz ? 'Hoy' : 'Mañana'} · Tocá para ver detalle`}
+        </div>
+      )}
     </div>
   );
 }
@@ -648,10 +652,12 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
             scrollBehavior: 'smooth',
             paddingTop: 4,
             paddingBottom: 6,
-            paddingLeft: 2,
-            paddingRight: isMobile ? 40 : 2,
           }}
         >
+          {/* Spacer: garantiza que el borde izquierdo de la primera tarjeta
+              no sea recortado por el overflow del contenedor. paddingLeft no
+              es confiable en flex+overflow-x:auto en todos los browsers. */}
+          <div style={{ width: 4, flexShrink: 0 }} />
           {loading
             ? [1, 2, 3, 4, 5].map((i) => <SkeletonCard key={i} isMobile={isMobile} />)
             : sorted.map((ev) => (
@@ -663,6 +669,8 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
                   onDetailClick={handleDetailClick}
                 />
               ))}
+          {/* Spacer derecho — mantiene el fade de la última tarjeta */}
+          <div style={{ width: isMobile ? 40 : 4, flexShrink: 0 }} />
         </div>
 
         {!isMobile && hovered && (

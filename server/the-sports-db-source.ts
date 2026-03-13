@@ -17,6 +17,17 @@ import { CrestCache } from './crest-cache.js';
 
 export const SPORTSDB_PROVIDER_KEY = 'thesportsdb';
 
+/**
+ * Explicit definition of a sub-tournament within a league season.
+ * When provided, bypasses bimodal auto-detection.
+ * isH1: true = Jan–Jun half, false = Jul–Dec half.
+ */
+export interface SubTournamentDef {
+  key: string;
+  label: string;
+  isH1: boolean;
+}
+
 // ── TheSportsDB raw response types ───────────────────────────────────────────
 
 interface SDBEvent {
@@ -73,6 +84,7 @@ export class TheSportsDbSource implements DataSource {
   readonly providerKey: string;
   private cache: CachedData | null = null;
   private readonly crestCache = new CrestCache();
+  private readonly knownSubTournaments: SubTournamentDef[] | undefined;
 
   constructor(
     apiKey: string,
@@ -80,6 +92,7 @@ export class TheSportsDbSource implements DataSource {
     leagueName: string,
     baseUrl = 'https://www.thesportsdb.com/api/v1/json',
     providerKey = SPORTSDB_PROVIDER_KEY,
+    knownSubTournaments?: SubTournamentDef[],
   ) {
     this.apiKey = apiKey;
     this.leagueId = leagueId;
@@ -87,6 +100,7 @@ export class TheSportsDbSource implements DataSource {
     this.baseUrl = baseUrl;
     this.providerKey = providerKey;
     this._competitionId = canonicalCompId(providerKey, leagueId);
+    this.knownSubTournaments = knownSubTournaments;
   }
 
   getTeams(compId: string): Team[] {
@@ -243,9 +257,9 @@ export class TheSportsDbSource implements DataSource {
     }
 
     // Tag each event with its sub-tournament key (Clausura/Apertura) if applicable,
-    // or leave untagged for single-window leagues (e.g. Uruguay Primera).
+    // or leave untagged for single-window leagues.
     const { events: taggedEvents, subTournaments, activeSubTournamentKey } =
-      tagTournamentHalves(rawEvents, s);
+      tagTournamentHalves(rawEvents, s, this.knownSubTournaments);
 
     // Phase 2: build team registry directly from event data.
     // Each event carries strHomeTeamBadge / strAwayTeamBadge, so we don't need
@@ -452,14 +466,52 @@ interface TournamentTagResult {
  * Single-window leagues (e.g. Uruguay) are not affected: all events are returned
  * untagged with no sub-tournament metadata.
  */
-function tagTournamentHalves(events: SDBEvent[], season: string): TournamentTagResult {
+function tagTournamentHalves(
+  events: SDBEvent[],
+  season: string,
+  knownDefs?: SubTournamentDef[],
+): TournamentTagResult {
   if (events.length < 4) {
     return { events, subTournaments: [], activeSubTournamentKey: undefined };
   }
 
   const splitDate = `${season}-07-01`;
   const today = new Date().toISOString().slice(0, 10);
+  const todayIsH1 = today < splitDate;
 
+  // ── Explicit config path (bypasses bimodal detection) ─────────────────────
+  if (knownDefs && knownDefs.length >= 2) {
+    const h1Def = knownDefs.find((d) => d.isH1);
+    const h2Def = knownDefs.find((d) => !d.isH1);
+    if (!h1Def || !h2Def) {
+      return { events, subTournaments: [], activeSubTournamentKey: undefined };
+    }
+
+    const activeKey = todayIsH1 ? h1Def.key : h2Def.key;
+    const tagged: TaggedEvent[] = events.map((e) => ({
+      ...e,
+      _subTournamentKey: e.dateEvent && e.dateEvent < splitDate ? h1Def.key : h2Def.key,
+    }));
+
+    const cutoff60 = (() => { const d = new Date(today); d.setDate(d.getDate() + 60); return d.toISOString().slice(0, 10); })();
+    const h1Events = tagged.filter((e) => e._subTournamentKey === h1Def.key);
+    const h2Events = tagged.filter((e) => e._subTournamentKey === h2Def.key);
+    const h1HasData = h1Events.some((e) => e.dateEvent && e.dateEvent <= cutoff60);
+    const h2HasData = h2Events.some((e) => e.dateEvent && e.dateEvent <= cutoff60);
+
+    const subTournaments: SubTournamentInfo[] = [
+      { key: h1Def.key, label: h1Def.label, isActive: activeKey === h1Def.key, hasData: h1HasData },
+      { key: h2Def.key, label: h2Def.label, isActive: activeKey === h2Def.key, hasData: h2HasData },
+    ];
+
+    console.log(
+      `[TheSportsDbSource] Configured split — ${h1Def.key}:${h1Events.length}(hasData=${h1HasData}) + ${h2Def.key}:${h2Events.length}(hasData=${h2HasData}). Active: ${activeKey}`,
+    );
+
+    return { events: tagged, subTournaments, activeSubTournamentKey: activeKey };
+  }
+
+  // ── Auto-detection path (bimodal heuristic) ────────────────────────────────
   const firstHalf  = events.filter((e) => !!e.dateEvent && e.dateEvent <  splitDate);
   const secondHalf = events.filter((e) => !!e.dateEvent && e.dateEvent >= splitDate);
 
@@ -469,49 +521,72 @@ function tagTournamentHalves(events: SDBEvent[], season: string): TournamentTagR
     firstHalf.length  < total * MIN_FRACTION ||
     secondHalf.length < total * MIN_FRACTION
   ) {
-    // Single-window season (e.g. Uruguay) — no sub-tournament split
+    // Single-window season — no sub-tournament split
     return { events, subTournaments: [], activeSubTournamentKey: undefined };
   }
 
-  const activeKey = today < splitDate ? 'CLAUSURA' : 'APERTURA';
+  // Argentine calendar: H1=Apertura (Jan-Jun), H2=Clausura (Jul-Dec)
+  const activeKey = todayIsH1 ? 'APERTURA' : 'CLAUSURA';
 
   const tagged: TaggedEvent[] = events.map((e) => ({
     ...e,
     _subTournamentKey:
-      e.dateEvent && e.dateEvent < splitDate ? 'CLAUSURA' : 'APERTURA',
+      e.dateEvent && e.dateEvent < splitDate ? 'APERTURA' : 'CLAUSURA',
   }));
 
+  const cutoff60 = (() => { const d = new Date(today); d.setDate(d.getDate() + 60); return d.toISOString().slice(0, 10); })();
+  const aperturaHasData = firstHalf.some((e) => e.dateEvent && e.dateEvent <= cutoff60);
+  const clausuraHasData = secondHalf.some((e) => e.dateEvent && e.dateEvent <= cutoff60);
+
   const subTournaments: SubTournamentInfo[] = [
-    { key: 'CLAUSURA', label: 'Clausura', isActive: activeKey === 'CLAUSURA' },
-    { key: 'APERTURA', label: 'Apertura', isActive: activeKey === 'APERTURA' },
+    { key: 'APERTURA', label: 'Apertura', isActive: activeKey === 'APERTURA', hasData: aperturaHasData },
+    { key: 'CLAUSURA', label: 'Clausura', isActive: activeKey === 'CLAUSURA', hasData: clausuraHasData },
   ];
 
   console.log(
-    `[TheSportsDbSource] Split tournament detected — tagged ${firstHalf.length} CLAUSURA + ${secondHalf.length} APERTURA events. Active: ${activeKey}`,
+    `[TheSportsDbSource] Auto-detected split — APERTURA:${firstHalf.length}(hasData=${aperturaHasData}) + CLAUSURA:${secondHalf.length}(hasData=${clausuraHasData}). Active: ${activeKey}`,
   );
 
   return { events: tagged, subTournaments, activeSubTournamentKey: activeKey };
 }
 
 /**
- * Returns the lowest round that has at least one non-FINISHED match
- * (i.e., the active or next upcoming round).
- * Falls back to the highest finished round if all matches are done.
+ * Returns the "current" matchday based on match dates and statuses:
+ *   1. Lowest round with a started (kickoff passed) but not-yet-FINISHED match — in progress.
+ *   2. Highest round where ALL matches are FINISHED — most recently completed.
+ *   3. Lowest round with a purely future match — fallback when everything is FINISHED.
+ *
+ * This avoids returning a future round when the most recently played round is the relevant one.
+ * TheSportsDB often keeps matches as SCHEDULED even after kickoff, so we rely on
+ * startTimeUtc to distinguish "in progress" from "truly upcoming".
  */
 function deriveCurrentMatchday(matches: Match[]): number | undefined {
-  let minFuture: number | undefined;
-  let maxFinished: number | undefined;
+  const todayUtc = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+  let minStarted: number | undefined;  // lowest round with a match on today's date or earlier (not terminal)
+  let minFuture: number | undefined;   // lowest round with a purely future match
+  let maxFinished: number | undefined; // highest round with only terminal matches
 
   for (const m of matches) {
     if (m.matchday === undefined) continue;
-    if (m.status !== 'FINISHED') {
-      if (minFuture === undefined || m.matchday < minFuture) minFuture = m.matchday;
-    } else {
+    // Treat POSTPONED/CANCELED as terminal (like FINISHED) — don't bucket by date
+    const isTerminal = m.status === 'FINISHED' || m.status === 'POSTPONED' || m.status === 'CANCELED';
+    if (isTerminal) {
       if (maxFinished === undefined || m.matchday > maxFinished) maxFinished = m.matchday;
+    } else {
+      // Compare by DATE only (not time) so today's evening matches count as "current"
+      const matchDate = m.startTimeUtc?.slice(0, 10);
+      if (matchDate && matchDate <= todayUtc) {
+        // Today's or past-date match — this round is active/current
+        if (minStarted === undefined || m.matchday < minStarted) minStarted = m.matchday;
+      } else {
+        // Future date (or no date info)
+        if (minFuture === undefined || m.matchday < minFuture) minFuture = m.matchday;
+      }
     }
   }
 
-  return minFuture ?? maxFinished;
+  // Priority: round with today's matches > last terminal round > first future round
+  return minStarted ?? maxFinished ?? minFuture;
 }
 
 /** Compute standings from FINISHED matches (used when provider doesn't supply a table). */

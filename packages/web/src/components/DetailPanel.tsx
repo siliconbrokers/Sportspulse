@@ -328,7 +328,6 @@ function PreMatchBody({
     <>
       {/* §7.1 — Prediction block */}
       {vm.prediction && (() => {
-        const predictionLabel = vm.prediction!.label;
         const statusBadge = derivePredictionBadge(vm.prediction!.outcomeStatus, 'PRE_MATCH');
 
         return (
@@ -346,30 +345,17 @@ function PreMatchBody({
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-text-35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Pronóstico
               </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                {statusBadge && !predictionLabel && (
-                  <span style={{
-                    fontSize: 10, fontWeight: 700,
-                    padding: '3px 10px', borderRadius: 20,
-                    backgroundColor: `${statusBadge.color}18`,
-                    color: statusBadge.color,
-                    border: `1px solid ${statusBadge.color}40`,
-                  }}>
-                    {statusBadge.label}
-                  </span>
-                )}
-                {predictionLabel && (
-                  <span style={{
-                    fontSize: 10, fontWeight: 700,
-                    padding: '3px 10px', borderRadius: 20,
-                    backgroundColor: 'var(--sp-primary-10)',
-                    color: 'var(--sp-primary)',
-                    border: '1px solid var(--sp-primary-22)',
-                  }}>
-                    {predictionLabel}
-                  </span>
-                )}
-              </div>
+              {statusBadge && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700,
+                  padding: '3px 10px', borderRadius: 20,
+                  backgroundColor: `${statusBadge.color}18`,
+                  color: statusBadge.color,
+                  border: `1px solid ${statusBadge.color}40`,
+                }}>
+                  {statusBadge.label}
+                </span>
+              )}
             </div>
 
             {/* §7.1 — Probability bars (shared component — mismos colores que PronosticoCard y RadarCard) */}
