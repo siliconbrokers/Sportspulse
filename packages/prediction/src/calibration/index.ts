@@ -10,12 +10,16 @@ export {
   TemporalLeakageError,
   fitOneVsRestCalibrators,
   applyOneVsRestCalibration,
+  serializeOneVsRestCalibrators,
+  deserializeOneVsRestCalibrators,
 } from './isotonic-calibrator.js';
 
 export type {
   CalibrationSample,
   OneVsRestCalibrators,
   OneVsRestTrainingSample,
+  SerializedIsotonicCalibrator,
+  SerializedOneVsRestCalibrators,
 } from './isotonic-calibrator.js';
 
 export {

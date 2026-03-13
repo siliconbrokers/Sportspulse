@@ -118,6 +118,9 @@ export type {
   PreMatchTeamState,
 } from './engine/team-state-replay.js';
 
+// ── Motor Predictivo V2 ────────────────────────────────────────────────────
+export * from './engine/v2/index.js';
+
 // ── Response Builder (Phase 4 — §21) ──────────────────────────────────────
 export { buildPredictionResponse } from './response-builder.js';
 export type {

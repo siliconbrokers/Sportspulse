@@ -115,6 +115,20 @@ function pava(y: number[]): number[] {
   return result;
 }
 
+// ── Serialization types ───────────────────────────────────────────────────
+
+export interface SerializedIsotonicCalibrator {
+  is_identity: boolean;
+  x_breakpoints: number[];
+  y_fitted: number[];
+}
+
+export interface SerializedOneVsRestCalibrators {
+  home: SerializedIsotonicCalibrator;
+  draw: SerializedIsotonicCalibrator;
+  away: SerializedIsotonicCalibrator;
+}
+
 // ── IsotonicCalibrator ─────────────────────────────────────────────────────
 
 /**
@@ -185,6 +199,25 @@ export class IsotonicCalibrator {
     cal.xBreakpoints = x;
     cal.yFitted = yIso;
 
+    return cal;
+  }
+
+  // ── Serialization ─────────────────────────────────────────────────────────
+
+  /** Serialized form for disk persistence. */
+  serialize(): SerializedIsotonicCalibrator {
+    return {
+      is_identity: this.is_identity_calibration,
+      x_breakpoints: this.xBreakpoints,
+      y_fitted: this.yFitted,
+    };
+  }
+
+  /** Reconstruct a calibrator from its serialized form. */
+  static fromSerialized(data: SerializedIsotonicCalibrator): IsotonicCalibrator {
+    const cal = new IsotonicCalibrator(data.is_identity);
+    cal.xBreakpoints = data.x_breakpoints;
+    cal.yFitted = data.y_fitted;
     return cal;
   }
 
@@ -341,5 +374,29 @@ export function applyOneVsRestCalibration(
     home: cal_home / total,
     draw: cal_draw / total,
     away: cal_away / total,
+  };
+}
+
+// ── One-vs-rest serialization helpers ─────────────────────────────────────
+
+/** Serialize a fitted OneVsRestCalibrators set to a plain object for disk storage. */
+export function serializeOneVsRestCalibrators(
+  calibrators: OneVsRestCalibrators,
+): SerializedOneVsRestCalibrators {
+  return {
+    home: calibrators.home.serialize(),
+    draw: calibrators.draw.serialize(),
+    away: calibrators.away.serialize(),
+  };
+}
+
+/** Reconstruct OneVsRestCalibrators from its serialized form. */
+export function deserializeOneVsRestCalibrators(
+  data: SerializedOneVsRestCalibrators,
+): OneVsRestCalibrators {
+  return {
+    home: IsotonicCalibrator.fromSerialized(data.home),
+    draw: IsotonicCalibrator.fromSerialized(data.draw),
+    away: IsotonicCalibrator.fromSerialized(data.away),
   };
 }

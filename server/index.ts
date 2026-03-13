@@ -14,6 +14,7 @@ import { EventosService, buildEventSource } from './eventos/index.js';
 import { MatchEventsService } from './match-events-service.js';
 import { IncidentService } from './incidents/incident-service.js';
 import { PredictionService } from './prediction/prediction-service.js';
+import { getBestCalibrationRegistry } from './prediction/global-calibrator-store.js';
 import { PredictionStore } from './prediction/prediction-store.js';
 import { runShadow } from './prediction/shadow-runner.js';
 import { registerInspectionRoute } from './prediction/inspection-route.js';
@@ -27,6 +28,8 @@ import { ForwardValidationStore } from './prediction/forward-validation-store.js
 import { ForwardValidationRunner } from './prediction/forward-validation-runner.js';
 import { ForwardValidationEvaluator } from './prediction/forward-validation-evaluator.js';
 import { HistoricalStateService } from './prediction/historical-state-service.js';
+import { runV2Shadow } from './prediction/v2-runner.js';
+import { V2PredictionStore } from './prediction/v2-prediction-store.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
 import {
@@ -168,6 +171,8 @@ async function main() {
   // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy, league-aware)
   const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`);
   const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, OLG_COMPETITION_ID, WC_COMPETITION_ID, CLI_COMPETITION_ID];
+  // V2 only supports football-data.org competitions (historical loader only covers FD)
+  const fdCompetitionCodeMap = new Map(FD_COMPETITION_CODES.map((c) => [`comp:football-data:${c}`, c]));
   function normTeamName(s: string) {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   }
@@ -175,7 +180,9 @@ async function main() {
   let leagueCrestMaps: Map<string, Map<string, string>> | null = null;
   let globalCrestMap: Map<string, string> | null = null;
   function initCrestMaps() {
-    if (leagueCrestMaps) return;
+    // Sin memoización: el warmup de escudos actualiza this.cache de forma asíncrona,
+    // por lo que reconstruimos los mapas en cada llamada para reflejar las URLs locales.
+    // El costo es mínimo (~100 equipos en memoria, O(n) iteración).
     leagueCrestMaps = new Map();
     globalCrestMap = new Map();
     const leagueToCompIds: Record<string, string[]> = {
@@ -329,9 +336,10 @@ async function main() {
     },
   };
 
-  const predictionService = new PredictionService();
+  const predictionService = new PredictionService({ calibrationRegistry: getBestCalibrationRegistry() });
   const predictionStore = new PredictionStore();
   const evaluationStore = new EvaluationStore();
+  const v2PredictionStore = new V2PredictionStore();
 
   // H11 — Forward Validation pipeline (feature-flagged)
   const forwardValStore = new ForwardValidationStore();
@@ -345,8 +353,9 @@ async function main() {
     [CLI_COMPETITION_ID, cliSource],
   ]);
   const compositeTournamentSource = {
-    getGroupView:   (id: string) => tournamentSources.get(id)?.getGroupView(id)   ?? null,
-    getBracketView: (id: string) => tournamentSources.get(id)?.getBracketView(id) ?? null,
+    getGroupView:         (id: string) => tournamentSources.get(id)?.getGroupView(id)         ?? null,
+    getBracketView:       (id: string) => tournamentSources.get(id)?.getBracketView(id)       ?? null,
+    getTournamentMatches: (id: string) => tournamentSources.get(id)?.getTournamentMatches(id) ?? null,
   };
 
   const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService });
@@ -475,6 +484,9 @@ async function main() {
     // Shadow prediction pipeline — fire-and-forget, fault-isolated
     // Runs out-of-band: errors never propagate to the refresh cycle
     void runShadow(dataSource, ALL_COMP_IDS, predictionService, predictionStore, evaluationStore);
+    // V2 structural shadow — fire-and-forget, fault-isolated. FD competitions only.
+    const v2SeasonYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
+    void runV2Shadow(dataSource, FD_COMP_IDS, historicalStateServiceFV, v2PredictionStore, fdCompetitionCodeMap, v2SeasonYear);
     // OE-3: capture ground truth for completed matches
     captureResults(dataSource, evaluationStore, ALL_COMP_IDS);
 
