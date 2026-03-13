@@ -31,7 +31,7 @@ export function dashboardRoute(deps: AppDependencies): FastifyPluginAsync {
         }
 
         const teams = deps.dataSource.getTeams(params.competitionId);
-        const matches = deps.dataSource.getMatches(seasonId);
+        const matches = deps.dataSource.getMatches(seasonId, params.subTournamentKey);
 
         // Resolve dateLocal from matchday if not provided directly
         const dateLocal =
@@ -47,6 +47,7 @@ export function dashboardRoute(deps: AppDependencies): FastifyPluginAsync {
             teams,
             matches,
             matchday: params.matchday,
+            subTournamentKey: params.subTournamentKey,
           });
         } catch (err) {
           if (

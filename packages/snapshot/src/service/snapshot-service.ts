@@ -21,6 +21,7 @@ export interface ServeSnapshotInput {
   matches: readonly Match[];
   freshnessUtc?: string;
   matchday?: number;
+  subTournamentKey?: string;
 }
 
 export interface ServeResult {
@@ -59,6 +60,7 @@ export class SnapshotService {
       this.policy.policyKey,
       this.policy.policyVersion,
       input.matchday,
+      input.subTournamentKey,
     );
 
     // 1. Cache hit — snapshot within TTL, return immediately

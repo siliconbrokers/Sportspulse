@@ -55,6 +55,13 @@ export interface Match {
   providerKey: string;
   providerMatchId: string;
   lastSeenUtc: string;
+  /**
+   * Sub-tournament key within a split season (e.g. 'CLAUSURA', 'APERTURA', 'INTERMEDIO').
+   * Undefined for leagues that don't divide their season into named sub-tournaments.
+   * Enables filtering a single seasonId into independent sub-competitions without
+   * requiring separate competitionId/seasonId values per half.
+   */
+  subTournamentKey?: string | null;
   // ── Tournament fields (optional — undefined for league matches) ────────────
   stageId?: string | null;
   groupId?: string | null;

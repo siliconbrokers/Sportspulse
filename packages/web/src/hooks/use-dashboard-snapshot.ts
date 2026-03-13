@@ -14,6 +14,7 @@ export function useDashboardSnapshot(
   matchday: number | null,
   timezone: string,
   dateLocal?: string,
+  subTournamentKey?: string,
 ): UseDashboardSnapshotResult {
   const [data, setData] = useState<DashboardSnapshotDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,7 @@ export function useDashboardSnapshot(
     } else {
       paramObj.matchday = String(matchday);
     }
+    if (subTournamentKey) paramObj.subTournament = subTournamentKey;
     const params = new URLSearchParams(paramObj);
 
     fetch(`/api/ui/dashboard?${params}`, { signal: controller.signal })
@@ -77,7 +79,7 @@ export function useDashboardSnapshot(
       });
 
     return () => controller.abort();
-  }, [competitionId, matchday, timezone, dateLocal, trigger]);
+  }, [competitionId, matchday, timezone, dateLocal, subTournamentKey, trigger]);
 
   // Auto-refresh adaptivo: 60s si hay partido LIVE o heurísticamente live, 2min si inminente, 1h si no
   useEffect(() => {

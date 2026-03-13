@@ -9,9 +9,11 @@ export function buildSnapshotKey(
   policyKey: string,
   policyVersion: number,
   matchday?: number,
+  subTournamentKey?: string,
 ): string {
   const base = `${competitionId}|${seasonId}|${buildNowUtc}|${policyKey}@${policyVersion}`;
-  return matchday !== undefined ? `${base}|jornada:${matchday}` : base;
+  const withMatchday = matchday !== undefined ? `${base}|jornada:${matchday}` : base;
+  return subTournamentKey ? `${withMatchday}|sub:${subTournamentKey}` : withMatchday;
 }
 
 /**

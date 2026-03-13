@@ -19,14 +19,16 @@ interface DashboardLayoutProps {
   onLiveMatchesChange?: (hasLive: boolean) => void;
   /** Alternativa a matchday para torneos: fecha local ISO (YYYY-MM-DD) */
   dateLocal?: string;
+  subTournamentKey?: string;
 }
 
-export function DashboardLayout({ competitionId, matchday, currentMatchday, timezone, viewMode = 'radar', onLiveMatchesChange, dateLocal }: DashboardLayoutProps) {
+export function DashboardLayout({ competitionId, matchday, currentMatchday, timezone, viewMode = 'radar', onLiveMatchesChange, dateLocal, subTournamentKey }: DashboardLayoutProps) {
   const { data, loading, error, source, refetch } = useDashboardSnapshot(
     competitionId,
     matchday,
     timezone,
     dateLocal,
+    subTournamentKey,
   );
   const { focus, setFocus } = useUrlState();
   const { data: teamDetail } = useTeamDetail(competitionId, focus, matchday, timezone, dateLocal);

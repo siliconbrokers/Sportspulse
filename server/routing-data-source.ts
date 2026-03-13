@@ -1,5 +1,5 @@
 import type { Team, Match } from '@sportpulse/canonical';
-import type { DataSource, StandingEntry, MatchGoalEventDTO } from '@sportpulse/snapshot';
+import type { DataSource, StandingEntry, MatchGoalEventDTO, SubTournamentInfo } from '@sportpulse/snapshot';
 
 /**
  * Composite DataSource that routes each call to the appropriate provider
@@ -35,30 +35,38 @@ export class RoutingDataSource implements DataSource {
     return this.resolveByComp(competitionId).getTeams(competitionId);
   }
 
-  getMatches(seasonId: string): Match[] {
-    return this.resolveBySeasonId(seasonId).getMatches(seasonId);
+  getMatches(seasonId: string, subTournamentKey?: string): Match[] {
+    return this.resolveBySeasonId(seasonId).getMatches(seasonId, subTournamentKey);
   }
 
   getSeasonId(competitionId: string): string | undefined {
     return this.resolveByComp(competitionId).getSeasonId(competitionId);
   }
 
-  getStandings(competitionId: string): StandingEntry[] {
-    return this.resolveByComp(competitionId).getStandings?.(competitionId) ?? [];
+  getStandings(competitionId: string, subTournamentKey?: string): StandingEntry[] {
+    return this.resolveByComp(competitionId).getStandings?.(competitionId, subTournamentKey) ?? [];
   }
 
-  getCurrentMatchday(competitionId: string): number | undefined {
-    return this.resolveByComp(competitionId).getCurrentMatchday?.(competitionId);
+  getSubTournaments(competitionId: string): SubTournamentInfo[] {
+    return this.resolveByComp(competitionId).getSubTournaments?.(competitionId) ?? [];
   }
 
-  getLastPlayedMatchday(competitionId: string): number | undefined {
-    return this.resolveByComp(competitionId).getLastPlayedMatchday?.(competitionId);
+  getActiveSubTournament(competitionId: string): string | undefined {
+    return this.resolveByComp(competitionId).getActiveSubTournament?.(competitionId);
   }
 
-  getNextMatchday(competitionId: string): number | undefined {
+  getCurrentMatchday(competitionId: string, subTournamentKey?: string): number | undefined {
+    return this.resolveByComp(competitionId).getCurrentMatchday?.(competitionId, subTournamentKey);
+  }
+
+  getLastPlayedMatchday(competitionId: string, subTournamentKey?: string): number | undefined {
+    return this.resolveByComp(competitionId).getLastPlayedMatchday?.(competitionId, subTournamentKey);
+  }
+
+  getNextMatchday(competitionId: string, subTournamentKey?: string): number | undefined {
     const source = this.resolveByComp(competitionId);
     // Use the source's own implementation when available
-    if (source.getNextMatchday) return source.getNextMatchday(competitionId);
+    if (source.getNextMatchday) return source.getNextMatchday(competitionId, subTournamentKey);
     // Generic fallback: compute from canonical matches so new sources get this for free
     const seasonId = source.getSeasonId(competitionId);
     if (!seasonId) return undefined;
@@ -77,8 +85,8 @@ export class RoutingDataSource implements DataSource {
     return next;
   }
 
-  getTotalMatchdays(competitionId: string): number {
-    return this.resolveByComp(competitionId).getTotalMatchdays?.(competitionId) ?? 38;
+  getTotalMatchdays(competitionId: string, subTournamentKey?: string): number {
+    return this.resolveByComp(competitionId).getTotalMatchdays?.(competitionId, subTournamentKey) ?? 38;
   }
 
   async getMatchGoals(canonicalMatchId: string): Promise<MatchGoalEventDTO[]> {

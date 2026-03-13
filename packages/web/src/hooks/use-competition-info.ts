@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
 
+export interface SubTournamentInfo {
+  key: string;
+  label: string;
+  isActive: boolean;
+}
+
 interface CompetitionInfo {
   currentMatchday: number | null;
   lastPlayedMatchday: number | null;
   nextMatchday: number | null;
   totalMatchdays: number;
+  subTournaments: SubTournamentInfo[];
+  activeSubTournament: string | null;
 }
 
 interface UseCompetitionInfoResult {
@@ -12,7 +20,10 @@ interface UseCompetitionInfoResult {
   loading: boolean;
 }
 
-export function useCompetitionInfo(competitionId: string): UseCompetitionInfoResult {
+export function useCompetitionInfo(
+  competitionId: string,
+  subTournamentKey?: string,
+): UseCompetitionInfoResult {
   const [data, setData] = useState<CompetitionInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +32,9 @@ export function useCompetitionInfo(competitionId: string): UseCompetitionInfoRes
     setLoading(true);
     setData(null);
 
-    const params = new URLSearchParams({ competitionId });
+    const paramObj: Record<string, string> = { competitionId };
+    if (subTournamentKey) paramObj.subTournament = subTournamentKey;
+    const params = new URLSearchParams(paramObj);
     fetch(`/api/ui/competition-info?${params}`)
       .then(async (res) => {
         if (cancelled) return;
@@ -35,6 +48,8 @@ export function useCompetitionInfo(competitionId: string): UseCompetitionInfoRes
             lastPlayedMatchday: json.lastPlayedMatchday ?? null,
             nextMatchday: json.nextMatchday ?? null,
             totalMatchdays: json.totalMatchdays ?? 38,
+            subTournaments: json.subTournaments ?? [],
+            activeSubTournament: json.activeSubTournament ?? null,
           });
         }
       })
@@ -46,7 +61,7 @@ export function useCompetitionInfo(competitionId: string): UseCompetitionInfoRes
     return () => {
       cancelled = true;
     };
-  }, [competitionId]);
+  }, [competitionId, subTournamentKey]);
 
   return { data, loading };
 }

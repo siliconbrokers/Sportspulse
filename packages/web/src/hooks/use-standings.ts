@@ -26,7 +26,11 @@ interface UseStandingsResult {
   error: string | null;
 }
 
-export function useStandings(competitionId: string, enabled: boolean): UseStandingsResult {
+export function useStandings(
+  competitionId: string,
+  enabled: boolean,
+  subTournamentKey?: string,
+): UseStandingsResult {
   const [data, setData] = useState<StandingEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +45,9 @@ export function useStandings(competitionId: string, enabled: boolean): UseStandi
     setLoading(true);
     setError(null);
 
-    const params = new URLSearchParams({ competitionId });
+    const paramObj: Record<string, string> = { competitionId };
+    if (subTournamentKey) paramObj.subTournament = subTournamentKey;
+    const params = new URLSearchParams(paramObj);
     fetch(`/api/ui/standings?${params}`)
       .then(async (res) => {
         if (cancelled) return;
@@ -67,7 +73,7 @@ export function useStandings(competitionId: string, enabled: boolean): UseStandi
     return () => {
       cancelled = true;
     };
-  }, [competitionId, enabled]);
+  }, [competitionId, enabled, subTournamentKey]);
 
   return { data, loading, error };
 }

@@ -23,6 +23,7 @@ import { PredictionsLabPage } from './labs/PredictionsLabPage.js';
 import { EvaluationLabPage } from './labs/EvaluationLabPage.js';
 import { HistoricalEvaluationLabPage } from './labs/HistoricalEvaluationLabPage.js';
 import { getCompMeta } from './utils/competition-meta.js';
+import { SubTournamentSelector } from './components/SubTournamentSelector.js';
 
 // spec §16 — detectar si la ruta actual es el player de reproducción
 function isPlayerTestRoute(): boolean {
@@ -67,14 +68,16 @@ function App() {
   const [tournamentFocusDate, setTournamentFocusDate] = useState<string | null>(null);
   const [hasLiveMatches, setHasLiveMatches] = useState(false);
   const [tvTab, setTvTab] = useState<'hoy' | 'manana'>('hoy');
+  const [subTournamentKey, setSubTournamentKey] = useState<string | undefined>(undefined);
 
   const currentComp = COMPETITIONS.find((c) => c.id === competitionId) ?? COMPETITIONS[0];
   const isTournament = currentComp.isTournament;
 
-  const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(competitionId);
+  const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(competitionId, subTournamentKey);
   const { data: standings, loading: standingsLoading } = useStandings(
     competitionId,
     view === 'standings' && !isTournament,
+    subTournamentKey,
   );
   const { teamsPlayingToday, teamsPlayingLive } = useTeamsPlayingToday(
     competitionId,
@@ -100,13 +103,22 @@ function App() {
     view === 'standings' && !isTournament,
   );
 
-  // Cuando cambia la liga: resetear jornada y foco; mantener la vista activa
+  // Cuando cambia la liga: resetear jornada, foco y sub-torneo
   useEffect(() => {
     setMatchday(null);
     setStandingsFocusId(null);
     setTournamentFocusId(null);
     setTournamentFocusDate(null);
+    setSubTournamentKey(undefined); // se resolverá al activo según compInfo
   }, [competitionId]);
+
+  // Cuando carga compInfo y hay sub-torneos: seleccionar el activo por defecto
+  useEffect(() => {
+    if (!compInfo?.subTournaments?.length) return;
+    if (subTournamentKey) return; // ya hay selección explícita
+    const active = compInfo.activeSubTournament;
+    if (active) setSubTournamentKey(active);
+  }, [compInfo, subTournamentKey]);
 
   // Cuando carga compInfo: setear jornada por defecto
   useEffect(() => {
@@ -162,6 +174,16 @@ function App() {
             <TournamentPronosticosView competitionId={competitionId} />
           ) : (
             <>
+              {/* Sub-torneo selector — solo en ligas con Clausura/Apertura/etc. */}
+              {(compInfo?.subTournaments?.length ?? 0) > 1 && (
+                <div style={{ marginBottom: isMobile ? 8 : 12 }}>
+                  <SubTournamentSelector
+                    subTournaments={compInfo!.subTournaments}
+                    selected={subTournamentKey ?? null}
+                    onChange={(key) => { setSubTournamentKey(key); setMatchday(null); }}
+                  />
+                </div>
+              )}
               {/* Carousel de jornada — solo en ligas */}
               <div style={{ marginBottom: isMobile ? 12 : 16 }}>
                 <MatchdayCarousel
@@ -191,6 +213,16 @@ function App() {
           </div>
         ) : (
           <>
+            {/* Sub-torneo selector — solo en ligas con Clausura/Apertura/etc. */}
+            {(compInfo?.subTournaments?.length ?? 0) > 1 && (
+              <div style={{ padding: isMobile ? '8px 12px 0' : '12px 20px 0', maxWidth: 1100, margin: '0 auto' }}>
+                <SubTournamentSelector
+                  subTournaments={compInfo!.subTournaments}
+                  selected={subTournamentKey ?? null}
+                  onChange={(key) => { setSubTournamentKey(key); setMatchday(null); }}
+                />
+              </div>
+            )}
             {/* Carousel de jornada — solo en ligas */}
             <div style={{ padding: isMobile ? '8px 12px 0' : '12px 20px 0', maxWidth: 1100, margin: '0 auto' }}>
               <MatchdayCarousel
@@ -208,6 +240,7 @@ function App() {
               timezone="America/Montevideo"
               viewMode={view}
               onLiveMatchesChange={setHasLiveMatches}
+              subTournamentKey={subTournamentKey}
             />
           </>
         )
@@ -235,6 +268,16 @@ function App() {
             </>
           ) : (
             <>
+              {/* Sub-torneo selector — solo en ligas con Clausura/Apertura/etc. */}
+              {(compInfo?.subTournaments?.length ?? 0) > 1 && (
+                <div style={{ marginBottom: isMobile ? 12 : 16 }}>
+                  <SubTournamentSelector
+                    subTournaments={compInfo!.subTournaments}
+                    selected={subTournamentKey ?? null}
+                    onChange={(key) => { setSubTournamentKey(key); }}
+                  />
+                </div>
+              )}
 
               {/* ── Bento: Tabla (2/3) + Goleadores (1/3) ──────────────── */}
               <div

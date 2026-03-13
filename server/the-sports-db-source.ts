@@ -7,7 +7,7 @@ import {
   teamId as canonicalTeamId,
   matchId as canonicalMatchId,
 } from '@sportpulse/canonical';
-import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
+import type { DataSource, StandingEntry, SubTournamentInfo } from '@sportpulse/snapshot';
 import { persistTeamsCache, loadTeamsCache } from './matchday-cache.js';
 import { resolveTla } from './tla-overrides.js';
 import { readRawCache, writeRawCache } from './raw-response-cache.js';
@@ -44,6 +44,10 @@ interface CachedData {
   seasonId: string;
   currentMatchday: number | undefined;
   fetchedAt: number;
+  /** Non-empty when the season is split into named sub-tournaments (Clausura/Apertura). */
+  subTournaments: SubTournamentInfo[];
+  /** The key of the currently-active sub-tournament, if any. */
+  activeSubTournamentKey: string | undefined;
 }
 
 const CACHE_TTL_MS      = 10 * 60 * 1000;       // 10 min — in-memory
@@ -92,10 +96,12 @@ export class TheSportsDbSource implements DataSource {
     return hit?.teams ?? [];
   }
 
-  getMatches(seasId: string): Match[] {
+  getMatches(seasId: string, subTournamentKey?: string): Match[] {
     const hit = this.getCached();
     if (!hit || hit.seasonId !== seasId) return [];
-    return hit.matches;
+    const key = subTournamentKey ?? hit.activeSubTournamentKey;
+    if (!key) return hit.matches;
+    return hit.matches.filter((m) => m.subTournamentKey === key);
   }
 
   getSeasonId(compId: string): string | undefined {
@@ -103,32 +109,53 @@ export class TheSportsDbSource implements DataSource {
     return this.getCached()?.seasonId;
   }
 
-  getStandings(compId: string): StandingEntry[] {
+  getStandings(compId: string, subTournamentKey?: string): StandingEntry[] {
     if (!this.owns(compId)) return [];
     const hit = this.getCached();
     if (!hit) return [];
-    return computeStandings(hit.matches, hit.teams);
+    const key = subTournamentKey ?? hit.activeSubTournamentKey;
+    const matches = key ? hit.matches.filter((m) => m.subTournamentKey === key) : hit.matches;
+    return computeStandings(matches, hit.teams);
   }
 
-  getCurrentMatchday(compId: string): number | undefined {
+  getSubTournaments(compId: string): SubTournamentInfo[] {
+    if (!this.owns(compId)) return [];
+    return this.getCached()?.subTournaments ?? [];
+  }
+
+  getActiveSubTournament(compId: string): string | undefined {
     if (!this.owns(compId)) return undefined;
-    return this.getCached()?.currentMatchday;
+    return this.getCached()?.activeSubTournamentKey;
   }
 
-  getLastPlayedMatchday(compId: string): number | undefined {
+  getCurrentMatchday(compId: string, subTournamentKey?: string): number | undefined {
     if (!this.owns(compId)) return undefined;
     const hit = this.getCached();
     if (!hit) return undefined;
-    return computeLastPlayedMatchday(hit.matches);
+    const key = subTournamentKey ?? hit.activeSubTournamentKey;
+    if (!key) return hit.currentMatchday;
+    const filtered = hit.matches.filter((m) => m.subTournamentKey === key);
+    return deriveCurrentMatchday(filtered);
   }
 
-  getNextMatchday(compId: string): number | undefined {
+  getLastPlayedMatchday(compId: string, subTournamentKey?: string): number | undefined {
     if (!this.owns(compId)) return undefined;
     const hit = this.getCached();
     if (!hit) return undefined;
+    const key = subTournamentKey ?? hit.activeSubTournamentKey;
+    const matches = key ? hit.matches.filter((m) => m.subTournamentKey === key) : hit.matches;
+    return computeLastPlayedMatchday(matches);
+  }
+
+  getNextMatchday(compId: string, subTournamentKey?: string): number | undefined {
+    if (!this.owns(compId)) return undefined;
+    const hit = this.getCached();
+    if (!hit) return undefined;
+    const key = subTournamentKey ?? hit.activeSubTournamentKey;
+    const matches = key ? hit.matches.filter((m) => m.subTournamentKey === key) : hit.matches;
     const nowUtc = new Date().toISOString();
     let next: number | undefined = undefined;
-    for (const m of hit.matches) {
+    for (const m of matches) {
       if (
         m.matchday === undefined ||
         m.status !== 'SCHEDULED' ||
@@ -141,13 +168,13 @@ export class TheSportsDbSource implements DataSource {
     return next;
   }
 
-  getTotalMatchdays(compId: string): number {
+  getTotalMatchdays(compId: string, subTournamentKey?: string): number {
     if (!this.owns(compId)) return 15;
     const hit = this.getCached();
     if (!hit) return 15;
-    const rounds = new Set(
-      hit.matches.map((m) => m.matchday).filter((m): m is number => m != null),
-    );
+    const key = subTournamentKey ?? hit.activeSubTournamentKey;
+    const matches = key ? hit.matches.filter((m) => m.subTournamentKey === key) : hit.matches;
+    const rounds = new Set(matches.map((m) => m.matchday).filter((m): m is number => m != null));
     return rounds.size || 15;
   }
 
@@ -215,9 +242,10 @@ export class TheSportsDbSource implements DataSource {
       await writeRawCache<SDBEvent[]>(diskKey, rawEvents);
     }
 
-    // Filter split-tournament leagues (e.g. Argentine Clausura/Apertura):
-    // keep only the half of the year that is currently active.
-    const filteredEvents = selectActiveTournamentHalf(rawEvents, s);
+    // Tag each event with its sub-tournament key (Clausura/Apertura) if applicable,
+    // or leave untagged for single-window leagues (e.g. Uruguay Primera).
+    const { events: taggedEvents, subTournaments, activeSubTournamentKey } =
+      tagTournamentHalves(rawEvents, s);
 
     // Phase 2: build team registry directly from event data.
     // Each event carries strHomeTeamBadge / strAwayTeamBadge, so we don't need
@@ -246,7 +274,7 @@ export class TheSportsDbSource implements DataSource {
       }
     };
 
-    for (const e of filteredEvents) {
+    for (const e of taggedEvents) {
       upsertTeam(e.idHomeTeam, e.strHomeTeam, e.strHomeTeamBadge);
       upsertTeam(e.idAwayTeam, e.strAwayTeam, e.strAwayTeamBadge);
     }
@@ -266,7 +294,7 @@ export class TheSportsDbSource implements DataSource {
 
     // Map events → canonical matches
     const matches: Match[] = [];
-    for (const e of filteredEvents) {
+    for (const e of taggedEvents) {
       const homeTeamId = teamIdMap.get(e.idHomeTeam);
       const awayTeamId = teamIdMap.get(e.idAwayTeam);
       if (!homeTeamId || !awayTeamId) {
@@ -312,10 +340,15 @@ export class TheSportsDbSource implements DataSource {
         providerKey: this.providerKey,
         providerMatchId: e.idEvent,
         lastSeenUtc: nowUtc,
+        subTournamentKey: (e as SDBEvent & { _subTournamentKey?: string })._subTournamentKey ?? null,
       });
     }
 
-    const currentMatchday = deriveCurrentMatchday(matches);
+    // Compute currentMatchday from the active sub-tournament only (or all matches if no split)
+    const matchesForMatchday = activeSubTournamentKey
+      ? matches.filter((m) => m.subTournamentKey === activeSubTournamentKey)
+      : matches;
+    const currentMatchday = deriveCurrentMatchday(matchesForMatchday);
     const elapsed = Date.now() - t0;
 
     console.log(
@@ -333,6 +366,8 @@ export class TheSportsDbSource implements DataSource {
       seasonId: seasId,
       currentMatchday,
       fetchedAt: Date.now(),
+      subTournaments,
+      activeSubTournamentKey,
     };
 
     // Fire-and-forget: download and cache crest images locally.
@@ -395,19 +430,32 @@ export class TheSportsDbSource implements DataSource {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+type TaggedEvent = SDBEvent & { _subTournamentKey?: string };
+
+interface TournamentTagResult {
+  events: TaggedEvent[];
+  subTournaments: SubTournamentInfo[];
+  activeSubTournamentKey: string | undefined;
+}
+
 /**
- * Detects and resolves the Argentine-style split tournament pattern.
+ * Detects the Argentine-style split tournament pattern (Clausura H1 + Apertura H2)
+ * and tags each event with its sub-tournament key instead of discarding the inactive half.
  *
- * TheSportsDB stores Clausura (H1: Jan–Jun) and Apertura (H2: Jul–Dec) under
- * the same league/season/round numbers. eventsround.php returns both halves
- * for a given round, producing ~30 matches per round instead of ~15.
+ * TheSportsDB stores both halves under the same league/season/round numbers.
+ * eventsround.php returns ~30 events per round (15 Clausura + 15 Apertura).
  *
- * Detection: if ≥15% of events fall in each calendar half, the distribution
- * is considered bimodal → keep only the half that contains today's date.
- * Leagues with a single calendar window (e.g. Uruguay) are not affected.
+ * Detection: if ≥15% of events fall in each calendar half, the season is bimodal.
+ * Each event is tagged with 'CLAUSURA' (Jan–Jun) or 'APERTURA' (Jul–Dec).
+ * The active sub-tournament is determined by today's date.
+ *
+ * Single-window leagues (e.g. Uruguay) are not affected: all events are returned
+ * untagged with no sub-tournament metadata.
  */
-function selectActiveTournamentHalf(events: SDBEvent[], season: string): SDBEvent[] {
-  if (events.length < 4) return events;
+function tagTournamentHalves(events: SDBEvent[], season: string): TournamentTagResult {
+  if (events.length < 4) {
+    return { events, subTournaments: [], activeSubTournamentKey: undefined };
+  }
 
   const splitDate = `${season}-07-01`;
   const today = new Date().toISOString().slice(0, 10);
@@ -421,15 +469,28 @@ function selectActiveTournamentHalf(events: SDBEvent[], season: string): SDBEven
     firstHalf.length  < total * MIN_FRACTION ||
     secondHalf.length < total * MIN_FRACTION
   ) {
-    return events; // single-window season — no split
+    // Single-window season (e.g. Uruguay) — no sub-tournament split
+    return { events, subTournaments: [], activeSubTournamentKey: undefined };
   }
 
-  const activeHalf = today < splitDate ? firstHalf : secondHalf;
-  const label = today < splitDate ? 'H1 (Clausura)' : 'H2 (Apertura)';
+  const activeKey = today < splitDate ? 'CLAUSURA' : 'APERTURA';
+
+  const tagged: TaggedEvent[] = events.map((e) => ({
+    ...e,
+    _subTournamentKey:
+      e.dateEvent && e.dateEvent < splitDate ? 'CLAUSURA' : 'APERTURA',
+  }));
+
+  const subTournaments: SubTournamentInfo[] = [
+    { key: 'CLAUSURA', label: 'Clausura', isActive: activeKey === 'CLAUSURA' },
+    { key: 'APERTURA', label: 'Apertura', isActive: activeKey === 'APERTURA' },
+  ];
+
   console.log(
-    `[TheSportsDbSource] Split tournament detected (league=${events[0]?.idHomeTeam?.slice(0,4) ?? '?'}) — keeping ${label}: ${activeHalf.length}/${total} events`,
+    `[TheSportsDbSource] Split tournament detected — tagged ${firstHalf.length} CLAUSURA + ${secondHalf.length} APERTURA events. Active: ${activeKey}`,
   );
-  return activeHalf;
+
+  return { events: tagged, subTournaments, activeSubTournamentKey: activeKey };
 }
 
 /**

@@ -6,6 +6,8 @@ export interface DashboardQueryParams {
   matchday?: number;
   timezone: string;
   includeSignals: boolean;
+  /** Sub-tournament filter (e.g. 'CLAUSURA', 'APERTURA'). Optional. */
+  subTournamentKey?: string;
 }
 
 export interface TeamQueryParams {
@@ -42,8 +44,9 @@ export function parseDashboardQuery(query: Record<string, unknown>): DashboardQu
 
   const timezone = asString(query.timezone) || 'Europe/Madrid';
   const includeSignals = query.includeSignals === 'true' || query.includeSignals === true;
+  const subTournamentKey = asString(query.subTournament ?? query.subTournamentKey);
 
-  return { competitionId, dateLocal, matchday, timezone, includeSignals };
+  return { competitionId, dateLocal, matchday, timezone, includeSignals, subTournamentKey };
 }
 
 export function parseTeamQuery(query: Record<string, unknown>): TeamQueryParams {

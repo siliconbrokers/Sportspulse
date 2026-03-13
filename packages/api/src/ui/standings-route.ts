@@ -19,7 +19,10 @@ export function standingsRoute(deps: AppDependencies): FastifyPluginAsync {
           throw new AppError(ErrorCode.NOT_FOUND, 'Standings not available', 404);
         }
 
-        const standings = deps.dataSource.getStandings(competitionId);
+        const subTournamentKey =
+          typeof query.subTournament === 'string' ? query.subTournament : undefined;
+
+        const standings = deps.dataSource.getStandings(competitionId, subTournamentKey);
         if (standings.length === 0) {
           throw new AppError(ErrorCode.NOT_FOUND, 'Standings not found', 404);
         }

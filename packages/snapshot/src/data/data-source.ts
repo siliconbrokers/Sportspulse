@@ -40,20 +40,45 @@ export interface TopScorerEntry {
   penalties: number;
 }
 
+/**
+ * Metadata for a sub-tournament within a split season.
+ * Examples: Clausura / Apertura in Argentine/Uruguayan football.
+ */
+export interface SubTournamentInfo {
+  /** Machine key used as query param and in Match.subTournamentKey. */
+  key: string;
+  /** Human-readable label. */
+  label: string;
+  /** True for the sub-tournament active based on today's date. */
+  isActive: boolean;
+}
+
 export interface DataSource {
   // ── Core (requerido por todas las ligas) ──────────────────────────────────
   getTeams(competitionId: string): Team[];
-  getMatches(seasonId: string): Match[];
+  /**
+   * Returns matches for the given season, optionally filtered to a specific
+   * sub-tournament (e.g. 'CLAUSURA', 'APERTURA'). When subTournamentKey is
+   * omitted and the season has sub-tournaments, implementations should return
+   * only the currently-active sub-tournament's matches (backward-compatible).
+   */
+  getMatches(seasonId: string, subTournamentKey?: string): Match[];
   getSeasonId(competitionId: string): string | undefined;
 
   // ── League helpers (opcionales, implementados por ligas actuales) ─────────
-  getStandings?(competitionId: string, groupId?: string): StandingEntry[];
-  getCurrentMatchday?(competitionId: string): number | undefined;
-  getLastPlayedMatchday?(competitionId: string): number | undefined;
-  getNextMatchday?(competitionId: string): number | undefined;
-  getTotalMatchdays?(competitionId: string): number;
+  getStandings?(competitionId: string, subTournamentKeyOrGroupId?: string): StandingEntry[];
+  getCurrentMatchday?(competitionId: string, subTournamentKey?: string): number | undefined;
+  getLastPlayedMatchday?(competitionId: string, subTournamentKey?: string): number | undefined;
+  getNextMatchday?(competitionId: string, subTournamentKey?: string): number | undefined;
+  getTotalMatchdays?(competitionId: string, subTournamentKey?: string): number;
   getMatchGoals?(canonicalMatchId: string): Promise<MatchGoalEventDTO[]>;
   getTopScorers?(competitionId: string): Promise<TopScorerEntry[]>;
+
+  // ── Sub-tournament support (opcional — ligas con Apertura/Clausura/Intermedio) ──
+  /** Returns the list of sub-tournaments in this competition, if any. */
+  getSubTournaments?(competitionId: string): SubTournamentInfo[];
+  /** Returns the currently-active sub-tournament key based on today's date. */
+  getActiveSubTournament?(competitionId: string): string | undefined;
 
   // ── Tournament structure (opcionales, solo torneos con fases/grupos) ──────
   getStages?(competitionEditionId: string): Stage[];

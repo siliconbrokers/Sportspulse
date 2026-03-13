@@ -25,25 +25,42 @@ export function competitionInfoRoute(deps: AppDependencies): FastifyPluginAsync 
 
         // Datos aún no cargados (startup en progreso) — devolver defaults sin cachear
         if (!seasonId) {
-          reply
-            .header('Cache-Control', 'no-cache')
-            .send({
-              currentMatchday: null,
-              lastPlayedMatchday: null,
-              nextMatchday: null,
-              totalMatchdays: 38,
-            });
+          reply.header('Cache-Control', 'no-cache').send({
+            currentMatchday: null,
+            lastPlayedMatchday: null,
+            nextMatchday: null,
+            totalMatchdays: 38,
+          });
           return;
         }
 
-        const currentMatchday = deps.dataSource.getCurrentMatchday?.(competitionId);
-        const lastPlayedMatchday = deps.dataSource.getLastPlayedMatchday?.(competitionId);
-        const nextMatchday = deps.dataSource.getNextMatchday?.(competitionId);
-        const totalMatchdays = deps.dataSource.getTotalMatchdays?.(competitionId) ?? 38;
+        const subTournamentKey =
+          typeof query.subTournament === 'string' ? query.subTournament : undefined;
 
-        reply
-          .header('Cache-Control', 'public, max-age=60')
-          .send({ currentMatchday, lastPlayedMatchday, nextMatchday, totalMatchdays });
+        const subTournaments = deps.dataSource.getSubTournaments?.(competitionId) ?? [];
+        const activeSubTournament =
+          subTournamentKey ?? deps.dataSource.getActiveSubTournament?.(competitionId);
+
+        const currentMatchday = deps.dataSource.getCurrentMatchday?.(
+          competitionId,
+          activeSubTournament,
+        );
+        const lastPlayedMatchday = deps.dataSource.getLastPlayedMatchday?.(
+          competitionId,
+          activeSubTournament,
+        );
+        const nextMatchday = deps.dataSource.getNextMatchday?.(competitionId, activeSubTournament);
+        const totalMatchdays =
+          deps.dataSource.getTotalMatchdays?.(competitionId, activeSubTournament) ?? 38;
+
+        reply.header('Cache-Control', 'public, max-age=60').send({
+          currentMatchday,
+          lastPlayedMatchday,
+          nextMatchday,
+          totalMatchdays,
+          subTournaments,
+          activeSubTournament,
+        });
       });
     },
     { name: 'competition-info-route' },
