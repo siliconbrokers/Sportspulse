@@ -32,11 +32,12 @@ interface LeagueConfig {
 }
 
 const COMP_LEAGUE_MAP: Record<string, LeagueConfig> = {
-  'comp:football-data:PD':    { id: 140, season: europeanSeason },
-  'comp:football-data:PL':    { id: 39,  season: europeanSeason },
-  'comp:openligadb:bl1':      { id: 78,  season: europeanSeason },
-  'comp:thesportsdb:4432':    { id: 268, season: (k) => new Date(k).getUTCFullYear() },
-  'comp:football-data-wc:WC': { id: 1,   season: (k) => new Date(k).getUTCFullYear() },
+  'comp:football-data:PD':      { id: 140, season: europeanSeason },
+  'comp:football-data:PL':      { id: 39,  season: europeanSeason },
+  'comp:openligadb:bl1':        { id: 78,  season: europeanSeason },
+  'comp:thesportsdb:4432':      { id: 268, season: (k) => new Date(k).getUTCFullYear() },
+  'comp:football-data-wc:WC':   { id: 1,   season: (k) => new Date(k).getUTCFullYear() },
+  'comp:football-data-cli:CLI': { id: 13,  season: (k) => new Date(k).getUTCFullYear() },
 };
 
 function europeanSeason(kickoffUtc: string): number {

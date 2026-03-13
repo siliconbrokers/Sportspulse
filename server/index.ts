@@ -145,14 +145,15 @@ async function main() {
   const cliSource = new FootballDataTournamentSource(API_TOKEN, CLI_CONFIG);
   const CLI_COMPETITION_ID = cliSource.competitionId; // 'comp:football-data-cli:CLI'
 
-  // Score overlay: API-Football (RapidAPI) provee scores correctos para Copa Libertadores.
+  // Score overlay: API-Football v3 provee scores correctos para Copa Libertadores.
   // football-data.org free tier no actualiza scores de CLI en tiempo real.
-  const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY ?? '';
-  if (RAPIDAPI_KEY) {
-    cliSource.setScoreOverlay(new ApiFootballCLIOverlay(RAPIDAPI_KEY));
-    console.log('[Startup] API-Football CLI overlay activado (scores Copa Libertadores)');
+  // Usa APIFOOTBALL_KEY (misma key que el live overlay y incidents).
+  const AF_CLI_KEY = process.env.APIFOOTBALL_KEY ?? '';
+  if (AF_CLI_KEY) {
+    cliSource.setScoreOverlay(new ApiFootballCLIOverlay(AF_CLI_KEY));
+    console.log('[Startup] API-Football CLI overlay activado (scores Copa Libertadores, league 13)');
   } else {
-    console.warn('[Startup] RAPIDAPI_KEY no configurada — scores CLI desde football-data.org (puede ser incorrecto)');
+    console.warn('[Startup] APIFOOTBALL_KEY no configurada — scores CLI desde football-data.org (puede ser incorrecto)');
   }
 
   try {

@@ -1,55 +1,56 @@
 /**
  * ApiFootballCLIOverlay — score overlay para Copa Libertadores.
  *
- * football-data.org free tier no actualiza scores de Copa Libertadores en tiempo real.
- * Este overlay usa free-api-live-football-data (Creativesdev/RapidAPI) como fuente
- * primaria de scores y status, parchando los datos estructurales de football-data.org.
+ * Usa API-Football v3 (api-sports.io) con /fixtures?live=all&league=13.
+ * El free tier no permite queries por fecha para temporadas > 2024,
+ * pero live=all no tiene restricción de season.
+ * Copa Libertadores = league 13 en API-Football.
  *
- * Budget: ~1 req/día con partidos de Copa Lib. Plan free: 100 req/mes.
- * Consulta por fecha (YYYYMMDD) — no por temporada completa.
+ * Para partidos ya finalizados, el outer LiveOverlayDataSource cubre
+ * la ventana 0–180 min. Este overlay agrega cobertura específica de Copa Lib.
+ *
+ * Budget: 1 req por refresh (TTL 2 min con live, 15 min sin live).
+ * Comparte APIFOOTBALL_KEY con el live overlay global y el incident service.
  */
-import { readRawCache, writeRawCache } from './raw-response-cache.js';
 
-const API_HOST    = 'free-api-live-football-data.p.rapidapi.com';
-const DISK_PREFIX = 'clioverlay-date-';
+const AF_BASE       = 'https://v3.football.api-sports.io';
+const CLI_LEAGUE_ID = 13;
 
-// TTLs en memoria
-const CACHE_TTL_PAST_MS   = Infinity;     // pasados: carga una vez, nunca refresca en memoria
-const CACHE_TTL_NORMAL_MS = 60 * 60_000;  // 60 min — hoy sin live
-const CACHE_TTL_LIVE_MS   = 15 * 60_000;  // 15 min — hoy con live (ahorra req/mes)
+// TTL para el caché in-memory
+const CACHE_TTL_LIVE_MS = 2  * 60_000;  // 2 min — igual que el outer overlay
+const CACHE_TTL_IDLE_MS = 15 * 60_000;  // 15 min — sin live
 
-// TTLs en disco — los pasados se cachean ~30 días (nunca cambian)
-const DISK_TTL_PAST_MS    = 30 * 24 * 60 * 60_000; // 30 días
-const DISK_TTL_NORMAL_MS  = 60 * 60_000;            // 60 min
-const DISK_TTL_LIVE_MS    = 15 * 60_000;            // 15 min
+const ERROR_BACKOFF_MS = 5 * 60_000;
 
-const ERROR_BACKOFF_MS = 5 * 60_000; // 5 min de backoff tras error de API
+// ── API-Football response types ───────────────────────────────────────────────
 
-// ── API response types ────────────────────────────────────────────────────────
-
-interface CdMatchStatus {
-  utcTime:   string;
-  finished:  boolean;
-  started:   boolean;
-  ongoing:   boolean;
-  cancelled: boolean;
-  reason?:   { short: string };
+interface AfFixture {
+  fixture: {
+    date:   string;
+    status: { short: string; elapsed: number | null };
+  };
+  teams: {
+    home: { name: string };
+    away: { name: string };
+  };
+  goals: { home: number | null; away: number | null };
 }
 
-interface CdMatch {
-  id:       number;
-  leagueId: number;
-  home: { id: number; score: number | null; name: string };
-  away: { id: number; score: number | null; name: string };
-  status: CdMatchStatus;
-}
-
-// ── Public contract ────────────────────────────────────────────────────────────
+// ── Public contract ───────────────────────────────────────────────────────────
 
 export interface CliScoreOverride {
   scoreHome: number | null;
   scoreAway: number | null;
   status:    'FINISHED' | 'IN_PROGRESS' | 'SCHEDULED';
+}
+
+// ── In-memory store ───────────────────────────────────────────────────────────
+
+interface LiveStore {
+  entries:   Map<string, CliScoreOverride>;
+  raw:       Array<{ homeNorm: string; awayNorm: string; entry: CliScoreOverride }>;
+  fetchedAt: number;
+  hasLive:   boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,167 +67,111 @@ export function normTeamName(name: string): string {
     .trim();
 }
 
-function normalizeCdStatus(m: CdMatch): CliScoreOverride['status'] {
-  const s = m.status;
-  if (s.finished) return 'FINISHED';
-  if (s.ongoing)  return 'IN_PROGRESS';
-  const reasonShort = s.reason?.short ?? '';
-  if (['FT', 'AET', 'AWD', 'WO', 'Pen'].includes(reasonShort)) return 'FINISHED';
-  // Zombie guard: si pasaron >240 min desde el kickoff
-  const elapsed = (Date.now() - new Date(s.utcTime).getTime()) / 60_000;
-  if (elapsed > 240) return 'FINISHED';
-  return 'SCHEDULED';
+function toCanonicalStatus(short: string): CliScoreOverride['status'] {
+  switch (short) {
+    case 'FT': case 'AET': case 'PEN': case 'AWD': case 'WO':
+      return 'FINISHED';
+    case '1H': case 'HT': case '2H': case 'ET': case 'BT': case 'P': case 'LIVE':
+      return 'IN_PROGRESS';
+    default:
+      return 'SCHEDULED';
+  }
 }
 
-function cacheKey(datePrefix: string, homeNorm: string, awayNorm: string): string {
-  return `${datePrefix}|${homeNorm}|${awayNorm}`;
-}
-
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-// ── Overlay class ──────────────────────────────────────────────────────────────
+// ── Overlay class ─────────────────────────────────────────────────────────────
 
 export class ApiFootballCLIOverlay {
-  // Per-date maps: datePrefix → lookup map
-  private dateMaps = new Map<string, Map<string, CliScoreOverride>>();
-  private dateMeta = new Map<string, { fetchedAt: number; hasLive: boolean }>();
+  private store: LiveStore = {
+    entries:   new Map(),
+    raw:       [],
+    fetchedAt: 0,
+    hasLive:   false,
+  };
   private lastErrorAt = 0;
 
   constructor(private readonly apiKey: string) {}
 
   /**
-   * Devuelve el score/status correcto para un partido de CLI dado
-   * fecha UTC (YYYY-MM-DD), nombre del equipo local y visitante.
-   * Retorna null si no se encuentra el partido o la API falla.
+   * Devuelve el score/status correcto para un partido de Copa Lib dado
+   * nombre del equipo local y visitante.
+   * Retorna null si no está en vivo o la API falla.
    */
   async getOverride(
-    utcDatePrefix: string,
+    _utcDatePrefix: string,
     homeTeamName: string,
     awayTeamName: string,
   ): Promise<CliScoreOverride | null> {
-    await this.ensureDateFresh(utcDatePrefix);
-    const map = this.dateMaps.get(utcDatePrefix);
-    if (!map) return null;
+    await this.ensureLiveFresh();
 
     const homeNorm = normTeamName(homeTeamName);
     const awayNorm = normTeamName(awayTeamName);
-    const key = cacheKey(utcDatePrefix, homeNorm, awayNorm);
-    const hit = map.get(key);
+    const hit = this.store.entries.get(`${homeNorm}|${awayNorm}`);
     if (hit) return hit;
 
-    // Fallback: búsqueda por fecha + nombre normalizado parcial
-    for (const [k, v] of map) {
-      const parts = k.split('|');
-      const kHome = parts[1] ?? '';
-      const kAway = parts[2] ?? '';
+    // Fallback: partial contains match
+    for (const { homeNorm: kh, awayNorm: ka, entry } of this.store.raw) {
       if (
-        (kHome.includes(homeNorm) || homeNorm.includes(kHome)) &&
-        (kAway.includes(awayNorm) || awayNorm.includes(kAway))
+        (kh.includes(homeNorm) || homeNorm.includes(kh)) &&
+        (ka.includes(awayNorm) || awayNorm.includes(ka))
       ) {
-        return v;
+        return entry;
       }
     }
 
     return null;
   }
 
-  // ── Cache management ────────────────────────────────────────────────────────
+  // ── Cache management ──────────────────────────────────────────────────────
 
-  private async ensureDateFresh(datePrefix: string): Promise<void> {
-    const nowMs   = Date.now();
-    const isToday = datePrefix === todayUtc();
-    const meta    = this.dateMeta.get(datePrefix);
-
-    if (meta) {
-      const ttl = !isToday
-        ? CACHE_TTL_PAST_MS
-        : meta.hasLive
-          ? CACHE_TTL_LIVE_MS
-          : CACHE_TTL_NORMAL_MS;
-      if (nowMs - meta.fetchedAt < ttl) return;
-    }
-
-    // Backoff: si hubo error reciente, no reintentar
+  private async ensureLiveFresh(): Promise<void> {
+    const nowMs = Date.now();
+    const ttl   = this.store.hasLive ? CACHE_TTL_LIVE_MS : CACHE_TTL_IDLE_MS;
+    if (nowMs - this.store.fetchedAt < ttl) return;
     if (nowMs - this.lastErrorAt < ERROR_BACKOFF_MS) return;
 
-    // Disco
-    const diskKey = `${DISK_PREFIX}${datePrefix}`;
-    const diskTtl = !isToday
-      ? DISK_TTL_PAST_MS
-      : meta?.hasLive
-        ? DISK_TTL_LIVE_MS
-        : DISK_TTL_NORMAL_MS;
-    const diskHit = await readRawCache<CdMatch[]>(diskKey, diskTtl);
-    if (diskHit) {
-      this.buildDateMap(datePrefix, diskHit);
-      console.log(`[CLIOverlay] DISK_HIT ${datePrefix} — ${diskHit.length} matches`);
-      return;
-    }
-
-    // API fetch
-    const apiDate = datePrefix.replace(/-/g, ''); // YYYY-MM-DD → YYYYMMDD
     try {
-      const data = await this.apiGet<{ status: string; response: { matches: CdMatch[] } }>(
-        `/football-get-matches-by-date?date=${apiDate}`,
+      const data = await this.apiGet<{ response: AfFixture[] }>(
+        `/fixtures?live=all&league=${CLI_LEAGUE_ID}`,
       );
-      if (data.status !== 'success') throw new Error(`API status: ${data.status}`);
-      const matches = data.response?.matches ?? [];
-      await writeRawCache<CdMatch[]>(diskKey, matches);
-      this.buildDateMap(datePrefix, matches);
-      console.log(`[CLIOverlay] API fetch ${datePrefix} — ${matches.length} total matches`);
+      const fixtures = data.response ?? [];
+      this.buildStore(fixtures);
+      if (fixtures.length > 0) {
+        console.log(`[CLIOverlay] live=all league=${CLI_LEAGUE_ID} → ${fixtures.length} Copa Lib fixtures`);
+      }
     } catch (err) {
       this.lastErrorAt = Date.now();
       console.warn('[CLIOverlay] Fetch error (backoff 5min):', err instanceof Error ? err.message : err);
-      // Degradación silenciosa: el sistema usa football-data.org como fallback
     }
   }
 
-  private buildDateMap(datePrefix: string, matches: CdMatch[]): void {
-    const map    = new Map<string, CliScoreOverride>();
-    let hasLive  = false;
+  private buildStore(fixtures: AfFixture[]): void {
+    const entries = new Map<string, CliScoreOverride>();
+    const raw: LiveStore['raw'] = [];
+    let hasLive = false;
 
-    for (const m of matches) {
-      // Usar la fecha UTC del partido como clave; fallback a datePrefix si falta
-      const matchDate = m.status?.utcTime ? m.status.utcTime.slice(0, 10) : datePrefix;
-      const homeNorm  = normTeamName(m.home.name);
-      const awayNorm  = normTeamName(m.away.name);
-      const status    = normalizeCdStatus(m);
+    for (const f of fixtures) {
+      const homeNorm = normTeamName(f.teams.home.name);
+      const awayNorm = normTeamName(f.teams.away.name);
+      const status   = toCanonicalStatus(f.fixture.status.short);
       if (status === 'IN_PROGRESS') hasLive = true;
 
-      // Indexar bajo la fecha UTC real del partido
-      map.set(cacheKey(matchDate, homeNorm, awayNorm), {
-        scoreHome: m.home.score ?? null,
-        scoreAway: m.away.score ?? null,
+      const entry: CliScoreOverride = {
+        scoreHome: f.goals.home,
+        scoreAway: f.goals.away,
         status,
-      });
-
-      // También indexar bajo la fecha de consulta para cubrir edge cases de timezone
-      if (matchDate !== datePrefix) {
-        const altMap = this.dateMaps.get(matchDate) ?? new Map<string, CliScoreOverride>();
-        altMap.set(cacheKey(matchDate, homeNorm, awayNorm), {
-          scoreHome: m.home.score ?? null,
-          scoreAway: m.away.score ?? null,
-          status,
-        });
-        this.dateMaps.set(matchDate, altMap);
-      }
+      };
+      entries.set(`${homeNorm}|${awayNorm}`, entry);
+      raw.push({ homeNorm, awayNorm, entry });
     }
 
-    this.dateMaps.set(datePrefix, map);
-    this.dateMeta.set(datePrefix, { fetchedAt: Date.now(), hasLive });
+    this.store = { entries, raw, fetchedAt: Date.now(), hasLive };
   }
 
-  // ── HTTP ────────────────────────────────────────────────────────────────────
+  // ── HTTP ──────────────────────────────────────────────────────────────────
 
   private async apiGet<T>(endpoint: string): Promise<T> {
-    const url = `https://${API_HOST}${endpoint}`;
-    const res = await fetch(url, {
-      headers: {
-        'x-rapidapi-key':  this.apiKey,
-        'x-rapidapi-host': API_HOST,
-      },
+    const res = await fetch(`${AF_BASE}${endpoint}`, {
+      headers: { 'x-apisports-key': this.apiKey },
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) throw new Error(`CLIOverlay HTTP ${res.status}: ${endpoint}`);
