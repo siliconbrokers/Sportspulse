@@ -22,12 +22,28 @@ export const RSS_CONFIG: Record<
   Exclude<LeagueKey, 'URU'>,
   { competitionLabel: string; competitionId: string; feeds: FeedConfig[] }
 > = {
+  AR: {
+    competitionLabel: 'Liga Profesional Argentina',
+    competitionId: 'comp:sportsdb-ar:4406',
+    feeds: [
+      {
+        url: 'https://www.espn.com/espn/rss/soccer/news',
+        sourceName: 'ESPN',
+        keywords: ['liga profesional', 'primera division', 'superliga', 'afa', 'argentina'],
+      },
+      {
+        url: 'https://www.infobae.com/arc/outboundfeeds/rss/category/america/deportes/',
+        sourceName: 'Infobae',
+        keywords: ['liga profesional', 'primera division', 'superliga', 'afa', 'argentina'],
+      },
+    ],
+  },
   LL: {
     competitionLabel: 'LaLiga',
     competitionId: 'comp:football-data:PD',
     feeds: [
       { url: 'https://www.marca.com/rss/futbol/primera-division.xml', sourceName: 'Marca' },
-      { url: 'https://as.com/rss/tags/primera_division.xml', sourceName: 'AS' },
+      { url: 'https://www.mundodeportivo.com/rss/futbol.xml', sourceName: 'Mundo Deportivo' },
     ],
   },
   EPL: {
@@ -46,7 +62,7 @@ export const RSS_CONFIG: Record<
     competitionLabel: 'Bundesliga',
     competitionId: 'comp:football-data:BL1',
     feeds: [
-      { url: 'https://www.kicker.de/bundesliga/news/rss.xml', sourceName: 'Kicker' },
+      { url: 'https://newsfeed.kicker.de/news/bundesliga', sourceName: 'Kicker' },
     ],
   },
   WC: {
@@ -75,9 +91,9 @@ export const RSS_CONFIG: Record<
         keywords: ['copa america', 'copa america', 'conmebol'],
       },
       {
-        url: 'https://www.infobae.com/rss/futbol.rss',
+        url: 'https://www.infobae.com/arc/outboundfeeds/rss/category/america/deportes/',
         sourceName: 'Infobae',
-        keywords: ['copa america', 'copa america'],
+        keywords: ['copa america', 'copa america', 'conmebol', 'seleccion'],
       },
     ],
   },
@@ -91,7 +107,7 @@ export const RSS_CONFIG: Record<
         keywords: ['libertadores', 'copa libertadores'],
       },
       {
-        url: 'https://www.infobae.com/rss/futbol.rss',
+        url: 'https://www.infobae.com/arc/outboundfeeds/rss/category/america/deportes/',
         sourceName: 'Infobae',
         keywords: ['libertadores', 'copa libertadores'],
       },

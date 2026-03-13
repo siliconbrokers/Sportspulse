@@ -1,8 +1,7 @@
 import type { VideoFeed, VideoBlock } from '../hooks/use-videos.js';
 import { FeaturedVideoCard } from './FeaturedVideoCard.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
-
-const BLOCK_ORDER = ['URU', 'LL', 'EPL', 'BUN', 'CLI'];
+import { VIDEO_LEAGUE_ORDER } from '../utils/competition-meta.js';
 
 const LEAGUE_ACCENT: Record<string, string> = {
   URU: '#3b82f6',
@@ -119,7 +118,7 @@ export function VideoSection({ feed, loading, error }: VideoSectionProps) {
 
   if (!feed) return null;
 
-  const orderedBlocks = BLOCK_ORDER
+  const orderedBlocks = VIDEO_LEAGUE_ORDER
     .map((key) => feed.blocks.find((b) => b.leagueKey === key))
     .filter(Boolean) as VideoBlock[];
 

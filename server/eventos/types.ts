@@ -2,6 +2,7 @@ export type EventStatus = 'EN_VIVO' | 'PROXIMO' | 'DESCONOCIDO';
 
 export type NormalizedLeague =
   | 'URUGUAY_PRIMERA'
+  | 'ARGENTINA_PRIMERA'
   | 'LALIGA'
   | 'PREMIER_LEAGUE'
   | 'BUNDESLIGA'

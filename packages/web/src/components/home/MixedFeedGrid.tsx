@@ -3,8 +3,7 @@ import type { NewsFeed, NewsBlock, NewsHeadline } from '../../hooks/use-news.js'
 import type { VideoFeed, LeagueVideoHighlight } from '../../hooks/use-videos.js';
 import { NewsCard } from '../NewsCard.js';
 import { FeaturedVideoCard } from '../FeaturedVideoCard.js';
-
-const BLOCK_ORDER = ['URU', 'LL', 'EPL', 'BUN'];
+import { NEWS_LEAGUE_ORDER } from '../../utils/competition-meta.js';
 
 const LEAGUE_ACCENT: Record<string, string> = {
   URU: '#3b82f6',
@@ -45,7 +44,7 @@ function buildMixedFeed(
 ): FeedItem[] {
   const items: FeedItem[] = [];
 
-  for (const key of BLOCK_ORDER) {
+  for (const key of NEWS_LEAGUE_ORDER) {
     const block = blocks.find((b) => b.leagueKey === key);
     const videos = videosByLeague.get(key) ?? [];
 

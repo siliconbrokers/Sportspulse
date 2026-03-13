@@ -43,23 +43,25 @@ const CARD_GAP       = 12;
 // ZOMBIE_THRESHOLD_MIN y AUTOFINISH_THRESHOLD_MIN vienen de match-status.ts (importados arriba)
 
 const LEAGUE_ACCENT: Record<string, string> = {
-  URUGUAY_PRIMERA:   '#3b82f6',
-  LALIGA:            '#f59e0b',
-  PREMIER_LEAGUE:    '#a855f7',
-  BUNDESLIGA:        '#ef4444',
-  MUNDIAL:           '#22c55e',
-  COPA_AMERICA:      '#3b82f6',
-  COPA_LIBERTADORES: '#eab308',
+  URUGUAY_PRIMERA:    '#3b82f6',
+  ARGENTINA_PRIMERA:  '#74b9ff',
+  LALIGA:             '#f59e0b',
+  PREMIER_LEAGUE:     '#a855f7',
+  BUNDESLIGA:         '#ef4444',
+  MUNDIAL:            '#22c55e',
+  COPA_AMERICA:       '#3b82f6',
+  COPA_LIBERTADORES:  '#eab308',
 };
 
 const LEAGUE_LABEL: Record<string, string> = {
-  URUGUAY_PRIMERA:   'Uruguay · 1ª',
-  LALIGA:            'LaLiga EA',
-  PREMIER_LEAGUE:    'Premier League',
-  BUNDESLIGA:        'Bundesliga',
-  MUNDIAL:           'Mundial 2026',
-  COPA_AMERICA:      'Copa América',
-  COPA_LIBERTADORES: 'Libertadores',
+  URUGUAY_PRIMERA:    'Uruguay · 1ª',
+  ARGENTINA_PRIMERA:  'Argentina · 1ª',
+  LALIGA:             'LaLiga EA',
+  PREMIER_LEAGUE:     'Premier League',
+  BUNDESLIGA:         'Bundesliga',
+  MUNDIAL:            'Mundial 2026',
+  COPA_AMERICA:       'Copa América',
+  COPA_LIBERTADORES:  'Libertadores',
 };
 
 // ── CSS animations (inyectado una vez) ───────────────────────────────────────
@@ -587,7 +589,7 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
   const hasLive   = liveCount > 0;
 
   // Título dinámico
-  const sectionTitle = hasLive ? `(${liveCount}) EN VIVO AHORA` : 'PARTIDOS DE HOY';
+  const sectionTitle = hasLive ? `(${liveCount}) EN VIVO AHORA` : 'PRÓXIMOS PARTIDOS';
 
   if (!loading && sorted.length === 0) return null;
 

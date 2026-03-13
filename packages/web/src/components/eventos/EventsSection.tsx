@@ -50,6 +50,7 @@ const SIGNALS_BY_LEAGUE: Record<string, { label: string; altUrl?: string }[]> = 
 
 const ACCENT: Record<string, string> = {
   URUGUAY_PRIMERA:   '#3b82f6',
+  ARGENTINA_PRIMERA: '#74b9ff',
   LALIGA:            '#f59e0b',
   PREMIER_LEAGUE:    '#a855f7',
   BUNDESLIGA:        '#ef4444',
@@ -61,7 +62,7 @@ const ACCENT: Record<string, string> = {
 // COPA_LIBERTADORES incluida: cuando CLI está cargado, los partidos usan datos
 // canónicos con soporte completo de DetailPanel (crests, estado, pronóstico).
 
-const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA', 'COPA_LIBERTADORES']);
+const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'ARGENTINA_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA', 'COPA_LIBERTADORES']);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -66,6 +66,7 @@ export class TheSportsDbSource implements DataSource {
   private readonly leagueId: string;
   private readonly leagueName: string;
   private readonly _competitionId: string;
+  readonly providerKey: string;
   private cache: CachedData | null = null;
   private readonly crestCache = new CrestCache();
 
@@ -74,12 +75,14 @@ export class TheSportsDbSource implements DataSource {
     leagueId: string,
     leagueName: string,
     baseUrl = 'https://www.thesportsdb.com/api/v1/json',
+    providerKey = SPORTSDB_PROVIDER_KEY,
   ) {
     this.apiKey = apiKey;
     this.leagueId = leagueId;
     this.leagueName = leagueName;
     this.baseUrl = baseUrl;
-    this._competitionId = canonicalCompId(SPORTSDB_PROVIDER_KEY, leagueId);
+    this.providerKey = providerKey;
+    this._competitionId = canonicalCompId(providerKey, leagueId);
   }
 
   getTeams(compId: string): Team[] {
@@ -154,7 +157,7 @@ export class TheSportsDbSource implements DataSource {
    */
   async fetchSeason(season?: string): Promise<void> {
     const s = season ?? String(new Date().getFullYear());
-    const seasId = canonicalSeasonId(SPORTSDB_PROVIDER_KEY, `${this.leagueId}-${s}`);
+    const seasId = canonicalSeasonId(this.providerKey, `${this.leagueId}-${s}`);
     const nowUtc = new Date().toISOString();
     const t0 = Date.now();
 
@@ -183,10 +186,11 @@ export class TheSportsDbSource implements DataSource {
         0,
       );
 
-      // Fetch 6 extra rounds ahead. eventsseason.php is unreliable — it sometimes
-      // only returns already-played rounds, missing scheduled ones. 6 rounds ensures
-      // we cover upcoming fixtures even when the season endpoint lags significantly.
-      const extraRoundNumbers = Array.from({ length: 6 }, (_, i) => maxSeasonRound + 1 + i);
+      // Fetch 25 extra rounds ahead. eventsseason.php is unreliable — it sometimes
+      // only returns already-played rounds, missing scheduled ones. For leagues like
+      // the Argentine Primera División, eventsseason returns only Round 1, so we need
+      // enough extra rounds to cover the full season (up to ~16-17 rounds for Clausura).
+      const extraRoundNumbers = Array.from({ length: 25 }, (_, i) => maxSeasonRound + 1 + i);
       const extraRoundResults = await Promise.all(
         extraRoundNumbers.map((r) =>
           this.apiGet<{ events: SDBEvent[] | null }>(
@@ -207,9 +211,13 @@ export class TheSportsDbSource implements DataSource {
         ),
       ];
 
-      // Persistir en disco
+      // Persistir en disco (datos crudos completos — el filtro se aplica después)
       await writeRawCache<SDBEvent[]>(diskKey, rawEvents);
     }
+
+    // Filter split-tournament leagues (e.g. Argentine Clausura/Apertura):
+    // keep only the half of the year that is currently active.
+    const filteredEvents = selectActiveTournamentHalf(rawEvents, s);
 
     // Phase 2: build team registry directly from event data.
     // Each event carries strHomeTeamBadge / strAwayTeamBadge, so we don't need
@@ -220,14 +228,14 @@ export class TheSportsDbSource implements DataSource {
 
     const upsertTeam = (id: string, name: string, badgeUrl?: string) => {
       if (!teamIdMap.has(id)) {
-        const canonId = canonicalTeamId(SPORTSDB_PROVIDER_KEY, id);
+        const canonId = canonicalTeamId(this.providerKey, id);
         teams.push({
           teamId: canonId,
           sportId: Sport.FOOTBALL,
           name,
           tla: resolveTla(name),
           crestUrl: badgeUrl || undefined,
-          providerKey: SPORTSDB_PROVIDER_KEY,
+          providerKey: this.providerKey,
           providerTeamId: id,
         });
         teamIdMap.set(id, canonId);
@@ -238,7 +246,7 @@ export class TheSportsDbSource implements DataSource {
       }
     };
 
-    for (const e of rawEvents) {
+    for (const e of filteredEvents) {
       upsertTeam(e.idHomeTeam, e.strHomeTeam, e.strHomeTeamBadge);
       upsertTeam(e.idAwayTeam, e.strAwayTeam, e.strAwayTeamBadge);
     }
@@ -258,7 +266,7 @@ export class TheSportsDbSource implements DataSource {
 
     // Map events → canonical matches
     const matches: Match[] = [];
-    for (const e of rawEvents) {
+    for (const e of filteredEvents) {
       const homeTeamId = teamIdMap.get(e.idHomeTeam);
       const awayTeamId = teamIdMap.get(e.idAwayTeam);
       if (!homeTeamId || !awayTeamId) {
@@ -292,7 +300,7 @@ export class TheSportsDbSource implements DataSource {
       }
 
       matches.push({
-        matchId: canonicalMatchId(SPORTSDB_PROVIDER_KEY, e.idEvent),
+        matchId: canonicalMatchId(this.providerKey, e.idEvent),
         seasonId: seasId,
         matchday: parseInt(e.intRound, 10) || undefined,
         startTimeUtc,
@@ -301,7 +309,7 @@ export class TheSportsDbSource implements DataSource {
         awayTeamId,
         scoreHome,
         scoreAway,
-        providerKey: SPORTSDB_PROVIDER_KEY,
+        providerKey: this.providerKey,
         providerMatchId: e.idEvent,
         lastSeenUtc: nowUtc,
       });
@@ -317,7 +325,7 @@ export class TheSportsDbSource implements DataSource {
     );
 
     // Persist teams to disk for recovery after rate-limit restarts
-    persistTeamsCache(SPORTSDB_PROVIDER_KEY, this.leagueId, teams);
+    persistTeamsCache(this.providerKey, this.leagueId, teams);
 
     this.cache = {
       teams,
@@ -332,7 +340,7 @@ export class TheSportsDbSource implements DataSource {
       teams
         .filter((t) => t.providerTeamId)
         .map((t) => ({ providerTeamId: t.providerTeamId!, crestUrl: t.crestUrl })),
-      SPORTSDB_PROVIDER_KEY,
+      this.providerKey,
     ).then((urlMap) => {
       if (!this.cache) return;
       this.cache = {
@@ -386,6 +394,43 @@ export class TheSportsDbSource implements DataSource {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Detects and resolves the Argentine-style split tournament pattern.
+ *
+ * TheSportsDB stores Clausura (H1: Jan–Jun) and Apertura (H2: Jul–Dec) under
+ * the same league/season/round numbers. eventsround.php returns both halves
+ * for a given round, producing ~30 matches per round instead of ~15.
+ *
+ * Detection: if ≥15% of events fall in each calendar half, the distribution
+ * is considered bimodal → keep only the half that contains today's date.
+ * Leagues with a single calendar window (e.g. Uruguay) are not affected.
+ */
+function selectActiveTournamentHalf(events: SDBEvent[], season: string): SDBEvent[] {
+  if (events.length < 4) return events;
+
+  const splitDate = `${season}-07-01`;
+  const today = new Date().toISOString().slice(0, 10);
+
+  const firstHalf  = events.filter((e) => !!e.dateEvent && e.dateEvent <  splitDate);
+  const secondHalf = events.filter((e) => !!e.dateEvent && e.dateEvent >= splitDate);
+
+  const total = firstHalf.length + secondHalf.length;
+  const MIN_FRACTION = 0.15;
+  if (
+    firstHalf.length  < total * MIN_FRACTION ||
+    secondHalf.length < total * MIN_FRACTION
+  ) {
+    return events; // single-window season — no split
+  }
+
+  const activeHalf = today < splitDate ? firstHalf : secondHalf;
+  const label = today < splitDate ? 'H1 (Clausura)' : 'H2 (Apertura)';
+  console.log(
+    `[TheSportsDbSource] Split tournament detected (league=${events[0]?.idHomeTeam?.slice(0,4) ?? '?'}) — keeping ${label}: ${activeHalf.length}/${total} events`,
+  );
+  return activeHalf;
+}
 
 /**
  * Returns the lowest round that has at least one non-FINISHED match

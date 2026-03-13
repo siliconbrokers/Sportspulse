@@ -6,13 +6,14 @@ import { deduplicate } from './filter.js';
 import type { LeagueKey, NewsHeadline, NewsLeagueBlock, NewsFeedDTO, StandingsProvider } from './types.js';
 
 // spec §13: límites por liga
-const LIMITS: Record<LeagueKey, number> = { URU: 10, LL: 5, EPL: 5, BUN: 5, WC: 8, CA: 6, CLI: 6 };
+const LIMITS: Record<LeagueKey, number> = { URU: 10, AR: 8, LL: 5, EPL: 5, BUN: 5, WC: 8, CA: 6, CLI: 6 };
 
 // spec §12: orden fijo entre ligas
-const LEAGUE_ORDER: LeagueKey[] = ['URU', 'LL', 'EPL', 'BUN', 'WC', 'CA', 'CLI'];
+const LEAGUE_ORDER: LeagueKey[] = ['URU', 'AR', 'LL', 'EPL', 'BUN', 'WC', 'CA', 'CLI'];
 
 const COMPETITION_LABELS: Record<LeagueKey, string> = {
   URU: 'Fútbol uruguayo',
+  AR: 'Liga Profesional Argentina',
   LL: 'LaLiga',
   EPL: 'Premier League',
   BUN: 'Bundesliga',

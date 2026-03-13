@@ -6,10 +6,11 @@ import type { EventSignal } from '../eventos/EventCard.js';
 
 // Gradientes por liga: [from, to]
 const LEAGUE_GRADIENT: Record<string, [string, string]> = {
-  URUGUAY_PRIMERA: ['#1e3a8a', '#1d4ed8'],
-  LALIGA:          ['#78350f', '#b45309'],
-  PREMIER_LEAGUE:  ['#4c1d95', '#7c3aed'],
-  BUNDESLIGA:      ['#7f1d1d', '#b91c1c'],
+  URUGUAY_PRIMERA:   ['#1e3a8a', '#1d4ed8'],
+  ARGENTINA_PRIMERA: ['#1a3a5c', '#1565c0'],
+  LALIGA:            ['#78350f', '#b45309'],
+  PREMIER_LEAGUE:    ['#4c1d95', '#7c3aed'],
+  BUNDESLIGA:        ['#7f1d1d', '#b91c1c'],
 };
 
 function openAltUrl(url: string) {

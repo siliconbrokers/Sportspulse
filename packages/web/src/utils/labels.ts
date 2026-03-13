@@ -13,6 +13,7 @@ const COMPETITION_NAMES: Record<string, string> = {
   EC: '🇪🇺 Euro Cup',
   WC: '🌍 World Cup',
   '4432': '🇺🇾 Liga Uruguaya',
+  '4406': '🇦🇷 Liga Argentina',
 };
 
 export function competitionDisplayName(competitionId: string): string {

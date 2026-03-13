@@ -37,6 +37,7 @@ function isLabsRoute(): boolean {
 
 const COMPETITIONS = [
   { id: 'comp:thesportsdb:4432', code: '4432', isTournament: false },
+  { id: 'comp:sportsdb-ar:4406', code: '4406-ar', isTournament: false },
   { id: 'comp:football-data:PD', code: 'PD', isTournament: false },
   { id: 'comp:football-data:PL', code: 'PL', isTournament: false },
   { id: 'comp:openligadb:bl1', code: 'BL1', isTournament: false },

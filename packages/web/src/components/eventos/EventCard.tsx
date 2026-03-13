@@ -71,18 +71,20 @@ function toApiStatus(normalizedStatus: string): string {
 // ── Logos y labels de liga ────────────────────────────────────────────────────
 
 const LEAGUE_LOGO: Record<string, string> = {
-  URUGUAY_PRIMERA: 'https://r2.thesportsdb.com/images/media/league/badge/3p98xv1740672448.png',
-  LALIGA:          'https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png',
-  PREMIER_LEAGUE:  'https://r2.thesportsdb.com/images/media/league/badge/gasy9d1737743125.png',
-  BUNDESLIGA:      'https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png',
+  URUGUAY_PRIMERA:   'https://r2.thesportsdb.com/images/media/league/badge/3p98xv1740672448.png',
+  ARGENTINA_PRIMERA: 'https://r2.thesportsdb.com/images/media/league/badge/itsy6p1723478606.png',
+  LALIGA:            'https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png',
+  PREMIER_LEAGUE:    'https://r2.thesportsdb.com/images/media/league/badge/gasy9d1737743125.png',
+  BUNDESLIGA:        'https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png',
 };
 
 const LEAGUE_LABEL: Record<string, string> = {
-  URUGUAY_PRIMERA: 'Primera División',
-  LALIGA:          'LaLiga',
-  PREMIER_LEAGUE:  'Premier League',
-  BUNDESLIGA:      'Bundesliga',
-  OTRA:            'Otro',
+  URUGUAY_PRIMERA:   'Primera División',
+  ARGENTINA_PRIMERA: 'Liga Profesional',
+  LALIGA:            'LaLiga',
+  PREMIER_LEAGUE:    'Premier League',
+  BUNDESLIGA:        'Bundesliga',
+  OTRA:              'Otro',
 };
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────

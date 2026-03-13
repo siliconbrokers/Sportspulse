@@ -17,9 +17,9 @@ import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
 import type { TournamentConfig } from './tournament-config.js';
 import { rankGroup } from '@sportpulse/prediction';
 import type { GroupData, MatchResult as PEMatchResult } from '@sportpulse/prediction';
-import { CA_GROUP_RANKING_RULES } from '@sportpulse/prediction';
 import { readRawCache, writeRawCache } from './raw-response-cache.js';
 import { CrestCache } from './crest-cache.js';
+import type { ApiFootballCLIOverlay } from './api-football-cli-overlay.js';
 
 /** @deprecated Usar TournamentConfig.providerKey directamente. Mantenido para compatibilidad. */
 export const WC_PROVIDER_KEY = 'football-data-wc';
@@ -244,6 +244,13 @@ export interface TournamentMatchesView {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
+ * Umbrales de detección LIVE — espejados de packages/web/src/utils/match-status.ts.
+ * Ambos lados deben mantenerse sincronizados: el servidor no puede importar del frontend.
+ */
+const ZOMBIE_THRESHOLD_MIN  = 180; // min: partido confirma zombie (pendiente de score)
+const AUTOFINISH_THRESHOLD_MIN = 240; // min: partido se auto-termina si el API no actualiza
+
+/**
  * Heurística temporal para detectar si una pierna está en juego.
  * Espeja la lógica de match-status.ts (frontend).
  * Aplica a cualquier proveedor que no actualice status en tiempo real.
@@ -251,10 +258,16 @@ export interface TournamentMatchesView {
 function isLegLiveByTime(utcDate: string | null | undefined): boolean {
   if (!utcDate) return false;
   const elapsed = (Date.now() - new Date(utcDate).getTime()) / 60_000;
-  return elapsed >= 0 && elapsed <= 240;
+  return elapsed >= 0 && elapsed <= AUTOFINISH_THRESHOLD_MIN;
 }
 
-function normalizeStatus(fdStatus: string): Match['status'] {
+function normalizeStatus(fdStatus: string, utcDate?: string): Match['status'] {
+  // Zombie guard: football-data.org free tier a veces deja partidos atascados como IN_PLAY
+  // sin actualizar el status final. Si pasaron más de AUTOFINISH_THRESHOLD_MIN, asumimos FINISHED.
+  if ((fdStatus === 'IN_PLAY' || fdStatus === 'PAUSED') && utcDate) {
+    const elapsed = (Date.now() - new Date(utcDate).getTime()) / 60_000;
+    if (elapsed > AUTOFINISH_THRESHOLD_MIN) return 'FINISHED';
+  }
   switch (fdStatus.toUpperCase()) {
     case 'FINISHED':                          return 'FINISHED';
     case 'IN_PLAY': case 'PAUSED':            return 'IN_PROGRESS';
@@ -285,8 +298,10 @@ function groupNameEs(fdGroupType: string): string {
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
-const CACHE_TTL_MS      = 30 * 60_000;          // 30 min — in-memory
-const DISK_CACHE_TTL_MS = 5 * 60_000;             // 5 min — permite refresh durante partidos en vivo
+const CACHE_TTL_MS      = 30 * 60_000;          // 30 min — in-memory (sin partidos en vivo)
+const DISK_CACHE_TTL_MS = 5 * 60_000;            // 5 min — disco (sin partidos en vivo)
+const LIVE_CACHE_TTL_MS = 2 * 60_000;            // 2 min — in-memory cuando hay partido en vivo
+const LIVE_DISK_TTL_MS  = 2 * 60_000;            // 2 min — disco cuando hay partido en vivo
 
 interface TournamentRawCache {
   teams: { teams: FDWCTeam[] };
@@ -320,12 +335,18 @@ export class FootballDataTournamentSource implements DataSource {
 
   private cache: TournamentCache | null = null;
   private readonly crestCache = new CrestCache();
+  private cliOverlay: ApiFootballCLIOverlay | null = null;
 
   constructor(apiToken: string, config: TournamentConfig, baseUrl = 'https://api.football-data.org/v4') {
     this.apiToken = apiToken;
     this.config = config;
     this.baseUrl = baseUrl;
     this.competitionId = canonicalCompId(config.providerKey, config.competitionCode);
+  }
+
+  /** Registra un overlay de scores de API-Football (solo para Copa Libertadores). */
+  setScoreOverlay(overlay: ApiFootballCLIOverlay): void {
+    this.cliOverlay = overlay;
   }
 
   // ── DataSource interface (requerido por RoutingDataSource + scheduler) ────────
@@ -412,6 +433,48 @@ export class FootballDataTournamentSource implements DataSource {
         matches: matches.sort((a, b) => (a.kickoffUtc ?? '') < (b.kickoffUtc ?? '') ? -1 : 1),
       });
     }
+
+    // Completar con fases eliminatorias desde tiesByStageId —
+    // cubre etapas cuyos cruces aún no tienen equipos confirmados (TBD).
+    // Sin esto, R16/QF/SF/Final no aparecen en el tab "Por ronda" hasta que
+    // los equipos sean conocidos.
+    const TBD_TEAM = { teamId: 'tbd', name: 'Por definir', crestUrl: undefined };
+    for (const [stageId, ties] of this.cache.tiesByStageId) {
+      if (matchesByStage.has(stageId)) continue; // ya fue cubierto arriba
+      const meta = this.cache.stageMeta.get(stageId);
+      if (!meta || meta.orderIndex <= 0) continue; // solo knockout (orderIndex > 0)
+
+      const items: TournamentMatchItem[] = ties.map((tie) => {
+        const homeTeam = tie.slotA.participantId
+          ? (this.cache!.teams.get(tie.slotA.participantId) ?? { ...TBD_TEAM, teamId: tie.slotA.participantId, name: tie.slotA.teamName ?? 'Por definir', crestUrl: tie.slotA.crestUrl })
+          : { ...TBD_TEAM, name: tie.slotA.placeholderText ?? 'Por definir' };
+        const awayTeam = tie.slotB.participantId
+          ? (this.cache!.teams.get(tie.slotB.participantId) ?? { ...TBD_TEAM, teamId: tie.slotB.participantId, name: tie.slotB.teamName ?? 'Por definir', crestUrl: tie.slotB.crestUrl })
+          : { ...TBD_TEAM, name: tie.slotB.placeholderText ?? 'Por definir' };
+
+        return {
+          matchId: tie.tieId,
+          kickoffUtc: tie.utcDate ?? null,
+          status: tie.winnerId ? 'FINISHED' : 'SCHEDULED',
+          homeTeam: { teamId: homeTeam.teamId, name: homeTeam.name, crestUrl: homeTeam.crestUrl },
+          awayTeam: { teamId: awayTeam.teamId, name: awayTeam.name, crestUrl: awayTeam.crestUrl },
+          scoreHome: tie.scoreA ?? null,
+          scoreAway: tie.scoreB ?? null,
+          scoreHomeExtraTime: tie.scoreAExtraTime ?? null,
+          scoreAwayExtraTime: tie.scoreBExtraTime ?? null,
+          scoreHomePenalties: tie.scoreAPenalties ?? null,
+          scoreAwayPenalties: tie.scoreBPenalties ?? null,
+        };
+      });
+
+      rounds.push({
+        stageId,
+        name: meta.name,
+        orderIndex: meta.orderIndex,
+        matches: items.sort((a, b) => (a.kickoffUtc ?? '') < (b.kickoffUtc ?? '') ? -1 : 1),
+      });
+    }
+
     rounds.sort((a, b) => a.orderIndex - b.orderIndex);
 
     // ── Por grupo: solo matches de GROUP_STAGE ───────────────────────────────
@@ -472,7 +535,14 @@ export class FootballDataTournamentSource implements DataSource {
 
   async fetchTournament(): Promise<void> {
     const nowMs = Date.now();
-    if (this.cache && nowMs - this.cache.fetchedAt < CACHE_TTL_MS) {
+
+    // TTL adaptativo: si el caché anterior tenía partidos en vivo, usar TTL corto
+    // para reflejar cambios de score lo antes posible.
+    const hadLive = this.cache?.matches.some((m) => m.status === 'IN_PROGRESS');
+    const effectiveCacheTtl = hadLive ? LIVE_CACHE_TTL_MS : CACHE_TTL_MS;
+    const effectiveDiskTtl  = hadLive ? LIVE_DISK_TTL_MS  : DISK_CACHE_TTL_MS;
+
+    if (this.cache && nowMs - this.cache.fetchedAt < effectiveCacheTtl) {
       return; // datos frescos en memoria
     }
 
@@ -482,7 +552,7 @@ export class FootballDataTournamentSource implements DataSource {
     let standingsResp: FDWCStandingsResponse = { standings: [] };
 
     // Intentar leer desde caché de disco
-    const diskHit = await readRawCache<TournamentRawCache>(diskKey, DISK_CACHE_TTL_MS);
+    const diskHit = await readRawCache<TournamentRawCache>(diskKey, effectiveDiskTtl);
     if (diskHit) {
       console.log(`[TournamentSource] DISK_HIT ${this.config.competitionCode}`);
       teamsResp = diskHit.teams;
@@ -604,7 +674,12 @@ export class FootballDataTournamentSource implements DataSource {
           matches: raw.matches,
         };
 
-        const rankResult = rankGroup(groupData, CA_GROUP_RANKING_RULES);
+        const rankingRules = this.config.groupRankingRules;
+        if (!rankingRules) {
+          console.error(`[TournamentSource] ${this.config.nameEs}: groupRankingRules no definido en TournamentConfig. Grupo ${groupId} omitido.`);
+          continue;
+        }
+        const rankResult = rankGroup(groupData, rankingRules);
         const ranked = rankResult.status !== 'BLOCKED' ? rankResult.data : [];
 
         const entries: StandingEntry[] = ranked.map((rt) => {
@@ -790,7 +865,7 @@ export class FootballDataTournamentSource implements DataSource {
           matchId, seasonId,
           matchday: m.matchday ?? undefined,
           startTimeUtc: m.utcDate || null,
-          status: normalizeStatus(m.status),
+          status: normalizeStatus(m.status, m.utcDate),
           homeTeamId, awayTeamId,
           scoreHome: canonicalScoreHome,
           scoreAway: canonicalScoreAway,
@@ -997,6 +1072,30 @@ export class FootballDataTournamentSource implements DataSource {
 
       if (!tiesByStageId.has(stageId)) tiesByStageId.set(stageId, []);
       tiesByStageId.get(stageId)!.push(tie);
+    }
+
+    // ── Score overlay: parchear scores/status desde API-Football si está configurado ──
+    if (this.cliOverlay) {
+      const { normTeamName } = await import('./api-football-cli-overlay.js');
+      for (let i = 0; i < matches.length; i++) {
+        const m = matches[i];
+        if (!m.startTimeUtc) continue;
+        const homeTeam = teams.get(m.homeTeamId);
+        const awayTeam = teams.get(m.awayTeamId);
+        if (!homeTeam || !awayTeam) continue;
+        const datePrefix = m.startTimeUtc.slice(0, 10);
+        const override = await this.cliOverlay.getOverride(datePrefix, homeTeam.name, awayTeam.name);
+        if (!override) continue;
+        matches[i] = {
+          ...m,
+          scoreHome: override.scoreHome,
+          scoreAway: override.scoreAway,
+          status: override.status === 'FINISHED' ? 'FINISHED'
+                : override.status === 'IN_PROGRESS' ? 'IN_PROGRESS'
+                : m.status,
+        };
+      }
+      console.log(`[FootballDataTournamentSource] Score overlay aplicado para ${this.config.competitionCode}`);
     }
 
     this.cache = {

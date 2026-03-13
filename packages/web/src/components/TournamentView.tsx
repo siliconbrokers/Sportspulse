@@ -95,21 +95,17 @@ export function TournamentView({ competitionId, accent = 'var(--sp-primary)', st
 
   return (
     <div>
-      {/* Tab bar — solo muestra tabs con datos */}
+      {/* Tab bar — orden fiel al array phases */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--sp-border-8)', marginBottom: 16 }}>
-        {hasPreliminary && (
-          <button style={tabStyle(effectiveTab === 'previa')} onClick={() => setTab('previa')}>
-            Fase Previa
-          </button>
-        )}
-        <button style={tabStyle(effectiveTab === 'grupos')} onClick={() => setTab('grupos')}>
-          Grupos
-        </button>
-        {hasKnockout && (
-          <button style={tabStyle(effectiveTab === 'eliminatorias')} onClick={() => setTab('eliminatorias')}>
-            Eliminatorias
-          </button>
-        )}
+        {(phases ?? ['grupos', 'eliminatorias']).map((p) => {
+          if (p === 'previa' && hasPreliminary)
+            return <button key="previa" style={tabStyle(effectiveTab === 'previa')} onClick={() => setTab('previa')}>Fase Previa</button>;
+          if (p === 'grupos')
+            return <button key="grupos" style={tabStyle(effectiveTab === 'grupos')} onClick={() => setTab('grupos')}>Grupos</button>;
+          if (p === 'eliminatorias' && hasKnockout)
+            return <button key="eliminatorias" style={tabStyle(effectiveTab === 'eliminatorias')} onClick={() => setTab('eliminatorias')}>Eliminatorias</button>;
+          return null;
+        })}
       </div>
 
       {/* Contenido */}

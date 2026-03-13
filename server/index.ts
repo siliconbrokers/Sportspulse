@@ -8,6 +8,7 @@ import { CrestCache } from './crest-cache.js';
 import { ApiFootballSource } from './api-football-source.js';
 import { RoutingDataSource } from './routing-data-source.js';
 import { NewsService } from './news/index.js';
+import { ApiFootballCLIOverlay } from './api-football-cli-overlay.js';
 import { VideoService } from './video/index.js';
 import { RadarApiAdapter } from './radar/index.js';
 import { EventosService, buildEventSource } from './eventos/index.js';
@@ -55,6 +56,12 @@ const UY_LEAGUE_ID = '4432';
 const UY_LEAGUE_NAME = 'Uruguayan Primera Division';
 const UY_COMPETITION_ID = `comp:${SPORTSDB_PROVIDER_KEY}:${UY_LEAGUE_ID}`;
 
+// TheSportsDB — Liga Argentina
+const AR_PROVIDER_KEY = 'sportsdb-ar';
+const AR_LEAGUE_ID = '4406';
+const AR_LEAGUE_NAME = 'Argentinian Primera Division';
+const AR_COMPETITION_ID = `comp:${AR_PROVIDER_KEY}:${AR_LEAGUE_ID}`;
+
 // OpenLigaDB — Bundesliga
 const OLG_LEAGUE = 'bl1';
 const OLG_COMPETITION_ID = `comp:${OPENLIGADB_PROVIDER_KEY}:${OLG_LEAGUE}`;
@@ -91,6 +98,17 @@ async function main() {
     console.error(`Failed to fetch Liga Uruguaya from TheSportsDB:`, err);
   }
 
+  // TheSportsDB — Liga Argentina
+  const sportsDbArSource = new TheSportsDbSource(
+    SPORTSDB_API_KEY, AR_LEAGUE_ID, AR_LEAGUE_NAME,
+    'https://www.thesportsdb.com/api/v1/json', AR_PROVIDER_KEY,
+  );
+  try {
+    await sportsDbArSource.fetchSeason();
+  } catch (err) {
+    console.error(`Failed to fetch Liga Argentina from TheSportsDB:`, err);
+  }
+
   // OpenLigaDB — Bundesliga (no auth required)
   const openLigaDbSource = new OpenLigaDBSource(OLG_LEAGUE, '1. Bundesliga');
   try {
@@ -114,6 +132,17 @@ async function main() {
   // WC fetch consume varias requests; 20s garantiza ventana suficiente antes de CLI.
   const cliSource = new FootballDataTournamentSource(API_TOKEN, CLI_CONFIG);
   const CLI_COMPETITION_ID = cliSource.competitionId; // 'comp:football-data-cli:CLI'
+
+  // Score overlay: API-Football (RapidAPI) provee scores correctos para Copa Libertadores.
+  // football-data.org free tier no actualiza scores de CLI en tiempo real.
+  const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY ?? '';
+  if (RAPIDAPI_KEY) {
+    cliSource.setScoreOverlay(new ApiFootballCLIOverlay(RAPIDAPI_KEY));
+    console.log('[Startup] API-Football CLI overlay activado (scores Copa Libertadores)');
+  } else {
+    console.warn('[Startup] RAPIDAPI_KEY no configurada — scores CLI desde football-data.org (puede ser incorrecto)');
+  }
+
   try {
     await new Promise<void>((r) => setTimeout(r, 20000));
     await cliSource.fetchTournament();
@@ -123,9 +152,10 @@ async function main() {
     console.error('[Startup] Verificá que FOOTBALL_DATA_TOKEN tenga acceso a CLI. Visitá /api/ui/status para diagnóstico.');
   }
 
-  // Routing: Liga Uruguaya → TheSportsDB, BL1 → OpenLigaDB, WC/CA/CLI → tournament sources, resto → football-data.org
+  // Routing: Liga Uruguaya/Argentina → TheSportsDB, BL1 → OpenLigaDB, WC/CA/CLI → tournament sources, resto → football-data.org
   const dataSource = new RoutingDataSource(fdSource, [
     { competitionId: UY_COMPETITION_ID, providerKey: SPORTSDB_PROVIDER_KEY, source: sportsDbSource },
+    { competitionId: AR_COMPETITION_ID, providerKey: AR_PROVIDER_KEY, source: sportsDbArSource },
     { competitionId: OLG_COMPETITION_ID, providerKey: OPENLIGADB_PROVIDER_KEY, source: openLigaDbSource },
     { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
     { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
@@ -166,7 +196,7 @@ async function main() {
 
   // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy, league-aware)
   const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`);
-  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, OLG_COMPETITION_ID, WC_COMPETITION_ID, CLI_COMPETITION_ID];
+  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, AR_COMPETITION_ID, OLG_COMPETITION_ID, WC_COMPETITION_ID, CLI_COMPETITION_ID];
   // V2 only supports football-data.org competitions (historical loader only covers FD)
   const fdCompetitionCodeMap = new Map(FD_COMPETITION_CODES.map((c) => [`comp:football-data:${c}`, c]));
   function normTeamName(s: string) {
@@ -182,10 +212,11 @@ async function main() {
     leagueCrestMaps = new Map();
     globalCrestMap = new Map();
     const leagueToCompIds: Record<string, string[]> = {
-      URUGUAY_PRIMERA: [UY_COMPETITION_ID],
-      PREMIER_LEAGUE:  FD_COMPETITION_CODES.includes('PL') ? ['comp:football-data:PL'] : [],
-      LALIGA:          FD_COMPETITION_CODES.includes('PD') ? ['comp:football-data:PD'] : [],
-      BUNDESLIGA:      [OLG_COMPETITION_ID],
+      URUGUAY_PRIMERA:   [UY_COMPETITION_ID],
+      ARGENTINA_PRIMERA: [AR_COMPETITION_ID],
+      PREMIER_LEAGUE:    FD_COMPETITION_CODES.includes('PL') ? ['comp:football-data:PL'] : [],
+      LALIGA:            FD_COMPETITION_CODES.includes('PD') ? ['comp:football-data:PD'] : [],
+      BUNDESLIGA:        [OLG_COMPETITION_ID],
     };
     for (const [league, compIds] of Object.entries(leagueToCompIds)) {
       const map = new Map<string, string>();
@@ -237,7 +268,8 @@ async function main() {
     const apiFootballSource = new ApiFootballSource(AF_KEY_FOR_INCIDENTS, dataSource);
     matchEventsService.registerProvider('football-data', apiFootballSource);
     matchEventsService.registerProvider('thesportsdb', apiFootballSource);
-    console.log('[ApiFootballSource] registered for football-data + thesportsdb');
+    matchEventsService.registerProvider(AR_PROVIDER_KEY, apiFootballSource);
+    console.log('[ApiFootballSource] registered for football-data + thesportsdb + sportsdb-ar');
   } else {
     console.warn('[ApiFootballSource] APIFOOTBALL_KEY not set — PD/PL/URU goal events disabled');
   }
@@ -247,6 +279,7 @@ async function main() {
 
   const COMP_LEAGUE_KEY: Record<string, string> = {
     [UY_COMPETITION_ID]:  'URUGUAY_PRIMERA',
+    [AR_COMPETITION_ID]:  'ARGENTINA_PRIMERA',
     [OLG_COMPETITION_ID]: 'BUNDESLIGA',
   };
   for (const code of FD_COMPETITION_CODES) {

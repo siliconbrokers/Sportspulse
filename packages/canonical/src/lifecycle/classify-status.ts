@@ -37,6 +37,9 @@ const STATUS_MAP: Record<string, EventStatus> = {
   'MATCH FINISHED': EventStatus.FINISHED,
   'NOT STARTED': EventStatus.SCHEDULED,
   'IN PROGRESS': EventStatus.IN_PROGRESS,
+  'MATCH POSTPONED': EventStatus.POSTPONED,
+  'MATCH CANCELLED': EventStatus.CANCELED,
+  'MATCH ABANDONED': EventStatus.POSTPONED,
   // TheSportsDB live match period statuses
   '1H': EventStatus.IN_PROGRESS, // First Half
   '2H': EventStatus.IN_PROGRESS, // Second Half

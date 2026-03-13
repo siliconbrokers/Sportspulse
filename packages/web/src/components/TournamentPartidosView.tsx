@@ -5,7 +5,7 @@
  * Mobile-first, responsive.
  */
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import { useTournamentMatches, type TournamentMatchItem } from '../hooks/use-tournament-matches.js';
 import { useTeamDetail } from '../hooks/use-team-detail.js';
@@ -177,7 +177,7 @@ function MatchRow({
   );
 }
 
-// ── ScrollableTabBar — selector horizontal con scroll ─────────────────────────
+// ── ScrollableTabBar — selector horizontal con flechas de navegación ──────────
 
 function ScrollableTabBar<T extends string>({
   items,
@@ -192,42 +192,88 @@ function ScrollableTabBar<T extends string>({
   isMobile: boolean;
   accent?: string;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const SCROLL_STEP = isMobile ? 160 : 220;
+
+  const scroll = useCallback((dir: 'left' | 'right') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === 'right' ? SCROLL_STEP : -SCROLL_STEP, behavior: 'smooth' });
+  }, [SCROLL_STEP]);
+
+  const ArrowBtn = ({ dir }: { dir: 'left' | 'right' }) => (
+    <button
+      onClick={() => scroll(dir)}
+      aria-label={dir === 'left' ? 'Anterior' : 'Siguiente'}
+      style={{
+        flexShrink: 0,
+        width: isMobile ? 28 : 32,
+        height: isMobile ? 28 : 32,
+        borderRadius: '50%',
+        border: '1px solid var(--sp-border-12)',
+        background: 'var(--sp-surface-card)',
+        color: 'var(--sp-text-55)',
+        fontSize: 14,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.15s ease',
+        lineHeight: 1,
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = accent; (e.currentTarget as HTMLButtonElement).style.color = accent; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--sp-border-12)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--sp-text-55)'; }}
+    >
+      {dir === 'left' ? '‹' : '›'}
+    </button>
+  );
+
   return (
-    <div style={{
-      display: 'flex',
-      gap: 6,
-      overflowX: 'auto',
-      paddingBottom: 4,
-      scrollbarWidth: 'none',
-      WebkitOverflowScrolling: 'touch',
-    }}>
-      {items.map((item) => {
-        const isActive = selected === item.id;
-        return (
-          <button
-            key={item.id}
-            onClick={() => onSelect(item.id)}
-            style={{
-              flexShrink: 0,
-              padding: isMobile ? '6px 14px' : '7px 18px',
-              borderRadius: 9999,
-              border: isActive
-                ? `1px solid ${accent}60`
-                : '1px solid var(--sp-border-8)',
-              background: isActive ? `${accent}18` : 'var(--sp-surface)',
-              color: isActive ? accent : 'var(--sp-text-40)',
-              fontSize: isMobile ? 12 : 13,
-              fontWeight: isActive ? 700 : 500,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              minHeight: 36,
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {item.label}
-          </button>
-        );
-      })}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <ArrowBtn dir="left" />
+      <div
+        ref={scrollRef}
+        style={{
+          flex: 1,
+          display: 'flex',
+          gap: 6,
+          overflowX: 'auto',
+          paddingBottom: 2,
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          WebkitOverflowScrolling: 'touch',
+          minWidth: 0,
+        }}
+      >
+        {items.map((item) => {
+          const isActive = selected === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onSelect(item.id)}
+              style={{
+                flexShrink: 0,
+                padding: isMobile ? '6px 14px' : '7px 18px',
+                borderRadius: 9999,
+                border: isActive
+                  ? `1px solid ${accent}60`
+                  : '1px solid var(--sp-border-8)',
+                background: isActive ? `${accent}18` : 'var(--sp-surface)',
+                color: isActive ? accent : 'var(--sp-text-40)',
+                fontSize: isMobile ? 12 : 13,
+                fontWeight: isActive ? 700 : 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                minHeight: 36,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+      <ArrowBtn dir="right" />
     </div>
   );
 }
@@ -248,6 +294,70 @@ function SkeletonList({ count = 6 }: { count?: number }) {
       ))}
     </div>
   );
+}
+
+// ── Active round resolver ─────────────────────────────────────────────────────
+//
+// Determina la ronda "activa" según las fechas de los partidos:
+//   1. Si hay partidos en curso (kickoff ≤ now ≤ kickoff + 180min) → esa ronda
+//   2. Si no, la ronda con el partido más reciente en el pasado (closest to now)
+//   3. Si todas las rondas son futuras → la ronda con el primer partido más próximo
+//   4. Fallback → primera ronda de la lista
+
+function resolveActiveRoundId(rounds: TournamentRoundMatchesBlock[]): string | null {
+  if (rounds.length === 0) return null;
+
+  const now = Date.now();
+  const LIVE_WINDOW_MS = 180 * 60 * 1000;
+
+  // Score por ronda: cuál es el partido representativo más cercano a ahora
+  let bestId: string | null = null;
+  let bestScore = Infinity; // distancia en ms al "partido más representativo"
+  let bestIsLive = false;
+
+  for (const round of rounds) {
+    const dates = round.matches
+      .map((m) => m.kickoffUtc ? new Date(m.kickoffUtc).getTime() : null)
+      .filter((d): d is number => d !== null);
+
+    if (dates.length === 0) continue;
+
+    // ¿Hay algún partido en curso en esta ronda?
+    const hasLive = dates.some((d) => now >= d && now <= d + LIVE_WINDOW_MS);
+    if (hasLive) {
+      // Ronda con partido en curso → máxima prioridad
+      if (!bestIsLive) {
+        bestIsLive = true;
+        bestId = round.stageId;
+        bestScore = 0;
+      }
+      continue;
+    }
+    if (bestIsLive) continue; // ya encontramos una ronda en curso
+
+    // Partido más reciente en el pasado dentro de esta ronda
+    const pastDates = dates.filter((d) => d <= now);
+    if (pastDates.length > 0) {
+      const mostRecent = Math.max(...pastDates);
+      const dist = now - mostRecent;
+      if (dist < bestScore) {
+        bestScore = dist;
+        bestId = round.stageId;
+      }
+      continue;
+    }
+
+    // Todos los partidos de esta ronda son futuros
+    const earliest = Math.min(...dates);
+    const dist = earliest - now;
+    // Solo considera rondas futuras si aún no encontramos ninguna pasada
+    if (bestScore === Infinity || dist < bestScore) {
+      bestScore = dist;
+      bestId = round.stageId;
+    }
+  }
+
+  return bestId ?? rounds[0]?.stageId ?? null;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -277,8 +387,8 @@ export function TournamentPartidosView({ competitionId, accent = 'var(--sp-prima
   const rounds = data?.rounds ?? [];
   const groups = data?.groups ?? [];
 
-  // Auto-seleccionar primera ronda/grupo cuando llegan datos
-  const effectiveRoundId = selectedRoundId ?? rounds[0]?.stageId ?? null;
+  // Auto-seleccionar ronda activa según fechas de partidos (o primera si no hay selección manual)
+  const effectiveRoundId = selectedRoundId ?? resolveActiveRoundId(rounds);
   const effectiveGroupId = selectedGroupId ?? groups[0]?.groupId ?? null;
 
   const selectedRound = rounds.find((r) => r.stageId === effectiveRoundId);

@@ -9,6 +9,7 @@ const BUNDESLIGA_ALIASES = ['bundesliga', 'german bundesliga', 'bundesliga 1'];
 const LALIGA_ALIASES = ['laliga', 'spanish la liga', 'laliga ea sports', 'la liga'];
 const PREMIER_ALIASES = ['premier league', 'epl', 'english premier league'];
 const URUGUAY_ALIASES = ['primera división', 'primera division', 'liga auf uruguaya', 'apertura auf'];
+const ARGENTINA_ALIASES = ['liga profesional', 'superliga argentina', 'primera division argentina', 'primera nacional argentina'];
 const LIBERTADORES_ALIASES = ['copa libertadores', 'conmebol libertadores', 'libertadores'];
 
 // spec §9.2 — torneos excluidos
@@ -48,6 +49,7 @@ function normalizeLeague(competition: string, home: string | null, away: string 
   if (BUNDESLIGA_ALIASES.some((a) => c === a || c.includes(a))) return 'BUNDESLIGA';
   if (LALIGA_ALIASES.some((a) => c === a || c.includes(a))) return 'LALIGA';
   if (PREMIER_ALIASES.some((a) => c === a || c.includes(a))) return 'PREMIER_LEAGUE';
+  if (ARGENTINA_ALIASES.some((a) => c === a || c.includes(a))) return 'ARGENTINA_PRIMERA';
 
   // spec §10 — Uruguay requiere validación por equipos
   if (URUGUAY_ALIASES.some((a) => c === a || c.includes(a))) {

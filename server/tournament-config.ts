@@ -9,6 +9,12 @@
  * Para agregar un torneo nuevo: crear una nueva constante aquí y
  * registrarla en server/index.ts.
  */
+import type { GroupRankingRules } from '@sportpulse/prediction';
+import { CA_GROUP_RANKING_RULES } from '@sportpulse/prediction';
+
+// Copa Libertadores 2026 usa los mismos criterios de desempate CONMEBOL que Copa América
+// (puntos, H2H puntos, H2H GD, H2H GF, GD global, GF global, sorteo).
+export const CLI_GROUP_RANKING_RULES: GroupRankingRules = CA_GROUP_RANKING_RULES;
 
 export interface TournamentConfig {
   /** Código de la competición en football-data.org (ej: 'WC', 'CA'). */
@@ -36,6 +42,12 @@ export interface TournamentConfig {
    * WC usa false (ya funciona). Torneos nuevos deben usar true (PE-native).
    */
   usePERanking: boolean;
+  /**
+   * Reglas de ranking de grupos para el PE competition engine.
+   * Solo relevante si usePERanking=true. Cada torneo define sus propias reglas
+   * de desempate según el reglamento oficial de la competición.
+   */
+  groupRankingRules?: GroupRankingRules;
   /**
    * Fecha ISO de inicio del torneo (fase de grupos).
    * Usada por el frontend para el banner pre-torneo.
@@ -69,6 +81,7 @@ export const CA_CONFIG: TournamentConfig = {
   formatFamily: 'GROUP_STAGE_PLUS_KNOCKOUT',
   bestThirdsCount: 0,
   usePERanking: true,
+  groupRankingRules: CA_GROUP_RANKING_RULES,
   startDate: undefined, // actualizar al confirmar fecha oficial
   nameEs: 'Copa América 2027',
 };
@@ -84,6 +97,7 @@ export const CLI_CONFIG: TournamentConfig = {
   formatFamily: 'GROUP_STAGE_PLUS_KNOCKOUT',
   bestThirdsCount: 0,
   usePERanking: true,
+  groupRankingRules: CLI_GROUP_RANKING_RULES,
   startDate: undefined,
   nameEs: 'Copa Libertadores 2026',
 };

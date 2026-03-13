@@ -3,9 +3,7 @@ import type { VideoFeed } from '../hooks/use-videos.js';
 import { NewsCard } from './NewsCard.js';
 import { FeaturedVideoCard } from './FeaturedVideoCard.js';
 import { useWindowWidth } from '../hooks/use-window-width.js';
-
-// spec §4: orden fijo entre ligas
-const BLOCK_ORDER = ['URU', 'LL', 'EPL', 'BUN'];
+import { NEWS_LEAGUE_ORDER } from '../utils/competition-meta.js';
 
 // Color de acento por liga
 const LEAGUE_ACCENT: Record<string, string> = {
@@ -155,7 +153,7 @@ export function NewsSection({ feed, loading, error, videoFeed }: NewsSectionProp
 
   if (!feed) return null;
 
-  const orderedBlocks = BLOCK_ORDER.map((key) =>
+  const orderedBlocks = NEWS_LEAGUE_ORDER.map((key) =>
     feed.blocks.find((b) => b.leagueKey === key),
   ).filter(Boolean) as NewsBlock[];
 

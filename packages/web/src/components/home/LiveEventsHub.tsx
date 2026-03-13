@@ -2,20 +2,22 @@
 import type { EventosFeed, ParsedEvent } from '../../hooks/use-events.js';
 import { BentoMatchCard } from './BentoMatchCard.js';
 
-const LEAGUE_ORDER = ['URUGUAY_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA'] as const;
+const LEAGUE_ORDER = ['URUGUAY_PRIMERA', 'ARGENTINA_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA'] as const;
 
 const LEAGUE_LABELS: Record<string, string> = {
-  URUGUAY_PRIMERA: 'Fútbol Uruguayo',
-  LALIGA:          'LaLiga',
-  PREMIER_LEAGUE:  'Premier League',
-  BUNDESLIGA:      'Bundesliga',
+  URUGUAY_PRIMERA:   'Fútbol Uruguayo',
+  ARGENTINA_PRIMERA: 'Liga Argentina',
+  LALIGA:            'LaLiga',
+  PREMIER_LEAGUE:    'Premier League',
+  BUNDESLIGA:        'Bundesliga',
 };
 
 const LEAGUE_ACCENT: Record<string, string> = {
-  URUGUAY_PRIMERA: '#3b82f6',
-  LALIGA:          '#f59e0b',
-  PREMIER_LEAGUE:  '#a855f7',
-  BUNDESLIGA:      '#ef4444',
+  URUGUAY_PRIMERA:   '#3b82f6',
+  ARGENTINA_PRIMERA: '#74b9ff',
+  LALIGA:            '#f59e0b',
+  PREMIER_LEAGUE:    '#a855f7',
+  BUNDESLIGA:        '#ef4444',
 };
 
 const URUGUAY_SIGNALS = [

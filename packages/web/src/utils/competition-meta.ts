@@ -28,6 +28,14 @@ export const COMPETITION_META: CompetitionMeta[] = [
     season: '2026',
   },
   {
+    id: 'comp:sportsdb-ar:4406',
+    name: 'Liga Argentina',
+    shortName: 'Argentina',
+    logoUrl: 'https://r2.thesportsdb.com/images/media/league/badge/rk9xhx1768238251.png',
+    accent: '#74b9ff',
+    season: '2026',
+  },
+  {
     id: 'comp:football-data:PD',
     name: 'LaLiga',
     shortName: 'LaLiga',
@@ -75,3 +83,11 @@ export const COMPETITION_META: CompetitionMeta[] = [
 export function getCompMeta(id: string): CompetitionMeta | undefined {
   return COMPETITION_META.find((c) => c.id === id);
 }
+
+// ── Orden de visualización de bloques de noticias / video ─────────────────────
+
+/** Orden de bloques en NewsSection y feeds de noticias del home. */
+export const NEWS_LEAGUE_ORDER = ['URU', 'LL', 'EPL', 'BUN'] as const;
+
+/** Orden de bloques en VideoSection (incluye CLI una vez tenga soporte de video). */
+export const VIDEO_LEAGUE_ORDER = ['URU', 'LL', 'EPL', 'BUN', 'CLI'] as const;

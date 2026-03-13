@@ -176,13 +176,19 @@ export class FootballDataSource implements DataSource {
   }
 
   getTotalMatchdays(compId: string): number {
+    // Known totals per competition code (football-data.org handles PD and PL only).
+    // BL1 is routed to OpenLigaDB which returns 34 independently.
+    const KNOWN: Record<string, number> = { PD: 38, PL: 38 };
+    const code = compId.split(':')[2] ?? '';
+    const fallback = KNOWN[code] ?? 38;
+
     const cached = this.getCached(compId);
-    if (!cached) return 38;
+    if (!cached) return fallback;
     const matchdays = new Set<number>();
     for (const m of cached.matches) {
       if (m.matchday) matchdays.add(m.matchday);
     }
-    return matchdays.size || 38;
+    return matchdays.size || fallback;
   }
 
   /**
