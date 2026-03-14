@@ -261,9 +261,8 @@ function LiveMatchCard({
       // LIVE: stream tiene prioridad; si no hay stream, abre DetailPanel
       if (isStream) openEventDirect(event);
       else if (isCanonical) onDetailClick(event.id);
-    } else if (isStream) {
-      openEventDirect(event);
     } else if (isCanonical) {
+      // No iniciado o finalizado: siempre abre DetailPanel (nunca stream)
       onDetailClick(event.id);
     }
   }

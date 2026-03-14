@@ -1325,8 +1325,8 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
         </section>
       )}
 
-      {/* API quota warning — shown when API-Football daily limit is exhausted */}
-      {incidents?.quotaExhausted && (
+      {/* API quota warning — only relevant during live matches (quota blocks real-time events) */}
+      {incidents?.quotaExhausted && vm.uiState === 'IN_PLAY' && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
