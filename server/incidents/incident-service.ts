@@ -5,23 +5,64 @@
  *   1. Cargar snapshot de caché
  *   2. Evaluar shouldScrapeIncidents
  *   3. Si no → devolver snapshot actual
- *   4. Si sí → lock → fetch via API-Football → persistir → devolver
+ *   4. Si sí → lock → fetch → persistir → devolver
  *
- * Fuente de datos: ApiFootballIncidentSource (api-sports.io)
- * Reemplaza Flashscore que usa JS rendering y no funciona con fetch plano.
+ * Fuentes de datos:
+ *   - NATIVE_GOALS_COMPETITIONS (BL1): usa goalsFallback directamente (OpenLigaDB, sin quota)
+ *     → solo goles (no tarjetas ni sustituciones), pero gratis e ilimitado
+ *   - Resto: ApiFootballIncidentSource (api-sports.io, 100 req/día compartido)
+ *     → con fallback a goalsFallback si quota agotada y partido FINISHED
  *
  * Lock in-memory (spec §7.9): Map<matchId, Promise> evita fetches duplicados
  * para el mismo partido cuando dos usuarios lo abren simultáneamente.
  */
 import { shouldScrapeIncidents } from './should-scrape.js';
 import { loadIncidentSnapshot, saveIncidentSnapshot } from './incident-cache.js';
-import { ApiFootballIncidentSource } from './apifootball-incident-source.js';
+import { ApiFootballIncidentSource, isApiFootballQuotaExhausted } from './apifootball-incident-source.js';
 import type {
   IncidentSnapshot,
   MatchCoreInput,
   SnapshotType,
   IncidentEvent,
 } from './types.js';
+
+/**
+ * Competiciones que usan su proveedor nativo de goles (gratuito, sin quota).
+ * Para estas, se bypasea API-Football completamente — solo goles disponibles.
+ */
+const NATIVE_GOALS_COMPETITIONS = new Set([
+  'comp:openligadb:bl1',
+]);
+
+/** True si la competición NO usa API-Football para incidentes. */
+export function usesNativeGoals(competitionId: string): boolean {
+  return NATIVE_GOALS_COMPETITIONS.has(competitionId);
+}
+
+/** Minimal interface for goals fallback — satisfied by MatchEventsService. */
+export interface IGoalsFallback {
+  getMatchGoals(canonicalMatchId: string): Promise<GoalFallbackItem[]>;
+}
+
+interface GoalFallbackItem {
+  minute: number;
+  injuryTime?: number;
+  type: 'GOAL' | 'OWN_GOAL' | 'PENALTY';
+  team: 'HOME' | 'AWAY';
+  scorerName?: string;
+}
+
+function goalsToIncidents(goals: GoalFallbackItem[]): IncidentEvent[] {
+  return goals.map((g) => ({
+    type: g.type === 'PENALTY' ? 'PENALTY_GOAL' as const
+        : g.type === 'OWN_GOAL' ? 'OWN_GOAL' as const
+        : 'GOAL' as const,
+    minute: g.minute,
+    minuteExtra: g.injuryTime,
+    teamSide: g.team,
+    playerName: g.scorerName,
+  }));
+}
 
 function buildSnapshot(
   matchCore: MatchCoreInput,
@@ -50,7 +91,10 @@ export class IncidentService {
   /** Lock in-memory: clave = matchId, valor = Promise del fetch en curso */
   private locks = new Map<string, Promise<IncidentSnapshot | null>>();
 
-  constructor(apiFootballKey: string) {
+  constructor(
+    apiFootballKey: string,
+    private readonly goalsFallback?: IGoalsFallback,
+  ) {
     this.source = new ApiFootballIncidentSource(apiFootballKey);
   }
 
@@ -81,11 +125,48 @@ export class IncidentService {
     }
 
     // 4. Adquirir lock y ejecutar fetch
-    const work = this.runFetch(matchCore, snapshot).finally(() => {
+    // Para competiciones nativas (BL1): bypass API-Football, usar proveedor nativo directamente
+    const runWork = usesNativeGoals(matchCore.competitionId)
+      ? this.runNativeFetch(matchCore, snapshot)
+      : this.runFetch(matchCore, snapshot);
+
+    const work = runWork.finally(() => {
       this.locks.delete(matchCore.matchId);
     });
     this.locks.set(matchCore.matchId, work);
     return work;
+  }
+
+  /**
+   * Fetch nativo: usa goalsFallback directamente sin tocar API-Football.
+   * Solo disponible para competiciones en NATIVE_GOALS_COMPETITIONS.
+   * Devuelve goles únicamente (sin tarjetas ni sustituciones).
+   */
+  private async runNativeFetch(
+    matchCore: MatchCoreInput,
+    fallback: IncidentSnapshot | null,
+  ): Promise<IncidentSnapshot | null> {
+    if (!this.goalsFallback) {
+      console.warn(`[IncidentService] runNativeFetch: no goalsFallback configured for ${matchCore.matchId}`);
+      return fallback;
+    }
+    try {
+      const goals = await this.goalsFallback.getMatchGoals(matchCore.matchId);
+      if (goals.length === 0 && fallback) return fallback;
+      if (goals.length === 0) return null;
+
+      const events = goalsToIncidents(goals);
+      const snapshot = buildSnapshot(matchCore, events);
+      await saveIncidentSnapshot(snapshot, matchCore);
+      console.log(
+        `[IncidentService] Native snapshot matchId=${matchCore.matchId} ` +
+        `status=${matchCore.status} goals=${events.length}`,
+      );
+      return snapshot;
+    } catch (err) {
+      console.error(`[IncidentService] Native fetch failed for ${matchCore.matchId}:`, err);
+      return fallback;
+    }
   }
 
   private async runFetch(
@@ -99,6 +180,28 @@ export class IncidentService {
       // and we have an existing snapshot, keep it.
       if (events.length === 0 && fallback) {
         return fallback;
+      }
+
+      // Fallback: when API-Football quota is exhausted or returned no events for a
+      // FINISHED match, try to get goal events from the existing goals service
+      // (TheSportsDB / OpenLigaDB). Goals-only — no cards or subs.
+      if (events.length === 0 && matchCore.status === 'FINISHED' && this.goalsFallback) {
+        const quotaGone = isApiFootballQuotaExhausted();
+        try {
+          const goals = await this.goalsFallback.getMatchGoals(matchCore.matchId);
+          if (goals.length > 0) {
+            const fallbackEvents = goalsToIncidents(goals);
+            const snapshot = buildSnapshot(matchCore, fallbackEvents);
+            await saveIncidentSnapshot(snapshot, matchCore);
+            console.log(
+              `[IncidentService] Saved goals-fallback snapshot matchId=${matchCore.matchId} ` +
+              `goals=${fallbackEvents.length}${quotaGone ? ' (quota exhausted)' : ''}`,
+            );
+            return snapshot;
+          }
+        } catch (fallbackErr) {
+          console.warn(`[IncidentService] Goals fallback failed for ${matchCore.matchId}:`, fallbackErr);
+        }
       }
 
       // For FINISHED matches with no events and no prior snapshot, the fixture

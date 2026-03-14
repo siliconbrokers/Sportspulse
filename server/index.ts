@@ -17,6 +17,7 @@ import { EventosService, buildEventSource } from './eventos/index.js';
 import { MatchEventsService } from './match-events-service.js';
 import { IncidentService } from './incidents/incident-service.js';
 import { isApiFootballQuotaExhausted } from './incidents/apifootball-incident-source.js';
+import { usesNativeGoals } from './incidents/incident-service.js';
 import { PredictionService } from './prediction/prediction-service.js';
 import { getBestCalibrationRegistry } from './prediction/global-calibrator-store.js';
 import { PredictionStore } from './prediction/prediction-store.js';
@@ -284,8 +285,8 @@ async function main() {
   );
 
   const AF_KEY_FOR_INCIDENTS = process.env.APIFOOTBALL_KEY ?? '';
-  const incidentService = new IncidentService(AF_KEY_FOR_INCIDENTS);
 
+  // Build matchEventsService first — used as goals fallback for IncidentService.
   const matchEventsService = new MatchEventsService(SPORTSDB_API_KEY, dataSource);
   // OpenLigaDB handles its own goal events natively (BL1)
   matchEventsService.registerProvider(OPENLIGADB_PROVIDER_KEY, openLigaDbSource);
@@ -299,6 +300,9 @@ async function main() {
   } else {
     console.warn('[ApiFootballSource] APIFOOTBALL_KEY not set — PD/PL/URU goal events disabled');
   }
+
+  // IncidentService: API-Football as primary, matchEventsService as goals-only fallback.
+  const incidentService = new IncidentService(AF_KEY_FOR_INCIDENTS, matchEventsService);
 
   // ── UpcomingService — partidos de hoy / próximas 24h desde fuentes canónicas ──
   const PORTAL_TZ = 'America/Montevideo';
@@ -669,7 +673,8 @@ async function main() {
       return reply.code(204).send();
     }
 
-    const quotaExhausted = isApiFootballQuotaExhausted();
+    // Para competiciones con proveedor nativo (BL1 → OpenLigaDB), nunca aplica quota de API-Football.
+    const quotaExhausted = !usesNativeGoals(matchCore.competitionId) && isApiFootballQuotaExhausted();
     try {
       const snapshot = await incidentService.get(matchCore);
       if (!snapshot) {

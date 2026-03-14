@@ -129,7 +129,8 @@ export class FootballDataSource implements DataSource {
 
   getCurrentMatchday(compId: string): number | undefined {
     const cached = this.getCached(compId);
-    return cached?.currentMatchday;
+    if (!cached) return undefined;
+    return this.getBestDisplayMatchday(compId) ?? cached.currentMatchday;
   }
 
   getLastPlayedMatchday(compId: string): number | undefined {
@@ -154,6 +155,37 @@ export class FootballDataSource implements DataSource {
       }
     }
     return last;
+  }
+
+  getBestDisplayMatchday(compId: string): number | undefined {
+    const cached = this.getCached(compId);
+    if (!cached) return undefined;
+
+    const nowMs = Date.now();
+    let liveMd: number | undefined;
+    let earliestUpcomingMs = Infinity;
+    let earliestUpcomingMd: number | undefined;
+    let highestFinished: number | undefined;
+
+    for (const m of cached.matches) {
+      if (m.matchday === undefined) continue;
+      const t = m.startTimeUtc ? new Date(m.startTimeUtc).getTime() : 0;
+
+      if (m.status === 'IN_PROGRESS') {
+        liveMd = m.matchday;
+      } else if (m.status === 'FINISHED') {
+        if (highestFinished === undefined || m.matchday > highestFinished) highestFinished = m.matchday;
+      } else if (m.status === 'SCHEDULED' && t > nowMs) {
+        if (t < earliestUpcomingMs) { earliestUpcomingMs = t; earliestUpcomingMd = m.matchday; }
+      }
+    }
+
+    // 1. Live match → show that matchday
+    if (liveMd !== undefined) return liveMd;
+    // 2. The matchday with the earliest upcoming game (handles out-of-order fixtures correctly)
+    if (earliestUpcomingMd !== undefined) return earliestUpcomingMd;
+    // 3. Season over / all played → highest finished matchday
+    return highestFinished ?? cached.currentMatchday;
   }
 
   getNextMatchday(compId: string): number | undefined {

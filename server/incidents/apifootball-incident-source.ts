@@ -21,27 +21,18 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { MatchCoreInput, IncidentEvent } from './types.js';
 
+import {
+  isQuotaExhausted as isAfQuotaExhausted,
+  markQuotaExhausted as markAfQuotaExhausted,
+  consumeRequest as consumeAfRequest,
+} from '../af-budget.js';
+
 const BASE_URL    = 'https://v3.football.api-sports.io';
 const ID_MAP_PATH = path.resolve(process.cwd(), 'cache', 'incidents', 'af-fixture-map.json');
 
-// ── Quota guard ────────────────────────────────────────────────────────────────
-// API-Football free plan has a daily request limit. When exhausted, the API
-// returns HTTP 200 with { errors: { requests: "You have reached the limit..." } }.
-// We detect this once and skip all further requests until UTC midnight.
-
-let _quotaExhaustedUntil = 0;
-
+/** Re-exported for use in the server incidents route response. */
 export function isApiFootballQuotaExhausted(): boolean {
-  return Date.now() < _quotaExhaustedUntil;
-}
-
-function markQuotaExhausted(): void {
-  const now = new Date();
-  const nextMidnight = new Date(Date.UTC(
-    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1,
-  ));
-  _quotaExhaustedUntil = nextMidnight.getTime();
-  console.warn(`[AfIncidents] Daily quota exhausted — suspending requests until ${nextMidnight.toISOString()}`);
+  return isAfQuotaExhausted();
 }
 
 // ── Competition → API-Football league config ───────────────────────────────────
@@ -154,7 +145,7 @@ export class ApiFootballIncidentSource {
   constructor(private readonly apiKey: string) {}
 
   async getIncidents(matchCore: MatchCoreInput): Promise<IncidentEvent[]> {
-    if (isApiFootballQuotaExhausted()) return [];
+    if (isAfQuotaExhausted()) return [];
 
     const config = COMP_LEAGUE_MAP[matchCore.competitionId];
     if (!config) return [];
@@ -242,7 +233,7 @@ export class ApiFootballIncidentSource {
     matchCore: MatchCoreInput,
     config: LeagueConfig,
   ): Promise<FixtureEntry | null> {
-    if (!matchCore.kickoffUtc || isApiFootballQuotaExhausted()) return null;
+    if (!matchCore.kickoffUtc || isAfQuotaExhausted()) return null;
 
     const kickoffMs = new Date(matchCore.kickoffUtc).getTime();
     const utcDate   = matchCore.kickoffUtc.slice(0, 10);
@@ -342,7 +333,7 @@ export class ApiFootballIncidentSource {
   }
 
   private async apiGet<T extends { errors?: Record<string, string> }>(endpoint: string): Promise<T> {
-    if (isApiFootballQuotaExhausted()) throw new Error('API-Football quota exhausted');
+    if (isAfQuotaExhausted()) throw new Error('API-Football quota exhausted');
 
     const url = `${BASE_URL}${endpoint}`;
     const res = await fetch(url, {
@@ -356,9 +347,10 @@ export class ApiFootballIncidentSource {
 
     const data = await res.json() as T;
     if (data?.errors?.requests) {
-      markQuotaExhausted();
+      markAfQuotaExhausted();
       throw new Error(`API-Football quota: ${data.errors.requests}`);
     }
+    consumeAfRequest();
     return data;
   }
 }

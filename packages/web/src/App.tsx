@@ -131,7 +131,6 @@ function App() {
   // Cuando carga compInfo: setear jornada por defecto
   useEffect(() => {
     if (!compInfo) return;
-    // Prefer the current/last-played matchday; fall back to next upcoming
     const defaultMatchday =
       compInfo.currentMatchday ?? compInfo.lastPlayedMatchday ?? compInfo.nextMatchday;
     if (defaultMatchday) setMatchday(defaultMatchday);
@@ -140,7 +139,6 @@ function App() {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
   const totalMatchdays = compInfo?.totalMatchdays ?? 38;
-  // The "active" matchday drives both the blue dot and showForm logic
   const activeMatchday = compInfo
     ? (compInfo.currentMatchday ?? compInfo.nextMatchday ?? null)
     : null;

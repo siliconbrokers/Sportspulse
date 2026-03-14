@@ -160,7 +160,7 @@ export class OpenLigaDBSource implements DataSource {
 
   getCurrentMatchday(compId: string): number | undefined {
     if (!this.owns(compId)) return undefined;
-    return this.getCached()?.currentMatchday;
+    return this.getBestDisplayMatchday(compId) ?? this.getCached()?.currentMatchday;
   }
 
   getLastPlayedMatchday(compId: string): number | undefined {
@@ -187,6 +187,34 @@ export class OpenLigaDBSource implements DataSource {
       if (next === undefined || m.matchday < next) next = m.matchday;
     }
     return next;
+  }
+
+  getBestDisplayMatchday(compId: string): number | undefined {
+    if (!this.owns(compId)) return undefined;
+    const hit = this.getCached();
+    if (!hit) return undefined;
+
+    const nowMs = Date.now();
+    let liveMd: number | undefined;
+    let earliestUpcomingMs = Infinity;
+    let earliestUpcomingMd: number | undefined;
+    let highestFinished: number | undefined;
+
+    for (const m of hit.matches) {
+      if (m.matchday === undefined) continue;
+      const t = m.startTimeUtc ? new Date(m.startTimeUtc).getTime() : 0;
+      if (m.status === 'IN_PROGRESS') {
+        liveMd = m.matchday;
+      } else if (m.status === 'FINISHED') {
+        if (highestFinished === undefined || m.matchday > highestFinished) highestFinished = m.matchday;
+      } else if (m.status === 'SCHEDULED' && t > nowMs) {
+        if (t < earliestUpcomingMs) { earliestUpcomingMs = t; earliestUpcomingMd = m.matchday; }
+      }
+    }
+
+    if (liveMd !== undefined) return liveMd;
+    if (earliestUpcomingMd !== undefined) return earliestUpcomingMd;
+    return highestFinished ?? hit.currentMatchday;
   }
 
   getTotalMatchdays(compId: string): number {
@@ -318,15 +346,22 @@ export class OpenLigaDBSource implements DataSource {
       const finalResult = m.matchResults?.find((r) => r.resultTypeID === 2)
         ?? m.matchResults?.find((r) => r.resultTypeID === 1); // fallback to half-time if no final
 
-      const rawStatus = classifyStatus(m.matchIsFinished ? 'Finished' : 'Timed');
       const startTimeUtc = m.matchDateTimeUTC ?? null;
-      // Zombie guard: si matchIsFinished=false pero han pasado >240 min, el partido terminó
-      // aunque OpenLigaDB no lo haya actualizado (proveedor lento o fallo de escritura).
+      const elapsedMs = startTimeUtc ? Date.now() - new Date(startTimeUtc).getTime() : -1;
+      const isLiveWindow = elapsedMs > 0 && elapsedMs < 240 * 60 * 1000;
+
+      // Status: matchIsFinished=true → FINISHED; started & within 240min → IN_PLAY; else TIMED
+      const rawStatus = classifyStatus(
+        m.matchIsFinished ? 'Finished' : isLiveWindow ? 'IN_PLAY' : 'Timed',
+      );
+      // Zombie guard: si elapsed >240 min y sigue no-terminal, forzar FINISHED
       const status = applyMatchStatusGuard(rawStatus, startTimeUtc);
       const isEffectivelyFinished = m.matchIsFinished || status === 'FINISHED';
 
-      const scoreHome = isEffectivelyFinished && finalResult ? finalResult.pointsTeam1 : null;
-      const scoreAway = isEffectivelyFinished && finalResult ? finalResult.pointsTeam2 : null;
+      // Show score when finished OR when live (OpenLigaDB updates resultTypeID=2 during the match)
+      const showScore = isEffectivelyFinished || isLiveWindow;
+      const scoreHome = showScore && finalResult ? finalResult.pointsTeam1 : null;
+      const scoreAway = showScore && finalResult ? finalResult.pointsTeam2 : null;
 
       return {
         matchId: canonicalMatchId(OPENLIGADB_PROVIDER_KEY, String(m.matchID)),

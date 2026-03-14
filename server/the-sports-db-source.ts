@@ -145,12 +145,7 @@ export class TheSportsDbSource implements DataSource {
 
   getCurrentMatchday(compId: string, subTournamentKey?: string): number | undefined {
     if (!this.owns(compId)) return undefined;
-    const hit = this.getCached();
-    if (!hit) return undefined;
-    const key = subTournamentKey ?? hit.activeSubTournamentKey;
-    if (!key) return hit.currentMatchday;
-    const filtered = hit.matches.filter((m) => m.subTournamentKey === key);
-    return deriveCurrentMatchday(filtered);
+    return this.getBestDisplayMatchday(compId, subTournamentKey) ?? this.getCached()?.currentMatchday;
   }
 
   getLastPlayedMatchday(compId: string, subTournamentKey?: string): number | undefined {
@@ -181,6 +176,36 @@ export class TheSportsDbSource implements DataSource {
       if (next === undefined || m.matchday < next) next = m.matchday;
     }
     return next;
+  }
+
+  getBestDisplayMatchday(compId: string, subTournamentKey?: string): number | undefined {
+    if (!this.owns(compId)) return undefined;
+    const hit = this.getCached();
+    if (!hit) return undefined;
+    const key = subTournamentKey ?? hit.activeSubTournamentKey;
+    const matches = key ? hit.matches.filter((m) => m.subTournamentKey === key) : hit.matches;
+
+    const nowMs = Date.now();
+    let liveMd: number | undefined;
+    let earliestUpcomingMs = Infinity;
+    let earliestUpcomingMd: number | undefined;
+    let highestFinished: number | undefined;
+
+    for (const m of matches) {
+      if (m.matchday === undefined) continue;
+      const t = m.startTimeUtc ? new Date(m.startTimeUtc).getTime() : 0;
+      if (m.status === 'IN_PROGRESS') {
+        liveMd = m.matchday;
+      } else if (m.status === 'FINISHED') {
+        if (highestFinished === undefined || m.matchday > highestFinished) highestFinished = m.matchday;
+      } else if (m.status === 'SCHEDULED' && t > nowMs) {
+        if (t < earliestUpcomingMs) { earliestUpcomingMs = t; earliestUpcomingMd = m.matchday; }
+      }
+    }
+
+    if (liveMd !== undefined) return liveMd;
+    if (earliestUpcomingMd !== undefined) return earliestUpcomingMd;
+    return highestFinished ?? deriveCurrentMatchday(matches);
   }
 
   getTotalMatchdays(compId: string, subTournamentKey?: string): number {

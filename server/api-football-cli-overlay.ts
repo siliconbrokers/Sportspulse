@@ -13,6 +13,12 @@
  * Comparte APIFOOTBALL_KEY con el live overlay global y el incident service.
  */
 
+import {
+  isQuotaExhausted as isAfQuotaExhausted,
+  markQuotaExhausted as markAfQuotaExhausted,
+  consumeRequest as consumeAfRequest,
+} from './af-budget.js';
+
 const AF_BASE       = 'https://v3.football.api-sports.io';
 const CLI_LEAGUE_ID = 13;
 
@@ -124,6 +130,7 @@ export class ApiFootballCLIOverlay {
   // ── Cache management ──────────────────────────────────────────────────────
 
   private async ensureLiveFresh(): Promise<void> {
+    if (isAfQuotaExhausted()) return;
     const nowMs = Date.now();
     const ttl   = this.store.hasLive ? CACHE_TTL_LIVE_MS : CACHE_TTL_IDLE_MS;
     if (nowMs - this.store.fetchedAt < ttl) return;
@@ -169,12 +176,18 @@ export class ApiFootballCLIOverlay {
 
   // ── HTTP ──────────────────────────────────────────────────────────────────
 
-  private async apiGet<T>(endpoint: string): Promise<T> {
+  private async apiGet<T extends { errors?: Record<string, string> }>(endpoint: string): Promise<T> {
     const res = await fetch(`${AF_BASE}${endpoint}`, {
       headers: { 'x-apisports-key': this.apiKey },
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) throw new Error(`CLIOverlay HTTP ${res.status}: ${endpoint}`);
-    return res.json() as Promise<T>;
+    const data = await res.json() as T;
+    if (data?.errors?.requests) {
+      markAfQuotaExhausted();
+      throw new Error(`CLIOverlay quota: ${data.errors.requests}`);
+    }
+    consumeAfRequest();
+    return data;
   }
 }

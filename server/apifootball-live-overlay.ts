@@ -1,24 +1,23 @@
 /**
  * ApifootballLiveOverlay — scores en vivo via API-Football v3 (api-sports.io).
  *
- * Estrategia de budget (free tier: 100 req/día):
+ * Estrategia de budget (free tier: 100 req/día compartidos con IncidentSource y CLIOverlay):
  *   - Hay partidos en vivo  → poll cada 2 min
  *   - Sin partidos en vivo  → poll cada 15 min
- *   - Requests today >= 90  → throttle a 20 min sin importar estado
+ *   - Budget brake activo (≥80 req totales) → throttle a 20 min
  *
- * Peor caso (3 ventanas de 90 min en vivo):  3 × 45 = 135 req — podría exceder 100.
- * Caso típico (1-2 ventanas + idle):         ~50-80 req — dentro del límite.
+ * El contador de requests es compartido via af-budget.ts para coordinar
+ * los 3 consumidores del mismo APIFOOTBALL_KEY.
  *
  * Un único call a /fixtures?live=all trae TODOS los partidos en vivo de todas las ligas.
  */
+import { isQuotaExhausted, isLiveBrakeActive, consumeRequest, markQuotaExhausted, getBudgetStats } from './af-budget.js';
 
 const BASE_URL = 'https://v3.football.api-sports.io';
 
 const POLL_LIVE_MS   = 2  * 60_000;  // 2 min — hay live
 const POLL_IDLE_MS   = 15 * 60_000;  // 15 min — sin live
-const POLL_BUDGET_MS = 20 * 60_000;  // 20 min — cerca del límite diario
-const DAILY_BUDGET   = 100;
-const BUDGET_BRAKE   = 90;           // empieza a throttlear a partir de 90
+const POLL_BUDGET_MS = 20 * 60_000;  // 20 min — brake activo
 
 // ── API response types ────────────────────────────────────────────────────────
 
@@ -68,9 +67,7 @@ export class ApifootballLiveOverlay {
   /** Lista raw para fallback de búsqueda por contains */
   private rawList: Array<{ homeNorm: string; awayNorm: string; entry: LiveScoreEntry }> = [];
 
-  private hasLive       = false;
-  private requestsToday = 0;
-  private dayStart      = Date.now();
+  private hasLive = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly apiKey: string) {}
@@ -119,17 +116,20 @@ export class ApifootballLiveOverlay {
   // ── Private ──────────────────────────────────────────────────────────────────
 
   private async poll(): Promise<void> {
-    this.resetDayIfNeeded();
-
     let nextInterval: number;
 
-    if (this.requestsToday >= BUDGET_BRAKE) {
+    if (isQuotaExhausted()) {
       nextInterval = POLL_BUDGET_MS;
-      console.log(`[LiveOverlay] Budget brake activo (${this.requestsToday}/${DAILY_BUDGET} req hoy) — próximo poll en 20 min`);
+      const stats = getBudgetStats();
+      console.log(`[LiveOverlay] Cuota agotada (${stats.requestsToday}/${stats.limit} req hoy) — próximo poll en 20 min`);
+    } else if (isLiveBrakeActive()) {
+      nextInterval = POLL_BUDGET_MS;
+      const stats = getBudgetStats();
+      console.log(`[LiveOverlay] Budget brake activo (${stats.requestsToday}/${stats.limit} req hoy) — próximo poll en 20 min`);
     } else {
       try {
         const data = await this.apiFetch<{ response: AfFixture[] }>('/fixtures?live=all');
-        this.requestsToday++;
+        consumeRequest();
 
         const newCache  = new Map<string, LiveScoreEntry>();
         const newRaw: typeof this.rawList = [];
@@ -152,9 +152,10 @@ export class ApifootballLiveOverlay {
         this.hasLive = newRaw.length > 0;
 
         if (this.hasLive) {
+          const stats = getBudgetStats();
           console.log(
             `[LiveOverlay] ${newRaw.length} partidos en vivo ` +
-            `(req hoy: ${this.requestsToday}/${DAILY_BUDGET})`,
+            `(req hoy: ${stats.requestsToday}/${stats.limit})`,
           );
         }
       } catch (err) {
@@ -168,20 +169,17 @@ export class ApifootballLiveOverlay {
     this.timer = setTimeout(() => void this.poll(), nextInterval);
   }
 
-  private resetDayIfNeeded(): void {
-    const dayMs = 24 * 60 * 60_000;
-    if (Date.now() - this.dayStart >= dayMs) {
-      this.dayStart      = Date.now();
-      this.requestsToday = 0;
-    }
-  }
-
-  private async apiFetch<T>(endpoint: string): Promise<T> {
+  private async apiFetch<T extends { errors?: Record<string, string> }>(endpoint: string): Promise<T> {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       headers: { 'x-apisports-key': this.apiKey },
       signal:  AbortSignal.timeout(10_000),
     });
     if (!res.ok) throw new Error(`API-Football HTTP ${res.status}: ${endpoint}`);
-    return res.json() as Promise<T>;
+    const data = await res.json() as T;
+    if (data?.errors?.requests) {
+      markQuotaExhausted();
+      throw new Error(`API-Football quota: ${data.errors.requests}`);
+    }
+    return data;
   }
 }

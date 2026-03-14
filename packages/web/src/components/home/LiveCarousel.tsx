@@ -97,7 +97,15 @@ function injectAnimations() {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function normStr(s: string) {
-  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  return s
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')  // decode HTML entities
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b\d+\b/g, '')                   // strip números standalone: "04", "1860"
+    .replace(/\b(de|del|la|el|los|las)\b/g, '') // strip preposiciones: "Club Atletico de Madrid"
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function formatTime(isoStr: string | null): string {
@@ -250,8 +258,9 @@ function LiveMatchCard({
 
   function handleClick() {
     if (isLive && !isZombie) {
-      // LIVE: solo ir a stream si hay transmisión disponible
+      // LIVE: stream tiene prioridad; si no hay stream, abre DetailPanel
       if (isStream) openEventDirect(event);
+      else if (isCanonical) onDetailClick(event.id);
     } else if (isStream) {
       openEventDirect(event);
     } else if (isCanonical) {
@@ -259,7 +268,7 @@ function LiveMatchCard({
     }
   }
 
-  const isClickable = (isLive && !isZombie) ? isStream : (isStream || isCanonical);
+  const isClickable = isStream || isCanonical;
 
   return (
     <div

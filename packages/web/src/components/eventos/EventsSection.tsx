@@ -67,7 +67,15 @@ const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'ARGENTINA_PRIMERA', 'LALI
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function normName(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  return s
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')  // decode HTML entities
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b\d+\b/g, '')                   // strip números standalone: "04", "1860"
+    .replace(/\b(de|del|la|el|los|las)\b/g, '') // strip preposiciones: "Club Atletico de Madrid"
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function teamsMatch(a: string, b: string): boolean {
