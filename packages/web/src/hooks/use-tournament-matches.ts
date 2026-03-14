@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { TieDTO } from '../types/tournament.js';
 
 export interface TournamentMatchItem {
   matchId: string;
@@ -19,6 +20,12 @@ export interface TournamentRoundMatchesBlock {
   name: string;
   orderIndex: number;
   matches: TournamentMatchItem[];
+  /**
+   * Cruces del round con scores reconciliados con el overlay activo.
+   * Presente para fases eliminatorias y previas (orderIndex ≠ 0).
+   * Ausente para GROUP_STAGE.
+   */
+  ties?: TieDTO[];
 }
 
 export interface TournamentGroupMatchesBlock {
@@ -31,6 +38,8 @@ export interface TournamentGroupMatchesBlock {
 export interface TournamentMatchesData {
   rounds: TournamentRoundMatchesBlock[];
   groups: TournamentGroupMatchesBlock[];
+  /** 1 = partido único (WC, CA), 2 = ida+vuelta (CLI). */
+  legsPerTie: 1 | 2;
 }
 
 interface UseTournamentMatchesResult {

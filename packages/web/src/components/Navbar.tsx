@@ -76,20 +76,6 @@ export function Navbar({
             padding: '8px 10px',
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            {/* Logo — siempre muestra el lado derecho (texto) si se achica */}
-            <button
-              onClick={() => onViewChange('home')}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
-              aria-label="SportsPulse — Inicio"
-            >
-              <img
-                src="/logo.png"
-                alt="SportPulse"
-                style={{ height: 26, width: 56, objectFit: 'cover', objectPosition: 'right center' }}
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              />
-            </button>
-
             {/* Menú — ocupa el espacio restante centrado */}
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
               <NavPill view={view} onViewChange={onViewChange} isMobile={isMobile} hasLive={hasLiveMatches} isTournament={isTournament} />

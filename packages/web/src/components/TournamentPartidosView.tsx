@@ -7,9 +7,10 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useWindowWidth } from '../hooks/use-window-width.js';
-import { useTournamentMatches, type TournamentMatchItem } from '../hooks/use-tournament-matches.js';
+import { useTournamentMatches, type TournamentMatchItem, type TournamentRoundMatchesBlock } from '../hooks/use-tournament-matches.js';
 import { useTeamDetail } from '../hooks/use-team-detail.js';
 import { DetailPanel } from './DetailPanel.js';
+import { TieListCard } from './TieListCard.js';
 import type { MatchCardDTO } from '../types/snapshot.js';
 
 // ── TournamentMatchItem → MatchCardDTO adapter ────────────────────────────────
@@ -316,9 +317,14 @@ function resolveActiveRoundId(rounds: TournamentRoundMatchesBlock[]): string | n
   let bestIsLive = false;
 
   for (const round of rounds) {
-    const dates = round.matches
-      .map((m) => m.kickoffUtc ? new Date(m.kickoffUtc).getTime() : null)
-      .filter((d): d is number => d !== null);
+    // Usar fechas de ties si están disponibles, si no usar fechas de matches
+    const dates: number[] = round.ties && round.ties.length > 0
+      ? round.ties
+          .map((t) => t.utcDate ? new Date(t.utcDate).getTime() : null)
+          .filter((d): d is number => d !== null)
+      : round.matches
+          .map((m) => m.kickoffUtc ? new Date(m.kickoffUtc).getTime() : null)
+          .filter((d): d is number => d !== null);
 
     if (dates.length === 0) continue;
 
@@ -386,6 +392,7 @@ export function TournamentPartidosView({ competitionId, accent = 'var(--sp-prima
 
   const rounds = data?.rounds ?? [];
   const groups = data?.groups ?? [];
+  const legsPerTie = data?.legsPerTie ?? 1;
 
   // Auto-seleccionar ronda activa según fechas de partidos (o primera si no hay selección manual)
   const effectiveRoundId = selectedRoundId ?? resolveActiveRoundId(rounds);
@@ -394,9 +401,11 @@ export function TournamentPartidosView({ competitionId, accent = 'var(--sp-prima
   const selectedRound = rounds.find((r) => r.stageId === effectiveRoundId);
   const selectedGroup = groups.find((g) => g.groupId === effectiveGroupId);
 
+  // Para rondas con ties: usar ties. Para grupo/rondas sin ties: usar matches planos.
+  const visibleTies = filterMode === 'ronda' ? (selectedRound?.ties ?? []) : [];
   const visibleMatches: TournamentMatchItem[] =
     filterMode === 'ronda'
-      ? (selectedRound?.matches ?? [])
+      ? (visibleTies.length > 0 ? [] : (selectedRound?.matches ?? []))
       : (selectedGroup?.matches ?? []);
 
   const hasGroups = groups.length > 0;
@@ -454,8 +463,8 @@ export function TournamentPartidosView({ competitionId, accent = 'var(--sp-prima
             )}
           </div>
 
-          {/* ── Lista de partidos ── */}
-          {visibleMatches.length === 0 ? (
+          {/* ── Lista de partidos / ties ── */}
+          {visibleTies.length === 0 && visibleMatches.length === 0 ? (
             <div style={{
               padding: isMobile ? '24px 16px' : '40px 24px',
               background: 'var(--sp-surface-card)',
@@ -464,7 +473,26 @@ export function TournamentPartidosView({ competitionId, accent = 'var(--sp-prima
             }}>
               <div style={{ fontSize: 14, color: 'var(--sp-text-40)' }}>Sin partidos para esta selección.</div>
             </div>
+          ) : visibleTies.length > 0 ? (
+            /* Fases con cruces: TieListCard */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {visibleTies.map((tie) => (
+                <TieListCard
+                  key={tie.tieId}
+                  tie={tie}
+                  isMobile={isMobile}
+                  legsPerTie={legsPerTie}
+                  activeFocusTeamId={focusTeamId}
+                  onSelectTeam={(teamId, dateLocal) => {
+                    const isToggleOff = focusTeamId === teamId;
+                    setFocusTeamId(isToggleOff ? null : teamId);
+                    setFocusDateLocal(isToggleOff ? null : (dateLocal ?? todayLocal));
+                  }}
+                />
+              ))}
+            </div>
           ) : (
+            /* GROUP_STAGE y demás: MatchRow plano */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {visibleMatches.map((match) => (
                 <MatchRow

@@ -56,6 +56,13 @@ export interface TournamentConfig {
   startDate?: string;
   /** Nombre del torneo en español, para logs. */
   nameEs: string;
+  /**
+   * Número de piernas por cruce en fases eliminatorias/previas.
+   * 1 = partido único (WC, CA, default). 2 = ida+vuelta (CLI).
+   * Si el API aún no publicó leg2, el tie mostrará solo leg1 —
+   * este campo le indica al frontend que eventualmente habrá vuelta.
+   */
+  legsPerTie?: 1 | 2;
 }
 
 /** Copa del Mundo 2026 — configuración original, sin cambios de comportamiento. */
@@ -100,4 +107,5 @@ export const CLI_CONFIG: TournamentConfig = {
   groupRankingRules: CLI_GROUP_RANKING_RULES,
   startDate: undefined,
   nameEs: 'Copa Libertadores 2026',
+  legsPerTie: 2,
 };

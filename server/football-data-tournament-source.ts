@@ -227,6 +227,12 @@ export interface TournamentRoundMatchesBlock {
   name: string;
   orderIndex: number;
   matches: TournamentMatchItem[];
+  /**
+   * Cruces del round con scores reconciliados con el overlay activo.
+   * Presente para fases eliminatorias y previas (orderIndex ≠ 0).
+   * Ausente (undefined) para GROUP_STAGE.
+   */
+  ties?: TieBlock[];
 }
 
 export interface TournamentGroupMatchesBlock {
@@ -239,6 +245,8 @@ export interface TournamentGroupMatchesBlock {
 export interface TournamentMatchesView {
   rounds: TournamentRoundMatchesBlock[];
   groups: TournamentGroupMatchesBlock[];
+  /** Número de piernas por cruce, desde TournamentConfig. 1 = partido único, 2 = ida+vuelta. */
+  legsPerTie: 1 | 2;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -322,6 +330,70 @@ interface TournamentCache {
   /** stageId → { name, stageType, orderIndex } */
   stageMeta: Map<string, { name: string; stageType: StageType; orderIndex: number }>;
   fetchedAt: number;
+}
+
+// ── reconcileTieScores ────────────────────────────────────────────────────────
+//
+// Recalcula los scores agregados de un TieBlock usando los TournamentMatchItems
+// del mismo stage (que ya tienen el overlay de API-Football aplicado).
+// Si no encuentra los partidos correspondientes, devuelve el tie sin cambios.
+// Nunca muta el tie original — siempre devuelve un nuevo objeto.
+
+function reconcileTieScores(
+  tie: TieBlock,
+  stageMatches: TournamentMatchItem[],
+): TieBlock {
+  const slotAId = tie.slotA.participantId;
+  const slotBId = tie.slotB.participantId;
+
+  // Sin equipos confirmados (TBD) → no hay nada que reconciliar
+  if (!slotAId || !slotBId) return tie;
+
+  // leg1: slotA juega de local
+  const leg1m = stageMatches.find(
+    (m) => m.homeTeam.teamId === slotAId && m.awayTeam.teamId === slotBId,
+  );
+  // leg2: slotB juega de local
+  const leg2m = stageMatches.find(
+    (m) => m.homeTeam.teamId === slotBId && m.awayTeam.teamId === slotAId,
+  );
+
+  // Sin datos patched disponibles → devolver tie original
+  if (!leg1m && !leg2m) return tie;
+
+  // Scores desde los matches overlay-patched (con fallback al tie original)
+  const origLeg1 = tie.legs?.[0];
+  const origLeg2 = tie.legs?.[1];
+
+  const leg1ScoreA: number | null = leg1m?.scoreHome ?? origLeg1?.scoreA ?? null;
+  const leg1ScoreB: number | null = leg1m?.scoreAway ?? origLeg1?.scoreB ?? null;
+
+  // En leg2: slotA es visitante, slotB es local
+  const leg2ScoreA: number | null = leg2m?.scoreAway ?? origLeg2?.scoreA ?? null;
+  const leg2ScoreB: number | null = leg2m?.scoreHome ?? origLeg2?.scoreB ?? null;
+
+  const leg1Played = leg1ScoreA !== null || leg1ScoreB !== null;
+  const leg2Played = leg2ScoreA !== null || leg2ScoreB !== null;
+
+  if (!leg1Played && !leg2Played) return tie;
+
+  const newScoreA = (leg1ScoreA ?? 0) + (leg2Played ? (leg2ScoreA ?? 0) : 0);
+  const newScoreB = (leg1ScoreB ?? 0) + (leg2Played ? (leg2ScoreB ?? 0) : 0);
+
+  // Reconciliar legs solo si el tie los tenía
+  const reconciledLegs: LegBlock[] | undefined = tie.legs
+    ? [
+        { ...tie.legs[0], scoreA: leg1ScoreA, scoreB: leg1ScoreB },
+        ...(tie.legs[1] ? [{ ...tie.legs[1], scoreA: leg2ScoreA, scoreB: leg2ScoreB }] : []),
+      ]
+    : undefined;
+
+  return {
+    ...tie,
+    scoreA: leg1Played || leg2Played ? newScoreA : null,
+    scoreB: leg1Played || leg2Played ? newScoreB : null,
+    legs: reconciledLegs,
+  };
 }
 
 // ── Main class ────────────────────────────────────────────────────────────────
@@ -477,6 +549,18 @@ export class FootballDataTournamentSource implements DataSource {
 
     rounds.sort((a, b) => a.orderIndex - b.orderIndex);
 
+    // ── Agregar ties a cada round (fases eliminatorias y previas) ─────────────
+    //
+    // Para rounds con cruces (orderIndex ≠ 0), adjuntamos los TieBlocks
+    // reconciliados con los scores overlay-patched del mismo stage.
+    // GROUP_STAGE (orderIndex === 0) no tiene ties → queda sin el campo.
+    for (const round of rounds) {
+      const rawTies = this.cache.tiesByStageId.get(round.stageId);
+      if (!rawTies || rawTies.length === 0) continue;
+      const stageItems = matchesByStage.get(round.stageId) ?? [];
+      round.ties = rawTies.map((tie) => reconcileTieScores(tie, stageItems));
+    }
+
     // ── Por grupo: solo matches de GROUP_STAGE ───────────────────────────────
     const matchesByGroup = new Map<string, TournamentMatchItem[]>();
     for (const stageRound of rounds) {
@@ -503,7 +587,7 @@ export class FootballDataTournamentSource implements DataSource {
     }
     groups.sort((a, b) => a.orderIndex - b.orderIndex);
 
-    return { rounds, groups };
+    return { rounds, groups, legsPerTie: this.config.legsPerTie ?? 1 };
   }
 
   getBracketView(_competitionId: string): TournamentBracketView | null {
