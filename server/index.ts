@@ -111,11 +111,13 @@ async function main() {
   }
 
   // TheSportsDB — Liga Argentina
+  // Delay para evitar rate limit del free tier después del fetch de Uruguay (~26 requests)
   const sportsDbArSource = new TheSportsDbSource(
     SPORTSDB_API_KEY, AR_LEAGUE_ID, AR_LEAGUE_NAME,
     'https://www.thesportsdb.com/api/v1/json', AR_PROVIDER_KEY,
   );
   try {
+    await new Promise<void>((r) => setTimeout(r, 5000));
     await sportsDbArSource.fetchSeason();
   } catch (err) {
     console.error(`Failed to fetch Liga Argentina from TheSportsDB:`, err);
@@ -522,6 +524,11 @@ async function main() {
       await sportsDbSource.fetchSeason();
     } catch (err) {
       console.error('Refresh failed for Liga Uruguaya:', err);
+    }
+    try {
+      await sportsDbArSource.fetchSeason();
+    } catch (err) {
+      console.error('Refresh failed for Liga Argentina:', err);
     }
     try {
       await openLigaDbSource.fetchSeason();
