@@ -61,6 +61,7 @@ export function DashboardLayout({ competitionId, matchday, currentMatchday, time
           loading={loading}
           competitionId={competitionId}
           matchday={matchday}
+          serverComputedAtUtc={data?.header?.computedAtUtc}
         />
         {focus && teamDetail && (() => {
           const live = radarData?.liveData?.find(

@@ -14,15 +14,27 @@ import './match-map.css';
 
 // ─── Utilidades de fecha ──────────────────────────────────────────────────────
 
+const PORTAL_TZ = 'America/Montevideo';
+
 function toDateKey(utcStr: string): string {
-  return new Date(utcStr).toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+  return new Date(utcStr).toLocaleDateString('en-CA', { timeZone: PORTAL_TZ });
 }
 
-function formatDatePill(dateKey: string): string {
-  const now = new Date();
-  const today = now.toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
-  const yesterday = new Date(now.getTime() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
-  const tomorrow = new Date(now.getTime() + 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+/**
+ * Derives "today" from the server's perspective (via computedAtUtc from the snapshot header).
+ * Falls back to client's local time if not available.
+ * This prevents midnight timezone drift when the user's browser TZ differs from the portal TZ.
+ */
+function deriveServerToday(serverComputedAtUtc?: string): string {
+  const ref = serverComputedAtUtc ? new Date(serverComputedAtUtc) : new Date();
+  return ref.toLocaleDateString('en-CA', { timeZone: PORTAL_TZ });
+}
+
+function formatDatePill(dateKey: string, serverComputedAtUtc?: string): string {
+  const today = deriveServerToday(serverComputedAtUtc);
+  const refMs = serverComputedAtUtc ? new Date(serverComputedAtUtc).getTime() : Date.now();
+  const yesterday = new Date(refMs - 86400000).toLocaleDateString('en-CA', { timeZone: PORTAL_TZ });
+  const tomorrow  = new Date(refMs + 86400000).toLocaleDateString('en-CA', { timeZone: PORTAL_TZ });
   if (dateKey === today) return 'Hoy';
   if (dateKey === tomorrow) return 'Mañana';
   if (dateKey === yesterday) return 'Ayer';
@@ -154,6 +166,7 @@ function TeamRow({
   side,
   showScore,
   showDash,
+  showScorePlaceholder,
   cardState,
   showForm,
   isFocus,
@@ -163,6 +176,7 @@ function TeamRow({
   side: 'home' | 'away';
   showScore: boolean;
   showDash: boolean;
+  showScorePlaceholder: boolean;
   cardState: DisplayMatchStatus;
   showForm: boolean;
   isFocus: boolean;
@@ -231,6 +245,8 @@ function TeamRow({
           </>
         ) : showDash ? (
           <span style={{ fontSize: 16, fontWeight: 800, color: 'rgba(251,146,60,0.75)' }}>-</span>
+        ) : showScorePlaceholder ? (
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-35)', fontVariantNumeric: 'tabular-nums' }}>—</span>
         ) : (
           <span style={{ fontSize: 11, color: 'var(--sp-text-20)' }}>—</span>
         )}
@@ -265,10 +281,11 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
   const awayIsFocus = focusedTeamId === card.away.teamId;
   const hasFocus    = homeIsFocus || awayIsFocus;
 
-  const showScore =
-    (cardState === 'FINISHED' || isActive) &&
-    card.scoreHome != null && card.scoreAway != null;
-  const showDash = isActive && (card.scoreHome == null || card.scoreAway == null);
+  const hasScore = card.scoreHome != null && card.scoreAway != null;
+  const showScore = (cardState === 'FINISHED' || isActive) && hasScore;
+  const showDash = isActive && !hasScore;
+  // Match is definitively over but score is unavailable (provider lag / zombie guard)
+  const showScorePlaceholder = cardState === 'FINISHED' && !hasScore;
 
   // Estilos de borde/fondo según estado
   const cardBorder = isLive
@@ -364,7 +381,8 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
 
       <TeamRow
         card={card} side="home"
-        showScore={showScore} showDash={showDash} cardState={cardState} showForm={showForm}
+        showScore={showScore} showDash={showDash} showScorePlaceholder={showScorePlaceholder}
+        cardState={cardState} showForm={showForm}
         isFocus={homeIsFocus} isDimmed={hasFocus && !homeIsFocus}
       />
 
@@ -372,7 +390,8 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
 
       <TeamRow
         card={card} side="away"
-        showScore={showScore} showDash={showDash} cardState={cardState} showForm={showForm}
+        showScore={showScore} showDash={showDash} showScorePlaceholder={showScorePlaceholder}
+        cardState={cardState} showForm={showForm}
         isFocus={awayIsFocus} isDimmed={hasFocus && !awayIsFocus}
       />
     </div>
@@ -386,11 +405,13 @@ function DatePills({
   selected,
   isFallback,
   onChange,
+  serverComputedAtUtc,
 }: {
   dates: string[];
   selected: string | 'all';
   isFallback: boolean;
   onChange: (d: string | 'all') => void;
+  serverComputedAtUtc?: string;
 }) {
   if (dates.length < 2) return null;
 
@@ -412,7 +433,7 @@ function DatePills({
                 textShadow: active ? '0 0 10px var(--sp-primary-40)' : 'none',
               }}
             >
-              {formatDatePill(d)}
+              {formatDatePill(d, serverComputedAtUtc)}
             </button>
           );
         })}
@@ -447,6 +468,8 @@ interface MatchCardListProps {
   loading?: boolean;
   competitionId?: string;
   matchday?: number | null;
+  /** ISO UTC string from snapshot header — used to derive "today" from the server's perspective. */
+  serverComputedAtUtc?: string;
 }
 
 export function MatchCardList({
@@ -455,6 +478,7 @@ export function MatchCardList({
   focusedTeamId,
   showForm = false,
   loading = false,
+  serverComputedAtUtc,
 }: MatchCardListProps) {
   const dates = useMemo(() => {
     const keys = new Set<string>();
@@ -469,7 +493,8 @@ export function MatchCardList({
     if (dates.length === 0) return { bestDate: 'all' as const, isFallback: false };
     if (dates.length === 1) return { bestDate: dates[0], isFallback: false };
 
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+    // Use the server's perspective of "today" to avoid timezone drift at midnight
+    const today = deriveServerToday(serverComputedAtUtc);
 
     // 1. Hoy tiene partidos → mostrar hoy, SALVO que todos sean SCHEDULED sin resultados
     if (dates.includes(today)) {
@@ -549,7 +574,7 @@ export function MatchCardList({
 
       {!loading && matchCards.length > 0 && (
         <>
-          <DatePills dates={dates} selected={selectedDate} isFallback={isFallback} onChange={setSelectedDate} />
+          <DatePills dates={dates} selected={selectedDate} isFallback={isFallback} onChange={setSelectedDate} serverComputedAtUtc={serverComputedAtUtc} />
 
           {visible.length === 0 ? (
             <div

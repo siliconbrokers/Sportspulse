@@ -89,7 +89,18 @@ export class SnapshotService {
       });
 
       // Use a short TTL when there's a live match so scores update quickly.
-      const hasLive = snapshot.matchCards?.some((c) => c.status === 'LIVE');
+      // Zombie-aware: also treat any match within 240 min of kickoff as live
+      // even if the DTO status hasn't been updated yet (API lag, stale cache).
+      const nowMs = Date.now();
+      const hasLive = snapshot.matchCards?.some((c) => {
+        if (c.status === 'LIVE') return true;
+        if (c.status === 'FINISHED') return false;
+        if (c.kickoffUtc) {
+          const elapsedMin = (nowMs - new Date(c.kickoffUtc).getTime()) / 60_000;
+          return elapsedMin >= 0 && elapsedMin < 240;
+        }
+        return false;
+      });
       const ttlMs = hasLive ? 60_000 : 5 * 60_000;
       this.store.set(key, snapshot, ttlMs);
       return { snapshot, source: 'fresh' };

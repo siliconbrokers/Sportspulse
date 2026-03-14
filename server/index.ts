@@ -513,6 +513,7 @@ async function main() {
       const code = FD_COMPETITION_CODES[i];
       try {
         await fdSource.fetchCompetition(code);
+        snapshotService.invalidateAll();
       } catch (err) {
         console.error(`Refresh failed for ${code}:`, err);
       }
@@ -522,28 +523,33 @@ async function main() {
     }
     try {
       await sportsDbSource.fetchSeason();
+      snapshotService.invalidateAll();
     } catch (err) {
       console.error('Refresh failed for Liga Uruguaya:', err);
     }
     try {
       await sportsDbArSource.fetchSeason();
+      snapshotService.invalidateAll();
     } catch (err) {
       console.error('Refresh failed for Liga Argentina:', err);
     }
     try {
       await openLigaDbSource.fetchSeason();
+      snapshotService.invalidateAll();
     } catch (err) {
       console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
     }
     await new Promise<void>((r) => setTimeout(r, 7000));
     try {
       await wcSource.fetchTournament();
+      snapshotService.invalidateAll();
     } catch (err) {
       console.error('Refresh failed for Copa del Mundo 2026:', err);
     }
     await new Promise<void>((r) => setTimeout(r, 7000));
     try {
       await cliSource.fetchTournament();
+      snapshotService.invalidateAll();
     } catch (err) {
       console.error('Refresh failed for Copa Libertadores 2026:', err);
     }
