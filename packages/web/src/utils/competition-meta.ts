@@ -87,11 +87,12 @@ export function getCompMeta(id: string): CompetitionMeta | undefined {
 // ── Orden de visualización de bloques de noticias / video ─────────────────────
 
 /** Orden de bloques en NewsSection y feeds de noticias del home. */
-export const NEWS_LEAGUE_ORDER = ['URU', 'LL', 'EPL', 'BUN'] as const;
+export const NEWS_LEAGUE_ORDER = ['URU', 'AR', 'LL', 'EPL', 'BUN'] as const;
 
 /** Mapa competition ID → league key usado en noticias/videos */
 export const COMP_ID_TO_NEWS_KEY: Record<string, string> = {
   'comp:thesportsdb:4432': 'URU',
+  'comp:sportsdb-ar:4406': 'AR',
   'comp:football-data:PD': 'LL',
   'comp:football-data:PL': 'EPL',
   'comp:openligadb:bl1': 'BUN',
@@ -112,4 +113,25 @@ export const COMP_ID_TO_NORMALIZED_LEAGUE: Record<string, string> = {
 export const MANAGED_NORMALIZED_LEAGUES = new Set(Object.values(COMP_ID_TO_NORMALIZED_LEAGUE));
 
 /** Orden de bloques en VideoSection (incluye CLI una vez tenga soporte de video). */
-export const VIDEO_LEAGUE_ORDER = ['URU', 'LL', 'EPL', 'BUN', 'CLI'] as const;
+export const VIDEO_LEAGUE_ORDER = ['URU', 'AR', 'LL', 'EPL', 'BUN', 'CLI'] as const;
+
+/**
+ * Mapa competition ID → URL de canal en futbollibretv.su.
+ * Solo para competiciones cuya señal está disponible en ese sitio.
+ * Se usa en DetailPanel para ofrecer link de stream para partidos EN VIVO.
+ */
+/**
+ * Canales con stream en futbollibretv.su.
+ * sourcePageUrl = URL estable del canal (no cambia). El backend extrae el embed activo en tiempo real.
+ * fallbackUrl = link directo para el usuario si el embed no está disponible.
+ */
+export const COMP_ID_TO_FLTV_CHANNEL: Record<
+  string,
+  { label: string; sourcePageUrl: string; fallbackUrl: string }
+> = {
+  'comp:thesportsdb:4432': {
+    label: 'VTV',
+    sourcePageUrl: 'https://futbollibretv.su/vtv/',
+    fallbackUrl: 'https://futbollibretv.su/vtv/',
+  },
+};

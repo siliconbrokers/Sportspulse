@@ -1,6 +1,7 @@
 import type { Team, Match } from '@sportpulse/canonical';
 import {
   classifyStatus,
+  classifyPeriod,
   Sport,
   competitionId as canonicalCompId,
   seasonId as canonicalSeasonId,
@@ -378,6 +379,7 @@ export class TheSportsDbSource implements DataSource {
         e.dateEvent && e.strTime ? `${e.dateEvent}T${e.strTime}Z` : null;
 
       const status = applyMatchStatusGuard(classifyStatus(e.strStatus), startTimeUtc);
+      const matchPeriod = status === 'IN_PROGRESS' ? classifyPeriod(e.strStatus) : undefined;
 
       let scoreHome: number | null =
         e.intHomeScore !== null && e.intHomeScore !== ''
@@ -405,6 +407,7 @@ export class TheSportsDbSource implements DataSource {
         matchday: parseInt(e.intRound, 10) || undefined,
         startTimeUtc,
         status,
+        matchPeriod,
         homeTeamId,
         awayTeamId,
         scoreHome,

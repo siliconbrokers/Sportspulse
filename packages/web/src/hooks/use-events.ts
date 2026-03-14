@@ -35,6 +35,7 @@ export interface ParsedEvent {
   awayCrestUrl: string | null;
   scoreHome?: number | null;
   scoreAway?: number | null;
+  matchPeriod?: 'FIRST_HALF' | 'HALF_TIME' | 'SECOND_HALF' | 'EXTRA_TIME' | 'PENALTIES';
 }
 
 export interface EventosFeed {

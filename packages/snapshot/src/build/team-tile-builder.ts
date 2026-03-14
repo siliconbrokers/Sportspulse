@@ -210,6 +210,7 @@ function extractNextMatch(
     scoreAwayPenalties:
       target.status === EventStatus.FINISHED ? (target.scoreAwayPenalties ?? undefined) : undefined,
     matchStatus: target.status,
+    matchPeriod: target.status === 'IN_PROGRESS' ? target.matchPeriod : undefined,
   };
 }
 

@@ -8,7 +8,7 @@ import type { LeagueVideoHighlight } from './video-normalizer.js';
 import { VideoCache } from './video-cache.js';
 import type { VideoCandidate } from './video-relevance.js';
 
-const LEAGUE_ORDER: LeagueKey[] = ['URU', 'LL', 'EPL', 'BUN', 'WC', 'CA', 'CLI'];
+const LEAGUE_ORDER: LeagueKey[] = ['URU', 'AR', 'LL', 'EPL', 'BUN', 'WC', 'CA', 'CLI'];
 
 const MAX_VIDEOS_PER_LEAGUE = 4;
 

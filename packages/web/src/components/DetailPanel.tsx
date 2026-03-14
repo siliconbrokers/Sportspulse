@@ -8,7 +8,8 @@
  *   FINISHED   → header + final result + events (if any) + prediction evaluation + post-match reading
  *   UNKNOWN    → header only (safe fallback, §15.4)
  */
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { useLiveMatchClock } from '../hooks/use-live-match-clock.js';
 import { Info, Clock } from 'lucide-react';
 import type { TeamDetailDTO } from '../types/team-detail.js';
 import type { FormResult } from '../types/snapshot.js';
@@ -19,6 +20,8 @@ import { buildMatchDetailViewModel, type MatchDetailViewModel, type PredictionPr
 import { useMatchIncidents } from '../hooks/use-match-incidents.js';
 import { PredictionExperimentalSection } from './PredictionExperimentalSection.js';
 import { ProbabilityBars } from './shared/ProbabilityBars.js';
+import { COMP_ID_TO_FLTV_CHANNEL } from '../utils/competition-meta.js';
+import { StreamPopup } from './StreamPopup.js';
 
 interface DetailPanelProps {
   detail: TeamDetailDTO;
@@ -138,13 +141,18 @@ function MatchHeader({
   vm,
   timezone,
   headerLabel,
+  kickoffUtc,
+  matchPeriod,
 }: {
   vm: MatchDetailViewModel;
   timezone: string;
   headerLabel: string;
+  kickoffUtc?: string;
+  matchPeriod?: string;
 }) {
   const isLive    = vm.uiState === 'IN_PLAY';
   const isZombie  = vm.uiState === 'PENDING_CONFIRMATION';
+  const clockText = useLiveMatchClock(kickoffUtc ?? null, matchPeriod ?? null, isLive && !isZombie);
   const hasScore  = vm.score.home != null && vm.score.away != null;
 
   // Color semántico del score según estado
@@ -220,15 +228,26 @@ function MatchHeader({
 
             {/* Badge de estado debajo del score */}
             {isLive ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6 }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  backgroundColor: '#ef4444', display: 'inline-block',
-                  animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
-                }} />
-                <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  LIVE
-                </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, marginTop: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    backgroundColor: '#ef4444', display: 'inline-block',
+                    animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
+                  }} />
+                  <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    LIVE
+                  </span>
+                </div>
+                {clockText && (
+                  <span style={{
+                    fontSize: 12, fontWeight: 800, color: '#f97316',
+                    fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em',
+                    lineHeight: 1,
+                  }}>
+                    {clockText}
+                  </span>
+                )}
               </div>
             ) : isZombie ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6 }}>
@@ -1039,6 +1058,8 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
     touchStartY.current = null;
   }, [onClose]);
 
+  const [streamOpen, setStreamOpen] = useState(false);
+
   const vm = buildMatchDetailViewModel(detail, predictionProbsOverride);
   const nm = detail.nextMatch;
 
@@ -1168,7 +1189,13 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
       {nm && (
         <section data-testid="next-match">
           {/* §6 — Fixed header */}
-          <MatchHeader vm={vm} timezone={detail.header.timezone} headerLabel={headerLabel} />
+          <MatchHeader
+            vm={vm}
+            timezone={detail.header.timezone}
+            headerLabel={headerLabel}
+            kickoffUtc={nm?.kickoffUtc}
+            matchPeriod={nm?.matchPeriod}
+          />
 
           {/* PRE_MATCH */}
           {vm.uiState === 'PRE_MATCH' && (
@@ -1253,6 +1280,52 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
           {/* IN_PLAY */}
           {vm.uiState === 'IN_PLAY' && (
             <>
+              {/* Stream popup — solo cuando la competición tiene canal registrado */}
+              {(() => {
+                const channel = COMP_ID_TO_FLTV_CHANNEL[detail.header.competitionId];
+                if (!channel) return null;
+                return (
+                  <>
+                    <button
+                      onClick={() => setStreamOpen(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 7,
+                        width: '100%',
+                        marginBottom: 12,
+                        padding: '11px 16px',
+                        backgroundColor: 'rgba(34,197,94,0.08)',
+                        borderRadius: 10,
+                        border: '1px solid rgba(34,197,94,0.25)',
+                        color: '#22c55e',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.14)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.08)';
+                      }}
+                    >
+                      <span style={{ fontSize: 15 }}>▶</span>
+                      Ver en vivo · {channel.label}
+                    </button>
+                    {streamOpen && (
+                      <StreamPopup
+                        sourcePageUrl={channel.sourcePageUrl}
+                        fallbackUrl={channel.fallbackUrl}
+                        label={channel.label}
+                        onClose={() => setStreamOpen(false)}
+                      />
+                    )}
+                  </>
+                );
+              })()}
               {(() => {
                 const badge = derivePredictionBadge(vm.prediction?.outcomeStatus, 'IN_PLAY');
                 return (

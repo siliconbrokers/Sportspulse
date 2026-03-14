@@ -2,6 +2,7 @@ export {
   Sport,
   CompetitionFormat,
   EventStatus,
+  MatchPeriod,
   ParticipantRole,
   FormatFamily,
   StageType,
@@ -22,7 +23,7 @@ export type {
 } from './model/entities.js';
 
 // Lifecycle
-export { classifyStatus } from './lifecycle/classify-status.js';
+export { classifyStatus, classifyPeriod } from './lifecycle/classify-status.js';
 export { validateTransition } from './lifecycle/transitions.js';
 export type { TransitionResult } from './lifecycle/transitions.js';
 

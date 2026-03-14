@@ -10,6 +10,7 @@ interface CacheEntry {
 // spec §17: caché 30-60 min; URU=30min (RSS without quota), GNews=60min (100 req/day limit)
 const TTL_MS: Record<LeagueKey, number> = {
   URU: 30 * 60 * 1000,
+  AR:  60 * 60 * 1000,
   LL:  60 * 60 * 1000,
   EPL: 60 * 60 * 1000,
   BUN: 60 * 60 * 1000,

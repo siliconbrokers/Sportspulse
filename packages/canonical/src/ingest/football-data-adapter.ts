@@ -1,6 +1,6 @@
 import type { Competition, Season, Team, Match } from '../model/entities.js';
 import { Sport, CompetitionFormat } from '../model/enums.js';
-import { classifyStatus } from '../lifecycle/classify-status.js';
+import { classifyStatus, classifyPeriod } from '../lifecycle/classify-status.js';
 import type {
   FDCompetitionResponse,
   FDTeamResponse,
@@ -95,6 +95,7 @@ export function mapMatch(
     matchday: fd.matchday ?? undefined,
     startTimeUtc: fd.utcDate || null,
     status: classifyStatus(fd.status),
+    matchPeriod: classifyPeriod(fd.status),
     homeTeamId,
     awayTeamId,
     scoreHome: fd.score.fullTime.home,

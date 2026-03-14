@@ -7,6 +7,7 @@ import { NEWS_LEAGUE_ORDER } from '../../utils/competition-meta.js';
 
 const LEAGUE_ACCENT: Record<string, string> = {
   URU: '#3b82f6',
+  AR:  '#74b9ff',
   LL:  '#f59e0b',
   EPL: '#a855f7',
   BUN: '#ef4444',

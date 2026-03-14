@@ -2,6 +2,7 @@ import type {
   Sport,
   CompetitionFormat,
   EventStatus,
+  MatchPeriod,
   ParticipantRole,
   FormatFamily,
   StageType,
@@ -48,6 +49,8 @@ export interface Match {
   matchday?: number;
   startTimeUtc: string | null;
   status: EventStatus;
+  /** Período del partido — disponible solo cuando la API lo reporta (TheSportsDB: 1H/HT/2H; football-data: PAUSED=HT). */
+  matchPeriod?: MatchPeriod;
   homeTeamId: string;
   awayTeamId: string;
   scoreHome: number | null;

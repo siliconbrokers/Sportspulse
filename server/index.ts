@@ -38,6 +38,7 @@ import { V2PredictionStore } from './prediction/v2-prediction-store.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig } from './portal-config-store.js';
 import { registerAdminRoutes } from './admin-router.js';
+import { fetchStreamEmbedUrls } from './stream-embed/stream-embed-service.js';
 import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
 import {
   SnapshotService,
@@ -417,6 +418,7 @@ async function main() {
             isTodayInPortalTz: isToday(m.startTimeUtc, PORTAL_TZ),
             scoreHome:        isLive ? (m.scoreHome ?? null) : null,
             scoreAway:        isLive ? (m.scoreAway ?? null) : null,
+            matchPeriod:      isLive ? m.matchPeriod : undefined,
           });
         }
       }
@@ -770,6 +772,34 @@ async function main() {
   // ── Historical evaluation endpoint (H5) ────────────────────────────────────
   const historicalBacktestStore = new HistoricalBacktestStore();
   registerHistoricalEvaluationRoute(app, historicalBacktestStore);
+
+  // ── GET /api/ui/stream-source ───────────────────────────────────────────────
+  // Fetcha la página de canal en futbollibretv.su y devuelve las URLs del embed activo.
+  // El embed rota por partido — no se puede hardcodear en el frontend.
+  // Params: sourcePageUrl (URL completa de la página del canal)
+  const ALLOWED_FLTV_HOSTS = ['futbollibretv.su'];
+  app.get('/api/ui/stream-source', async (req, reply) => {
+    const q = req.query as Record<string, string>;
+    const sourcePageUrl = q.sourcePageUrl;
+
+    if (!sourcePageUrl) {
+      return reply.code(400).send({ error: 'Missing sourcePageUrl' });
+    }
+
+    try {
+      const parsed = new URL(sourcePageUrl);
+      if (!ALLOWED_FLTV_HOSTS.includes(parsed.hostname)) {
+        return reply.code(403).send({ error: 'Host not allowed' });
+      }
+    } catch {
+      return reply.code(400).send({ error: 'Invalid sourcePageUrl' });
+    }
+
+    const result = await fetchStreamEmbedUrls(sourcePageUrl);
+    return reply
+      .header('Cache-Control', 'no-store')
+      .send({ embedUrls: result.embedUrls, fromCache: result.fromCache });
+  });
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`SportsPulse API running at http://localhost:${PORT}`);

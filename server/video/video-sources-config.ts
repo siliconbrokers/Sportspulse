@@ -1,4 +1,4 @@
-export type LeagueKey = 'URU' | 'LL' | 'EPL' | 'BUN' | 'WC' | 'CA' | 'CLI';
+export type LeagueKey = 'URU' | 'AR' | 'LL' | 'EPL' | 'BUN' | 'WC' | 'CA' | 'CLI';
 
 export interface LeagueVideoSourceConfig {
   leagueKey: LeagueKey;
@@ -30,7 +30,6 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
     channelId: 'UC0jQd1_qQAT4an-dDaG1Sww', // AUFTV — canal oficial de la AUF (137K subs)
     channelLabel: 'AUFTV',
     enabled: true,
-    // searchOnly: false → intenta AUFTV primero, si no alcanza cae a búsqueda libre
     fallbackSearchTerms: [
       'resumen goles Primera División Uruguay apertura clausura',
       'Peñarol Nacional resumen goles apertura clausura Uruguay',
@@ -43,6 +42,25 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
       'goltv',
       'danubio', 'defensor', 'wanderers',
       'plaza colonia', 'rentistas', 'boston river',
+    ],
+  },
+  AR: {
+    leagueKey: 'AR',
+    channelId: '',
+    channelLabel: 'Liga Profesional Argentina',
+    enabled: true,
+    searchOnly: true,
+    fallbackSearchTerms: [
+      'Liga Profesional Argentina resumen goles jornada',
+      'River Plate Boca Juniors resumen goles Liga Profesional',
+    ],
+    titleRequiredTerms: [
+      'liga profesional', 'primera division argentina', 'afa',
+      'river plate', 'boca juniors', 'racing', 'independiente',
+      'san lorenzo', 'huracan', 'estudiantes', 'lanus',
+      'talleres', 'belgrano', 'velez', 'atletico tucuman',
+      'rosario central', 'newells', 'argentinos juniors',
+      'tigre', 'godoy cruz', 'banfield',
     ],
   },
   LL: {
@@ -79,25 +97,9 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
       'ipswich', 'southampton', 'nottingham forest', 'nottm forest',
     ],
   },
-  WC: {
-    leagueKey: 'WC',
-    channelId: 'UCpcTrCXblq78GThrequest9A', // placeholder — FIFA no tiene canal YouTube abierto
-    channelLabel: 'FIFA / Mundial 2026',
-    enabled: true,
-    searchOnly: true, // sin canal oficial disponible, búsqueda libre
-    fallbackSearchTerms: [
-      'Copa del Mundo 2026 resumen goles highlights',
-      'FIFA World Cup 2026 highlights goals',
-    ],
-    titleRequiredTerms: [
-      'world cup', 'mundial', 'copa del mundo', 'fifa 2026',
-      'wc 2026', 'world cup 2026',
-    ],
-  },
   BUN: {
     leagueKey: 'BUN',
     channelId: 'UC6UL29enLNe4mqwTfAyeNuw', // Bundesliga oficial (5.5M subs)
-    // Sin canal extra por ahora — el canal oficial es de alta calidad y la búsqueda libre complementa
     channelLabel: 'Bundesliga',
     enabled: true,
     fallbackSearchTerms: [
@@ -111,6 +113,21 @@ export const VIDEO_SOURCES: Record<LeagueKey, LeagueVideoSourceConfig> = {
       'hoffenheim', 'freiburg', 'eintracht', 'frankfurt',
       'mainz', 'augsburg', 'bochum', 'werder', 'bremen',
       'köln', 'koln', 'heidenheim', 'stuttgart', 'st pauli', 'kiel',
+    ],
+  },
+  WC: {
+    leagueKey: 'WC',
+    channelId: 'UCpcTrCXblq78GThrequest9A', // placeholder — FIFA no tiene canal YouTube abierto
+    channelLabel: 'FIFA / Mundial 2026',
+    enabled: true,
+    searchOnly: true,
+    fallbackSearchTerms: [
+      'Copa del Mundo 2026 resumen goles highlights',
+      'FIFA World Cup 2026 highlights goals',
+    ],
+    titleRequiredTerms: [
+      'world cup', 'mundial', 'copa del mundo', 'fifa 2026',
+      'wc 2026', 'world cup 2026',
     ],
   },
   CA: {

@@ -1,4 +1,4 @@
-import { EventStatus } from '../model/enums.js';
+import { EventStatus, MatchPeriod } from '../model/enums.js';
 
 /**
  * Maps provider status strings to canonical EventStatus.
@@ -54,4 +54,22 @@ const STATUS_MAP: Record<string, EventStatus> = {
 export function classifyStatus(providerStatus: string): EventStatus {
   const normalized = providerStatus.toUpperCase().trim();
   return STATUS_MAP[normalized] ?? EventStatus.TBD;
+}
+
+/**
+ * Maps provider status strings to MatchPeriod.
+ * Returns undefined when the period cannot be determined from the status string.
+ *
+ * Sources:
+ * - TheSportsDB: '1H' / 'HT' / '2H' / 'ET' / 'PEN'
+ * - football-data.org: 'PAUSED' = half-time; 'IN_PLAY' = ambiguous (no 1H/2H distinction)
+ */
+export function classifyPeriod(providerStatus: string): MatchPeriod | undefined {
+  const s = providerStatus.toUpperCase().trim();
+  if (s === '1H') return MatchPeriod.FIRST_HALF;
+  if (s === 'HT' || s === 'PAUSED') return MatchPeriod.HALF_TIME;
+  if (s === '2H') return MatchPeriod.SECOND_HALF;
+  if (s === 'ET' || s === 'EXTRA TIME') return MatchPeriod.EXTRA_TIME;
+  if (s === 'PEN' || s === 'PENALTIES') return MatchPeriod.PENALTIES;
+  return undefined;
 }

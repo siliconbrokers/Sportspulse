@@ -159,6 +159,8 @@ export interface UpcomingMatchDTO {
   isTodayInPortalTz: boolean;
   scoreHome: number | null;
   scoreAway: number | null;
+  /** Período del partido — undefined cuando la API no lo reporta (e.g. football-data IN_PLAY sin distinción 1T/2T). */
+  matchPeriod?: 'FIRST_HALF' | 'HALF_TIME' | 'SECOND_HALF' | 'EXTRA_TIME' | 'PENALTIES';
 }
 
 export interface IUpcomingService {

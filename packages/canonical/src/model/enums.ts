@@ -20,6 +20,15 @@ export const EventStatus = {
 } as const;
 export type EventStatus = (typeof EventStatus)[keyof typeof EventStatus];
 
+export const MatchPeriod = {
+  FIRST_HALF: 'FIRST_HALF',
+  HALF_TIME: 'HALF_TIME',
+  SECOND_HALF: 'SECOND_HALF',
+  EXTRA_TIME: 'EXTRA_TIME',
+  PENALTIES: 'PENALTIES',
+} as const;
+export type MatchPeriod = (typeof MatchPeriod)[keyof typeof MatchPeriod];
+
 export const ParticipantRole = {
   HOME: 'HOME',
   AWAY: 'AWAY',

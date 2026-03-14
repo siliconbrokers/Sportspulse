@@ -3,6 +3,7 @@
 // streamtp10 solo se consulta para enriquecer tarjetas canónicas con openUrl cuando cubre el partido.
 // Features: liga permanente · borde neon live · zombie guard centralizado · título dinámico · Night/Day
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLiveMatchClock } from '../../hooks/use-live-match-clock.js';
 import type { ParsedEvent, EventosFeed } from '../../hooks/use-events.js';
 import { openEventDirect } from '../../hooks/use-events.js';
 import { getMatchDisplayStatus, ZOMBIE_THRESHOLD_MIN, AUTOFINISH_THRESHOLD_MIN } from '../../utils/match-status.js';
@@ -31,6 +32,7 @@ interface UpcomingMatchDTO {
   isTodayInPortalTz: boolean;
   scoreHome: number | null;
   scoreAway: number | null;
+  matchPeriod?: 'FIRST_HALF' | 'HALF_TIME' | 'SECOND_HALF' | 'EXTRA_TIME' | 'PENALTIES';
 }
 
 /** Estado visual de un partido en vivo tras aplicar el zombie guard (alias local) */
@@ -171,6 +173,7 @@ function upcomingToEvent(m: UpcomingMatchDTO, streamUrlMap: Map<string, string>)
     awayCrestUrl:                m.awayCrestUrl,
     scoreHome:                   m.scoreHome,
     scoreAway:                   m.scoreAway,
+    matchPeriod:                 m.matchPeriod,
   };
 }
 
@@ -234,6 +237,7 @@ function LiveMatchCard({
   const isLive      = event.normalizedStatus === 'EN_VIVO';
   const liveState   = isLive ? getLiveState(event) : 'live';
   const isZombie    = liveState === 'zombie';
+  const clockText   = useLiveMatchClock(event.startsAtSource, event.matchPeriod, isLive && !isZombie);
   const isStream    = !!event.openUrl;
   const isCanonical = event.id.startsWith('canonical:');
   const accent      = LEAGUE_ACCENT[event.normalizedLeague] ?? '#6b7280';
@@ -406,21 +410,34 @@ function LiveMatchCard({
         );
       })()}
 
-      {/* ── LIVE pulse — bottom-right absoluto ── */}
+      {/* ── LIVE pulse + clock — bottom-right absoluto ── */}
       {isLive && !isZombie && (
-        <span style={{
+        <div style={{
           position: 'absolute', bottom: 10, right: 12,
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-          fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
-          padding: '2px 7px', borderRadius: 20,
-          background: '#ef4444', color: '#fff',
-          animation: 'sp-badge-blink 2s ease-in-out infinite',
-          lineHeight: 1.6,
-          boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+          display: 'flex', alignItems: 'center', gap: 5,
         }}>
-          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
-          LIVE
-        </span>
+          {clockText && (
+            <span style={{
+              fontSize: 10, fontWeight: 800, color: '#f97316',
+              fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em',
+              lineHeight: 1,
+            }}>
+              {clockText}
+            </span>
+          )}
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
+            padding: '2px 7px', borderRadius: 20,
+            background: '#ef4444', color: '#fff',
+            animation: 'sp-badge-blink 2s ease-in-out infinite',
+            lineHeight: 1.6,
+            boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+          }}>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+            LIVE
+          </span>
+        </div>
       )}
 
       {/* ── Footer — oculto cuando LIVE ── */}

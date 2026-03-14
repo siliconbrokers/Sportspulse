@@ -72,6 +72,8 @@ export interface NextMatchDTO {
   scoreAwayPenalties?: number | null;
   /** Canonical match status: 'SCHEDULED' | 'IN_PROGRESS' | 'FINISHED' | 'POSTPONED' | 'CANCELED' */
   matchStatus?: string;
+  /** Período del partido — undefined cuando la API no lo reporta. */
+  matchPeriod?: 'FIRST_HALF' | 'HALF_TIME' | 'SECOND_HALF' | 'EXTRA_TIME' | 'PENALTIES';
   prediction?: PredictionDTO;
   predictionOutcome?: PredictionOutcomeDTO;
   /** Goals scored in this match — populated only for FINISHED matches. */

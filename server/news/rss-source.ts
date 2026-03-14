@@ -27,14 +27,26 @@ export const RSS_CONFIG: Record<
     competitionId: 'comp:sportsdb-ar:4406',
     feeds: [
       {
-        url: 'https://www.espn.com/espn/rss/soccer/news',
-        sourceName: 'ESPN',
-        keywords: ['liga profesional', 'primera division', 'superliga', 'afa', 'argentina'],
+        url: 'https://www.infobae.com/arc/outboundfeeds/rss/category/deportes/',
+        sourceName: 'Infobae',
+        keywords: [
+          'liga profesional', 'primera division', 'superliga', 'afa',
+          'boca', 'river', 'racing', 'independiente', 'san lorenzo',
+          'huracan', 'estudiantes', 'lanus', 'talleres', 'belgrano',
+          'velez', 'atletico tucuman', 'rosario central', 'newells',
+          'argentinos', 'tigre', 'godoy cruz', 'banfield',
+        ],
       },
       {
-        url: 'https://www.infobae.com/arc/outboundfeeds/rss/category/america/deportes/',
-        sourceName: 'Infobae',
-        keywords: ['liga profesional', 'primera division', 'superliga', 'afa', 'argentina'],
+        url: 'https://www.ambito.com/rss/deportes.xml',
+        sourceName: 'Ámbito',
+        keywords: [
+          'liga profesional', 'primera division', 'afa',
+          'boca', 'river', 'racing', 'independiente', 'san lorenzo',
+          'huracan', 'estudiantes', 'lanus', 'talleres', 'belgrano',
+          'velez', 'atletico tucuman', 'rosario central', 'newells',
+          'argentinos', 'tigre', 'godoy cruz', 'banfield',
+        ],
       },
     ],
   },
