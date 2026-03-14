@@ -508,7 +508,27 @@ async function main() {
     return `${(ms / HR_MS).toFixed(1)}h`;
   }
 
+  // Fix C1: guard prevents two concurrent refresh cycles from running in parallel.
+  // During LIVE mode the scheduler fires every 2 min; if API calls are slow the
+  // previous cycle may still be running. Without this guard both cycles would write
+  // to the same cache files concurrently (last-rename-wins, no corruption, but
+  // non-deterministic state visible in the UI during live matches).
+  let refreshInProgress = false;
+
   async function runRefresh(): Promise<void> {
+    if (refreshInProgress) {
+      console.warn('[Scheduler] Refresh already in progress — skipping cycle');
+      return;
+    }
+    refreshInProgress = true;
+    try {
+      await runRefreshInner();
+    } finally {
+      refreshInProgress = false;
+    }
+  }
+
+  async function runRefreshInner(): Promise<void> {
     for (let i = 0; i < FD_COMPETITION_CODES.length; i++) {
       const code = FD_COMPETITION_CODES[i];
       try {
@@ -585,7 +605,7 @@ async function main() {
     // always reflect the same canonical data — no inconsistency between sections.
     snapshotService.invalidateAll();
     console.log('[Scheduler] Snapshot cache invalidated after data refresh');
-  }
+  } // end runRefreshInner
 
   function scheduleNextRefresh(): void {
     const matches = getAllMatchSnapshots();

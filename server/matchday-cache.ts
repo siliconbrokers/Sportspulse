@@ -178,6 +178,7 @@ export function isCacheFresh(meta: MatchdayCacheMeta): boolean {
 /**
  * Writes a matchday cache file atomically: serialize → .tmp → rename.
  * §16.1: Never writes directly into the final file path.
+ * nowUtc is passed through to resolveGlobalStatus for semantic consistency.
  */
 export function writeCacheFile(
   cachePath: string,
@@ -186,8 +187,9 @@ export function writeCacheFile(
   season: string,
   matchday: number,
   matches: Match[],
+  nowUtc?: string,
 ): void {
-  const status = resolveGlobalStatus(matches);
+  const status = resolveGlobalStatus(matches, nowUtc);
   const ttl = resolveTTL(status);
 
   const doc: MatchdayCacheDoc = {
@@ -211,7 +213,8 @@ export function writeCacheFile(
   const dir = path.dirname(cachePath);
   fs.mkdirSync(dir, { recursive: true });
 
-  const tmpPath = cachePath.replace(/\.json$/, '.tmp');
+  // Unique tmp name (PID + timestamp) prevents collision between concurrent writers
+  const tmpPath = cachePath.replace(/\.json$/, `.${process.pid}.${Date.now()}.tmp`);
   try {
     fs.writeFileSync(tmpPath, JSON.stringify(doc, null, 2), 'utf-8');
     fs.renameSync(tmpPath, cachePath);
@@ -326,7 +329,7 @@ export function persistStandingsCache(provider: string, competitionId: string, s
   const filePath = standingsFilePath(provider, competitionId);
   try {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    const tmp = `${filePath}.tmp`;
+    const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify({ retrievedAt: new Date().toISOString(), standings }, null, 0));
     fs.renameSync(tmp, filePath);
   } catch {
@@ -340,6 +343,9 @@ export function loadStandingsCache(provider: string, competitionId: string): Sta
     const raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) as { retrievedAt: string; standings: StandingEntry[] };
     const ageS = (Date.now() - new Date(raw.retrievedAt).getTime()) / 1000;
     if (ageS > STANDINGS_CACHE_TTL_S) return null; // stale
+    // Structural validation — reject files with valid JSON but wrong shape
+    if (!Array.isArray(raw.standings) || raw.standings.length === 0) return null;
+    if (typeof (raw.standings[0] as Record<string, unknown>)['position'] !== 'number') return null;
     return raw.standings;
   } catch {
     return null;
@@ -350,7 +356,7 @@ export function persistTeamsCache(provider: string, competitionId: string, teams
   const filePath = teamsFilePath(provider, competitionId);
   try {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    const tmp = `${filePath}.tmp`;
+    const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify({ retrievedAt: new Date().toISOString(), teams }, null, 0));
     fs.renameSync(tmp, filePath);
   } catch {
@@ -364,6 +370,9 @@ export function loadTeamsCache(provider: string, competitionId: string): Team[] 
     const raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) as { retrievedAt: string; teams: Team[] };
     const ageS = (Date.now() - new Date(raw.retrievedAt).getTime()) / 1000;
     if (ageS > TEAMS_CACHE_TTL_S) return null; // stale
+    // Structural validation — reject files with valid JSON but wrong shape
+    if (!Array.isArray(raw.teams)) return null;
+    if (raw.teams.length > 0 && typeof (raw.teams[0] as Record<string, unknown>)['teamId'] !== 'string') return null;
     return raw.teams;
   } catch {
     return null;
@@ -393,7 +402,7 @@ export function persistCompInfoCache(
   const filePath = compInfoFilePath(provider, competitionId);
   try {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    const tmp = `${filePath}.tmp`;
+    const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify({ retrievedAt: new Date().toISOString(), ...info }, null, 0));
     fs.renameSync(tmp, filePath);
   } catch {
@@ -467,6 +476,7 @@ export function loadAllMatchdaysForSeason(
 /**
  * Writes a matchday cache file and logs the result.
  * Call after a successful API fetch + normalization.
+ * nowUtc is forwarded to resolveGlobalStatus for semantic consistency.
  */
 export function persistMatchdayCache(
   provider: string,
@@ -474,14 +484,116 @@ export function persistMatchdayCache(
   season: string,
   matchday: number,
   matches: Match[],
+  nowUtc?: string,
 ): void {
   const cachePath = buildCachePath(provider, competitionId, season, matchday);
-  const status = resolveGlobalStatus(matches);
+  const status = resolveGlobalStatus(matches, nowUtc);
   try {
-    writeCacheFile(cachePath, provider, competitionId, season, matchday, matches);
+    writeCacheFile(cachePath, provider, competitionId, season, matchday, matches, nowUtc);
     logCache({ event: 'CACHE_WRITE_SUCCESS', provider, competitionId, season, matchday, cachePath, status });
   } catch (err) {
     logCache({ event: 'CACHE_WRITE_ERROR', provider, competitionId, season, matchday, cachePath });
     console.error('[MatchdayCache] Write failed:', err);
+  }
+}
+
+// ── Orphaned .tmp cleanup (Fix M2) ────────────────────────────────────────────
+
+/**
+ * Removes any leftover *.tmp files in the season directory.
+ * Call at the start of each fetch cycle to clean up after crashes.
+ */
+export function cleanupOrphanedTmpFiles(provider: string, competitionId: string, season: string): void {
+  const seasonDir = path.join(CACHE_BASE, provider, competitionId, season);
+  try {
+    const files = fs.readdirSync(seasonDir);
+    for (const f of files) {
+      if (f.endsWith('.tmp')) {
+        try { fs.unlinkSync(path.join(seasonDir, f)); } catch { /* ignore */ }
+      }
+    }
+  } catch {
+    // Directory doesn't exist yet — ignore
+  }
+}
+
+// ── Old season pruning (Fix B2) ───────────────────────────────────────────────
+
+/**
+ * Removes season directories for previous seasons, keeping only currentSeason.
+ * Call after season is resolved in each fetch cycle to avoid accumulating stale files.
+ */
+export function pruneOldSeasons(provider: string, competitionId: string, currentSeason: string): void {
+  const compDir = path.join(CACHE_BASE, provider, competitionId);
+  try {
+    const entries = fs.readdirSync(compDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name !== currentSeason) {
+        try {
+          fs.rmSync(path.join(compDir, entry.name), { recursive: true, force: true });
+          console.log(`[MatchdayCache] pruned old season dir: ${compDir}/${entry.name}`);
+        } catch { /* ignore */ }
+      }
+    }
+  } catch {
+    // compDir doesn't exist yet — ignore
+  }
+}
+
+// ── Score snapshot (Fix A2) ───────────────────────────────────────────────────
+// Persists known-good scores for FINISHED matches to disk so the score regression
+// guard in TheSportsDbSource survives server restarts.
+
+const SCORE_SNAPSHOT_TTL_S = 7 * 24 * 3600; // 7 days — FINISHED match scores are immutable
+
+interface ScoreSnapshotDoc {
+  retrievedAt: string;
+  scores: Record<string, { h: number | null; a: number | null }>;
+}
+
+function scoreSnapshotFilePath(provider: string, competitionId: string): string {
+  return path.join(CACHE_BASE, provider, competitionId, 'score-snapshot.json');
+}
+
+export function persistScoreSnapshot(
+  provider: string,
+  competitionId: string,
+  scores: Map<string, { scoreHome: number | null; scoreAway: number | null }>,
+): void {
+  if (scores.size === 0) return;
+  const filePath = scoreSnapshotFilePath(provider, competitionId);
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const doc: ScoreSnapshotDoc = {
+      retrievedAt: new Date().toISOString(),
+      scores: Object.fromEntries(
+        [...scores.entries()].map(([k, v]) => [k, { h: v.scoreHome, a: v.scoreAway }]),
+      ),
+    };
+    const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(doc, null, 0), 'utf-8');
+    fs.renameSync(tmp, filePath);
+  } catch {
+    // Non-fatal — regression guard degrades gracefully without disk snapshot
+  }
+}
+
+export function loadScoreSnapshot(
+  provider: string,
+  competitionId: string,
+): Map<string, { scoreHome: number | null; scoreAway: number | null }> | null {
+  const filePath = scoreSnapshotFilePath(provider, competitionId);
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) as ScoreSnapshotDoc;
+    const ageS = (Date.now() - new Date(raw.retrievedAt).getTime()) / 1000;
+    if (ageS > SCORE_SNAPSHOT_TTL_S) return null;
+    if (!raw.scores || typeof raw.scores !== 'object') return null;
+    const map = new Map<string, { scoreHome: number | null; scoreAway: number | null }>();
+    for (const [k, v] of Object.entries(raw.scores)) {
+      map.set(k, { scoreHome: v.h, scoreAway: v.a });
+    }
+    return map.size > 0 ? map : null;
+  } catch {
+    return null;
   }
 }

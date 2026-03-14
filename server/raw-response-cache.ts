@@ -43,7 +43,8 @@ export async function readRawCache<T>(key: string, ttlMs: number): Promise<T | n
 export async function writeRawCache<T>(key: string, data: T): Promise<void> {
   await fs.mkdir(CACHE_DIR, { recursive: true });
   const filePath = join(CACHE_DIR, `${key}.json`);
-  const tmp = `${filePath}.tmp`;
+  // Unique tmp name prevents collision between concurrent writers for the same key
+  const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
   const entry: RawCacheEntry<T> = {
     fetchedAt: new Date().toISOString(),
     data,
@@ -56,4 +57,5 @@ export async function writeRawCache<T>(key: string, data: T): Promise<void> {
     // No relanzar — fallo de caché no es fatal
     try { await fs.unlink(tmp); } catch { /* ignore */ }
   }
+
 }

@@ -15,7 +15,8 @@ import type {
   FDMatchResponse,
 } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry, MatchGoalEventDTO, TopScorerEntry } from '@sportpulse/snapshot';
-import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, persistStandingsCache, loadStandingsCache, logCache, buildCachePath, persistCompInfoCache, loadCompInfoCache, hasMatchdayCacheForSeason, loadAllMatchdaysForSeason } from './matchday-cache.js';
+import { checkMatchdayCache, persistMatchdayCache, persistTeamsCache, loadTeamsCache, persistStandingsCache, loadStandingsCache, logCache, buildCachePath, persistCompInfoCache, loadCompInfoCache, hasMatchdayCacheForSeason, loadAllMatchdaysForSeason, cleanupOrphanedTmpFiles, pruneOldSeasons } from './matchday-cache.js';
+import { applyMatchStatusGuard } from './match-status-guard.js';
 
 interface FDStandingsResponse {
   standings: Array<{
@@ -257,6 +258,11 @@ export class FootballDataSource implements DataSource {
       }
     }
 
+    // Fix M2: remove orphaned .tmp files left by previous crashes
+    cleanupOrphanedTmpFiles(PROVIDER_KEY, competitionCode, season);
+    // Fix B2: remove season directories no longer current
+    pruneOldSeasons(PROVIDER_KEY, competitionCode, season);
+
     const logCtxBase = {
       provider: PROVIDER_KEY,
       competitionId: competitionCode,
@@ -405,7 +411,7 @@ export class FootballDataSource implements DataSource {
       for (const m of apiMatches) mergedMap.set(m.matchId, m);
       const mergedForMd = [...mergedMap.values()];
       windowMatches.push(...mergedForMd);
-      persistMatchdayCache(PROVIDER_KEY, competitionCode, season, md, mergedForMd);
+      persistMatchdayCache(PROVIDER_KEY, competitionCode, season, md, mergedForMd, nowUtc);
     }
     for (const m of normalizedMatches) {
       if (m.matchday === undefined) windowMatches.push(m);
@@ -422,6 +428,16 @@ export class FootballDataSource implements DataSource {
       }
       allMatches = [...matchMap.values()];
     }
+
+    // Fix M1: apply zombie guard to all non-FINISHED matches in the merged set.
+    // Matches that came from disk (baseMatches) and fell outside the fetch window
+    // are never refreshed by the incremental fetch. If a stale disk entry still shows
+    // SCHEDULED/IN_PROGRESS but its kickoff was more than 240 min ago, correct it
+    // to FINISHED so the UI never displays ghost live indicators.
+    allMatches = allMatches.map((m) => ({
+      ...m,
+      status: applyMatchStatusGuard(m.status, m.startTimeUtc),
+    }));
 
     // Standings: only re-fetch when finishedCount increases
     const finishedCount = allMatches.filter((m) => m.status === 'FINISHED').length;

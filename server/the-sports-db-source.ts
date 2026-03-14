@@ -8,7 +8,7 @@ import {
   matchId as canonicalMatchId,
 } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry, SubTournamentInfo } from '@sportpulse/snapshot';
-import { persistTeamsCache, loadTeamsCache } from './matchday-cache.js';
+import { persistTeamsCache, loadTeamsCache, persistScoreSnapshot, loadScoreSnapshot } from './matchday-cache.js';
 import { resolveTla } from './tla-overrides.js';
 import { readRawCache, writeRawCache } from './raw-response-cache.js';
 import { CrestCache } from './crest-cache.js';
@@ -320,12 +320,22 @@ export class TheSportsDbSource implements DataSource {
     // TheSportsDB sometimes returns null scores for FINISHED matches even though
     // a previous fetch had the correct scores. If the API now returns null for a
     // FINISHED match that we already have scores for, we keep the old data.
+    //
+    // Fix A2: seed from disk snapshot when in-memory cache is empty (after restart).
+    // Without this, the guard was blind on the first fetch after a server restart.
     const prevScoreMap = new Map<string, { scoreHome: number | null; scoreAway: number | null }>();
     if (this.cache) {
       for (const m of this.cache.matches) {
         if (m.status === 'FINISHED' && (m.scoreHome !== null || m.scoreAway !== null)) {
           prevScoreMap.set(m.providerMatchId, { scoreHome: m.scoreHome, scoreAway: m.scoreAway });
         }
+      }
+    } else {
+      // First fetch after restart: load from disk so regression guard is active immediately
+      const diskSnapshot = loadScoreSnapshot(this.providerKey, this.leagueId);
+      if (diskSnapshot) {
+        for (const [k, v] of diskSnapshot) prevScoreMap.set(k, v);
+        console.log(`[TheSportsDbSource] score-snapshot loaded from disk (${prevScoreMap.size} entries) league=${this.leagueId}`);
       }
     }
 
@@ -396,6 +406,15 @@ export class TheSportsDbSource implements DataSource {
 
     // Persist teams to disk for recovery after rate-limit restarts
     persistTeamsCache(this.providerKey, this.leagueId, teams);
+
+    // Fix A2: persist known-good scores to disk so regression guard survives restarts
+    const scoreSnapshot = new Map<string, { scoreHome: number | null; scoreAway: number | null }>();
+    for (const m of matches) {
+      if (m.status === 'FINISHED' && (m.scoreHome !== null || m.scoreAway !== null)) {
+        scoreSnapshot.set(m.providerMatchId, { scoreHome: m.scoreHome, scoreAway: m.scoreAway });
+      }
+    }
+    persistScoreSnapshot(this.providerKey, this.leagueId, scoreSnapshot);
 
     this.cache = {
       teams,
