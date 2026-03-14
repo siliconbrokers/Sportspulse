@@ -266,7 +266,7 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
   const hasFocus    = homeIsFocus || awayIsFocus;
 
   const showScore =
-    (card.status === 'FINISHED' || isActive) &&
+    (cardState === 'FINISHED' || isActive) &&
     card.scoreHome != null && card.scoreAway != null;
   const showDash = isActive && (card.scoreHome == null || card.scoreAway == null);
 
@@ -471,8 +471,28 @@ export function MatchCardList({
 
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
 
-    // 1. Hoy tiene partidos → mostrar hoy
-    if (dates.includes(today)) return { bestDate: today, isFallback: false };
+    // 1. Hoy tiene partidos → mostrar hoy, SALVO que todos sean SCHEDULED sin resultados
+    if (dates.includes(today)) {
+      const todayCards = matchCards.filter(
+        (c) => c.kickoffUtc && toDateKey(c.kickoffUtc) === today,
+      );
+      const allTodayScheduled = todayCards.every((c) => c.status === 'SCHEDULED');
+      if (!allTodayScheduled) return { bestDate: today, isFallback: false };
+      // Todos son SCHEDULED: buscar fecha pasada con resultados (FINISHED/LIVE)
+      const pastDatesWithResults = dates
+        .filter((d) => d < today)
+        .filter((d) =>
+          matchCards.some(
+            (c) => c.kickoffUtc && toDateKey(c.kickoffUtc) === d && c.status !== 'SCHEDULED',
+          ),
+        )
+        .sort();
+      if (pastDatesWithResults.length > 0) {
+        return { bestDate: pastDatesWithResults[pastDatesWithResults.length - 1], isFallback: true };
+      }
+      // No hay fechas pasadas con resultados: mostrar hoy de todas formas
+      return { bestDate: today, isFallback: false };
+    }
 
     // 2. Buscar hacia atrás: el día más reciente con partidos antes de hoy
     const pastDates = dates.filter((d) => d < today).sort();

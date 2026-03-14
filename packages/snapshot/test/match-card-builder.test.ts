@@ -119,12 +119,27 @@ describe('buildMatchCards', () => {
   ];
 
   it('returns empty array when no relevant matches', () => {
+    // POSTPONED matches (no matchday given) are not relevant
+    const postponedMatch: Match = {
+      ...makeMatch('match:1', 'team:a', 'team:b', '2026-03-01T20:00:00Z'),
+      status: EventStatus.POSTPONED,
+    };
+    const cards = buildMatchCards([postponedMatch], teams, [], BUILD_NOW);
+    expect(cards).toHaveLength(0);
+  });
+
+  it('includes FINISHED matches (score must be visible after match ends)', () => {
     const finishedMatch: Match = {
       ...makeMatch('match:1', 'team:a', 'team:b', '2026-03-01T20:00:00Z'),
       status: EventStatus.FINISHED,
+      scoreHome: 2,
+      scoreAway: 1,
     };
     const cards = buildMatchCards([finishedMatch], teams, [], BUILD_NOW);
-    expect(cards).toHaveLength(0);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].status).toBe('FINISHED');
+    expect(cards[0].scoreHome).toBe(2);
+    expect(cards[0].scoreAway).toBe(1);
   });
 
   it('returns card for scheduled future match', () => {

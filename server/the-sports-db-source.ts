@@ -12,6 +12,7 @@ import { persistTeamsCache, loadTeamsCache } from './matchday-cache.js';
 import { resolveTla } from './tla-overrides.js';
 import { readRawCache, writeRawCache } from './raw-response-cache.js';
 import { CrestCache } from './crest-cache.js';
+import { applyMatchStatusGuard } from './match-status-guard.js';
 
 // ── Provider key ─────────────────────────────────────────────────────────────
 
@@ -209,12 +210,34 @@ export class TheSportsDbSource implements DataSource {
     const diskKey = `sportsdb-${this.leagueId}-${s}`;
     let rawEvents: SDBEvent[];
 
-    // Intentar leer desde caché de disco
+    // Intentar leer desde caché de disco.
+    // Bypass si algún evento tiene kickoff en los últimos 240 min (partido activo o recién finalizado)
+    // OR si algún evento tiene más de 240 min transcurridos pero sigue con status no-terminal en el
+    // cache (cache escrito durante el partido, nunca actualizado con el resultado final).
+    const LIVE_BYPASS_WINDOW_MS = 240 * 60 * 1000;
+    const TERMINAL_STATUSES = new Set([
+      'FT', 'FINAL', 'FINISHED', 'AWARDED', 'MATCH FINISHED', 'Match Finished',
+      'MATCH POSTPONED', 'Match Postponed', 'MATCH CANCELLED', 'Match Cancelled',
+      'MATCH ABANDONED', 'POSTPONED', 'CANCELED', 'CANCELLED',
+    ]);
     const diskHit = await readRawCache<SDBEvent[]>(diskKey, DISK_CACHE_TTL_MS);
-    if (diskHit) {
+    const needsBypass = diskHit?.some((e) => {
+      if (!e.dateEvent || !e.strTime) return false;
+      const kickoffMs = new Date(`${e.dateEvent}T${e.strTime}Z`).getTime();
+      const elapsed = Date.now() - kickoffMs;
+      if (elapsed <= 0) return false; // no empezó
+      const isTerminal = TERMINAL_STATUSES.has(e.strStatus ?? '');
+      if (elapsed <= LIVE_BYPASS_WINDOW_MS) return true; // dentro de ventana activa
+      // Partido debería haber terminado (>240 min) pero el cache aún tiene status live
+      return !isTerminal;
+    }) ?? false;
+    if (diskHit && !needsBypass) {
       console.log(`[TheSportsDbSource] DISK_HIT league=${this.leagueId} season=${s}`);
       rawEvents = diskHit;
     } else {
+      if (diskHit && needsBypass) {
+        console.log(`[TheSportsDbSource] DISK_BYPASS league=${this.leagueId} season=${s} (scores desactualizados o partidos en juego)`);
+      }
       // Phase 1: fetch season events + extra rounds in parallel
       // TheSportsDB's eventsseason endpoint lags behind — fetch extra rounds explicitly.
       const eventsResp = await this.apiGet<{ events: SDBEvent[] | null }>(
@@ -319,7 +342,7 @@ export class TheSportsDbSource implements DataSource {
       const startTimeUtc =
         e.dateEvent && e.strTime ? `${e.dateEvent}T${e.strTime}Z` : null;
 
-      const status = classifyStatus(e.strStatus);
+      const status = applyMatchStatusGuard(classifyStatus(e.strStatus), startTimeUtc);
 
       let scoreHome: number | null =
         e.intHomeScore !== null && e.intHomeScore !== ''

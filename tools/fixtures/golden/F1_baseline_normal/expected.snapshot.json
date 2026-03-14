@@ -817,6 +817,766 @@
   ],
   "matchCards": [
     {
+      "matchId": "match:football-data:6",
+      "kickoffUtc": "2026-02-01T18:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 2,
+      "scoreAway": 0,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:81",
+        "name": "FC Barcelona",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:100",
+        "name": "team:football-data:100"
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local picante / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:1",
+      "kickoffUtc": "2026-02-01T20:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 2,
+      "scoreAway": 0,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:86",
+        "name": "Real Madrid",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:100",
+        "name": "team:football-data:100"
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local picante / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "XL",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "FEATURED"
+      }
+    },
+    {
+      "matchId": "match:football-data:16",
+      "kickoffUtc": "2026-02-02T14:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 1,
+      "scoreAway": 1,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:77",
+        "name": "Athletic Bilbao",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:100",
+        "name": "team:football-data:100"
+      },
+      "rankScore": 0.5751190476190475,
+      "explainLine": {
+        "text": "Porque: Finalizado + local viene bien / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "S",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:11",
+      "kickoffUtc": "2026-02-02T16:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 1,
+      "scoreAway": 0,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:78",
+        "name": "Atletico Madrid",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:100",
+        "name": "team:football-data:100"
+      },
+      "rankScore": 0.7151190476190477,
+      "explainLine": {
+        "text": "Porque: Finalizado + local viene bien / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:7",
+      "kickoffUtc": "2026-02-08T18:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 1,
+      "scoreAway": 3,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:101",
+        "name": "team:football-data:101"
+      },
+      "away": {
+        "teamId": "team:football-data:81",
+        "name": "FC Barcelona",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local sin datos / visita picante",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:2",
+      "kickoffUtc": "2026-02-08T20:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 3,
+      "scoreAway": 1,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:86",
+        "name": "Real Madrid",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:101",
+        "name": "team:football-data:101"
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local picante / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "L",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:17",
+      "kickoffUtc": "2026-02-09T14:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 0,
+      "scoreAway": 1,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:101",
+        "name": "team:football-data:101"
+      },
+      "away": {
+        "teamId": "team:football-data:77",
+        "name": "Athletic Bilbao",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "rankScore": 0.5751190476190475,
+      "explainLine": {
+        "text": "Porque: Finalizado + local sin datos / visita viene bien",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "S",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:12",
+      "kickoffUtc": "2026-02-09T16:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 1,
+      "scoreAway": 1,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:101",
+        "name": "team:football-data:101"
+      },
+      "away": {
+        "teamId": "team:football-data:78",
+        "name": "Atletico Madrid",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "rankScore": 0.7151190476190477,
+      "explainLine": {
+        "text": "Porque: Finalizado + local sin datos / visita viene bien",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:8",
+      "kickoffUtc": "2026-02-15T18:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 1,
+      "scoreAway": 1,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:81",
+        "name": "FC Barcelona",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:102",
+        "name": "team:football-data:102"
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local picante / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:3",
+      "kickoffUtc": "2026-02-15T20:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 0,
+      "scoreAway": 1,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:102",
+        "name": "team:football-data:102"
+      },
+      "away": {
+        "teamId": "team:football-data:86",
+        "name": "Real Madrid",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local sin datos / visita picante",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "L",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:18",
+      "kickoffUtc": "2026-02-16T14:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 2,
+      "scoreAway": 2,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:77",
+        "name": "Athletic Bilbao",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:102",
+        "name": "team:football-data:102"
+      },
+      "rankScore": 0.5751190476190475,
+      "explainLine": {
+        "text": "Porque: Finalizado + local viene bien / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "S",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:13",
+      "kickoffUtc": "2026-02-16T16:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 2,
+      "scoreAway": 1,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:78",
+        "name": "Atletico Madrid",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:102",
+        "name": "team:football-data:102"
+      },
+      "rankScore": 0.7151190476190477,
+      "explainLine": {
+        "text": "Porque: Finalizado + local viene bien / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:9",
+      "kickoffUtc": "2026-02-22T18:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 0,
+      "scoreAway": 2,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:103",
+        "name": "team:football-data:103"
+      },
+      "away": {
+        "teamId": "team:football-data:81",
+        "name": "FC Barcelona",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local sin datos / visita picante",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:4",
+      "kickoffUtc": "2026-02-22T20:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 1,
+      "scoreAway": 1,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:86",
+        "name": "Real Madrid",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:103",
+        "name": "team:football-data:103"
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local picante / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "L",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:19",
+      "kickoffUtc": "2026-02-23T14:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 1,
+      "scoreAway": 2,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:103",
+        "name": "team:football-data:103"
+      },
+      "away": {
+        "teamId": "team:football-data:77",
+        "name": "Athletic Bilbao",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "rankScore": 0.5751190476190475,
+      "explainLine": {
+        "text": "Porque: Finalizado + local sin datos / visita viene bien",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "S",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:14",
+      "kickoffUtc": "2026-02-23T16:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 0,
+      "scoreAway": 0,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:103",
+        "name": "team:football-data:103"
+      },
+      "away": {
+        "teamId": "team:football-data:78",
+        "name": "Atletico Madrid",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "rankScore": 0.7151190476190477,
+      "explainLine": {
+        "text": "Porque: Finalizado + local sin datos / visita viene bien",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:10",
+      "kickoffUtc": "2026-03-01T18:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 3,
+      "scoreAway": 0,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:81",
+        "name": "FC Barcelona",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:104",
+        "name": "team:football-data:104"
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local picante / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "L",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:5",
+      "kickoffUtc": "2026-03-01T20:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 0,
+      "scoreAway": 2,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:104",
+        "name": "team:football-data:104"
+      },
+      "away": {
+        "teamId": "team:football-data:86",
+        "name": "Real Madrid",
+        "formChip": {
+          "icon": "🔥",
+          "label": "Picante",
+          "level": "HOT",
+          "kind": "FORM_HOT"
+        }
+      },
+      "rankScore": 0.8477380952380953,
+      "explainLine": {
+        "text": "Porque: Finalizado + local sin datos / visita picante",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "M",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "ONE_HOT",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:20",
+      "kickoffUtc": "2026-03-02T14:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 0,
+      "scoreAway": 1,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:77",
+        "name": "Athletic Bilbao",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:104",
+        "name": "team:football-data:104"
+      },
+      "rankScore": 0.5751190476190475,
+      "explainLine": {
+        "text": "Porque: Finalizado + local viene bien / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "S",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
+      "matchId": "match:football-data:15",
+      "kickoffUtc": "2026-03-02T16:00:00Z",
+      "status": "FINISHED",
+      "scoreHome": 1,
+      "scoreAway": 0,
+      "timeChip": {
+        "icon": "✅",
+        "label": "Finalizado",
+        "level": "INFO",
+        "kind": "TIME_FINISHED"
+      },
+      "home": {
+        "teamId": "team:football-data:78",
+        "name": "Atletico Madrid",
+        "formChip": {
+          "icon": "✅",
+          "label": "Viene bien",
+          "level": "OK",
+          "kind": "FORM_GOOD"
+        }
+      },
+      "away": {
+        "teamId": "team:football-data:104",
+        "name": "team:football-data:104"
+      },
+      "rankScore": 0.7151190476190477,
+      "explainLine": {
+        "text": "Porque: Finalizado + local viene bien / visita sin datos",
+        "kind": "WHY_MATCH_SIMPLE"
+      },
+      "tileHints": {
+        "sizeBucket": "S",
+        "urgencyColorKey": "TODAY",
+        "heatBorderKey": "DATA_MISSING",
+        "featuredRank": "NONE"
+      }
+    },
+    {
       "matchId": "match:football-data:30",
       "kickoffUtc": "2026-03-05T20:00:00Z",
       "status": "SCHEDULED",
@@ -894,10 +1654,10 @@
         "kind": "WHY_MATCH_SIMPLE"
       },
       "tileHints": {
-        "sizeBucket": "M",
+        "sizeBucket": "XL",
         "urgencyColorKey": "D2_3",
         "heatBorderKey": "NONE",
-        "featuredRank": "NONE"
+        "featuredRank": "FEATURED"
       }
     }
   ]

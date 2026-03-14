@@ -65,9 +65,15 @@ export function buildCachePath(
 // classifyStatus() maps all provider live variants to IN_PROGRESS.
 const LIVE_STATUSES = new Set(['IN_PROGRESS']);
 
+// Window (in minutes) within which a SCHEDULED match is considered heuristically live.
+// Covers football-data.org free tier which keeps TIMED status during matches.
+const HEURISTIC_LIVE_WINDOW_MIN = 240;
+
 /** Derives the global matchday status from the set of match statuses. §11.1 */
-export function resolveGlobalStatus(matches: Match[]): MatchdayStatus {
+export function resolveGlobalStatus(matches: Match[], nowUtc?: string): MatchdayStatus {
   if (matches.length === 0) return 'unknown';
+
+  const now = nowUtc ? new Date(nowUtc).getTime() : Date.now();
 
   const hasLive      = matches.some(m => LIVE_STATUSES.has(m.status));
   const hasFinished  = matches.some(m => m.status === 'FINISHED');
@@ -80,10 +86,24 @@ export function resolveGlobalStatus(matches: Match[]): MatchdayStatus {
     const hasNullScore = matches.some(m => m.scoreHome === null || m.scoreAway === null);
     return hasNullScore ? 'mixed' : 'finished';
   }
-  if (!hasLive && !hasFinished  && matches.every(m => m.status === 'SCHEDULED')) return 'scheduled';
+
   // Any live match → use live TTL regardless of other statuses in the matchday.
   // Previously this fell into 'mixed' (5min TTL) which caused stale scores during live matches.
   if (hasLive) return 'live';
+
+  // Heuristic: football-data.org free tier keeps TIMED→SCHEDULED during live matches.
+  // If any SCHEDULED match has a kickoff in the past (within 240 min), the match is
+  // probably in progress — use 'mixed' TTL (5min) so the cache refreshes after it ends.
+  if (hasScheduled) {
+    const hasHeuristicallyLive = matches.some(m => {
+      if (m.status !== 'SCHEDULED' || !m.startTimeUtc) return false;
+      const elapsed = (now - new Date(m.startTimeUtc).getTime()) / 60_000;
+      return elapsed > 0 && elapsed <= HEURISTIC_LIVE_WINDOW_MIN;
+    });
+    if (hasHeuristicallyLive) return 'mixed';
+  }
+
+  if (!hasLive && !hasFinished && matches.every(m => m.status === 'SCHEDULED')) return 'scheduled';
   if (hasFinished || hasScheduled) return 'mixed';
   return 'unknown';
 }

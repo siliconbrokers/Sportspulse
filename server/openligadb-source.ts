@@ -11,6 +11,7 @@ import {
 } from '@sportpulse/canonical';
 import type { DataSource, MatchGoalEventDTO, StandingEntry } from '@sportpulse/snapshot';
 import { resolveTla } from './tla-overrides.js';
+import { applyMatchStatusGuard } from './match-status-guard.js';
 
 // ── Provider key ─────────────────────────────────────────────────────────────
 
@@ -250,14 +251,29 @@ export class OpenLigaDBSource implements DataSource {
     let rawTable: OLGTableEntry[];
     let currentGroup: OLGCurrentGroup;
 
-    // Intentar leer desde caché de disco
+    // Intentar leer desde caché de disco.
+    // Bypass si algún partido tiene kickoff en los últimos 240 min (potencialmente en juego)
+    // OR si algún partido lleva más de 240 min pero el cache lo muestra como no-finalizado
+    // (cache escrito durante el partido, nunca actualizado con el resultado final).
+    const LIVE_BYPASS_WINDOW_MS = 240 * 60 * 1000;
     const diskHit = await readRawCache<OpenLigaRawCache>(diskKey, DISK_CACHE_TTL_MS);
-    if (diskHit) {
+    const needsBypass = diskHit?.matches.some((m) => {
+      if (!m.matchDateTimeUTC) return false;
+      const elapsed = Date.now() - new Date(m.matchDateTimeUTC).getTime();
+      if (elapsed <= 0) return false;
+      if (elapsed <= LIVE_BYPASS_WINDOW_MS) return true; // dentro de ventana activa
+      // Partido debería haber terminado (>240 min) pero el cache lo muestra como en juego
+      return !m.matchIsFinished;
+    }) ?? false;
+    if (diskHit && !needsBypass) {
       console.log(`[OpenLigaDBSource] DISK_HIT league=${this.league} season=${season}`);
       rawMatches = diskHit.matches;
       rawTable = diskHit.table;
       currentGroup = diskHit.currentGroup;
     } else {
+      if (diskHit && needsBypass) {
+        console.log(`[OpenLigaDBSource] DISK_BYPASS league=${this.league} season=${season} (scores desactualizados o partidos en juego)`);
+      }
       // Fetch in parallel: all matches + standings + current group
       [rawMatches, rawTable, currentGroup] = await Promise.all([
         this.apiGet<OLGMatch[]>(`/getmatchdata/${this.league}/${season}`),
@@ -302,18 +318,21 @@ export class OpenLigaDBSource implements DataSource {
       const finalResult = m.matchResults?.find((r) => r.resultTypeID === 2)
         ?? m.matchResults?.find((r) => r.resultTypeID === 1); // fallback to half-time if no final
 
-      const scoreHome = m.matchIsFinished && finalResult ? finalResult.pointsTeam1 : null;
-      const scoreAway = m.matchIsFinished && finalResult ? finalResult.pointsTeam2 : null;
+      const rawStatus = classifyStatus(m.matchIsFinished ? 'Finished' : 'Timed');
+      const startTimeUtc = m.matchDateTimeUTC ?? null;
+      // Zombie guard: si matchIsFinished=false pero han pasado >240 min, el partido terminó
+      // aunque OpenLigaDB no lo haya actualizado (proveedor lento o fallo de escritura).
+      const status = applyMatchStatusGuard(rawStatus, startTimeUtc);
+      const isEffectivelyFinished = m.matchIsFinished || status === 'FINISHED';
 
-      // matchIsFinished: true → FINISHED, false → SCHEDULED
-      // The live-detection heuristic in match-card-builder will handle in-progress matches
-      const status = classifyStatus(m.matchIsFinished ? 'Finished' : 'Timed');
+      const scoreHome = isEffectivelyFinished && finalResult ? finalResult.pointsTeam1 : null;
+      const scoreAway = isEffectivelyFinished && finalResult ? finalResult.pointsTeam2 : null;
 
       return {
         matchId: canonicalMatchId(OPENLIGADB_PROVIDER_KEY, String(m.matchID)),
         seasonId: seasId,
         matchday: m.group?.groupOrderID ?? undefined,
-        startTimeUtc: m.matchDateTimeUTC ?? null,
+        startTimeUtc,
         status,
         homeTeamId,
         awayTeamId,

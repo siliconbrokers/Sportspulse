@@ -198,12 +198,15 @@ export function buildMatchCards(
   const teamMap = new Map<string, Team>(allTeams.map((t) => [t.teamId, t]));
 
   // When a matchday is given: show all matches of that matchday (any status).
-  // Otherwise: show LIVE, future SCHEDULED, or heuristically-live SCHEDULED
+  // Otherwise: show FINISHED, LIVE, future SCHEDULED, or heuristically-live SCHEDULED
   // (kickoff in the past within 110 min — API may lag behind real status).
+  // Note: FINISHED matches are safe to include without a time window because the
+  // matches array is already scoped to the current matchday/date by the cache layer.
   const relevant =
     matchday !== undefined
       ? matches.filter((m) => m.matchday === matchday)
       : matches.filter((m) => {
+          if (m.status === EventStatus.FINISHED) return true;
           if (m.status === EventStatus.IN_PROGRESS) return true;
           if (m.status === EventStatus.SCHEDULED && m.startTimeUtc !== null) {
             const diffMs = new Date(m.startTimeUtc).getTime() - new Date(buildNowUtc).getTime();
