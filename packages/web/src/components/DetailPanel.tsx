@@ -1324,6 +1324,22 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
           )}
         </section>
       )}
+
+      {/* API quota warning — shown when API-Football daily limit is exhausted */}
+      {incidents?.quotaExhausted && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '7px 16px',
+          fontSize: 11,
+          color: '#ef4444',
+          borderTop: '1px solid rgba(239,68,68,0.2)',
+        }}>
+          <span style={{ fontSize: 13 }}>⚠</span>
+          <span>Eventos no disponibles — cuota diaria de API agotada</span>
+        </div>
+      )}
     </aside>
     </>
   );

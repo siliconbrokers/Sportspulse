@@ -16,6 +16,7 @@ import { RadarApiAdapter } from './radar/index.js';
 import { EventosService, buildEventSource } from './eventos/index.js';
 import { MatchEventsService } from './match-events-service.js';
 import { IncidentService } from './incidents/incident-service.js';
+import { isApiFootballQuotaExhausted } from './incidents/apifootball-incident-source.js';
 import { PredictionService } from './prediction/prediction-service.js';
 import { getBestCalibrationRegistry } from './prediction/global-calibrator-store.js';
 import { PredictionStore } from './prediction/prediction-store.js';
@@ -668,19 +669,20 @@ async function main() {
       return reply.code(204).send();
     }
 
+    const quotaExhausted = isApiFootballQuotaExhausted();
     try {
       const snapshot = await incidentService.get(matchCore);
       if (!snapshot) {
         return reply
           .header('Cache-Control', 'no-store')
-          .send({ matchId, events: [], snapshotType: null });
+          .send({ matchId, events: [], snapshotType: null, quotaExhausted });
       }
       return reply
         .header('Cache-Control', snapshot.isFinal ? 'public, max-age=3600' : 'no-store')
-        .send(snapshot);
+        .send({ ...snapshot, quotaExhausted });
     } catch (err) {
       console.error('[incidents endpoint] Unexpected error:', err);
-      return reply.send({ matchId, events: [], snapshotType: null });
+      return reply.send({ matchId, events: [], snapshotType: null, quotaExhausted });
     }
   });
 

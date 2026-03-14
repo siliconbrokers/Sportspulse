@@ -291,9 +291,10 @@ export function buildMatchDetailViewModel(
 
   // Prediction result: when override, derive from probs argmax vs actual.
   // When snapshot, derive from backend predictionOutcome.
+  // IMPORTANT: never evaluate outcome while the match is still in progress — only when FINISHED.
   const outcomeStatus = nm?.predictionOutcome?.status;
   const predictionResult: 'HIT' | 'MISS' | undefined = predictionProbsOverride
-    ? expectedWinner && actualWinner
+    ? uiState === 'FINISHED' && expectedWinner && actualWinner
       ? expectedWinner === actualWinner
         ? 'HIT'
         : 'MISS'

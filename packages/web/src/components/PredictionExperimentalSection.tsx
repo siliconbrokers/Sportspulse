@@ -173,6 +173,7 @@ export function PredictionExperimentalSection({
       { signal: controller.signal },
     )
       .then((res) => {
+        if (res.status === 404) return null; // Feature not enabled for this competition — expected, no noise
         if (!res.ok) return null;
         return res.json() as Promise<ExperimentalPrediction>;
       })

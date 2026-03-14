@@ -26,6 +26,7 @@ export interface MatchIncidentsResult {
   snapshotType: SnapshotType | null;
   isFinal?: boolean;
   events: IncidentEvent[];
+  quotaExhausted?: boolean;
 }
 
 export interface UseMatchIncidentsReturn {
@@ -39,7 +40,7 @@ const LIVE_POLL_MS = 90_000;
 function isActive(status: string | null | undefined): boolean {
   // 'IN_PROGRESS' es el estado canónico para partidos en vivo (TheSportsDB y football-data).
   // 'LIVE' y 'HT' se mantienen por compatibilidad con snapshots anteriores.
-  return status === 'IN_PROGRESS' || status === 'LIVE' || status === 'HT';
+  return status === 'IN_PROGRESS' || status === 'LIVE' || status === 'HT' || status === 'PAUSED';
 }
 
 function buildUrl(params: MatchIncidentsParams): string {

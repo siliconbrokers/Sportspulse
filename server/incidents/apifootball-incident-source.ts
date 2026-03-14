@@ -24,6 +24,26 @@ import type { MatchCoreInput, IncidentEvent } from './types.js';
 const BASE_URL    = 'https://v3.football.api-sports.io';
 const ID_MAP_PATH = path.resolve(process.cwd(), 'cache', 'incidents', 'af-fixture-map.json');
 
+// ── Quota guard ────────────────────────────────────────────────────────────────
+// API-Football free plan has a daily request limit. When exhausted, the API
+// returns HTTP 200 with { errors: { requests: "You have reached the limit..." } }.
+// We detect this once and skip all further requests until UTC midnight.
+
+let _quotaExhaustedUntil = 0;
+
+export function isApiFootballQuotaExhausted(): boolean {
+  return Date.now() < _quotaExhaustedUntil;
+}
+
+function markQuotaExhausted(): void {
+  const now = new Date();
+  const nextMidnight = new Date(Date.UTC(
+    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1,
+  ));
+  _quotaExhaustedUntil = nextMidnight.getTime();
+  console.warn(`[AfIncidents] Daily quota exhausted — suspending requests until ${nextMidnight.toISOString()}`);
+}
+
 // ── Competition → API-Football league config ───────────────────────────────────
 
 interface LeagueConfig {
@@ -134,8 +154,10 @@ export class ApiFootballIncidentSource {
   constructor(private readonly apiKey: string) {}
 
   async getIncidents(matchCore: MatchCoreInput): Promise<IncidentEvent[]> {
+    if (isApiFootballQuotaExhausted()) return [];
+
     const config = COMP_LEAGUE_MAP[matchCore.competitionId];
-    if (!config) return []; // Bundesliga or unknown → skip
+    if (!config) return [];
 
     const map = await loadMap();
     let entry = map[matchCore.matchId] ?? null;
@@ -157,13 +179,17 @@ export class ApiFootballIncidentSource {
     matchCore: MatchCoreInput,
     config: LeagueConfig,
   ): Promise<FixtureEntry | null> {
-    // Strategy: API-Football free plan restricts date+season queries to 2022-2024.
-    // Instead, use the live endpoint (works without season restriction) to resolve
-    // the fixture ID while the match is in progress. Once cached, it's reused for
-    // the final fetch after the match ends.
-    const found = await this.resolveViaLive(matchCore, config.id)
-      ?? await this.resolveViaDate(matchCore, config);
-    return found;
+    // Resolution chain (each step only runs if previous returns null):
+    // 1. live=all filtered by league  — works while match is active, no season restriction
+    // 2. live=all without league      — broader net when league filter misses (HT gap, delay)
+    // 3. date + league + season       — for FINISHED matches; tries kickoff date and ±1 day
+    //                                   (UTC edge case: a 22:00 UY match is 01:00 UTC next day)
+    //                                   tries both computed season and adjacent season
+    return (
+      await this.resolveViaLive(matchCore, config.id) ??
+      await this.resolveViaLiveAll(matchCore) ??
+      await this.resolveViaDate(matchCore, config)
+    );
   }
 
   private async resolveViaLive(
@@ -187,25 +213,80 @@ export class ApiFootballIncidentSource {
     }
   }
 
-  private async resolveViaDate(
+  /**
+   * Broader live search without league filter.
+   * Useful when the league-filtered endpoint returns 0 results (e.g. match in HT,
+   * slight API delay, or league ID mismatch). Filters by both team names + kickoff
+   * date window (±4h from kickoffUtc) to avoid false positives across all sports.
+   */
+  private async resolveViaLiveAll(
     matchCore: MatchCoreInput,
-    config: LeagueConfig,
   ): Promise<FixtureEntry | null> {
-    if (!matchCore.kickoffUtc) return null;
-    const date   = matchCore.kickoffUtc.slice(0, 10);
-    const season = config.season(matchCore.kickoffUtc);
+    if (!matchCore.homeTeamName || !matchCore.awayTeamName) return null;
     try {
-      const data = await this.apiGet<{ response: AfFixtureItem[] }>(
-        `/fixtures?date=${date}&league=${config.id}&season=${season}`,
-      );
+      const data = await this.apiGet<{ response: AfFixtureItem[] }>('/fixtures?live=all');
       const fixtures = data.response ?? [];
-      console.log(`[AfIncidents] /fixtures date=${date} league=${config.id} → ${fixtures.length} items`);
+      console.log(`[AfIncidents] /fixtures?live=all (no league filter) → ${fixtures.length} live fixtures`);
       const match = fixtures.find((f) =>
         nameMatches(f.teams.home.name, matchCore.homeTeamName ?? '') &&
         nameMatches(f.teams.away.name, matchCore.awayTeamName ?? ''),
       );
       if (!match) return null;
       return { fixtureId: match.fixture.id, homeTeamId: match.teams.home.id };
+    } catch {
+      return null;
+    }
+  }
+
+  private async resolveViaDate(
+    matchCore: MatchCoreInput,
+    config: LeagueConfig,
+  ): Promise<FixtureEntry | null> {
+    if (!matchCore.kickoffUtc || isApiFootballQuotaExhausted()) return null;
+
+    const kickoffMs = new Date(matchCore.kickoffUtc).getTime();
+    const utcDate   = matchCore.kickoffUtc.slice(0, 10);
+    const season    = config.season(matchCore.kickoffUtc);
+
+    // Try primary date first (1 request).
+    const primary = await this.tryDateQuery(utcDate, config.id, season, matchCore);
+    if (primary) return primary;
+
+    // UTC edge case: a 22:00 local kickoff may be next UTC day, or vice versa.
+    // Try adjacent days with the same season only (max 2 extra requests).
+    const prevDate = new Date(kickoffMs - 24 * 3600_000).toISOString().slice(0, 10);
+    if (prevDate !== utcDate) {
+      const prev = await this.tryDateQuery(prevDate, config.id, season, matchCore);
+      if (prev) return prev;
+    }
+
+    const nextDate = new Date(kickoffMs + 24 * 3600_000).toISOString().slice(0, 10);
+    if (nextDate !== utcDate) {
+      const next = await this.tryDateQuery(nextDate, config.id, season, matchCore);
+      if (next) return next;
+    }
+
+    return null;
+  }
+
+  private async tryDateQuery(
+    date: string,
+    leagueId: number,
+    season: number,
+    matchCore: MatchCoreInput,
+  ): Promise<FixtureEntry | null> {
+    try {
+      const data = await this.apiGet<{ response: AfFixtureItem[] }>(
+        `/fixtures?date=${date}&league=${leagueId}&season=${season}`,
+      );
+      const fixtures = data.response ?? [];
+      console.log(`[AfIncidents] /fixtures date=${date} league=${leagueId} season=${season} → ${fixtures.length} items`);
+      if (fixtures.length === 0) return null;
+      const match = fixtures.find((f) =>
+        nameMatches(f.teams.home.name, matchCore.homeTeamName ?? '') &&
+        nameMatches(f.teams.away.name, matchCore.awayTeamName ?? ''),
+      );
+      return match ? { fixtureId: match.fixture.id, homeTeamId: match.teams.home.id } : null;
     } catch {
       return null;
     }
@@ -260,7 +341,9 @@ export class ApiFootballIncidentSource {
     return results;
   }
 
-  private async apiGet<T>(endpoint: string): Promise<T> {
+  private async apiGet<T extends { errors?: Record<string, string> }>(endpoint: string): Promise<T> {
+    if (isApiFootballQuotaExhausted()) throw new Error('API-Football quota exhausted');
+
     const url = `${BASE_URL}${endpoint}`;
     const res = await fetch(url, {
       headers: {
@@ -270,6 +353,12 @@ export class ApiFootballIncidentSource {
       signal: AbortSignal.timeout(12_000),
     });
     if (!res.ok) throw new Error(`API-Football HTTP ${res.status}: ${endpoint}`);
-    return res.json() as Promise<T>;
+
+    const data = await res.json() as T;
+    if (data?.errors?.requests) {
+      markQuotaExhausted();
+      throw new Error(`API-Football quota: ${data.errors.requests}`);
+    }
+    return data;
   }
 }
