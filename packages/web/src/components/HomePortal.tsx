@@ -5,11 +5,16 @@ import { useWindowWidth } from '../hooks/use-window-width.js';
 import { AdBlockerBanner } from './eventos/AdBlockerBanner.js';
 import { LiveCarousel } from './home/LiveCarousel.js';
 import { DailyHighlights } from './home/DailyHighlights.js';
+import { COMP_ID_TO_NEWS_KEY } from '../utils/competition-meta.js';
 
-export function HomePortal() {
+export function HomePortal({ enabledCompetitionIds }: { enabledCompetitionIds?: string[] }) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
   const cols = breakpoint === 'mobile' ? 1 : breakpoint === 'tablet' ? 2 : 4;
+
+  const enabledLeagueKeys = enabledCompetitionIds
+    ? enabledCompetitionIds.map((id) => COMP_ID_TO_NEWS_KEY[id]).filter(Boolean)
+    : undefined;
 
   const { data: newsFeed, loading: newsLoading } = useNews(true);
   const { data: videoFeed, loading: videoLoading } = useVideos(true);
@@ -27,7 +32,7 @@ export function HomePortal() {
       <AdBlockerBanner isMobile={isMobile} />
 
       {/* ① LiveCarousel — inmediatez: en vivo → hoy → mañana */}
-      <LiveCarousel isMobile={isMobile} />
+      <LiveCarousel isMobile={isMobile} enabledCompetitionIds={enabledCompetitionIds} />
 
       {/* Divisor visual entre secciones */}
       <div style={{
@@ -45,6 +50,7 @@ export function HomePortal() {
         firstHeadlineId={null}
         cols={cols}
         compact={cols === 4}
+        enabledLeagueKeys={enabledLeagueKeys}
       />
     </div>
   );

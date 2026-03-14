@@ -482,9 +482,42 @@ YOUTUBE_API_KEY=...       # YouTube Data API v3 (video highlights)
 - BUN: `UC6UL29enLNe4mqwTfAyeNuw` — Bundesliga
 - NOTA: @tenfieldoficial es Carnaval, NO fútbol
 
+### Back Office — Dynamic Portal Configuration
+
+**Location:** `/admin` (public route, auth via `ADMIN_SECRET` env var)
+
+**Files:**
+- `server/portal-config-store.ts` — atomic JSON store for portal config (enabled competitions + features TV/Pronósticos)
+- `server/admin-router.ts` — admin endpoints: POST /api/admin/auth, GET/PUT /api/admin/config
+- `packages/api/src/ui/portal-config-route.ts` — public endpoint GET /api/ui/portal-config (no auth required)
+- `packages/web/src/admin/AdminPage.tsx` — admin dashboard
+- `packages/web/src/hooks/use-portal-config.ts` — hook with auto-retries (serverReady, 3s retry on 500/error)
+- `packages/web/src/components/ServerBootScreen.tsx` — loading screen while server boots
+
+**Data flow:**
+1. Frontend fetches `GET /api/ui/portal-config` (public) on mount → `usePortalConfig` hook
+2. If server not ready (500/error), retries every 3s, shows `ServerBootScreen`
+3. Admin accesses `/admin`, enters ADMIN_SECRET, submits config changes
+4. POST `/api/admin/config` persists to `cache/portal-config.json` (atomic .tmp → rename)
+5. Audit log appended to `cache/portal-config-audit.jsonl` (one event per line)
+6. Config propagates to:
+   - `Navbar.tsx` — filters TV/Pronósticos menu items by `features.tv` and `features.predictions`
+   - `HomePortal.tsx` — enables/disables league sections (LiveCarousel, DailyHighlights, EventsSection)
+   - `LiveCarousel.tsx` — filters matches by `enabledCompetitionIds`
+   - `DailyHighlights.tsx` — filters news/video blocks by `enabledLeagueKeys`
+   - `EventsSection.tsx` — filters events by `enabledCompetitionIds`
+
+**Centralized mapping:** `packages/web/src/utils/competition-meta.ts`
+- `COMP_ID_TO_NEWS_KEY`: maps competitionId → league key for news filtering
+- `COMP_ID_TO_NORMALIZED_LEAGUE`: maps competitionId → normalized league display name
+- `MANAGED_NORMALIZED_LEAGUES`: tuple of league names managed by back office
+
+**Cache location:** `/cache/portal-config.json` and `/cache/portal-config-audit.jsonl` (runtime, not versioned)
+
 ### Known bugs fixed
 - Race condition al cambiar de liga rápido: `use-dashboard-snapshot.ts` usa `AbortController` para cancelar requests anteriores en vuelo.
 - Window fetch partial overwrite: merging with baseMatches before persisting matchday cache prevents data loss for multi-day matchdays.
 - LiveCarousel hover clipping: `paddingTop:4` on scroll container prevents `translateY(-2px)` from being clipped by overflow.
 - Standings legend emojis replaced with colored squares using exact `zone.color` values.
 - Pronósticos missing matches: window fetch was caching partial matchday data; merge fix ensures full match list.
+- LiveCarousel score alignment: gap:7 + fixed crest height aligns score column vertically with team rows.

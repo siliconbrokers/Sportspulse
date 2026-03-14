@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ParsedEvent, EventosFeed } from '../../hooks/use-events.js';
 import { openEventDirect } from '../../hooks/use-events.js';
 import { getMatchDisplayStatus, ZOMBIE_THRESHOLD_MIN, AUTOFINISH_THRESHOLD_MIN } from '../../utils/match-status.js';
+import { COMP_ID_TO_NORMALIZED_LEAGUE, MANAGED_NORMALIZED_LEAGUES } from '../../utils/competition-meta.js';
 import { useTeamDetail } from '../../hooks/use-team-detail.js';
 import { DetailPanel } from '../DetailPanel.js';
 
@@ -385,18 +386,20 @@ function LiveMatchCard({
               </div>
             </div>
 
-            {/* Columna derecha: scores */}
+            {/* Columna derecha: scores — gap y altura iguales a las filas de equipos */}
             {isLive && !isZombie && hasScore && (
               <div style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                justifyContent: 'center', gap: 4, flexShrink: 0,
+                display: 'flex', flexDirection: 'column', gap: 7, flexShrink: 0,
               }}>
-                <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {event.scoreHome}
-                </span>
-                <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {event.scoreAway}
-                </span>
+                {[event.scoreHome, event.scoreAway].map((score, i) => (
+                  <div key={i} style={{
+                    height: crestSz, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {score}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -511,9 +514,10 @@ function ArrowButton({ direction, onClick }: { direction: 'left' | 'right'; onCl
 
 interface LiveCarouselProps {
   isMobile: boolean;
+  enabledCompetitionIds?: string[];
 }
 
-export function LiveCarousel({ isMobile }: LiveCarouselProps) {
+export function LiveCarousel({ isMobile, enabledCompetitionIds }: LiveCarouselProps) {
   const [feed, setFeed]         = useState<EventosFeed | null>(null);
   const [upcoming, setUpcoming] = useState<UpcomingMatchDTO[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -590,10 +594,16 @@ export function LiveCarousel({ isMobile }: LiveCarouselProps) {
   // Canónico es la única fuente de tarjetas. Enriquecemos con openUrl cuando streamtp cubre el partido.
   const canonicalAll = upcoming.map((m) => upcomingToEvent(m, streamUrlMap));
 
-  // Zombie guard: eliminar auto-finalizados (>240 min) y zombies (>180 min).
+  const enabledLeagues = enabledCompetitionIds
+    ? new Set(enabledCompetitionIds.map((id) => COMP_ID_TO_NORMALIZED_LEAGUE[id]).filter(Boolean))
+    : null;
+
+  // Zombie guard + filtro de ligas deshabilitadas
   const allEvents = canonicalAll.filter((e) => {
     const state = getLiveState(e);
-    return state !== 'finished' && state !== 'zombie';
+    if (state === 'finished' || state === 'zombie') return false;
+    if (enabledLeagues && MANAGED_NORMALIZED_LEAGUES.has(e.normalizedLeague) && !enabledLeagues.has(e.normalizedLeague)) return false;
+    return true;
   });
 
   const sorted    = sortEvents(allEvents);

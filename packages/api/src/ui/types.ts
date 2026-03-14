@@ -165,6 +165,23 @@ export interface IUpcomingService {
   getUpcoming(windowHours?: number): UpcomingMatchDTO[];
 }
 
+export interface PortalConfigSnapshot {
+  competitions: Array<{
+    id: string;
+    slug: string;
+    displayName: string;
+    enabled: boolean;
+    updatedAt: string;
+    updatedBy: string;
+  }>;
+  features: {
+    tv: boolean;
+    predictions: boolean;
+    updatedAt: string;
+    updatedBy: string;
+  };
+}
+
 export interface AppDependencies {
   snapshotService: SnapshotService;
   dataSource: DataSource;
@@ -176,4 +193,5 @@ export interface AppDependencies {
   tournamentSource?: ITournamentSource;
   upcomingService?: IUpcomingService;
   predictionService?: IPredictionService;
+  getPortalConfig?: () => PortalConfigSnapshot;
 }

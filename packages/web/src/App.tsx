@@ -24,6 +24,10 @@ import { EvaluationLabPage } from './labs/EvaluationLabPage.js';
 import { HistoricalEvaluationLabPage } from './labs/HistoricalEvaluationLabPage.js';
 import { getCompMeta } from './utils/competition-meta.js';
 import { SubTournamentSelector } from './components/SubTournamentSelector.js';
+import { usePortalConfig } from './hooks/use-portal-config.js';
+import type { PortalConfig } from './hooks/use-portal-config.js';
+import { AdminPage } from './admin/AdminPage.js';
+import { ServerBootScreen } from './components/ServerBootScreen.js';
 
 function SubTournamentEmptyState() {
   return (
@@ -44,19 +48,27 @@ function isLabsRoute(): boolean {
   return window.location.pathname.startsWith('/labs/');
 }
 
-const COMPETITIONS = [
-  { id: 'comp:thesportsdb:4432', code: '4432', isTournament: false },
-  { id: 'comp:sportsdb-ar:4406', code: '4406-ar', isTournament: false },
-  { id: 'comp:football-data:PD', code: 'PD', isTournament: false },
-  { id: 'comp:football-data:PL', code: 'PL', isTournament: false },
-  { id: 'comp:openligadb:bl1', code: 'BL1', isTournament: false },
-  { id: 'comp:football-data-cli:CLI', code: 'CLI', isTournament: true },
-  { id: 'comp:football-data-wc:WC', code: 'WC', isTournament: true },
-];
+function isAdminRoute(): boolean {
+  return window.location.pathname.startsWith('/admin');
+}
+
+// Static metadata per competition ID — isTournament cannot come from the config service
+const COMP_META_STATIC: Record<string, { code: string; isTournament: boolean }> = {
+  'comp:thesportsdb:4432':      { code: '4432',    isTournament: false },
+  'comp:sportsdb-ar:4406':      { code: '4406-ar', isTournament: false },
+  'comp:football-data:PD':      { code: 'PD',      isTournament: false },
+  'comp:football-data:PL':      { code: 'PL',      isTournament: false },
+  'comp:openligadb:bl1':        { code: 'BL1',     isTournament: false },
+  'comp:football-data-cli:CLI': { code: 'CLI',     isTournament: true  },
+  'comp:football-data-wc:WC':   { code: 'WC',      isTournament: true  },
+};
 
 export function AppRoot() {
   if (isPlayerTestRoute()) {
     return <EventPlayerTest />;
+  }
+  if (isAdminRoute()) {
+    return <AdminPage />;
   }
   if (isLabsRoute()) {
     const path = window.location.pathname;
@@ -64,50 +76,84 @@ export function AppRoot() {
     if (path.startsWith('/labs/evaluacion')) return <EvaluationLabPage />;
     return <PredictionsLabPage />;
   }
-  return <App />;
+  return <BootGate />;
 }
 
-function App() {
-  const [competitionId, setCompetitionId] = useState(COMPETITIONS[0].id);
+// BootGate: espera que el servidor esté listo antes de montar App.
+// Esto evita violar Rules of Hooks (early return dentro de App con hooks posteriores).
+function BootGate() {
+  const { config: portalConfig, serverReady } = usePortalConfig();
+  if (!serverReady) return <ServerBootScreen />;
+  return <App portalConfig={portalConfig} />;
+}
+
+const FALLBACK_COMP_ID = 'comp:thesportsdb:4432';
+
+function App({ portalConfig }: { portalConfig: PortalConfig }) {
+  // Compute enabled competitions in display order (same order as COMP_META_STATIC keys)
+  const COMPETITIONS = Object.keys(COMP_META_STATIC)
+    .map((id) => {
+      const entry = portalConfig.competitions.find((c) => c.id === id);
+      const enabled = entry ? entry.enabled : true;
+      return { id, ...COMP_META_STATIC[id], enabled };
+    })
+    .filter((c) => c.enabled);
+
+  const firstCompId = COMPETITIONS[0]?.id ?? FALLBACK_COMP_ID;
+  const [competitionId, setCompetitionIdRaw] = useState(firstCompId);
   const [matchday, setMatchday] = useState<number | null>(null);
   const [view, setView] = useState<ViewMode>('home');
   const [standingsFocusId, setStandingsFocusId] = useState<string | null>(null);
   const [tournamentFocusId, setTournamentFocusId] = useState<string | null>(null);
+
+  // If current competition was disabled, reset to first enabled
+  const resolvedCompetitionId = COMPETITIONS.find((c) => c.id === competitionId)
+    ? competitionId
+    : firstCompId;
+
+  const setCompetitionId = (id: string) => {
+    setCompetitionIdRaw(id);
+    setMatchday(null);
+    setStandingsFocusId(null);
+    setTournamentFocusId(null);
+    setTournamentFocusDate(null);
+    setSubTournamentKey(undefined);
+  };
   const [tournamentFocusDate, setTournamentFocusDate] = useState<string | null>(null);
   const [hasLiveMatches, setHasLiveMatches] = useState(false);
   const [tvTab, setTvTab] = useState<'hoy' | 'manana'>('hoy');
   const [subTournamentKey, setSubTournamentKey] = useState<string | undefined>(undefined);
 
-  const currentComp = COMPETITIONS.find((c) => c.id === competitionId) ?? COMPETITIONS[0];
+  const currentComp = COMPETITIONS.find((c) => c.id === resolvedCompetitionId) ?? COMPETITIONS[0];
   const isTournament = currentComp.isTournament;
 
-  const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(competitionId, subTournamentKey);
+  const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(resolvedCompetitionId, subTournamentKey);
   const { data: standings, loading: standingsLoading } = useStandings(
-    competitionId,
+    resolvedCompetitionId,
     view === 'standings' && !isTournament,
     subTournamentKey,
   );
   const { teamsPlayingToday, teamsPlayingLive } = useTeamsPlayingToday(
-    competitionId,
+    resolvedCompetitionId,
     view === 'standings' ? (compInfo?.currentMatchday ?? null) : null,
     'America/Montevideo',
   );
   const { data: standingsTeamDetail } = useTeamDetail(
-    competitionId,
+    resolvedCompetitionId,
     view === 'standings' ? standingsFocusId : null,
     compInfo?.currentMatchday ?? null,
     'America/Montevideo',
   );
   const todayLocal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
   const { data: tournamentTeamDetail } = useTeamDetail(
-    competitionId,
+    resolvedCompetitionId,
     view === 'standings' && isTournament ? tournamentFocusId : null,
     null,
     'America/Montevideo',
     tournamentFocusDate ?? todayLocal,
   );
   const { data: scorers, loading: scorersLoading } = useScorers(
-    competitionId,
+    resolvedCompetitionId,
     view === 'standings' && !isTournament,
   );
 
@@ -118,7 +164,7 @@ function App() {
     setTournamentFocusId(null);
     setTournamentFocusDate(null);
     setSubTournamentKey(undefined); // se resolverá al activo según compInfo
-  }, [competitionId]);
+  }, [resolvedCompetitionId]);
 
   // Cuando carga compInfo y hay sub-torneos: seleccionar el activo por defecto
   useEffect(() => {
@@ -167,9 +213,10 @@ function App() {
       <Navbar
         view={view}
         onViewChange={setView}
-        competitionId={competitionId}
+        competitionId={resolvedCompetitionId}
         onCompetitionChange={(id) => { setCompetitionId(id); }}
-        competitions={COMPETITIONS.filter((c) => !c.hidden)}
+        competitions={COMPETITIONS}
+        features={portalConfig.features}
         hasLiveMatches={hasLiveMatches}
         tvTab={tvTab}
         onTvTabChange={setTvTab}
@@ -178,11 +225,11 @@ function App() {
 
       {/* ── Contenido principal ─────────────────────────────────────────── */}
       {view === 'home' ? (
-        <HomePortal />
+        <HomePortal enabledCompetitionIds={COMPETITIONS.map((c) => c.id)} />
       ) : view === 'pronosticos' ? (
         <div style={{ padding: isMobile ? '12px 12px' : '16px 20px', maxWidth: 1400, margin: '0 auto' }}>
           {isTournament ? (
-            <TournamentPronosticosView competitionId={competitionId} />
+            <TournamentPronosticosView competitionId={resolvedCompetitionId} />
           ) : (
             <>
               {/* Sub-torneo selector — solo en ligas con Clausura/Apertura/etc. */}
@@ -210,7 +257,7 @@ function App() {
                     />
                   </div>
                   <PronosticosView
-                    competitionId={competitionId}
+                    competitionId={resolvedCompetitionId}
                     matchday={matchday}
                   />
                 </>
@@ -219,13 +266,13 @@ function App() {
           )}
         </div>
       ) : view === 'tv' ? (
-        <EventsSection activeTab={tvTab} onTabChange={setTvTab} />
+        <EventsSection activeTab={tvTab} onTabChange={setTvTab} enabledCompetitionIds={COMPETITIONS.map((c) => c.id)} />
       ) : view === 'partidos' ? (
         isTournament ? (
           <div style={{ padding: isMobile ? '12px' : '16px 20px', maxWidth: 1100, margin: '0 auto' }}>
             <TournamentPartidosView
-              competitionId={competitionId}
-              accent={getCompMeta(competitionId)?.accent}
+              competitionId={resolvedCompetitionId}
+              accent={getCompMeta(resolvedCompetitionId)?.accent}
             />
           </div>
         ) : (
@@ -257,7 +304,7 @@ function App() {
                   />
                 </div>
                 <DashboardLayout
-                  competitionId={competitionId}
+                  competitionId={resolvedCompetitionId}
                   matchday={matchday}
                   currentMatchday={activeMatchday}
                   timezone="America/Montevideo"
@@ -275,10 +322,10 @@ function App() {
           {isTournament ? (
             <>
               <TournamentView
-                competitionId={competitionId}
-                accent={getCompMeta(competitionId)?.accent}
-                startDate={getCompMeta(competitionId)?.startDate}
-                phases={getCompMeta(competitionId)?.phases ?? ['grupos', 'eliminatorias']}
+                competitionId={resolvedCompetitionId}
+                accent={getCompMeta(resolvedCompetitionId)?.accent}
+                startDate={getCompMeta(resolvedCompetitionId)?.startDate}
+                phases={getCompMeta(resolvedCompetitionId)?.phases ?? ['grupos', 'eliminatorias']}
                 onSelectTeam={(id, dateLocal) => {
                   setTournamentFocusId((prev) => (prev === id ? null : id));
                   setTournamentFocusDate(dateLocal ?? todayLocal);
@@ -327,7 +374,7 @@ function App() {
                     <StandingsTable
                       standings={standings}
                       onTeamClick={(id) => setStandingsFocusId((prev) => (prev === id ? null : id))}
-                      competitionId={competitionId}
+                      competitionId={resolvedCompetitionId}
                       teamsPlayingToday={teamsPlayingToday}
                       teamsPlayingLive={teamsPlayingLive}
                     />

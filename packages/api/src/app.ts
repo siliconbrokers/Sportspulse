@@ -19,6 +19,7 @@ import { scorersRoute } from './ui/scorers-route.js';
 import { upcomingRoute } from './ui/upcoming-route.js';
 import { predictionRoute } from './ui/prediction-route.js';
 import { statusRoute } from './ui/status-route.js';
+import { portalConfigRoute } from './ui/portal-config-route.js';
 import type { AppDependencies } from './ui/types.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -42,6 +43,7 @@ export function buildApp(deps: AppDependencies): FastifyInstance {
   app.register(upcomingRoute(deps));
   app.register(predictionRoute(deps));
   app.register(statusRoute(deps));
+  app.register(portalConfigRoute(deps));
 
   // Servir el frontend React en producción
   const webDist = join(__dirname, '../../web/dist');

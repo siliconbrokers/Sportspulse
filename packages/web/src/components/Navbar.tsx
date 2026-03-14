@@ -40,6 +40,7 @@ interface NavbarProps {
   tvTab?: 'hoy' | 'manana';
   onTvTabChange?: (tab: 'hoy' | 'manana') => void;
   isTournament?: boolean;
+  features?: { tv: boolean; predictions: boolean };
 }
 
 export function Navbar({
@@ -52,11 +53,19 @@ export function Navbar({
   tvTab = 'hoy',
   onTvTabChange,
   isTournament = false,
+  features,
 }: NavbarProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
   const isLeagueView = view !== 'home';
   const { theme, toggleTheme } = useTheme();
+
+  // Filter nav items by feature flags (default: all enabled for backward compat)
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.id === 'tv') return features?.tv !== false;
+    if (item.id === 'pronosticos') return features?.predictions !== false;
+    return true;
+  });
 
   return (
     <header
@@ -78,7 +87,7 @@ export function Navbar({
           }}>
             {/* Menú — ocupa el espacio restante centrado */}
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-              <NavPill view={view} onViewChange={onViewChange} isMobile={isMobile} hasLive={hasLiveMatches} isTournament={isTournament} />
+              <NavPill view={view} onViewChange={onViewChange} isMobile={isMobile} hasLive={hasLiveMatches} isTournament={isTournament} items={visibleNavItems} />
             </div>
 
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
@@ -151,7 +160,7 @@ export function Navbar({
 
           {/* NavPill centrado */}
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-            <NavPill view={view} onViewChange={onViewChange} isMobile={false} hasLive={hasLiveMatches} isTournament={isTournament} />
+            <NavPill view={view} onViewChange={onViewChange} isMobile={false} hasLive={hasLiveMatches} isTournament={isTournament} items={visibleNavItems} />
           </div>
 
           {/* Zona derecha */}
@@ -175,14 +184,16 @@ function NavPill({
   isMobile,
   hasLive,
   isTournament,
+  items,
 }: {
   view: ViewMode;
   onViewChange: (v: ViewMode) => void;
   isMobile: boolean;
   hasLive: boolean;
   isTournament: boolean;
+  items: typeof NAV_ITEMS;
 }) {
-  const visibleItems = NAV_ITEMS;
+  const visibleItems = items;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);

@@ -89,5 +89,27 @@ export function getCompMeta(id: string): CompetitionMeta | undefined {
 /** Orden de bloques en NewsSection y feeds de noticias del home. */
 export const NEWS_LEAGUE_ORDER = ['URU', 'LL', 'EPL', 'BUN'] as const;
 
+/** Mapa competition ID → league key usado en noticias/videos */
+export const COMP_ID_TO_NEWS_KEY: Record<string, string> = {
+  'comp:thesportsdb:4432': 'URU',
+  'comp:football-data:PD': 'LL',
+  'comp:football-data:PL': 'EPL',
+  'comp:openligadb:bl1': 'BUN',
+};
+
+/** Mapa competition ID → normalizedLeague (usado en TV, LiveCarousel, etc.) */
+export const COMP_ID_TO_NORMALIZED_LEAGUE: Record<string, string> = {
+  'comp:thesportsdb:4432': 'URUGUAY_PRIMERA',
+  'comp:sportsdb-ar:4406': 'ARGENTINA_PRIMERA',
+  'comp:football-data:PD': 'LALIGA',
+  'comp:football-data:PL': 'PREMIER_LEAGUE',
+  'comp:openligadb:bl1': 'BUNDESLIGA',
+  'comp:football-data-cli:CLI': 'COPA_LIBERTADORES',
+  'comp:football-data-wc:WC': 'MUNDIAL',
+};
+
+/** Todas las ligas gestionadas (pueden deshabilitarse desde el Back Office) */
+export const MANAGED_NORMALIZED_LEAGUES = new Set(Object.values(COMP_ID_TO_NORMALIZED_LEAGUE));
+
 /** Orden de bloques en VideoSection (incluye CLI una vez tenga soporte de video). */
 export const VIDEO_LEAGUE_ORDER = ['URU', 'LL', 'EPL', 'BUN', 'CLI'] as const;

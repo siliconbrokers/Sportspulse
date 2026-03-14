@@ -15,6 +15,7 @@ import { useTheme } from '../../hooks/use-theme.js';
 import { useTeamDetail } from '../../hooks/use-team-detail.js';
 import { DetailPanel } from '../DetailPanel.js';
 import { getMatchDisplayStatus, AUTOFINISH_THRESHOLD_MIN } from '../../utils/match-status.js';
+import { COMP_ID_TO_NORMALIZED_LEAGUE, MANAGED_NORMALIZED_LEAGUES } from '../../utils/competition-meta.js';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ const ACCENT: Record<string, string> = {
 // canónicos con soporte completo de DetailPanel (crests, estado, pronóstico).
 
 const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'ARGENTINA_PRIMERA', 'LALIGA', 'PREMIER_LEAGUE', 'BUNDESLIGA', 'COPA_LIBERTADORES']);
+
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -189,9 +191,10 @@ function SkeletonCard({ isMobile }: { isMobile: boolean }) {
 interface EventsSectionProps {
   activeTab: 'hoy' | 'manana';
   onTabChange: (tab: 'hoy' | 'manana') => void;
+  enabledCompetitionIds?: string[];
 }
 
-export function EventsSection({ activeTab, onTabChange }: EventsSectionProps) {
+export function EventsSection({ activeTab, onTabChange, enabledCompetitionIds }: EventsSectionProps) {
   const { data: feed, loading: loadingStream, error } = useEvents(true);
   const { breakpoint } = useWindowWidth();
   const { theme } = useTheme();
@@ -267,7 +270,15 @@ export function EventsSection({ activeTab, onTabChange }: EventsSectionProps) {
     return elapsed > AUTOFINISH_THRESHOLD_MIN;
   }
 
-  const allEvents = [...canonicalEvents, ...streamOnlyEvents].filter((e) => !isEffectivelyFinished(e));
+  const enabledLeagues = enabledCompetitionIds
+    ? new Set(enabledCompetitionIds.map((id) => COMP_ID_TO_NORMALIZED_LEAGUE[id]).filter(Boolean))
+    : null;
+
+  const allEvents = [...canonicalEvents, ...streamOnlyEvents].filter((e) => {
+    if (isEffectivelyFinished(e)) return false;
+    if (enabledLeagues && MANAGED_NORMALIZED_LEAGUES.has(e.normalizedLeague) && !enabledLeagues.has(e.normalizedLeague)) return false;
+    return true;
+  });
 
   // ── Filtrar por tab (hoy / mañana) ────────────────────────────────────────
   const todayEvents    = allEvents.filter((e) => e.isTodayInPortalTz || e.normalizedStatus === 'EN_VIVO');

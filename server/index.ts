@@ -36,6 +36,8 @@ import { HistoricalStateService } from './prediction/historical-state-service.js
 import { runV2Shadow } from './prediction/v2-runner.js';
 import { V2PredictionStore } from './prediction/v2-prediction-store.js';
 import type { MatchCoreInput } from './incidents/types.js';
+import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig } from './portal-config-store.js';
+import { registerAdminRoutes } from './admin-router.js';
 import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
 import {
   SnapshotService,
@@ -106,10 +108,14 @@ async function main() {
     'https://www.thesportsdb.com/api/v1/json', SPORTSDB_PROVIDER_KEY,
     UY_SUB_TOURNAMENTS,
   );
-  try {
-    await sportsDbSource.fetchSeason();
-  } catch (err) {
-    console.error(`Failed to fetch Liga Uruguaya from TheSportsDB:`, err);
+  if (isCompetitionEnabled(UY_COMPETITION_ID)) {
+    try {
+      await sportsDbSource.fetchSeason();
+    } catch (err) {
+      console.error(`Failed to fetch Liga Uruguaya from TheSportsDB:`, err);
+    }
+  } else {
+    console.log('[PortalConfig] Liga Uruguaya deshabilitada — startup fetch omitido');
   }
 
   // TheSportsDB — Liga Argentina
@@ -118,29 +124,41 @@ async function main() {
     SPORTSDB_API_KEY, AR_LEAGUE_ID, AR_LEAGUE_NAME,
     'https://www.thesportsdb.com/api/v1/json', AR_PROVIDER_KEY,
   );
-  try {
-    await new Promise<void>((r) => setTimeout(r, 5000));
-    await sportsDbArSource.fetchSeason();
-  } catch (err) {
-    console.error(`Failed to fetch Liga Argentina from TheSportsDB:`, err);
+  if (isCompetitionEnabled(AR_COMPETITION_ID)) {
+    try {
+      await new Promise<void>((r) => setTimeout(r, 5000));
+      await sportsDbArSource.fetchSeason();
+    } catch (err) {
+      console.error(`Failed to fetch Liga Argentina from TheSportsDB:`, err);
+    }
+  } else {
+    console.log('[PortalConfig] Liga Argentina deshabilitada — startup fetch omitido');
   }
 
   // OpenLigaDB — Bundesliga (no auth required)
   const openLigaDbSource = new OpenLigaDBSource(OLG_LEAGUE, '1. Bundesliga');
-  try {
-    await openLigaDbSource.fetchSeason();
-  } catch (err) {
-    console.error('Failed to fetch Bundesliga from OpenLigaDB:', err);
+  if (isCompetitionEnabled(OLG_COMPETITION_ID)) {
+    try {
+      await openLigaDbSource.fetchSeason();
+    } catch (err) {
+      console.error('Failed to fetch Bundesliga from OpenLigaDB:', err);
+    }
+  } else {
+    console.log('[PortalConfig] Bundesliga deshabilitada — startup fetch omitido');
   }
 
   // Football-data.org — Copa del Mundo 2026 (torneo con grupos + eliminatorias)
   const wcSource = new FootballDataTournamentSource(API_TOKEN, WC_CONFIG);
   const WC_COMPETITION_ID = wcSource.competitionId; // 'comp:football-data-wc:WC'
-  try {
-    await new Promise<void>((r) => setTimeout(r, 7000));
-    await wcSource.fetchTournament();
-  } catch (err) {
-    console.error('Failed to fetch Copa del Mundo 2026 from football-data.org:', err);
+  if (isCompetitionEnabled(WC_COMPETITION_ID)) {
+    try {
+      await new Promise<void>((r) => setTimeout(r, 7000));
+      await wcSource.fetchTournament();
+    } catch (err) {
+      console.error('Failed to fetch Copa del Mundo 2026 from football-data.org:', err);
+    }
+  } else {
+    console.log('[PortalConfig] Copa del Mundo deshabilitada — startup fetch omitido');
   }
 
   // Football-data.org — Copa Libertadores 2026 (grupos + eliminatorias CONMEBOL)
@@ -160,13 +178,17 @@ async function main() {
     console.warn('[Startup] APIFOOTBALL_KEY no configurada — scores CLI desde football-data.org (puede ser incorrecto)');
   }
 
-  try {
-    await new Promise<void>((r) => setTimeout(r, 20000));
-    await cliSource.fetchTournament();
-  } catch (err) {
-    const cliErr = err instanceof Error ? err.message : String(err);
-    console.error(`[Startup] ERROR cargando Copa Libertadores: ${cliErr}`);
-    console.error('[Startup] Verificá que FOOTBALL_DATA_TOKEN tenga acceso a CLI. Visitá /api/ui/status para diagnóstico.');
+  if (isCompetitionEnabled(CLI_COMPETITION_ID)) {
+    try {
+      await new Promise<void>((r) => setTimeout(r, 20000));
+      await cliSource.fetchTournament();
+    } catch (err) {
+      const cliErr = err instanceof Error ? err.message : String(err);
+      console.error(`[Startup] ERROR cargando Copa Libertadores: ${cliErr}`);
+      console.error('[Startup] Verificá que FOOTBALL_DATA_TOKEN tenga acceso a CLI. Visitá /api/ui/status para diagnóstico.');
+    }
+  } else {
+    console.log('[PortalConfig] Copa Libertadores deshabilitada — startup fetch omitido');
   }
 
   // Routing: Liga Uruguaya/Argentina → TheSportsDB, BL1 → OpenLigaDB, WC/CA/CLI → tournament sources, resto → football-data.org
@@ -222,8 +244,15 @@ async function main() {
   const EVENTOS_DEBUG = process.env.EVENTOS_DEBUG === 'true';
 
   // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy, league-aware)
-  const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`);
-  const ALL_COMP_IDS = [...FD_COMP_IDS, UY_COMPETITION_ID, AR_COMPETITION_ID, OLG_COMPETITION_ID, WC_COMPETITION_ID, CLI_COMPETITION_ID];
+  const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`).filter((id) => isCompetitionEnabled(id));
+  const ALL_COMP_IDS = [
+    ...FD_COMP_IDS,
+    UY_COMPETITION_ID,
+    AR_COMPETITION_ID,
+    OLG_COMPETITION_ID,
+    WC_COMPETITION_ID,
+    CLI_COMPETITION_ID,
+  ].filter((id) => isCompetitionEnabled(id));
   // V2 only supports football-data.org competitions (historical loader only covers FD)
   const fdCompetitionCodeMap = new Map(FD_COMPETITION_CODES.map((c) => [`comp:football-data:${c}`, c]));
   function normTeamName(s: string) {
@@ -424,7 +453,8 @@ async function main() {
     getTournamentMatches: (id: string) => tournamentSources.get(id)?.getTournamentMatches(id) ?? null,
   };
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService });
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getFullConfig });
+  registerAdminRoutes(app);
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
   // Refresh interval adapts to match state. Only polls when data can change.
@@ -534,49 +564,63 @@ async function main() {
   }
 
   async function runRefreshInner(): Promise<void> {
-    for (let i = 0; i < FD_COMPETITION_CODES.length; i++) {
-      const code = FD_COMPETITION_CODES[i];
+    // Re-read enabled state on each refresh cycle so changes take effect without restart
+    const enabledFdCodes = FD_COMPETITION_CODES.filter((c) =>
+      isCompetitionEnabled(`comp:football-data:${c}`),
+    );
+    for (let i = 0; i < enabledFdCodes.length; i++) {
+      const code = enabledFdCodes[i];
       try {
         await fdSource.fetchCompetition(code);
         snapshotService.invalidateAll();
       } catch (err) {
         console.error(`Refresh failed for ${code}:`, err);
       }
-      if (i < FD_COMPETITION_CODES.length - 1) {
+      if (i < enabledFdCodes.length - 1) {
         await new Promise<void>((r) => setTimeout(r, 7000));
       }
     }
-    try {
-      await sportsDbSource.fetchSeason();
-      snapshotService.invalidateAll();
-    } catch (err) {
-      console.error('Refresh failed for Liga Uruguaya:', err);
+    if (isCompetitionEnabled(UY_COMPETITION_ID)) {
+      try {
+        await sportsDbSource.fetchSeason();
+        snapshotService.invalidateAll();
+      } catch (err) {
+        console.error('Refresh failed for Liga Uruguaya:', err);
+      }
     }
-    try {
-      await sportsDbArSource.fetchSeason();
-      snapshotService.invalidateAll();
-    } catch (err) {
-      console.error('Refresh failed for Liga Argentina:', err);
+    if (isCompetitionEnabled(AR_COMPETITION_ID)) {
+      try {
+        await sportsDbArSource.fetchSeason();
+        snapshotService.invalidateAll();
+      } catch (err) {
+        console.error('Refresh failed for Liga Argentina:', err);
+      }
     }
-    try {
-      await openLigaDbSource.fetchSeason();
-      snapshotService.invalidateAll();
-    } catch (err) {
-      console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
+    if (isCompetitionEnabled(OLG_COMPETITION_ID)) {
+      try {
+        await openLigaDbSource.fetchSeason();
+        snapshotService.invalidateAll();
+      } catch (err) {
+        console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
+      }
     }
-    await new Promise<void>((r) => setTimeout(r, 7000));
-    try {
-      await wcSource.fetchTournament();
-      snapshotService.invalidateAll();
-    } catch (err) {
-      console.error('Refresh failed for Copa del Mundo 2026:', err);
+    if (isCompetitionEnabled(WC_COMPETITION_ID)) {
+      await new Promise<void>((r) => setTimeout(r, 7000));
+      try {
+        await wcSource.fetchTournament();
+        snapshotService.invalidateAll();
+      } catch (err) {
+        console.error('Refresh failed for Copa del Mundo 2026:', err);
+      }
     }
-    await new Promise<void>((r) => setTimeout(r, 7000));
-    try {
-      await cliSource.fetchTournament();
-      snapshotService.invalidateAll();
-    } catch (err) {
-      console.error('Refresh failed for Copa Libertadores 2026:', err);
+    if (isCompetitionEnabled(CLI_COMPETITION_ID)) {
+      await new Promise<void>((r) => setTimeout(r, 7000));
+      try {
+        await cliSource.fetchTournament();
+        snapshotService.invalidateAll();
+      } catch (err) {
+        console.error('Refresh failed for Copa Libertadores 2026:', err);
+      }
     }
     // Shadow prediction pipeline — fire-and-forget, fault-isolated
     // Runs out-of-band: errors never propagate to the refresh cycle

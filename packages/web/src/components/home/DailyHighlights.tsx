@@ -211,9 +211,11 @@ function buildFeed(
   blocks: NewsBlock[],
   videosByLeague: Map<string, LeagueVideoHighlight[]>,
   excludeId: string | null,
+  allowedKeys?: string[],
 ): FeedItem[] {
   const items: FeedItem[] = [];
-  for (const key of NEWS_LEAGUE_ORDER) {
+  const order = allowedKeys ? NEWS_LEAGUE_ORDER.filter((k) => allowedKeys.includes(k)) : NEWS_LEAGUE_ORDER;
+  for (const key of order) {
     const block = blocks.find((b) => b.leagueKey === key);
     const videos = videosByLeague.get(key) ?? [];
     const headlines = (block?.headlines ?? []).filter((h) => h.id !== excludeId);
@@ -248,6 +250,7 @@ interface DailyHighlightsProps {
   firstHeadlineId: string | null;
   cols: number;
   compact?: boolean;
+  enabledLeagueKeys?: string[];
 }
 
 export function DailyHighlights({
@@ -258,6 +261,7 @@ export function DailyHighlights({
   firstHeadlineId,
   cols,
   compact = false,
+  enabledLeagueKeys,
 }: DailyHighlightsProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loadMore = useCallback(() => setVisibleCount((n) => n + PAGE_SIZE), []);
@@ -275,11 +279,15 @@ export function DailyHighlights({
     );
   }
 
+  const isEnabled = (key: string) => !enabledLeagueKeys || enabledLeagueKeys.includes(key);
+
   const videosByLeague = new Map(
-    (videoFeed?.blocks ?? []).map((vb) => [vb.leagueKey, vb.highlights ?? []]),
+    (videoFeed?.blocks ?? [])
+      .filter((vb) => isEnabled(vb.leagueKey))
+      .map((vb) => [vb.leagueKey, vb.highlights ?? []]),
   );
-  const blocks = newsFeed?.blocks ?? [];
-  const allItems = buildFeed(blocks, videosByLeague, firstHeadlineId);
+  const blocks = (newsFeed?.blocks ?? []).filter((b) => isEnabled(b.leagueKey));
+  const allItems = buildFeed(blocks, videosByLeague, firstHeadlineId, enabledLeagueKeys);
 
   if (allItems.length === 0) return null;
 
