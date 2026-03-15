@@ -169,7 +169,7 @@ function MatchHeader({
   return (
     <div>
       {/* Metadata row */}
-      <div style={{ fontSize: 12, color: 'var(--sp-text-40)', marginBottom: 16, textAlign: 'center' }}>
+      <div style={{ fontSize: 12, color: 'var(--sp-text-40)', marginBottom: 10, textAlign: 'center' }}>
         {vm.matchday && <span>Jornada {vm.matchday} · </span>}
         {vm.utcDate && formatDateTime(vm.utcDate, timezone)}
         {vm.venueName && (
@@ -180,7 +180,7 @@ function MatchHeader({
       </div>
 
       {/* Crests + score */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, gap: 8 }}>
         {/* Home team */}
         <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
@@ -297,7 +297,7 @@ function MatchHeader({
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, background: 'var(--sp-border)', marginBottom: 20 }} />
+      <div style={{ height: 1, background: 'var(--sp-border)', marginBottom: 12 }} />
     </div>
   );
 }
@@ -353,7 +353,7 @@ function PreMatchBody({
           <div
             data-testid="match-estimate"
             style={{
-              marginBottom: 20,
+              marginBottom: 12,
               padding: '14px 16px',
               backgroundColor: 'var(--sp-border-4)',
               borderRadius: 12,
@@ -390,29 +390,13 @@ function PreMatchBody({
         );
       })()}
 
-      {/* §7.3 — Short pre-match reading */}
-      {vm.preMatchReading && (
-        <div style={{
-          fontSize: 12,
-          color: 'var(--sp-text-40)',
-          marginBottom: 20,
-          fontStyle: 'italic',
-          lineHeight: 1.5,
-          padding: '10px 12px',
-          borderLeft: '3px solid var(--sp-primary-22)',
-          background: 'var(--sp-primary-04)',
-          borderRadius: '0 8px 8px 0',
-        }}>
-          {vm.preMatchReading}
-        </div>
-      )}
 
       {/* §7.2 — Form block */}
       {vm.form && (
         <div style={{
           display: 'flex',
           gap: 12,
-          marginBottom: 20,
+          marginBottom: 12,
           padding: '12px 14px',
           background: 'var(--sp-border-4)',
           borderRadius: 10,
@@ -440,7 +424,6 @@ function PreMatchBody({
 
         return (
           <div style={{ marginBottom: 20 }}>
-            <SectionLabel>Goles / Puntos del torneo</SectionLabel>
             <div style={{
               background: 'var(--sp-border-4)',
               borderRadius: 10,
@@ -451,7 +434,7 @@ function PreMatchBody({
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left', padding: '8px 0 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>Equipo</th>
+                    <th style={{ textAlign: 'left', padding: '8px 0 4px', fontWeight: 700, fontSize: 9, color: 'var(--sp-text-35)', letterSpacing: '0.06em' }}>GOLES / PUNTOS DEL TORNEO</th>
                     <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>GF</th>
                     <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>GC</th>
                     <th style={{ textAlign: 'center', padding: '8px 6px 4px', fontWeight: 400, fontSize: 10, color: 'var(--sp-text-35)' }}>DG</th>
@@ -902,7 +885,7 @@ function FinishedBody({
       {/* ── Caso B: sin datos de eventos → estado de cortesía ───────────────── */}
       {noEventsData && (
         <div style={{
-          marginBottom: isMobile ? 16 : 20,
+          marginBottom: isMobile ? 10 : 12,
           padding: '14px 16px',
           borderRadius: 12,
           border: '1px solid var(--sp-border)',
@@ -945,7 +928,7 @@ function FinishedBody({
           <div
             data-testid="match-estimate"
             style={{
-              marginBottom: 20,
+              marginBottom: 12,
               padding: predPadding,
               backgroundColor: narrativeBg,
               borderRadius: 12,
@@ -1078,8 +1061,8 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
     incidents && incidents.events.length > 0 ? incidents.events : null;
 
   const headerLabel =
-    vm.uiState === 'IN_PLAY'              ? 'En juego'
-    : vm.uiState === 'PENDING_CONFIRMATION' ? 'Confirmando resultado'
+    vm.uiState === 'IN_PLAY'              ? ''
+    : vm.uiState === 'PENDING_CONFIRMATION' ? ''
     : vm.uiState === 'FINISHED'           ? 'Último partido'
     : vm.uiState === 'PRE_MATCH'          ? 'Próximo partido'
     : '';
@@ -1118,7 +1101,7 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
       }}
     >
       {/* Close bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{
           fontSize: 10,
           fontWeight: 800,
@@ -1221,7 +1204,7 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
                   <div
                     data-testid="match-estimate"
                     style={{
-                      marginBottom: 16, padding: '12px 16px',
+                      marginBottom: 10, padding: '12px 16px',
                       backgroundColor: 'var(--sp-border-4)',
                       borderRadius: 12,
                       border: '1px solid rgba(245,158,11,0.25)',
@@ -1332,7 +1315,7 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
                   <div
                     data-testid="match-estimate"
                     style={{
-                      marginBottom: 16,
+                      marginBottom: 10,
                       padding: '12px 16px',
                       backgroundColor: 'var(--sp-border-4)',
                       borderRadius: 12,

@@ -244,7 +244,7 @@ function LiveMatchCard({
   const leagueLabel = LEAGUE_LABEL[event.normalizedLeague] ?? event.normalizedLeague;
   const timeStr     = formatTime(event.startsAtPortalTz);
   const crestSz     = isMobile ? 26 : 30;
-  const cardW       = isMobile ? 'calc(80vw)' : `${CARD_W_DESKTOP}px`;
+  const cardW       = isMobile ? 'calc(58vw)' : `${CARD_W_DESKTOP}px`;
 
   // Borde: seleccionado > live > zombie > normal
   const cardBorder = isSelected
@@ -263,8 +263,10 @@ function LiveMatchCard({
 
   function handleClick() {
     if (isLive && !isZombie) {
-      // LIVE: stream tiene prioridad; si no hay stream, abre DetailPanel
-      if (isStream) openEventDirect(event);
+      // LIVE streamtp10 (id no canónico): abre stream directo
+      // LIVE canónico: siempre DetailPanel — canonical IDs no existen en el backend de eventos;
+      //   el stream se accede desde el botón "Ver en vivo" dentro del DetailPanel.
+      if (isStream && !isCanonical) openEventDirect(event);
       else if (isCanonical) onDetailClick(event.id);
     } else if (isCanonical) {
       // No iniciado o finalizado: siempre abre DetailPanel (nunca stream)
@@ -283,7 +285,7 @@ function LiveMatchCard({
       style={{
         position: 'relative',
         width: cardW,
-        maxWidth: isMobile ? 290 : CARD_W_DESKTOP,
+        maxWidth: isMobile ? 220 : CARD_W_DESKTOP,
         flexShrink: 0,
         scrollSnapAlign: 'start',
         borderRadius: '1rem',
@@ -462,10 +464,10 @@ function LiveMatchCard({
 // ── SkeletonCard ──────────────────────────────────────────────────────────────
 
 function SkeletonCard({ isMobile }: { isMobile: boolean }) {
-  const cardW = isMobile ? 'calc(80vw)' : `${CARD_W_DESKTOP}px`;
+  const cardW = isMobile ? 'calc(58vw)' : `${CARD_W_DESKTOP}px`;
   return (
     <div style={{
-      width: cardW, maxWidth: isMobile ? 290 : CARD_W_DESKTOP,
+      width: cardW, maxWidth: isMobile ? 220 : CARD_W_DESKTOP,
       flexShrink: 0, scrollSnapAlign: 'start',
       borderRadius: '1rem', border: '1px solid var(--sp-border)',
       background: 'var(--sp-surface)', padding: '12px 13px',

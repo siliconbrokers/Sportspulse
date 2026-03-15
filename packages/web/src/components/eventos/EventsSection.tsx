@@ -284,7 +284,8 @@ export function EventsSection({ activeTab, onTabChange, enabledCompetitionIds }:
   const todayEvents    = allEvents.filter((e) => e.isTodayInPortalTz || e.normalizedStatus === 'EN_VIVO');
   const tomorrowEvents = allEvents.filter((e) => !e.isTodayInPortalTz && isEventTomorrow(e));
 
-  const tabEvents = activeTab === 'hoy' ? todayEvents : tomorrowEvents;
+  const tabEvents = [...(activeTab === 'hoy' ? todayEvents : tomorrowEvents)]
+    .sort((a, b) => (a.startsAtPortalTz ?? '').localeCompare(b.startsAtPortalTz ?? ''));
 
   // ── Tabs — solo visibles en desktop (en mobile los renderiza el Navbar) ──
   const Tabs = !isMobile ? (

@@ -266,6 +266,8 @@ interface CardProps {
 
 function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
   const [hovered, setHovered] = useState(false);
+  const { breakpoint } = useWindowWidth();
+  const isMobile = breakpoint === 'mobile';
 
   // Estado unificado — misma función que LiveCarousel y DetailPanel
   const cardState = getCardState(card);
@@ -286,6 +288,7 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
   const showDash = isActive && !hasScore;
   // Match is definitively over but score is unavailable (provider lag / zombie guard)
   const showScorePlaceholder = cardState === 'FINISHED' && !hasScore;
+  const hasPenalties = card.scoreHomePenalties != null && card.scoreAwayPenalties != null;
 
   // Estilos de borde/fondo según estado
   const cardBorder = isLive
@@ -337,6 +340,107 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
     } else {
       onSelectTeam(card.home.teamId);
     }
+  }
+
+  // ── Variante compacta mobile (2 filas, ~74px) ─────────────────────────────
+  if (isMobile) {
+    const scoreColor = isLive ? '#f97316' : isZombie ? '#f59e0b' : 'var(--sp-text-88)';
+    const kickoffTime = card.kickoffUtc
+      ? new Intl.DateTimeFormat('es-UY', {
+          timeZone: PORTAL_TZ, hour: '2-digit', minute: '2-digit', hour12: false,
+        }).format(new Date(card.kickoffUtc))
+      : '—';
+
+    return (
+      <div
+        role={onSelectTeam ? 'button' : undefined}
+        tabIndex={onSelectTeam ? 0 : undefined}
+        onClick={onSelectTeam ? handleCardClick : undefined}
+        onKeyDown={onSelectTeam ? (e) => e.key === 'Enter' && handleCardClick() : undefined}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          padding: '10px 12px',
+          border: cardBorder,
+          background: cardBg,
+          boxShadow: cardShadow,
+          borderRadius: 12,
+          cursor: onSelectTeam ? 'pointer' : 'default',
+          display: 'flex', flexDirection: 'column', gap: 5,
+          transition: 'border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease',
+          outline: 'none',
+        }}
+      >
+        {/* Fila 1: [nombre+crest flex:1] [score 52px] [crest+nombre flex:1] */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {/* Columna izquierda: nombre derecha + crest */}
+          <div style={{ flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+            <span style={{
+              fontSize: 12, fontWeight: 700,
+              color: homeIsFocus ? 'var(--sp-primary)' : 'var(--sp-text-88)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+              opacity: hasFocus && !homeIsFocus ? 0.4 : 1,
+              transition: 'opacity 0.15s',
+            }}>
+              {resolveTeamName(card.home.name, { tla: card.home.tla, compact: true })}
+            </span>
+            <Crest src={card.home.crestUrl} alt={card.home.name} size={22} />
+          </div>
+          {/* Columna central: score/vs — siempre en el mismo lugar */}
+          <div style={{ width: 52, flexShrink: 0, textAlign: 'center' }}>
+            {showScore ? (
+              <span style={{ fontSize: 13, fontWeight: 900, color: scoreColor, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+                {card.scoreHome ?? '-'}–{card.scoreAway ?? '-'}
+              </span>
+            ) : showDash ? (
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'rgba(251,146,60,0.75)' }}>-–-</span>
+            ) : (
+              <span style={{ fontSize: 11, color: 'var(--sp-text-25)', fontWeight: 300 }}>vs</span>
+            )}
+          </div>
+          {/* Columna derecha: crest + nombre */}
+          <div style={{ flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+            <Crest src={card.away.crestUrl} alt={card.away.name} size={22} />
+            <span style={{
+              fontSize: 12, fontWeight: 700,
+              color: awayIsFocus ? 'var(--sp-primary)' : 'var(--sp-text-88)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1,
+              opacity: hasFocus && !awayIsFocus ? 0.4 : 1,
+              transition: 'opacity 0.15s',
+            }}>
+              {resolveTeamName(card.away.name, { tla: card.away.tla, compact: true })}
+            </span>
+          </div>
+        </div>
+
+        {/* Fila 2: badge estado | flex-1 | hora [+ penaltis] */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 8, fontWeight: 700, letterSpacing: '0.06em',
+            padding: '1px 6px', borderRadius: 20,
+            background: badgeBg, color: badgeColor, border: badgeBorder,
+            flexShrink: 0,
+          }}>
+            {isLiveIcon && !isZombie ? (
+              <span className="live-icon-pulse" style={{ fontSize: 7 }}>●</span>
+            ) : tc.icon}
+            {' '}{tc.label}
+          </span>
+          <span style={{ flex: 1 }} />
+          {hasPenalties && (
+            <span style={{ fontSize: 9, color: 'var(--sp-text-40)', flexShrink: 0 }}>
+              pen {card.scoreHomePenalties}–{card.scoreAwayPenalties}
+            </span>
+          )}
+          {cardState !== 'FINISHED' && (
+            <span style={{ fontSize: 10, color: 'var(--sp-text-35)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+              {kickoffTime}
+            </span>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -545,8 +649,10 @@ export function MatchCardList({
   }, [matchCards, bestDate]);
 
   const visible = useMemo(() => {
-    if (selectedDate === 'all' || dates.length < 2) return matchCards;
-    return matchCards.filter((c) => (c.kickoffUtc ? toDateKey(c.kickoffUtc) === selectedDate : false));
+    const filtered = selectedDate === 'all' || dates.length < 2
+      ? matchCards
+      : matchCards.filter((c) => (c.kickoffUtc ? toDateKey(c.kickoffUtc) === selectedDate : false));
+    return [...filtered].sort((a, b) => (a.kickoffUtc ?? '').localeCompare(b.kickoffUtc ?? ''));
   }, [matchCards, selectedDate, dates]);
 
   return (

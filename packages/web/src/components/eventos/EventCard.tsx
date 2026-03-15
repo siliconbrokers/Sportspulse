@@ -183,6 +183,119 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
   const leagueLabel = LEAGUE_LABEL[event.normalizedLeague] ?? event.normalizedLeague;
   const timeStr     = fmtTime(event.startsAtPortalTz);
 
+  // ── Variante compacta mobile (2 filas, ~74px) ─────────────────────────────
+  if (isMobile) {
+    return (
+      <div
+        className="sp-ev-card"
+        role="button"
+        tabIndex={0}
+        aria-label={`Ver ${event.homeTeam ?? '?'} vs ${event.awayTeam ?? '?'}`}
+        onClick={handleCardClick}
+        onKeyDown={(e) => e.key === 'Enter' && openEventDirect(event)}
+        style={{
+          background: cardBg,
+          border: `1px solid ${borderColor}`,
+          borderRadius: 12,
+          padding: '10px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 5,
+          position: 'relative',
+          overflow: 'hidden',
+          animationDelay: `${animationDelay}ms`,
+          cursor: hasSignal ? 'pointer' : 'default',
+          opacity: hasSignal ? 1 : 0.85,
+        }}
+      >
+        {/* Fila 1: [nombre+crest flex:1] [score 52px] [crest+nombre+TV flex:1] */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {/* Columna izquierda: nombre alineado a la derecha + crest */}
+          <div style={{ flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+            <span style={{
+              fontSize: 12, fontWeight: 700, color: 'var(--sp-text-88)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+            }}>
+              {resolveTeamName(event.homeTeam ?? '?', { tla: event.homeTla ?? undefined, compact: true })}
+            </span>
+            <CrestImg src={event.homeCrestUrl} alt={event.homeTeam ?? ''} size={22} />
+          </div>
+          {/* Columna central: score/vs — siempre en el mismo lugar */}
+          <div style={{ width: 52, flexShrink: 0, textAlign: 'center' }}>
+            {isActive && event.scoreHome != null && event.scoreAway != null ? (
+              <span style={{ fontSize: 13, fontWeight: 900, color: '#f97316', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+                {event.scoreHome}–{event.scoreAway}
+              </span>
+            ) : (
+              <span style={{ fontSize: 11, color: 'var(--sp-text-25)', fontWeight: 300 }}>vs</span>
+            )}
+          </div>
+          {/* Columna derecha: crest + nombre + TV */}
+          <div style={{ flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+            <CrestImg src={event.awayCrestUrl} alt={event.awayTeam ?? ''} size={22} />
+            <span style={{
+              fontSize: 12, fontWeight: 700, color: 'var(--sp-text-88)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1,
+            }}>
+              {resolveTeamName(event.awayTeam ?? '?', { tla: event.awayTla ?? undefined, compact: true })}
+            </span>
+            {hasSignal && (
+              <Tv
+                size={14}
+                color="#00E0FF"
+                strokeWidth={2.2}
+                style={{ flexShrink: 0, animation: isActive ? 'sp-tv-pulse 1.6s ease-in-out infinite' : 'none' }}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Fila 2: [estado] [liga centrada] [hora] — 3 columnas iguales */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {/* Izquierda: badge estado */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+            {isLive ? (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                fontSize: 8, fontWeight: 900, letterSpacing: '0.08em',
+                padding: '1px 6px', borderRadius: 20,
+                background: '#ef4444', color: '#fff',
+                animation: 'sp-live-dot 1.2s ease-in-out infinite',
+              }}>
+                <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
+                LIVE
+              </span>
+            ) : isZombie ? (
+              <span style={{ fontSize: 9, color: '#f59e0b' }}>⚠</span>
+            ) : isFinished ? (
+              <span style={{ fontSize: 9, color: 'var(--sp-text-30)' }}>Finalizado</span>
+            ) : (
+              <span style={{ fontSize: 9, color: 'var(--sp-text-40)' }}>Próximo</span>
+            )}
+          </div>
+          {/* Centro: liga */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, minWidth: 0 }}>
+            {leagueLogo && <LeagueLogo src={leagueLogo} alt={leagueLabel} />}
+            <span style={{
+              fontSize: 10, color: 'var(--sp-text-30)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {leagueLabel}
+            </span>
+          </div>
+          {/* Derecha: hora */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+            {!isFinished && (
+              <span style={{ fontSize: 10, color: 'var(--sp-text-40)', fontVariantNumeric: 'tabular-nums' }}>
+                {timeStr}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="sp-ev-card"
