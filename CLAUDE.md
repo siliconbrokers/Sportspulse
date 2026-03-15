@@ -98,19 +98,19 @@ This project is governed entirely by **SDD (Spec-Driven Development)**. The spec
 
 When information conflicts, the higher-numbered document loses:
 
-1. `SportPulse_Constitution_v2.0_Master.md` — supreme governance, principles, boundaries
-2. `Domain_Glossary_and_Invariants_v1.0.md` — canonical terminology, semantic backbone
-3. `MVP_Execution_Scope_v1.0.md` — what to build / not build
-4. `Non_Functional_Requirements_v1.0.md` — quality baseline
-5. `Operational_Baseline_v1.0.md` — CI/CD, deployment, security, logging, performance targets
-6. `Repo_Structure_and_Module_Boundaries_v1.0.md` — architecture and dependency rules
-7. `Errors_and_Warnings_Taxonomy_v1.0.md` — error/warning codes and semantics
-8. `Acceptance_Test_Matrix_v1.0.md` + `Golden_Snapshot_Fixtures_v1.0.md` — truth locks
-9. Core technical specs: signals, metrics, scoring-policy, snapshot-engine, dashboard-snapshot-dto, api-contract, treemap-algorithm, layout-stability, frontend-architecture, ui-spec
-10. Supporting docs: component-map, interaction-spec, backend-architecture, data-normalization, event-lifecycle, data-quality, feature-evolution, product-loop
-11. `AI_SDD_Operating_Protocol_v1.0.md` — governs how AI participates in development
-12. `SubAgents_Definition_v1.0.md` — sub-agent system: roles, prompts, handoffs, execution workflow
-13. `Implementation_Backlog_SDD_v1.0.md` — ticket graph with phases, dependencies, and acceptance mapping
+1. `docs/core/spec.sportpulse.core.constitution.md` — supreme governance, principles, boundaries
+2. `docs/core/spec.sportpulse.core.domain-glossary-and-invariants.md` — canonical terminology, semantic backbone
+3. `docs/core/spec.sportpulse.core.mvp-execution-scope.md` — what to build / not build
+4. `docs/core/spec.sportpulse.core.non-functional-requirements.md` — quality baseline
+5. `docs/core/spec.sportpulse.ops.operational-baseline.md` — CI/CD, deployment, security, logging, performance targets
+6. `docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md` — architecture and dependency rules
+7. `docs/core/spec.sportpulse.shared.errors-and-warnings-taxonomy.md` — error/warning codes and semantics
+8. `docs/core/spec.sportpulse.qa.acceptance-test-matrix.md` + `docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md` — truth locks
+9. Core technical specs: `docs/specs/spec.sportpulse.signals.core.md`, `docs/specs/spec.sportpulse.signals.metrics.md`, `docs/specs/spec.sportpulse.scoring.policy.md`, `docs/specs/spec.sportpulse.snapshot.engine.md`, `docs/specs/spec.sportpulse.snapshot.dashboard-dto.md`, `docs/specs/spec.sportpulse.api.contract.md`, `docs/specs/spec.sportpulse.layout.treemap-algorithm.md`, `docs/specs/spec.sportpulse.layout.stability.md`, `docs/architecture/spec.sportpulse.web.frontend-architecture.md`, `docs/specs/spec.sportpulse.web.ui.md`
+10. Supporting docs: `docs/architecture/spec.sportpulse.web.component-map.md`, `docs/specs/spec.sportpulse.portal.interaction.md`, `docs/architecture/spec.sportpulse.server.backend-architecture.md`, `docs/data/spec.sportpulse.data.normalization.md`, `docs/data/spec.sportpulse.data.event-lifecycle.md`, `docs/data/spec.sportpulse.data.quality.md`, `docs/evolution/spec.sportpulse.product.feature-evolution.md`, `docs/evolution/spec.sportpulse.product.product-loop.md`
+11. `docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md` — governs how AI participates in development
+12. `docs/core/spec.sportpulse.core.subagents-definition.md` — sub-agent system: roles, prompts, handoffs, execution workflow
+13. `docs/core/spec.sportpulse.core.implementation-backlog.md` — ticket graph with phases, dependencies, and acceptance mapping
 
 Strategic briefs (MVP Strategic Brief, One Pager) are non-binding for implementation details. Archive docs are non-authoritative.
 
@@ -235,7 +235,7 @@ When proposing a spec change, provide: change description, rationale, affected d
 | `sonnet` | Sigue patrones existentes del codebase, tiene plan previo, o es lógica moderada | Implementar endpoints, componentes React, signal helpers, tests de integración |
 | `haiku` | Instrucciones 100% explícitas, cero ambigüedad, puro template/config | package.json edits, CI YAML, prettier config, git commits, adding deps |
 
-### Sub-agent System (definido en `SubAgents_Definition_v1.0.md`)
+### Sub-agent System (definido en `docs/core/spec.sportpulse.core.subagents-definition.md`)
 
 10 agentes con scope estricto. Prompts en `memory/subagent-prompts.md`. Cada agente define **qué** hacer; el **tier de modelo** define con qué modelo se ejecuta.
 
@@ -376,7 +376,7 @@ All phases (0-9) complete + Phase 10 (UI Polish) complete + News + Video Highlig
 - `server/football-data-source.ts` — football-data.org adapter
 - `server/the-sports-db-source.ts` — TheSportsDB adapter (Liga Uruguaya)
 - `server/routing-data-source.ts` — composite routing by competitionId
-- `server/matchday-cache.ts` — file-based JSON cache per matchday (spec: `matchday-cache-technical-spec.md` v1.0)
+- `server/matchday-cache.ts` — file-based JSON cache per matchday (spec: `docs/specs/spec.sportpulse.server.matchday-cache.md` v1.0)
   - Cache dir: `/cache/{provider}/{competitionId}/{season}/matchday-{NN}.json` (runtime, not versioned)
   - Atomic write (.tmp → rename), TTL by status (finished=1y, live=60s, scheduled=6h, mixed=5min)
   - Integrated in both data sources via `checkMatchdayCache` / `persistMatchdayCache`

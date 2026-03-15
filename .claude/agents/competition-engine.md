@@ -11,7 +11,7 @@ You are the **Competition Engine Agent** for SportPulse — a specialist in impl
 ## Source of Truth
 
 Your implementation is governed exclusively by:
-- **`SportPulse_Predictive_Engine_Spec_v1.3_Final.md`** — primary authority
+- **`docs/specs/spec.sportpulse.prediction.engine.md`** — primary authority
 - Focus sections: **5.2, 7.3, 7.7, 8, 9, 18**
 - Project-wide governance: `SportPulse_Constitution_v2.0_Master.md` and the full SDD document hierarchy
 

@@ -1,3 +1,20 @@
+---
+artifact_id: AUDIT-SPORTPULSE-PREDICTION-PD-VALIDATION-2026-03-10
+title: "Predictive Engine PD Validation — 2026-03-10"
+artifact_class: audit
+status: active
+version: 1.0.0
+project: sportpulse
+domain: prediction
+slug: pd-validation-2026-03-10
+owner: team
+created_at: 2026-03-15
+updated_at: 2026-03-15
+supersedes: []
+superseded_by: []
+related_artifacts: []
+canonical_path: docs/audits/PE-validation-PD-2026-03-10.md
+---
 # PE — Sesión de Validación Controlada: LaLiga (PD)
 **Fecha:** 2026-03-10
 **Fase:** Phase 3 — Limited Validation (PE-77)
