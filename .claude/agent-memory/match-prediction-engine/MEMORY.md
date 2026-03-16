@@ -64,22 +64,39 @@
 
 - `packages/prediction/src/contracts/` — Phase 1 (types, constants)
 - `packages/prediction/src/store/` — Phase 2a (rating pools)
-- `packages/prediction/src/engine/` — Phase 2a+2c (all computation)
+- `packages/prediction/src/engine/` — Phase 2a+2c+T3 (all computation)
+- `packages/prediction/src/engine/v3/` — V3 engine modules
 - `packages/prediction/src/validation/` — Phase 2b (validators)
 - `packages/prediction/src/calibration/` — Phase 2c (calibration)
-- `packages/prediction/test/engine/` — all engine tests (190 total, all pass)
+- `packages/prediction/test/engine/` — all engine tests
+
+## V3 Engine — T3 Tier Modules (MKT-T3-00, 2026-03-15)
+
+| Module | File | Purpose |
+|--------|------|---------|
+| xg-augment | `engine/v3/xg-augment.ts` | `augmentMatchesWithXg`, `computeXgCoverage` |
+| absence-adjustment | `engine/v3/absence-adjustment.ts` | `computeAbsenceMultiplier` — injuries + lineup |
+| market-blend | `engine/v3/market-blend.ts` | `blendWithMarketOdds` — post-Poisson 1X2 blend |
+
+T3 constants: `XG_PARTIAL_COVERAGE_THRESHOLD=0.5`, `ABSENCE_IMPACT_FACTOR=0.04`, `ABSENCE_MULT_MIN=0.85`, `LINEUP_MISSING_STARTER_IMPORTANCE=0.4`, `DOUBTFUL_WEIGHT=0.5`, `MARKET_WEIGHT=0.15`, `MARKET_WEIGHT_MAX=0.30`, `MARKET_ODDS_SUM_TOLERANCE=1e-4`
+
+T3 pipeline order: anti-lookahead → [T3-01 xG augment] → baselines/stats → lambdas → rest → H2H → [T3-02/03 absence mult] → clamp → Poisson → [T3-04 market blend] → computeMarkets (original matrix)
+
+T3 retrocompatibilidad: all T3 fields undefined → bit-exact output to pre-T3 engine (T3-REG invariant)
 
 ## Key Design Decisions
 
 - `Raw1x2Probs` brand isolation: created via `as unknown as Raw1x2Probs` cast in aggregator (unique symbol cannot be imported cross-module — this is intentional; TypeScript enforces brand at type-check time).
 - `tail_mass_raw > MAX_TAIL_MASS_RAW` policy: engine returns `tailMassExceeded: true` flag — policy action (degrade/expand/audit) is the CALLER's responsibility, not the engine's.
 - Pool separation is via factory functions, not a global registry — callers manage pool lifecycle.
+- T3-04 market blend: ONLY affects top-level 1X2 and predicted_result. `computeMarkets` always uses the original Poisson matrix (not blended) to preserve O/U, BTTS, scoreline structural integrity.
 
 ## Test Coverage
 
-- 190 tests total in `packages/prediction/test/`
+- **1155 tests total** in `packages/prediction/test/` (42 test files) — as of 2026-03-15
+- `test/engine/tier3-signals.test.ts` — 28 tests (MKT-T3-00 T3-01..T3-REG)
 - `test/engine/elo-rating.test.ts` — 19 tests (Phase 2a)
 - `test/engine/scoreline-matrix.test.ts` — 23 tests (Phase 2a)
 - `test/engine/raw-aggregator.test.ts` — 8 tests (Phase 2a)
 - `test/engine/derived-raw.test.ts` — 17 tests (Phase 2a)
-- All Phase 2b and 2c tests also pass (11 test files total)
+- All Phase 2b and 2c tests also pass (42 test files total)

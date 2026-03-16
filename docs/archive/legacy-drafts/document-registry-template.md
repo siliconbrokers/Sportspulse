@@ -1,3 +1,20 @@
+---
+artifact_id: SPEC-SPORTPULSE-GOVERNANCE-DOCUMENT-REGISTRY-TEMPLATE
+title: "Document Registry (Template — superseded by docs/_registry/document-registry.md)"
+artifact_class: spec
+status: superseded
+version: 1.0.0
+project: sportpulse
+domain: governance
+slug: document-registry-template
+owner: team
+created_at: 2026-03-15
+updated_at: 2026-03-15
+supersedes: []
+superseded_by: ['SPEC-SPORTPULSE-GOVERNANCE-DOCUMENT-REGISTRY']
+related_artifacts: []
+canonical_path: docs/archive/legacy-drafts/document-registry-template.md
+---
 # Document Registry
 
 ## 1. Purpose
