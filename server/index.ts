@@ -13,6 +13,7 @@ import { NewsService } from './news/index.js';
 import { ApiFootballCLIOverlay } from './api-football-cli-overlay.js';
 import { VideoService } from './video/index.js';
 import { RadarApiAdapter } from './radar/index.js';
+import { RadarV2ApiAdapter } from './radar-v2/index.js';
 import { EventosService, buildEventSource } from './eventos/index.js';
 import { MatchEventsService } from './match-events-service.js';
 import { IncidentService } from './incidents/incident-service.js';
@@ -41,6 +42,7 @@ import { isV3ShadowEnabled } from './prediction/prediction-flags.js';
 import { OddsService } from './odds/odds-service.js';
 import { InjurySource } from './prediction/injury-source.js';
 import { XgSource } from './prediction/xg-source.js';
+import { LineupSource } from './prediction/lineup-source.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig, isFeatureEnabled } from './portal-config-store.js';
 import { registerAdminRoutes } from './admin-router.js';
@@ -445,8 +447,13 @@ async function main() {
   const injurySource = new InjurySource();
   // MKT-T3-03: xG source — API-Football v3 /fixtures/statistics, incremental disk cache per fixture
   const xgSource = new XgSource();
+  // MKT-T3-04: Lineup source — API-Football v3 /fixtures/lineups, in-memory cache (fixtures 1h, lineups 2h)
+  const lineupSource = new LineupSource();
   // RadarApiAdapter usa predictionStore como fuente primaria de probabilidades V3
   const radarService = new RadarApiAdapter(dataSource, predictionStore);
+  // Radar v2: standalone, NO predictor integration
+  const radarV2Enabled = process.env.RADAR_V2_ENABLED === 'true';
+  const radarV2Service = radarV2Enabled ? new RadarV2ApiAdapter(dataSource) : undefined;
   const evaluationStore = new EvaluationStore();
   const v2PredictionStore = new V2PredictionStore();
 
@@ -467,7 +474,7 @@ async function main() {
     getTournamentMatches: (id: string) => tournamentSources.get(id)?.getTournamentMatches(id) ?? null,
   };
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getFullConfig });
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getFullConfig });
   registerAdminRoutes(app);
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
@@ -638,7 +645,9 @@ async function main() {
     }
     // Shadow prediction pipeline — fire-and-forget, fault-isolated
     // Runs out-of-band: errors never propagate to the refresh cycle
-    void runShadow(dataSource, ALL_COMP_IDS, predictionService, predictionStore, evaluationStore);
+    // evaluationStore NOT passed: V3 runner is the authoritative source for evaluation.
+    // Passing it here would let spec (prior_rating=false → league baseline) overwrite V3 records.
+    void runShadow(dataSource, ALL_COMP_IDS, predictionService, predictionStore);
     // V2 structural shadow — fire-and-forget, fault-isolated. FD competitions only.
     const v2SeasonYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
     void runV2Shadow(dataSource, FD_COMP_IDS, historicalStateServiceFV, v2PredictionStore, fdCompetitionCodeMap, v2SeasonYear);
@@ -673,7 +682,7 @@ async function main() {
       },
     ].filter((d) => isCompetitionEnabled(d.competitionId) && isV3ShadowEnabled(d.competitionId));
     if (v3FdCompIds.length > 0 || v3NonFdDescriptors.length > 0) {
-      void runV3Shadow(dataSource, v3FdCompIds, v3NonFdDescriptors, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, v3SeasonYear, evaluationStore, oddsService, injurySource);
+      void runV3Shadow(dataSource, v3FdCompIds, v3NonFdDescriptors, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, v3SeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource);
     }
     // OE-3: capture ground truth for completed matches
     captureResults(dataSource, evaluationStore, ALL_COMP_IDS);

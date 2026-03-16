@@ -11,6 +11,7 @@ import { competitionInfoRoute } from './ui/competition-info-route.js';
 import { newsRoute } from './ui/news-route.js';
 import { videosRoute } from './ui/videos-route.js';
 import { radarRoute } from './ui/radar-route.js';
+import { radarV2Route } from './ui/radar-v2-route.js';
 import { eventosRoute } from './ui/eventos-route.js';
 import { groupStandingsRoute } from './ui/group-standings-route.js';
 import { bracketRoute } from './ui/bracket-route.js';
@@ -35,6 +36,7 @@ export function buildApp(deps: AppDependencies): FastifyInstance {
   app.register(newsRoute(deps));
   app.register(videosRoute(deps));
   app.register(radarRoute(deps));
+  app.register(radarV2Route(deps));
   app.register(eventosRoute(deps));
   app.register(groupStandingsRoute(deps));
   app.register(bracketRoute(deps));

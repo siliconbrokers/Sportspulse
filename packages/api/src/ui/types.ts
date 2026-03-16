@@ -102,6 +102,18 @@ export interface IRadarService {
   }>;
 }
 
+export interface IRadarV2Service {
+  getRadar(
+    competitionId: string,
+    matchday: number,
+    buildNowUtc: string,
+  ): Promise<{
+    snapshot: unknown;
+    liveData: unknown[];
+    state: 'ok' | 'empty' | 'unavailable';
+  }>;
+}
+
 export interface IEventosService {
   getEvents(): Promise<{
     events: Array<{
@@ -190,6 +202,7 @@ export interface AppDependencies {
   newsService: INewsService;
   videoService?: IVideoService;
   radarService?: IRadarService;
+  radarV2Service?: IRadarV2Service;
   eventosService?: IEventosService;
   matchEventsService?: IMatchEventsService;
   tournamentSource?: ITournamentSource;
