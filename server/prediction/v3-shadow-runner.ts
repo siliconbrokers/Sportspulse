@@ -276,6 +276,26 @@ async function runMatchPredictions(
         }
       }
 
+      // MKT-T3-04: Fetch confirmed lineup (~1h before kickoff) — fault-isolated, never propagates
+      let confirmedLineups: import('@sportpulse/prediction').ConfirmedLineupRecord[] | undefined;
+      if (lineupSource && match.startTimeUtc) {
+        const minutesToKickoff = (new Date(match.startTimeUtc).getTime() - Date.now()) / 60_000;
+        if (minutesToKickoff <= 90) {
+          try {
+            const fetched = await lineupSource.getConfirmedLineups(
+              competitionId,
+              match.startTimeUtc,
+              match.homeTeamId,
+              match.awayTeamId,
+              teamNameToId,
+            );
+            if (fetched.length > 0) confirmedLineups = fetched;
+          } catch {
+            confirmedLineups = undefined; // fault isolation
+          }
+        }
+      }
+
       const input = {
         homeTeamId: match.homeTeamId,
         awayTeamId: match.awayTeamId,
@@ -286,6 +306,7 @@ async function runMatchPredictions(
         expectedSeasonGames,
         injuries,
         historicalXg,
+        confirmedLineups,
       };
 
       const output = runV3Engine(input);
