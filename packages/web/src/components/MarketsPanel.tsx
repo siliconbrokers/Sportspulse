@@ -49,6 +49,10 @@ interface MarketsPanelProps {
   markets: MarketsData;
   homeTeamName: string;
   awayTeamName: string;
+  probHome?: number | null;
+  probDraw?: number | null;
+  probAway?: number | null;
+  predictedResult?: string | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -63,71 +67,69 @@ function xg(v: number): string {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-/** Barra dual para un mercado binario (ej: Over / Under) */
-function DualBar({
+/** Fila de par de mercados: etiqueta izq · % izq · barra dual · % der · etiqueta der */
+function MarketPairRow({
   leftLabel,
   leftValue,
   rightLabel,
   rightValue,
-  highlight = 'left',
 }: {
   leftLabel: string;
   leftValue: number;
   rightLabel: string;
   rightValue: number;
-  highlight?: 'left' | 'right' | 'none';
 }) {
-  const leftPct = Math.round(leftValue * 100);
+  const leftPct  = Math.round(leftValue * 100);
   const rightPct = Math.round(rightValue * 100);
-  const isLeftHigher = leftValue >= rightValue;
+  const leftWins = leftValue >= rightValue;
+  // Color: el lado ganador es verde, el perdedor rojo
+  const leftColor  = leftWins  ? '#16a34a' : '#dc2626';
+  const rightColor = !leftWins ? '#16a34a' : '#dc2626';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0' }}>
-      {/* Left label */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
+      {/* Etiqueta izquierda */}
       <span style={{
-        fontSize: 12,
-        width: 56,
-        textAlign: 'right' as const,
-        color: highlight === 'left' && isLeftHigher
-          ? 'var(--sp-text-primary, #f9fafb)'
-          : 'var(--sp-text-35, #9ca3af)',
-        fontWeight: isLeftHigher ? 600 : 400,
-        flexShrink: 0,
+        fontSize: 11, flexShrink: 0, whiteSpace: 'nowrap' as const,
+        color: 'var(--sp-text-88)', fontWeight: 600,
       }}>
         {leftLabel}
       </span>
-
-      {/* Bar */}
+      {/* % izquierdo */}
+      <span style={{
+        fontSize: 11, flexShrink: 0, width: 28, textAlign: 'right' as const,
+        fontVariantNumeric: 'tabular-nums',
+        color: leftWins ? 'var(--sp-text-88)' : 'var(--sp-text-50)',
+        fontWeight: 400,
+      }}>
+        {leftPct}%
+      </span>
+      {/* Barra dual */}
       <div style={{
-        flex: 1,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        overflow: 'hidden',
-        position: 'relative',
+        flex: 1, minWidth: 0, height: 6, borderRadius: 3,
+        backgroundColor: rightColor,
+        overflow: 'hidden', position: 'relative',
       }}>
         <div style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          height: '100%',
-          width: `${leftPct}%`,
-          backgroundColor: isLeftHigher ? '#3b82f6' : 'rgba(255,255,255,0.25)',
-          borderRadius: 2,
+          position: 'absolute', left: 0, top: 0,
+          height: '100%', width: `${leftPct}%`,
+          backgroundColor: leftColor,
           transition: 'width 0.3s ease',
         }} />
       </div>
-
-      {/* Right label */}
+      {/* % derecho */}
       <span style={{
-        fontSize: 12,
-        width: 56,
-        textAlign: 'left' as const,
-        color: highlight === 'right' && !isLeftHigher
-          ? 'var(--sp-text-primary, #f9fafb)'
-          : 'var(--sp-text-35, #9ca3af)',
-        fontWeight: !isLeftHigher ? 600 : 400,
-        flexShrink: 0,
+        fontSize: 11, flexShrink: 0, width: 28, textAlign: 'left' as const,
+        fontVariantNumeric: 'tabular-nums',
+        color: !leftWins ? 'var(--sp-text-88)' : 'var(--sp-text-50)',
+        fontWeight: 400,
+      }}>
+        {rightPct}%
+      </span>
+      {/* Etiqueta derecha */}
+      <span style={{
+        fontSize: 11, flexShrink: 0, whiteSpace: 'nowrap' as const,
+        color: 'var(--sp-text-88)', fontWeight: 600,
       }}>
         {rightLabel}
       </span>
@@ -137,20 +139,16 @@ function DualBar({
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-export function MarketsPanel({ markets, homeTeamName, awayTeamName }: MarketsPanelProps) {
+export function MarketsPanel({ markets, homeTeamName, awayTeamName, probHome, probDraw, probAway, predictedResult }: MarketsPanelProps) {
   const { over_under: ou, btts, double_chance: dc, expected_goals: xgData, top_scorelines: scorelines } = markets;
-
-  // Nombre corto para barras (máx ~10 chars)
-  const homeShort = homeTeamName.length > 10 ? homeTeamName.slice(0, 9) + '…' : homeTeamName;
-  const awayShort = awayTeamName.length > 10 ? awayTeamName.slice(0, 9) + '…' : awayTeamName;
 
   return (
     <div style={{
-      backgroundColor: 'var(--sp-surface-2, rgba(255,255,255,0.04))',
+      backgroundColor: 'var(--sp-surface-card)',
       borderRadius: 12,
       padding: '12px 14px',
       marginBottom: 12,
-      border: '1px solid rgba(255,255,255,0.08)',
+      border: '1px solid var(--sp-border-8)',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -159,76 +157,112 @@ export function MarketsPanel({ markets, homeTeamName, awayTeamName }: MarketsPan
           fontWeight: 700,
           textTransform: 'uppercase' as const,
           letterSpacing: '0.07em',
-          color: 'var(--sp-text-35, #9ca3af)',
+          color: 'var(--sp-text-50)',
         }}>
           Mercados
         </span>
       </div>
 
-      {/* ── O/U 2.5 y BTTS ─────────────────────────────── */}
+      {/* ── 1X2 ─────────────────────────────────────────── */}
+      {probHome != null && probDraw != null && probAway != null && (
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          padding: '4px 0 8px',
+          borderBottom: '1px solid var(--sp-border-6)',
+          marginBottom: 8,
+        }}>
+          {[
+            { label: 'Local (1)', value: probHome },
+            { label: 'Empate (X)', value: probDraw },
+            { label: 'Visita (2)', value: probAway },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+              <span style={{ fontSize: 10, color: 'var(--sp-text-50)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+                {label}
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--sp-text-88)', fontVariantNumeric: 'tabular-nums' }}>
+                {Math.round(value * 100)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── O/U 2.5, BTTS, Double Chance ───────────────── */}
       <div style={{ marginBottom: 8 }}>
-        <DualBar
-          leftLabel={`Over ${pct(ou.over_2_5)}`}
-          leftValue={ou.over_2_5}
-          rightLabel={`Under ${pct(ou.under_2_5)}`}
-          rightValue={ou.under_2_5}
-          highlight="left"
-        />
-        <DualBar
-          leftLabel={`BTTS ${pct(btts.yes)}`}
-          leftValue={btts.yes}
-          rightLabel={`No ${pct(btts.no)}`}
-          rightValue={btts.no}
-          highlight="left"
-        />
-        <DualBar
-          leftLabel={`1X ${pct(dc.home_or_draw)}`}
-          leftValue={dc.home_or_draw}
-          rightLabel={`X2 ${pct(dc.draw_or_away)}`}
-          rightValue={dc.draw_or_away}
-          highlight="none"
-        />
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-50)', marginBottom: 2, textAlign: 'center' as const }}>Over / Under 2.5</div>
+        <MarketPairRow leftLabel="Over"   leftValue={ou.over_2_5}      rightLabel="Under" rightValue={ou.under_2_5} />
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-50)', marginBottom: 2, textAlign: 'center' as const }}>Anotan ambos equipos</div>
+        <MarketPairRow leftLabel="Sí" leftValue={btts.yes} rightLabel="No" rightValue={btts.no} />
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-50)', marginBottom: 2, textAlign: 'center' as const }}>Ganador o Empate</div>
+        {/* Double Chance — sin barra, dos columnas */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-88)', whiteSpace: 'nowrap' as const }}>
+            1X <span style={{ fontWeight: 400, color: 'var(--sp-text-70)', fontVariantNumeric: 'tabular-nums' }}>{Math.round(dc.home_or_draw * 100)}%</span>
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-88)', whiteSpace: 'nowrap' as const }}>
+            X2 <span style={{ fontWeight: 400, color: 'var(--sp-text-70)', fontVariantNumeric: 'tabular-nums' }}>{Math.round(dc.draw_or_away * 100)}%</span>
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-88)', whiteSpace: 'nowrap' as const }}>
+            12 <span style={{ fontWeight: 400, color: 'var(--sp-text-70)', fontVariantNumeric: 'tabular-nums' }}>{Math.round(dc.home_or_away * 100)}%</span>
+          </span>
+        </div>
       </div>
 
       {/* ── Expected Goals ──────────────────────────────── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '4px 0',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        marginBottom: 8,
-      }}>
-        <span style={{ fontSize: 11, color: 'var(--sp-text-35, #9ca3af)' }}>Goles esperados</span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sp-text-primary, #f9fafb)' }}>
-          {homeShort} {xg(xgData.home)} · {xg(xgData.away)} {awayShort}
+      <div style={{ borderTop: '1px solid var(--sp-border-6)', padding: '6px 0', marginBottom: 4 }}>
+        <span style={{ fontSize: 11, color: 'var(--sp-text-50)', display: 'block', marginBottom: 4 }}>
+          Goles esperados
         </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: 'var(--sp-text-70)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, marginRight: 8 }}>
+              {homeTeamName}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sp-text-88)', flexShrink: 0 }}>
+              {xg(xgData.home)}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: 'var(--sp-text-70)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, marginRight: 8 }}>
+              {awayTeamName}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sp-text-88)', flexShrink: 0 }}>
+              {xg(xgData.away)}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* ── Top Scorelines ──────────────────────────────── */}
       {scorelines.length > 0 && (
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
-          <div style={{ fontSize: 11, color: 'var(--sp-text-35, #9ca3af)', marginBottom: 5 }}>
+        <div style={{ borderTop: '1px solid var(--sp-border-6)', paddingTop: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--sp-text-50)', marginBottom: 6 }}>
             Marcadores más probables
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px' }}>
-            {scorelines.slice(0, 5).map((s, i) => (
-              <span
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '3px 8px' }}>
+            {scorelines.slice(0, 6).map((s, i) => (
+              <div
                 key={i}
-                style={{
-                  fontSize: 12,
-                  fontWeight: i === 0 ? 700 : 500,
-                  color: i === 0
-                    ? 'var(--sp-text-primary, #f9fafb)'
-                    : 'var(--sp-text-50, #6b7280)',
-                  whiteSpace: 'nowrap',
-                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                {s.home}-{s.away}
-                <span style={{ fontSize: 10, color: 'var(--sp-text-35, #9ca3af)', marginLeft: 2 }}>
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: i === 0 ? 700 : 500,
+                  color: i === 0 ? 'var(--sp-text-88)' : 'var(--sp-text-70)',
+                  fontVariantNumeric: 'tabular-nums',
+                  flexShrink: 0,
+                }}>
+                  {s.home} – {s.away}
+                </span>
+                <span style={{
+                  fontSize: 12,
+                  fontWeight: i === 0 ? 600 : 400,
+                  color: i === 0 ? 'var(--sp-text-70)' : 'var(--sp-text-50)',
+                }}>
                   {pct(s.probability)}
                 </span>
-              </span>
+              </div>
             ))}
           </div>
         </div>

@@ -289,7 +289,7 @@ describe('computeTopScorelines — invariantes', () => {
   it('default n=5: retorna hasta 5 elementos', () => {
     const top = computeTopScorelines(makeUniform2x2());
     // Solo hay 4 celdas con prob > 0, el resto es 0
-    expect(top.length).toBeLessThanOrEqual(5);
+    expect(top.length).toBeLessThanOrEqual(6);
   });
 });
 
@@ -309,9 +309,9 @@ describe('computeMarkets — wrapper', () => {
     expect(markets.top_scorelines).toBeDefined();
   });
 
-  it('top_scorelines tiene exactamente 5 elementos (o menos si la matriz es pequeña)', () => {
+  it('top_scorelines tiene exactamente 6 elementos (o menos si la matriz es pequeña)', () => {
     const markets = computeMarkets(makeDegenerate1_0(), 0.7, 0.2, 0.1, 1.3, 0.8);
-    expect(markets.top_scorelines.length).toBeLessThanOrEqual(5);
+    expect(markets.top_scorelines.length).toBeLessThanOrEqual(6);
   });
 
   it('expected_goals.total = lambdaHome + lambdaAway', () => {

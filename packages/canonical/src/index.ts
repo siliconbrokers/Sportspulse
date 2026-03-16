@@ -47,3 +47,4 @@ export type {
 export { canonicalId, competitionId, seasonId, teamId, matchId } from './normalize/canonical-id.js';
 export { normalizeIngestion } from './normalize/normalize-ingestion.js';
 export type { NormalizationResult } from './normalize/normalize-ingestion.js';
+export { resolveDisplayName } from './normalize/team-display-name.js';

@@ -11,7 +11,7 @@
  *   - WC (Copa del Mundo 2026): usePERanking=false, usa standings API
  *   - CA (Copa América 2027):   usePERanking=true, usa PE competition engine
  */
-import { teamId as canonicalTeamId, matchId as canonicalMatchId, seasonId as canonicalSeasonId, competitionId as canonicalCompId } from '@sportpulse/canonical';
+import { teamId as canonicalTeamId, matchId as canonicalMatchId, seasonId as canonicalSeasonId, competitionId as canonicalCompId, resolveDisplayName } from '@sportpulse/canonical';
 import type { Team, Match, StageType } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
 import type { TournamentConfig } from './tournament-config.js';
@@ -676,7 +676,7 @@ export class FootballDataTournamentSource implements DataSource {
         teamId,
         sportId: 'FOOTBALL',
         name: t.name,
-        shortName: t.shortName || t.tla || t.name,
+        shortName: resolveDisplayName(t.name, t.shortName),
         crestUrl: t.crest || undefined,
         venueName: t.venue || undefined,
         providerKey: FD_PROVIDER_KEY,
@@ -976,7 +976,7 @@ export class FootballDataTournamentSource implements DataSource {
           teamId: homeTeamId,
           sportId: 'FOOTBALL',
           name: m.homeTeam.name ?? String(m.homeTeam.id),
-          shortName: m.homeTeam.shortName || m.homeTeam.tla || m.homeTeam.name || String(m.homeTeam.id),
+          shortName: resolveDisplayName(m.homeTeam.name ?? String(m.homeTeam.id), m.homeTeam.shortName),
           crestUrl: m.homeTeam.crest ?? `https://crests.football-data.org/${m.homeTeam.id}.png`,
           providerKey: FD_PROVIDER_KEY,
           providerTeamId: String(m.homeTeam.id),
@@ -987,7 +987,7 @@ export class FootballDataTournamentSource implements DataSource {
           teamId: awayTeamId,
           sportId: 'FOOTBALL',
           name: m.awayTeam.name ?? String(m.awayTeam.id),
-          shortName: m.awayTeam.shortName || m.awayTeam.tla || m.awayTeam.name || String(m.awayTeam.id),
+          shortName: resolveDisplayName(m.awayTeam.name ?? String(m.awayTeam.id), m.awayTeam.shortName),
           crestUrl: m.awayTeam.crest ?? `https://crests.football-data.org/${m.awayTeam.id}.png`,
           providerKey: FD_PROVIDER_KEY,
           providerTeamId: String(m.awayTeam.id),

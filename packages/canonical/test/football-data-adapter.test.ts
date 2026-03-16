@@ -122,16 +122,18 @@ describe('mapTeam', () => {
     });
   });
 
-  it('falls back to tla when shortName is empty', () => {
+  it('uses display name override when shortName is empty', () => {
     const fd = { ...FD_TEAM, shortName: '' };
     const result = mapTeam(fd, 'team:x');
-    expect(result.shortName).toBe('RMA');
+    // 'Real Madrid CF' is in DISPLAY_NAME_MAP → 'Real Madrid'
+    expect(result.shortName).toBe('Real Madrid');
   });
 
-  it('falls back to truncated name when both shortName and tla are empty', () => {
+  it('uses display name override when both shortName and tla are empty', () => {
     const fd = { ...FD_TEAM, shortName: '', tla: '' };
     const result = mapTeam(fd, 'team:x');
-    expect(result.shortName).toBe('REA');
+    // 'Real Madrid CF' is in DISPLAY_NAME_MAP → 'Real Madrid'
+    expect(result.shortName).toBe('Real Madrid');
   });
 });
 

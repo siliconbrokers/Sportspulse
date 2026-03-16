@@ -1,5 +1,5 @@
 import type { Match, Team } from '@sportpulse/canonical';
-import { EventStatus } from '@sportpulse/canonical';
+import { EventStatus, resolveDisplayName } from '@sportpulse/canonical';
 import type { TeamScoreDTO } from '../dto/team-score.js';
 import type { DisplayChipDTO, ExplainLineDTO } from './display-hints-mapper.js';
 
@@ -296,16 +296,16 @@ export function buildMatchCards(
       timeChip,
       home: {
         teamId: match.homeTeamId,
-        name: homeTeam?.name ?? match.homeTeamId,
-        shortName: homeTeam?.shortName,
+        name: homeTeam ? resolveDisplayName(homeTeam.name, homeTeam.shortName) : match.homeTeamId,
+        shortName: homeTeam ? resolveDisplayName(homeTeam.name, homeTeam.shortName) : undefined,
         tla: homeTeam?.tla,
         crestUrl: homeTeam?.crestUrl,
         formChip: homeFormChip,
       },
       away: {
         teamId: match.awayTeamId,
-        name: awayTeam?.name ?? match.awayTeamId,
-        shortName: awayTeam?.shortName,
+        name: awayTeam ? resolveDisplayName(awayTeam.name, awayTeam.shortName) : match.awayTeamId,
+        shortName: awayTeam ? resolveDisplayName(awayTeam.name, awayTeam.shortName) : undefined,
         tla: awayTeam?.tla,
         crestUrl: awayTeam?.crestUrl,
         formChip: awayFormChip,

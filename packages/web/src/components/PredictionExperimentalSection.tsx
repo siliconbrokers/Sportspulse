@@ -93,11 +93,11 @@ function resolvePredictedResultLabel(
 // ── Styles (inline — experimental section, not using Tailwind) ────────────────
 
 const cardStyle: React.CSSProperties = {
-  backgroundColor: 'var(--sp-surface-2, rgba(255,255,255,0.04))',
+  backgroundColor: 'var(--sp-surface-card)',
   borderRadius: 12,
   padding: '12px 14px',
   marginBottom: 12,
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid var(--sp-border-8)',
 };
 
 const headerRowStyle: React.CSSProperties = {
@@ -112,7 +112,7 @@ const sectionLabelStyle: React.CSSProperties = {
   fontWeight: 700,
   textTransform: 'uppercase' as const,
   letterSpacing: '0.07em',
-  color: 'var(--sp-text-35, #9ca3af)',
+  color: 'var(--sp-text-50)',
 };
 
 const experimentalBadgeStyle: React.CSSProperties = {
@@ -127,9 +127,9 @@ const experimentalBadgeStyle: React.CSSProperties = {
 
 const warningBoxStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--sp-text-50, #6b7280)',
+  color: 'var(--sp-text-55)',
   backgroundColor: 'rgba(245,158,11,0.08)',
-  border: '1px solid rgba(245,158,11,0.18)',
+  border: '1px solid rgba(245,158,11,0.22)',
   borderRadius: 8,
   padding: '8px 10px',
   marginBottom: 8,
@@ -137,7 +137,7 @@ const warningBoxStyle: React.CSSProperties = {
 
 const reasonsStyle: React.CSSProperties = {
   fontSize: 11,
-  color: 'var(--sp-text-35, #9ca3af)',
+  color: 'var(--sp-text-40)',
   marginTop: 4,
 };
 
@@ -146,26 +146,26 @@ const rowStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   padding: '4px 0',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
+  borderBottom: '1px solid var(--sp-border-5)',
 };
 
 const rowLabelStyle: React.CSSProperties = {
   fontSize: 12,
-  color: 'var(--sp-text-35, #9ca3af)',
+  color: 'var(--sp-text-50)',
   flex: '0 0 auto',
 };
 
 const rowValueStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
-  color: 'var(--sp-text-primary, #f9fafb)',
+  color: 'var(--sp-text-88)',
   textAlign: 'right' as const,
 };
 
 const footerStyle: React.CSSProperties = {
   marginTop: 8,
   fontSize: 11,
-  color: 'var(--sp-text-35, #9ca3af)',
+  color: 'var(--sp-text-40)',
 };
 
 // ── SignalsPanel ───────────────────────────────────────────────────────────────
@@ -182,8 +182,8 @@ function SignalChip({ label, active, detail }: SignalChipProps) {
     padding: '4px 8px',
     fontSize: 11,
     fontWeight: 600,
-    backgroundColor: active ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.04)',
-    color: active ? 'rgba(134,239,172,0.9)' : 'var(--sp-text-35, #9ca3af)',
+    backgroundColor: active ? 'rgba(34,197,94,0.12)' : 'var(--sp-surface-raised)',
+    color: active ? 'var(--sp-text-88)' : 'var(--sp-text-50)',
     whiteSpace: 'nowrap' as const,
   };
 
@@ -221,13 +221,13 @@ function SignalsPanel({ signals }: { signals: SignalsData }) {
 
   const partialNoteStyle: React.CSSProperties = {
     fontSize: 10,
-    color: 'var(--sp-text-35, #9ca3af)',
+    color: 'var(--sp-text-40)',
     marginTop: 4,
   };
 
   const limitedNoteStyle: React.CSSProperties = {
     fontSize: 10,
-    color: 'rgba(245,158,11,0.8)',
+    color: '#b45309',
     marginTop: 6,
   };
 
@@ -311,10 +311,6 @@ export function PredictionExperimentalSection({
     awayTeamName,
   );
 
-  const hasProbs =
-    data.p_home_win != null && data.p_draw != null && data.p_away_win != null;
-  const hasXg = data.expected_goals_home != null && data.expected_goals_away != null;
-
   return (
     <div style={cardStyle}>
       {/* Header */}
@@ -340,40 +336,7 @@ export function PredictionExperimentalSection({
         </div>
       )}
 
-      {/* Outputs — only when not NOT_ELIGIBLE */}
-      {!isNotEligible && (
-        <div>
-          {/* Resultado esperado */}
-          {predictedLabel && (
-            <div style={rowStyle}>
-              <span style={rowLabelStyle}>Resultado esperado</span>
-              <span style={rowValueStyle}>{predictedLabel}</span>
-            </div>
-          )}
-
-          {/* 1X2 probabilities */}
-          {hasProbs && (
-            <div style={rowStyle}>
-              <span style={rowLabelStyle}>1X2</span>
-              <span style={rowValueStyle}>
-                Local {formatPct(data.p_home_win)} — Empate {formatPct(data.p_draw)} — Visita {formatPct(data.p_away_win)}
-              </span>
-            </div>
-          )}
-
-          {/* Expected goals */}
-          {hasXg && (
-            <div style={{ ...rowStyle, borderBottom: 'none' }}>
-              <span style={rowLabelStyle}>xG</span>
-              <span style={rowValueStyle}>
-                xG Local: {formatXg(data.expected_goals_home)} — xG Visita: {formatXg(data.expected_goals_away)}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Markets panel (V3 only — null when not available) */}
+      {/* Markets panel — incluye 1X2, resultado esperado, xG y mercados */}
       {!isNotEligible && data.markets && (
         <MarketsPanel
           markets={data.markets}

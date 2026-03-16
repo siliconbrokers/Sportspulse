@@ -7,6 +7,7 @@ import {
   matchId as canonicalMatchId,
   mapMatch as mapFDMatch,
   PROVIDER_KEY,
+  resolveDisplayName,
 } from '@sportpulse/canonical';
 import { CrestCache } from './crest-cache.js';
 import type {
@@ -124,7 +125,11 @@ export class FootballDataSource implements DataSource {
 
   getStandings(compId: string): StandingEntry[] {
     const cached = this.getCached(compId);
-    return cached?.standings ?? [];
+    const standings = cached?.standings ?? [];
+    return standings.map((s) => ({
+      ...s,
+      teamName: resolveDisplayName(s.teamName),
+    }));
   }
 
   getCurrentMatchday(compId: string): number | undefined {
@@ -503,7 +508,7 @@ export class FootballDataSource implements DataSource {
           const fetched = (totalTable?.table ?? []).map((row) => ({
             position: row.position,
             teamId: canonicalTeamId(PROVIDER_KEY, String(row.team.id)),
-            teamName: row.team.name,
+            teamName: resolveDisplayName(row.team.name, row.team.shortName),
             tla: row.team.tla || undefined,
             crestUrl: row.team.crest || undefined,
             playedGames: row.playedGames,

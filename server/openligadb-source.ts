@@ -8,6 +8,7 @@ import {
   seasonId as canonicalSeasonId,
   teamId as canonicalTeamId,
   matchId as canonicalMatchId,
+  resolveDisplayName,
 } from '@sportpulse/canonical';
 import type { DataSource, MatchGoalEventDTO, StandingEntry } from '@sportpulse/snapshot';
 import { resolveTla } from './tla-overrides.js';
@@ -323,6 +324,7 @@ export class OpenLigaDBSource implements DataSource {
           teamId: canonId,
           sportId: Sport.FOOTBALL,
           name: t.teamName,
+          shortName: resolveDisplayName(t.teamName, t.shortName),
           tla: resolveTla(t.teamName, t.shortName ? t.shortName.slice(0, 3).toUpperCase() : undefined),
           crestUrl: CREST_OVERRIDES[t.teamId] ?? (t.teamIconUrl || undefined),
           providerKey: OPENLIGADB_PROVIDER_KEY,
@@ -385,7 +387,7 @@ export class OpenLigaDBSource implements DataSource {
       return {
         position: i + 1,
         teamId: canonId,
-        teamName: entry.teamName,
+        teamName: resolveDisplayName(entry.teamName),
         tla: resolveTla(entry.teamName),
         crestUrl: CREST_OVERRIDES[entry.teamInfoId] ?? (entry.teamIconUrl || undefined),
         playedGames: entry.matches,

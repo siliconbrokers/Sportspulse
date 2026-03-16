@@ -215,6 +215,6 @@ export function computeMarkets(
     dnb:            computeDnb(probHome, probAway),
     asian_handicap: computeAsianHandicap(probHome, probDraw, probAway),
     expected_goals: computeExpectedGoals(lambdaHome, lambdaAway, ou),
-    top_scorelines: computeTopScorelines(matrix, 5),
+    top_scorelines: computeTopScorelines(matrix, 6),
   };
 }

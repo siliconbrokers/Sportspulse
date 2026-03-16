@@ -7,6 +7,7 @@ import {
   seasonId as canonicalSeasonId,
   teamId as canonicalTeamId,
   matchId as canonicalMatchId,
+  resolveDisplayName,
 } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry, SubTournamentInfo } from '@sportpulse/snapshot';
 import { persistTeamsCache, loadTeamsCache, persistScoreSnapshot, loadScoreSnapshot } from './matchday-cache.js';
@@ -324,6 +325,7 @@ export class TheSportsDbSource implements DataSource {
           teamId: canonId,
           sportId: Sport.FOOTBALL,
           name,
+          shortName: resolveDisplayName(name),
           tla: resolveTla(name),
           crestUrl: badgeUrl || undefined,
           providerKey: this.providerKey,
@@ -724,7 +726,7 @@ function computeStandings(matches: Match[], teams: Team[]): StandingEntry[] {
     return {
       position: i + 1,
       teamId: r.teamId,
-      teamName: team?.name ?? r.teamId,
+      teamName: resolveDisplayName(team?.name ?? r.teamId),
       tla: team?.tla ?? resolveTla(team?.name ?? r.teamId),
       crestUrl: team?.crestUrl,
       playedGames: r.played,

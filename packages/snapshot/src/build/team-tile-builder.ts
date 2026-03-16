@@ -1,5 +1,5 @@
 import type { Team, Match } from '@sportpulse/canonical';
-import { EventStatus } from '@sportpulse/canonical';
+import { EventStatus, resolveDisplayName } from '@sportpulse/canonical';
 import type { SignalDTO } from '@sportpulse/signals';
 import { computeFormPointsLast5, computeNextMatchHours } from '@sportpulse/signals';
 import { executePolicy } from '@sportpulse/scoring';
@@ -92,7 +92,7 @@ export function buildTeamTile(
 
   return {
     teamId: team.teamId,
-    teamName: team.name,
+    teamName: resolveDisplayName(team.name, team.shortName),
     tla: team.tla,
     crestUrl: team.crestUrl,
     venueName: team.venueName,
@@ -185,7 +185,7 @@ function extractNextMatch(
     matchday: target.matchday,
     kickoffUtc: target.startTimeUtc!,
     opponentTeamId: opponentId,
-    opponentName: opponent?.name,
+    opponentName: opponent ? resolveDisplayName(opponent.name, opponent.shortName) : undefined,
     opponentCrestUrl: opponent?.crestUrl,
     opponentCoachName: opponent?.coachName,
     opponentRecentForm: extractRecentForm(opponentId, matches, buildNowUtc),
