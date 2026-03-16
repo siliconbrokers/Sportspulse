@@ -44,6 +44,16 @@ export interface CoverageFunnel {
   mode_distribution: Record<string, number>;      // by mode
 }
 
+export interface MarketEdgeMetrics {
+  records_with_odds: number;
+  mean_edge_home: number | null;
+  mean_edge_draw: number | null;
+  mean_edge_away: number | null;
+  edge_when_predicted_home: number | null;
+  edge_when_predicted_away: number | null;
+  edge_when_predicted_draw: number | null;
+}
+
 export interface PerformanceMetrics {
   accuracy_total: number | null;
   confusion_matrix: Record<string, Record<string, number>> | null;
@@ -52,6 +62,7 @@ export interface PerformanceMetrics {
   by_mode: Record<string, ModeMetrics>;
   by_calibration_mode: Record<string, CalibrationMetrics>;
   baseline_b_accuracy: number | null;
+  market_edge: MarketEdgeMetrics;
 }
 
 export interface ModeMetrics {
@@ -281,6 +292,42 @@ export function computeMetrics(records: EvaluationRecord[]): EvaluationMetrics {
     }
   }
 
+  // ── Market edge (MKT-T3-02) ───────────────────────────────────────────────
+  // Computed over all records that have market odds attached, regardless of
+  // evaluation_eligible (so we can observe edge even for NOT_ELIGIBLE records).
+
+  const recordsWithOdds = records.filter(
+    (r) => r.market_prob_home !== null && r.edge_home !== null,
+  );
+
+  const market_edge: MarketEdgeMetrics = {
+    records_with_odds: recordsWithOdds.length,
+    mean_edge_home: nullableAvg(
+      recordsWithOdds.map((r) => r.edge_home!),
+    ),
+    mean_edge_draw: nullableAvg(
+      recordsWithOdds.map((r) => r.edge_draw!),
+    ),
+    mean_edge_away: nullableAvg(
+      recordsWithOdds.map((r) => r.edge_away!),
+    ),
+    edge_when_predicted_home: nullableAvg(
+      recordsWithOdds
+        .filter((r) => r.predicted_result === 'HOME_WIN')
+        .map((r) => r.edge_home!),
+    ),
+    edge_when_predicted_away: nullableAvg(
+      recordsWithOdds
+        .filter((r) => r.predicted_result === 'AWAY_WIN')
+        .map((r) => r.edge_away!),
+    ),
+    edge_when_predicted_draw: nullableAvg(
+      recordsWithOdds
+        .filter((r) => r.predicted_result === 'DRAW')
+        .map((r) => r.edge_draw!),
+    ),
+  };
+
   const performance: PerformanceMetrics = {
     accuracy_total,
     confusion_matrix,
@@ -289,6 +336,7 @@ export function computeMetrics(records: EvaluationRecord[]): EvaluationMetrics {
     by_mode,
     by_calibration_mode,
     baseline_b_accuracy,
+    market_edge,
   };
 
   // ── Operational quality ───────────────────────────────────────────────────

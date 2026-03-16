@@ -13,9 +13,49 @@
 
 import type { FastifyInstance } from 'fastify';
 import { PredictionStore } from './prediction-store.js';
+import type { EvaluationStore } from './evaluation-store.js';
 import { isExperimentalEnabled } from './prediction-flags.js';
 
 // ── Response shape ─────────────────────────────────────────────────────────────
+
+interface OverUnderMarketsDto {
+  over_0_5: number; under_0_5: number;
+  over_1_5: number; under_1_5: number;
+  over_2_5: number; under_2_5: number;
+  over_3_5: number; under_3_5: number;
+  over_4_5: number; under_4_5: number;
+}
+
+interface BTTSMarketDto { yes: number; no: number; }
+interface DoubleChanceDto { home_or_draw: number; draw_or_away: number; home_or_away: number; }
+interface DNBDto { home: number; away: number; }
+interface AsianHandicapDto {
+  home_minus_half: number; home_plus_half: number;
+  away_minus_half: number; away_plus_half: number;
+}
+interface ExpectedGoalsDto { home: number; away: number; total: number; implied_goal_line: number; }
+interface TopScorelineDto { home: number; away: number; probability: number; }
+
+interface MarketsDto {
+  over_under: OverUnderMarketsDto;
+  btts: BTTSMarketDto;
+  double_chance: DoubleChanceDto;
+  dnb: DNBDto;
+  asian_handicap: AsianHandicapDto;
+  expected_goals: ExpectedGoalsDto;
+  top_scorelines: TopScorelineDto[];
+}
+
+interface MarketOddsDto {
+  prob_home: number;
+  prob_draw: number;
+  prob_away: number;
+  captured_at: string;
+  bookmaker_count: number;
+  edge_home: number;
+  edge_draw: number;
+  edge_away: number;
+}
 
 interface ExperimentalPredictionResponse {
   match_id: string;
@@ -31,6 +71,8 @@ interface ExperimentalPredictionResponse {
   predicted_result: string | null;
   expected_goals_home: number | null;
   expected_goals_away: number | null;
+  markets: MarketsDto | null;
+  market_odds: MarketOddsDto | null;
 }
 
 // ── Helper: safely parse a JSON string, returning null on failure ──────────────
@@ -46,21 +88,24 @@ function safeParse(json: string, context: string): unknown {
 
 // ── Helper: extract core probabilities from a parsed PredictionResponse ────────
 
-function extractCoreFields(response: unknown): Pick<
+function num(v: unknown): number | null {
+  return typeof v === 'number' ? v : null;
+}
+function str(v: unknown): string | null {
+  return typeof v === 'string' ? v : null;
+}
+
+/**
+ * Extrae campos core del response shape de la spec v1.3 (predictions.core.*).
+ * Usado para snapshots de V1/V2.
+ */
+function extractCoreFieldsFromSpec(response: Record<string, unknown>): Pick<
   ExperimentalPredictionResponse,
   | 'p_home_win' | 'p_draw' | 'p_away_win' | 'predicted_result'
-  | 'expected_goals_home' | 'expected_goals_away'
+  | 'expected_goals_home' | 'expected_goals_away' | 'markets'
 > {
-  const r = response as Record<string, unknown> | null | undefined;
-  const predictions = r?.['predictions'] as Record<string, unknown> | null | undefined;
+  const predictions = response['predictions'] as Record<string, unknown> | null | undefined;
   const core = predictions?.['core'] as Record<string, unknown> | null | undefined;
-
-  function num(v: unknown): number | null {
-    return typeof v === 'number' ? v : null;
-  }
-  function str(v: unknown): string | null {
-    return typeof v === 'string' ? v : null;
-  }
 
   return {
     p_home_win:          num(core?.['p_home_win']),
@@ -69,7 +114,51 @@ function extractCoreFields(response: unknown): Pick<
     predicted_result:    str(core?.['predicted_result']),
     expected_goals_home: num(core?.['expected_goals_home']),
     expected_goals_away: num(core?.['expected_goals_away']),
+    markets:             null,
   };
+}
+
+/**
+ * Extrae campos del output plano del motor V3 (V3PredictionOutput).
+ * Los campos de prob están en el nivel raíz del objeto.
+ */
+function extractCoreFieldsFromV3(response: Record<string, unknown>): Pick<
+  ExperimentalPredictionResponse,
+  | 'p_home_win' | 'p_draw' | 'p_away_win' | 'predicted_result'
+  | 'expected_goals_home' | 'expected_goals_away' | 'markets'
+> {
+  const expl = response['explanation'] as Record<string, unknown> | null | undefined;
+  const rawMarkets = response['markets'] as MarketsDto | null | undefined;
+
+  return {
+    p_home_win:          num(response['prob_home_win']),
+    p_draw:              num(response['prob_draw']),
+    p_away_win:          num(response['prob_away_win']),
+    predicted_result:    str(response['predicted_result']),
+    expected_goals_home: num(expl?.['effective_attack_home']) ?? num(response['lambda_home']),
+    expected_goals_away: num(expl?.['effective_attack_away']) ?? num(response['lambda_away']),
+    markets:             rawMarkets ?? null,
+  };
+}
+
+function extractCoreFields(response: unknown, engineId?: string): Pick<
+  ExperimentalPredictionResponse,
+  | 'p_home_win' | 'p_draw' | 'p_away_win' | 'predicted_result'
+  | 'expected_goals_home' | 'expected_goals_away' | 'markets'
+> {
+  const r = response as Record<string, unknown> | null | undefined;
+  if (!r) {
+    return {
+      p_home_win: null, p_draw: null, p_away_win: null,
+      predicted_result: null, expected_goals_home: null, expected_goals_away: null,
+      markets: null,
+    };
+  }
+  // V3 output shape: has prob_home_win at root level
+  if (engineId === 'v3_unified' || typeof r['prob_home_win'] === 'number') {
+    return extractCoreFieldsFromV3(r);
+  }
+  return extractCoreFieldsFromSpec(r);
 }
 
 // ── Helper: parse reasons array from reasons_json ─────────────────────────────
@@ -85,6 +174,7 @@ function parseReasons(json: string): string[] {
 export function registerExperimentalPredictionRoute(
   app: FastifyInstance,
   store: PredictionStore,
+  evaluationStore?: EvaluationStore,
 ): void {
   app.get('/api/ui/predictions/experimental', async (req, reply) => {
     reply.header('Cache-Control', 'no-store');
@@ -117,18 +207,37 @@ export function registerExperimentalPredictionRoute(
       `response_payload[${snap.match_id}]`,
     );
 
-    const coreFields = responsePayload !== null
-      ? extractCoreFields(responsePayload)
-      : {
-          p_home_win: null,
-          p_draw: null,
-          p_away_win: null,
-          predicted_result: null,
-          expected_goals_home: null,
-          expected_goals_away: null,
-        };
+    const coreFields = extractCoreFields(responsePayload, snap.engine_id);
 
-    // 6. Build and return response
+    // 6. Resolve market odds from evaluation store (MKT-T3-02)
+    let market_odds: MarketOddsDto | null = null;
+    if (evaluationStore) {
+      const evalRecord = evaluationStore.findByMatch(matchId);
+      if (
+        evalRecord &&
+        evalRecord.market_prob_home !== null &&
+        evalRecord.market_prob_draw !== null &&
+        evalRecord.market_prob_away !== null &&
+        evalRecord.market_odds_captured_at !== null &&
+        evalRecord.market_bookmaker_count !== null &&
+        evalRecord.edge_home !== null &&
+        evalRecord.edge_draw !== null &&
+        evalRecord.edge_away !== null
+      ) {
+        market_odds = {
+          prob_home:       evalRecord.market_prob_home,
+          prob_draw:       evalRecord.market_prob_draw,
+          prob_away:       evalRecord.market_prob_away,
+          captured_at:     evalRecord.market_odds_captured_at,
+          bookmaker_count: evalRecord.market_bookmaker_count,
+          edge_home:       evalRecord.edge_home,
+          edge_draw:       evalRecord.edge_draw,
+          edge_away:       evalRecord.edge_away,
+        };
+      }
+    }
+
+    // 7. Build and return response
     const result: ExperimentalPredictionResponse = {
       match_id:         snap.match_id,
       competition_id:   snap.competition_id,
@@ -138,6 +247,7 @@ export function registerExperimentalPredictionRoute(
       calibration_mode: snap.calibration_mode,
       reasons:          parseReasons(snap.reasons_json),
       ...coreFields,
+      market_odds,
     };
 
     return reply.send(result);

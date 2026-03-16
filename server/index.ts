@@ -22,6 +22,7 @@ import { PredictionService } from './prediction/prediction-service.js';
 import { getBestCalibrationRegistry } from './prediction/global-calibrator-store.js';
 import { PredictionStore } from './prediction/prediction-store.js';
 import { runShadow } from './prediction/shadow-runner.js';
+import { registerCompareRoute } from './prediction/compare-route.js';
 import { registerInspectionRoute } from './prediction/inspection-route.js';
 import { registerExperimentalPredictionRoute } from './prediction/experimental-route.js';
 import { EvaluationStore } from './prediction/evaluation-store.js';
@@ -35,8 +36,13 @@ import { ForwardValidationEvaluator } from './prediction/forward-validation-eval
 import { HistoricalStateService } from './prediction/historical-state-service.js';
 import { runV2Shadow } from './prediction/v2-runner.js';
 import { V2PredictionStore } from './prediction/v2-prediction-store.js';
+import { runV3Shadow, type NonFdCompDescriptor } from './prediction/v3-shadow-runner.js';
+import { isV3ShadowEnabled } from './prediction/prediction-flags.js';
+import { OddsService } from './odds/odds-service.js';
+import { InjurySource } from './prediction/injury-source.js';
+import { XgSource } from './prediction/xg-source.js';
 import type { MatchCoreInput } from './incidents/types.js';
-import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig } from './portal-config-store.js';
+import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig, isFeatureEnabled } from './portal-config-store.js';
 import { registerAdminRoutes } from './admin-router.js';
 import { fetchStreamEmbedUrls } from './stream-embed/stream-embed-service.js';
 import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
@@ -238,8 +244,6 @@ async function main() {
     defaultContainer: DEFAULT_CONTAINER,
   });
 
-  const radarService = new RadarApiAdapter(dataSource);
-
   // Eventos — fuente: streamtp10.com/eventos.json (default) o EVENTOS_SOURCE_URL env
   const EVENTOS_SOURCE_URL = process.env.EVENTOS_SOURCE_URL;
   const EVENTOS_DEBUG = process.env.EVENTOS_DEBUG === 'true';
@@ -435,6 +439,14 @@ async function main() {
 
   const predictionService = new PredictionService({ calibrationRegistry: getBestCalibrationRegistry() });
   const predictionStore = new PredictionStore();
+  // MKT-T3-02: Market odds service for edge tracking (evaluation only, never affects predictions)
+  const oddsService = new OddsService();
+  // MKT-T3-01: Injury source — API-Football v3 /injuries endpoint, budget-aware, in-memory cache 6h
+  const injurySource = new InjurySource();
+  // MKT-T3-03: xG source — API-Football v3 /fixtures/statistics, incremental disk cache per fixture
+  const xgSource = new XgSource();
+  // RadarApiAdapter usa predictionStore como fuente primaria de probabilidades V3
+  const radarService = new RadarApiAdapter(dataSource, predictionStore);
   const evaluationStore = new EvaluationStore();
   const v2PredictionStore = new V2PredictionStore();
 
@@ -630,6 +642,39 @@ async function main() {
     // V2 structural shadow — fire-and-forget, fault-isolated. FD competitions only.
     const v2SeasonYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
     void runV2Shadow(dataSource, FD_COMP_IDS, historicalStateServiceFV, v2PredictionStore, fdCompetitionCodeMap, v2SeasonYear);
+    // V3 unified shadow — fire-and-forget, fault-isolated.
+    // FD comps: usa HistoricalStateService (current + prev season).
+    // Non-FD (BL1, URU, ARG): DataSource actual + NonFdLoader para temporada anterior.
+    const v3SeasonYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
+    const v3FdCompIds = FD_COMP_IDS.filter((id) => isCompetitionEnabled(id) && isV3ShadowEnabled(id));
+    const v3NonFdDescriptors: NonFdCompDescriptor[] = [
+      {
+        competitionId: OLG_COMPETITION_ID,
+        provider: 'openligadb',
+        providerLeagueId: OLG_LEAGUE,
+        providerKey: OPENLIGADB_PROVIDER_KEY,
+        expectedSeasonGames: 34, // Bundesliga: 18 teams, 34 matchdays
+      },
+      {
+        competitionId: UY_COMPETITION_ID,
+        provider: 'thesportsdb',
+        providerLeagueId: UY_LEAGUE_ID,
+        providerKey: SPORTSDB_PROVIDER_KEY,
+        sdbApiKey: SPORTSDB_API_KEY,
+        expectedSeasonGames: 15, // URU Clausura/Apertura: ~16 teams, single round-robin (~15 games)
+      },
+      {
+        competitionId: AR_COMPETITION_ID,
+        provider: 'thesportsdb',
+        providerLeagueId: AR_LEAGUE_ID,
+        providerKey: AR_PROVIDER_KEY,
+        sdbApiKey: SPORTSDB_API_KEY,
+        expectedSeasonGames: 19, // ARG Apertura/Clausura: ~20 teams, single round-robin (~19 games)
+      },
+    ].filter((d) => isCompetitionEnabled(d.competitionId) && isV3ShadowEnabled(d.competitionId));
+    if (v3FdCompIds.length > 0 || v3NonFdDescriptors.length > 0) {
+      void runV3Shadow(dataSource, v3FdCompIds, v3NonFdDescriptors, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, v3SeasonYear, evaluationStore, oddsService, injurySource);
+    }
     // OE-3: capture ground truth for completed matches
     captureResults(dataSource, evaluationStore, ALL_COMP_IDS);
 
@@ -764,7 +809,15 @@ async function main() {
   registerInspectionRoute(app, predictionStore);
 
   // ── Experimental prediction endpoint (PE-78) ───────────────────────────────
-  registerExperimentalPredictionRoute(app, predictionStore);
+  registerExperimentalPredictionRoute(app, predictionStore, evaluationStore);
+
+  // ── V1 vs V2 comparison endpoint (SP-PRED-V2 §7) ──────────────────────────
+  registerCompareRoute(
+    app,
+    predictionStore,
+    v2PredictionStore,
+    () => isFeatureEnabled('predictions'),
+  );
 
   // ── Evaluation endpoint (OE-5) ─────────────────────────────────────────────
   registerEvaluationRoute(app, evaluationStore);

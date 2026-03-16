@@ -20,6 +20,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { PredictionSnapshot } from './prediction-store.js';
+import type { ImpliedOdds } from '../odds/odds-service.js';
 
 // ── EvaluationRecord ──────────────────────────────────────────────────────────
 
@@ -95,6 +96,20 @@ export interface EvaluationRecord {
   final_away_goals: number | null;
   actual_result: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | null;
 
+  // T3-02: Market odds for evaluation edge calculation
+  // Populated asynchronously after snapshot freeze via attachMarketOdds().
+  // Never influences predicted_result or any probability output.
+  market_prob_home: number | null;          // de-vigged implied probability home
+  market_prob_draw: number | null;
+  market_prob_away: number | null;
+  market_odds_captured_at: string | null;   // ISO UTC when odds were captured
+  market_bookmaker_count: number | null;    // how many bookmakers were averaged
+
+  // Edge = p_model - p_market (positive = model more optimistic than market)
+  edge_home: number | null;    // p_home_win - market_prob_home
+  edge_draw: number | null;
+  edge_away: number | null;
+
   // Track A runtime observation (filled via observation log or manual inspection)
   ui_render_result:
     | 'NO_RENDER'
@@ -127,7 +142,7 @@ export interface MatchForFreeze {
 // ── File structure ─────────────────────────────────────────────────────────────
 
 interface StoreFileDoc {
-  version: 2;
+  version: 3;
   savedAt: string;
   records: EvaluationRecord[];
 }
@@ -291,6 +306,15 @@ export class EvaluationStore {
       final_away_goals: null,
       actual_result: null,
 
+      market_prob_home: null,
+      market_prob_draw: null,
+      market_prob_away: null,
+      market_odds_captured_at: null,
+      market_bookmaker_count: null,
+      edge_home: null,
+      edge_draw: null,
+      edge_away: null,
+
       ui_render_result: null,
       ui_clear_or_confusing: null,
       runtime_issue: null,
@@ -439,6 +463,42 @@ export class EvaluationStore {
     return true;
   }
 
+  /**
+   * Attaches market odds to a record that has been frozen or completed.
+   *
+   * Calculates edge = p_model - p_market for each outcome.
+   * No-op if the record does not exist or is PENDING/EXCLUDED.
+   * Always fire-and-forget safe — never throws.
+   *
+   * MKT-T3-02 Fase A
+   */
+  attachMarketOdds(
+    matchId: string,
+    odds: ImpliedOdds,
+    modelProbHome: number,
+    modelProbDraw: number,
+    modelProbAway: number,
+  ): void {
+    const record = this.records.get(matchId);
+    if (!record) return;
+    if (record.record_status !== 'SNAPSHOT_FROZEN' && record.record_status !== 'COMPLETE') return;
+
+    record.market_prob_home = odds.probHome;
+    record.market_prob_draw = odds.probDraw;
+    record.market_prob_away = odds.probAway;
+    record.market_odds_captured_at = odds.capturedAtUtc;
+    record.market_bookmaker_count = odds.bookmakerCount;
+    record.edge_home = modelProbHome - odds.probHome;
+    record.edge_draw = modelProbDraw - odds.probDraw;
+    record.edge_away = modelProbAway - odds.probAway;
+
+    console.log(
+      `[EvaluationStore] Market odds attached: ${matchId} ` +
+      `(bk=${odds.bookmakerCount}, matchedOn=${odds.matchedOn}, ` +
+      `edge_home=${record.edge_home.toFixed(3)})`,
+    );
+  }
+
   // ── Query ─────────────────────────────────────────────────────────────────
 
   findByMatch(matchId: string): EvaluationRecord | undefined {
@@ -459,7 +519,7 @@ export class EvaluationStore {
 
   async persist(): Promise<void> {
     const doc: StoreFileDoc = {
-      version: 2,
+      version: 3,
       savedAt: new Date().toISOString(),
       records: Array.from(this.records.values()),
     };
@@ -488,13 +548,21 @@ export class EvaluationStore {
 
       const d = doc as Record<string, unknown>;
 
-      // Support both v1 (legacy, field names differ) and v2
-      if (d['version'] === 2 && Array.isArray(d['records'])) {
+      // Support v1, v2 (legacy) and v3 (current)
+      if (d['version'] === 3 && Array.isArray(d['records'])) {
         const records = d['records'] as EvaluationRecord[];
         for (const r of records) {
           this.records.set(r.match_id, r);
         }
-        console.log(`[EvaluationStore] Loaded ${this.records.size} records (v2) from ${this.filePath}`);
+        console.log(`[EvaluationStore] Loaded ${this.records.size} records (v3) from ${this.filePath}`);
+      } else if (d['version'] === 2 && Array.isArray(d['records'])) {
+        // v2 → v3 migration: add null market odds fields
+        const records = d['records'] as Record<string, unknown>[];
+        for (const r of records) {
+          const migrated = this._migrateV2Record(r);
+          this.records.set(migrated.match_id, migrated);
+        }
+        console.log(`[EvaluationStore] Migrated ${this.records.size} records from v2 to v3`);
       } else if (d['version'] === 1 && Array.isArray(d['records'])) {
         // v1 migration: add missing fields
         const records = d['records'] as Record<string, unknown>[];
@@ -507,6 +575,53 @@ export class EvaluationStore {
     } catch (err) {
       console.warn('[EvaluationStore] Could not load from file, starting empty:', err);
     }
+  }
+
+  private _migrateV2Record(r: Record<string, unknown>): EvaluationRecord {
+    // v2 records have all fields except market_* and edge_*
+    return {
+      match_id:                  String(r['match_id'] ?? ''),
+      competition_id:            String(r['competition_id'] ?? ''),
+      home_team_id:              String(r['home_team_id'] ?? ''),
+      away_team_id:              String(r['away_team_id'] ?? ''),
+      scheduled_kickoff_utc:     String(r['scheduled_kickoff_utc'] ?? ''),
+      record_status:             (r['record_status'] as RecordStatus) ?? 'PENDING',
+      snapshot_id:               r['snapshot_id'] as string | null ?? null,
+      snapshot_frozen_at:        r['snapshot_frozen_at'] as string | null ?? null,
+      snapshot_generated_at:     r['snapshot_generated_at'] as string | null ?? null,
+      engine_version:            r['engine_version'] as string | null ?? null,
+      spec_version:              r['spec_version'] as string | null ?? null,
+      prediction_available:      Boolean(r['prediction_available']),
+      evaluation_eligible:       Boolean(r['evaluation_eligible']),
+      excluded_reason:           r['excluded_reason'] as ExcludedReason ?? null,
+      mode:                      String(r['mode'] ?? 'UNKNOWN'),
+      calibration_mode:          r['calibration_mode'] as string | null ?? null,
+      predicted_result:          r['predicted_result'] as string | null ?? null,
+      p_home_win:                r['p_home_win'] as number | null ?? null,
+      p_draw:                    r['p_draw'] as number | null ?? null,
+      p_away_win:                r['p_away_win'] as number | null ?? null,
+      expected_goals_home:       r['expected_goals_home'] as number | null ?? null,
+      expected_goals_away:       r['expected_goals_away'] as number | null ?? null,
+      reasons:                   Array.isArray(r['reasons']) ? r['reasons'] as string[] : [],
+      ground_truth_status:       (r['ground_truth_status'] as 'PENDING' | 'CAPTURED' | 'UNAVAILABLE') ?? 'PENDING',
+      ground_truth_captured_at:  r['ground_truth_captured_at'] as string | null ?? null,
+      final_home_goals:          r['final_home_goals'] as number | null ?? null,
+      final_away_goals:          r['final_away_goals'] as number | null ?? null,
+      actual_result:             r['actual_result'] as 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | null ?? null,
+      // v3 new fields — initialize to null
+      market_prob_home:          null,
+      market_prob_draw:          null,
+      market_prob_away:          null,
+      market_odds_captured_at:   null,
+      market_bookmaker_count:    null,
+      edge_home:                 null,
+      edge_draw:                 null,
+      edge_away:                 null,
+      ui_render_result:          r['ui_render_result'] as EvaluationRecord['ui_render_result'] ?? null,
+      ui_clear_or_confusing:     r['ui_clear_or_confusing'] as 'CLEAR' | 'CONFUSING' | null ?? null,
+      runtime_issue:             r['runtime_issue'] as EvaluationRecord['runtime_issue'] ?? null,
+      runtime_notes:             r['runtime_notes'] as string | null ?? null,
+    };
   }
 
   private _migrateV1Record(r: Record<string, unknown>): EvaluationRecord {
@@ -541,6 +656,14 @@ export class EvaluationStore {
       final_home_goals: r['final_home_goals'] as number | null ?? null,
       final_away_goals: r['final_away_goals'] as number | null ?? null,
       actual_result: r['actual_result'] as 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | null ?? null,
+      market_prob_home:          null,
+      market_prob_draw:          null,
+      market_prob_away:          null,
+      market_odds_captured_at:   null,
+      market_bookmaker_count:    null,
+      edge_home:                 null,
+      edge_draw:                 null,
+      edge_away:                 null,
       ui_render_result: r['ui_render_result'] as EvaluationRecord['ui_render_result'] ?? null,
       ui_clear_or_confusing: r['ui_clear_or_confusing'] as 'CLEAR' | 'CONFUSING' | null ?? null,
       runtime_issue: r['runtime_issue'] as EvaluationRecord['runtime_issue'] ?? null,
