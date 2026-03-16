@@ -30,7 +30,6 @@ COPY packages/api         ./packages/api
 COPY packages/web         ./packages/web
 COPY packages/prediction  ./packages/prediction
 COPY server             ./server
-COPY radar_docs         ./radar_docs
 
 # Compilar todo (backend + frontend)
 RUN pnpm -r build
