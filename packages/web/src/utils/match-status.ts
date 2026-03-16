@@ -5,14 +5,14 @@
  * Usada en: LiveCarousel.tsx, match-detail-viewmodel.ts, MatchCardList.tsx
  *
  * Reglas:
- *   - API dice IN_PROGRESS/PAUSED/LIVE + elapsed > 240 min → FINISHED (auto-terminado)
+ *   - API dice IN_PROGRESS/PAUSED/LIVE + elapsed > 180 min → FINISHED (auto-terminado)
  *   - API dice IN_PROGRESS/PAUSED/LIVE + elapsed > 180 min → ZOMBIE  (pendiente de confirmación)
  *   - API dice IN_PROGRESS/PAUSED/LIVE + elapsed <= 180 min → LIVE
  *   - API dice FINISHED                                     → FINISHED
  *   - API dice POSTPONED/CANCELED                           → SCHEDULED
  *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (0-180 min)   → LIVE
- *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (180-240 min) → ZOMBIE
- *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (> 240 min)   → FINISHED
+ *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (180-180 min) → ZOMBIE
+ *   - API dice SCHEDULED/TIMED/TBD + kickoff ya pasó (> 180 min)   → FINISHED
  *     (heurístico para proveedores que no actualizan status en tiempo real,
  *      como football-data.org free tier o OpenLigaDB — aplica a TODOS los proveedores)
  *   - API dice SCHEDULED/TIMED/TBD + kickoff futuro                 → SCHEDULED
@@ -21,8 +21,8 @@
 
 export type DisplayMatchStatus =
   | 'LIVE' // EN VIVO confirmado (< 180 min)
-  | 'ZOMBIE' // Pendiente de confirmación (180–240 min)
-  | 'FINISHED' // Terminado (API o auto-terminado > 240 min)
+  | 'ZOMBIE' // Pendiente de confirmación (180–180 min)
+  | 'FINISHED' // Terminado (API o auto-terminado > 180 min)
   | 'SCHEDULED' // Próximo o cancelado/pospuesto
   | 'UNKNOWN'; // Estado no reconocido
 
@@ -30,7 +30,7 @@ export type DisplayMatchStatus =
 export const ZOMBIE_THRESHOLD_MIN = 180;
 
 /** Minutos tras el kickoff en que se auto-termina internamente */
-export const AUTOFINISH_THRESHOLD_MIN = 240;
+export const AUTOFINISH_THRESHOLD_MIN = 180;
 
 /**
  * Retorna el estado de visualización unificado de un partido.

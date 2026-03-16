@@ -280,17 +280,17 @@ export class OpenLigaDBSource implements DataSource {
     let currentGroup: OLGCurrentGroup;
 
     // Intentar leer desde caché de disco.
-    // Bypass si algún partido tiene kickoff en los últimos 240 min (potencialmente en juego)
-    // OR si algún partido lleva más de 240 min pero el cache lo muestra como no-finalizado
+    // Bypass si algún partido tiene kickoff en los últimos 180 min (potencialmente en juego)
+    // OR si algún partido lleva más de 180 min pero el cache lo muestra como no-finalizado
     // (cache escrito durante el partido, nunca actualizado con el resultado final).
-    const LIVE_BYPASS_WINDOW_MS = 240 * 60 * 1000;
+    const LIVE_BYPASS_WINDOW_MS = 180 * 60 * 1000;
     const diskHit = await readRawCache<OpenLigaRawCache>(diskKey, DISK_CACHE_TTL_MS);
     const needsBypass = diskHit?.matches.some((m) => {
       if (!m.matchDateTimeUTC) return false;
       const elapsed = Date.now() - new Date(m.matchDateTimeUTC).getTime();
       if (elapsed <= 0) return false;
       if (elapsed <= LIVE_BYPASS_WINDOW_MS) return true; // dentro de ventana activa
-      // Partido debería haber terminado (>240 min) pero el cache lo muestra como en juego
+      // Partido debería haber terminado (>180 min) pero el cache lo muestra como en juego
       return !m.matchIsFinished;
     }) ?? false;
     if (diskHit && !needsBypass) {
@@ -348,13 +348,13 @@ export class OpenLigaDBSource implements DataSource {
 
       const startTimeUtc = m.matchDateTimeUTC ?? null;
       const elapsedMs = startTimeUtc ? Date.now() - new Date(startTimeUtc).getTime() : -1;
-      const isLiveWindow = elapsedMs > 0 && elapsedMs < 240 * 60 * 1000;
+      const isLiveWindow = elapsedMs > 0 && elapsedMs < 180 * 60 * 1000;
 
-      // Status: matchIsFinished=true → FINISHED; started & within 240min → IN_PLAY; else TIMED
+      // Status: matchIsFinished=true → FINISHED; started & within 180min → IN_PLAY; else TIMED
       const rawStatus = classifyStatus(
         m.matchIsFinished ? 'Finished' : isLiveWindow ? 'IN_PLAY' : 'Timed',
       );
-      // Zombie guard: si elapsed >240 min y sigue no-terminal, forzar FINISHED
+      // Zombie guard: si elapsed >180 min y sigue no-terminal, forzar FINISHED
       const status = applyMatchStatusGuard(rawStatus, startTimeUtc);
       const isEffectivelyFinished = m.matchIsFinished || status === 'FINISHED';
 

@@ -256,7 +256,7 @@ export interface TournamentMatchesView {
  * Ambos lados deben mantenerse sincronizados: el servidor no puede importar del frontend.
  */
 const ZOMBIE_THRESHOLD_MIN  = 180; // min: partido confirma zombie (pendiente de score)
-const AUTOFINISH_THRESHOLD_MIN = 240; // min: partido se auto-termina si el API no actualiza
+const AUTOFINISH_THRESHOLD_MIN = 180; // min: partido se auto-termina si el API no actualiza
 
 /**
  * Heurística temporal para detectar si una pierna está en juego.

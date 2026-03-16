@@ -7,18 +7,18 @@
  * (e.g. TheSportsDB devuelve '2H' por horas; OpenLigaDB mantiene matchIsFinished=false).
  *
  * Umbrales:
- *   > 240 min desde kickoff → FINISHED  (auto-terminado)
+ *   > 180 min desde kickoff → FINISHED  (auto-terminado)
  */
 
 import { EventStatus } from '@sportpulse/canonical';
 
-const AUTOFINISH_MS = 240 * 60 * 1000; // 240 min en ms
+const AUTOFINISH_MS = 180 * 60 * 1000; // 180 min en ms
 
 /**
  * Aplica el zombie guard a un status canónico.
  *
  * Si el status es IN_PROGRESS o SCHEDULED (usado por proveedores lentos durante el partido)
- * y ya transcurrieron más de 240 min desde el kickoff, devuelve FINISHED.
+ * y ya transcurrieron más de 180 min desde el kickoff, devuelve FINISHED.
  * En cualquier otro caso devuelve el status original intacto.
  *
  * @param status       - Status canónico derivado del proveedor

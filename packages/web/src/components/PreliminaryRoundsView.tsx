@@ -40,11 +40,11 @@ function toTLA(name: string): string {
     .slice(0, 3);
 }
 
-/** Heurística: un partido está en juego si el kickoff fue hace 0–240 min (puramente temporal). */
+/** Heurística: un partido está en juego si el kickoff fue hace 0–180 min (puramente temporal). */
 function isMatchLive(utcDate: string | null | undefined): boolean {
   if (!utcDate) return false;
   const elapsed = (Date.now() - new Date(utcDate).getTime()) / 60_000;
-  return elapsed >= 0 && elapsed <= 240;
+  return elapsed >= 0 && elapsed <= 180;
 }
 
 interface PreliminaryRoundsViewProps {

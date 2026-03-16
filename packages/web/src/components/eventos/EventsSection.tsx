@@ -259,7 +259,7 @@ export function EventsSection({ activeTab, onTabChange, enabledCompetitionIds }:
       e.normalizedLeague !== 'OTRA',
   );
 
-  // Filtrar eventos con kickoff > 240 min (partido efectivamente terminado).
+  // Filtrar eventos con kickoff > 180 min (partido efectivamente terminado).
   // Aplica a TODOS los eventos independientemente de normalizedStatus:
   // - streamtp10 puede dejar eventos con openUrl=null después del partido
   // - football-data free tier mantiene PROXIMO (nunca actualiza a EN_VIVO durante el partido)

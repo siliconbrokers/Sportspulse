@@ -129,8 +129,8 @@ function formatTime(isoStr: string | null): string {
  * Zombie guard: determina el estado visual de un evento en base a
  * getMatchDisplayStatus() — función centralizada en utils/match-status.ts.
  * - 'live'     → EN VIVO confirmado (< 180 min)
- * - 'zombie'   → Pendiente de confirmación (180–240 min)
- * - 'finished' → Auto-terminado (> 240 min), debe filtrarse
+ * - 'zombie'   → Pendiente de confirmación (150–180 min)
+ * - 'finished' → Auto-terminado (> 180 min), debe filtrarse
  */
 function getLiveState(event: ParsedEvent): LiveState {
   if (event.normalizedStatus !== 'EN_VIVO') return 'live'; // no aplica para PROXIMO

@@ -43,16 +43,56 @@ export interface LiveScoreEntry {
 
 // ── Name normalization (para matching cross-API) ──────────────────────────────
 
-/** Normaliza nombre de equipo para comparar entre football-data.org y API-Football. */
+/**
+ * Alias table para casos irreducibles donde los nombres difieren estructuralmente
+ * entre proveedores y ningún strip genérico los resuelve.
+ * Clave: nombre ya normalizado por normLiveName. Valor: forma canónica compartida.
+ */
+const TEAM_ALIASES: Record<string, string> = {
+  // Bundesliga — M'Gladbach tiene múltiples formas entre proveedores
+  'borussia monchengladbach': 'gladbach',
+  'borussia m gladbach':      'gladbach',
+  'borussia mgladbach':       'gladbach',
+  'mgladbach':                'gladbach',
+  // Bundesliga — algunos proveedores omiten el año del nombre fundacional
+  'bayer leverkusen':         'leverkusen',
+  // LaLiga — Betis con y sin "Balompié"
+  'real betis balompie':      'betis',
+  'betis balompie':           'betis',
+  'betis':                    'betis',
+  // Argentina — nombres largos con localidad que algunos proveedores acortan
+  'colon santa fe':           'colon',
+  'colon':                    'colon',
+  'union santa fe':           'union',
+  'sarmiento junin':          'sarmiento',
+  'sarmiento':                'sarmiento',
+  'atletico tucuman':         'tucuman',
+  'tucuman':                  'tucuman',
+  'central cordoba santiago del estero': 'central cordoba',
+  'central cordoba':          'central cordoba',
+};
+
+/**
+ * Normaliza nombre de equipo para comparar entre proveedores (football-data.org,
+ * TheSportsDB, API-Football). Diseñado para ser idempotente y seguro en ambas
+ * direcciones: mismo resultado tanto si el nombre viene de la fuente primaria
+ * como de API-Football.
+ */
 export function normLiveName(name: string): string {
-  return name
+  let n = name
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')           // strip accents
-    .replace(/\b(club|deportivo|atletico|atl|cd|cf|ca|fc|ac|rc|sc|cs|af|sd|sp|ud|rcd|sporting|real)\b/g, '')
-    .replace(/[^\w]/g, ' ')
+    .replace(/[\u0300-\u036f]/g, '')  // strip diacritics
+    .replace(/[^\w\s]/g, ' ')         // non-word chars → space (apostrophes, puntos, guiones)
+    .replace(
+      /\b(club|deportivo|atletico|atletica|asociacion|atl|cd|cf|ca|fc|ac|rc|sc|cs|af|sd|sp|ud|rcd|sporting|real|sv|vfb|vfl|bv|tsv|fsv|de|del|la|el|los|las)\b/g,
+      '',
+    )
+    .replace(/\b\d{2,4}\b/g, '')      // strip year/number suffixes: "04", "1846", etc.
     .replace(/\s+/g, ' ')
     .trim();
+
+  return TEAM_ALIASES[n] ?? n;
 }
 
 function makeKey(home: string, away: string): string {
@@ -97,7 +137,7 @@ export class ApifootballLiveOverlay {
     const hit = this.cache.get(key);
     if (hit) return hit;
 
-    // Fallback: contains matching para nombres que difieren (ej: "Atletico" vs "Club Atletico")
+    // Fallback: contains matching para nombres que difieren estructuralmente
     const homeNorm = normLiveName(homeTeam);
     const awayNorm = normLiveName(awayTeam);
     for (const { homeNorm: kh, awayNorm: ka, entry } of this.rawList) {
@@ -107,6 +147,15 @@ export class ApifootballLiveOverlay {
       ) {
         return entry;
       }
+    }
+
+    // Log miss para diagnóstico — solo si hay partidos en el cache (evita spam cuando no hay live)
+    if (this.rawList.length > 0) {
+      console.warn(
+        `[LiveOverlay] MISS "${homeTeam}" vs "${awayTeam}" ` +
+        `(norm: "${homeNorm}" | "${awayNorm}") — ` +
+        `cache keys: ${[...this.cache.keys()].slice(0, 5).join(', ')}${this.cache.size > 5 ? ` (+${this.cache.size - 5} más)` : ''}`,
+      );
     }
     return null;
   }

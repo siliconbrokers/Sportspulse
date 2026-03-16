@@ -237,10 +237,10 @@ export class TheSportsDbSource implements DataSource {
     let rawEvents: SDBEvent[];
 
     // Intentar leer desde caché de disco.
-    // Bypass si algún evento tiene kickoff en los últimos 240 min (partido activo o recién finalizado)
-    // OR si algún evento tiene más de 240 min transcurridos pero sigue con status no-terminal en el
+    // Bypass si algún evento tiene kickoff en los últimos 180 min (partido activo o recién finalizado)
+    // OR si algún evento tiene más de 180 min transcurridos pero sigue con status no-terminal en el
     // cache (cache escrito durante el partido, nunca actualizado con el resultado final).
-    const LIVE_BYPASS_WINDOW_MS = 240 * 60 * 1000;
+    const LIVE_BYPASS_WINDOW_MS = 180 * 60 * 1000;
     const TERMINAL_STATUSES = new Set([
       'FT', 'FINAL', 'FINISHED', 'AWARDED', 'MATCH FINISHED', 'Match Finished',
       'MATCH POSTPONED', 'Match Postponed', 'MATCH CANCELLED', 'Match Cancelled',
@@ -254,7 +254,7 @@ export class TheSportsDbSource implements DataSource {
       if (elapsed <= 0) return false; // no empezó
       const isTerminal = TERMINAL_STATUSES.has(e.strStatus ?? '');
       if (elapsed <= LIVE_BYPASS_WINDOW_MS) return true; // dentro de ventana activa
-      // Partido debería haber terminado (>240 min) pero el cache aún tiene status live
+      // Partido debería haber terminado (>180 min) pero el cache aún tiene status live
       return !isTerminal;
     }) ?? false;
     if (diskHit && !needsBypass) {

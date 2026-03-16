@@ -36,7 +36,7 @@ function toLocalDate(utcDate: string): string {
 function isLive(utcDate: string | null | undefined): boolean {
   if (!utcDate) return false;
   const elapsed = (Date.now() - new Date(utcDate).getTime()) / 60_000;
-  return elapsed >= 0 && elapsed <= 240;
+  return elapsed >= 0 && elapsed <= 180;
 }
 
 // ── Crest ─────────────────────────────────────────────────────────────────────

@@ -67,7 +67,7 @@ const LIVE_STATUSES = new Set(['IN_PROGRESS']);
 
 // Window (in minutes) within which a SCHEDULED match is considered heuristically live.
 // Covers football-data.org free tier which keeps TIMED status during matches.
-const HEURISTIC_LIVE_WINDOW_MIN = 240;
+const HEURISTIC_LIVE_WINDOW_MIN = 180;
 
 /** Derives the global matchday status from the set of match statuses. §11.1 */
 export function resolveGlobalStatus(matches: Match[], nowUtc?: string): MatchdayStatus {
@@ -92,7 +92,7 @@ export function resolveGlobalStatus(matches: Match[], nowUtc?: string): Matchday
   if (hasLive) return 'live';
 
   // Heuristic: football-data.org free tier keeps TIMED→SCHEDULED during live matches.
-  // If any SCHEDULED match has a kickoff in the past (within 240 min), the match is
+  // If any SCHEDULED match has a kickoff in the past (within 180 min), the match is
   // probably in progress — use 'mixed' TTL (5min) so the cache refreshes after it ends.
   if (hasScheduled) {
     const hasHeuristicallyLive = matches.some(m => {

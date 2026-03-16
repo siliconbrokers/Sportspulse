@@ -464,7 +464,7 @@ export class FootballDataSource implements DataSource {
     // Fix M1: apply zombie guard to all non-FINISHED matches in the merged set.
     // Matches that came from disk (baseMatches) and fell outside the fetch window
     // are never refreshed by the incremental fetch. If a stale disk entry still shows
-    // SCHEDULED/IN_PROGRESS but its kickoff was more than 240 min ago, correct it
+    // SCHEDULED/IN_PROGRESS but its kickoff was more than 180 min ago, correct it
     // to FINISHED so the UI never displays ghost live indicators.
     allMatches = allMatches.map((m) => ({
       ...m,

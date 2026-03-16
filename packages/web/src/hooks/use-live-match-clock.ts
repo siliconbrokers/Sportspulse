@@ -45,8 +45,8 @@ export function useLiveMatchClock(
   }
 
   if (matchPeriod === 'SECOND_HALF') {
-    // 2T empieza ~60 min después del kickoff (45 min 1T + ~15 min HT)
-    const m2 = Math.min(Math.max(elapsedMin - 60, 1), 52);
+    // 2T empieza ~62 min después del kickoff (45 min 1T + ~2 min extra + 15 min HT estricto)
+    const m2 = Math.min(Math.max(elapsedMin - 62, 1), 52);
     const display = m2 + 45;
     return display <= 90 ? `${display}'` : `90+${display - 90}'`;
   }
@@ -57,12 +57,12 @@ export function useLiveMatchClock(
     const m = Math.min(Math.max(elapsedMin, 1), 52);
     return m <= 45 ? `${m}'` : `45+${m - 45}'`;
   }
-  if (elapsedMin <= 65) {
-    // Probablemente HT (football-data PAUSED no llegó aún o lag de API)
+  if (elapsedMin <= 67) {
+    // Probablemente HT (15 min estricto + margen de extra 1T)
     return 'HT';
   }
   // Probablemente 2T
-  const m2 = Math.min(Math.max(elapsedMin - 60, 1), 52);
+  const m2 = Math.min(Math.max(elapsedMin - 62, 1), 52);
   const display = m2 + 45;
   return display <= 90 ? `${display}'` : `90+${display - 90}'`;
 }
