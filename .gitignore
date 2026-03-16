@@ -34,3 +34,7 @@ data/
 
 # Claude local config
 .claude/settings.local.json
+.mcp.json
+
+# Claude worktrees (temporales, generados automáticamente)
+.claude/worktrees/
