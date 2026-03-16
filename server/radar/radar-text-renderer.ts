@@ -98,11 +98,17 @@ function hashSeed(s: string): number {
   return Math.abs(h);
 }
 
+function openingPattern(text: string): string {
+  return text.trim().split(/\s+/).slice(0, 4).join(' ').toLowerCase();
+}
+
 function selectTemplate(
   libKey: string,
   contextKey: string,
   usedTexts: Set<string>,
   seed: string = '',
+  usedOpenings: Set<string> = new Set(),
+  venenosoCount: number = 0,
 ): string | null {
   const label = copyLib.labels[libKey];
   if (!label) return null;
@@ -110,16 +116,59 @@ function selectTemplate(
   const ctx = label.contexts[contextKey];
   if (!ctx || !ctx.templates.length) return null;
 
-  const available = ctx.templates.filter((t) => !usedTexts.has(t));
+  // Exclude already-used texts
+  let available = ctx.templates.filter((t) => !usedTexts.has(t));
+
+  // 2b: Limit tone 'venenoso' to 1 per snapshot — exclude if limit reached and alternatives exist
+  const isVenenoso = ctx.tone === 'venenoso';
+  if (isVenenoso && venenosoCount >= 1) {
+    const nonVenenoso = available.filter((t) => {
+      // All templates in this context share the same tone, so we need to find
+      // templates from a different context. Since we can't change context here,
+      // we simply skip this context by returning null below if no alternative tone exists.
+      return false; // all templates here are venenoso
+    });
+    // No alternatives in this context — let caller fall back to other contexts
+    if (available.length > 0 && nonVenenoso.length === 0) {
+      // Signal caller that venenoso limit hit: return null so caller can try alternative
+      return null;
+    }
+    available = nonVenenoso;
+  }
+
+  // 2a: Exclude templates whose opening pattern (4 words) was already used
+  const nonDupOpening = available.filter((t) => !usedOpenings.has(openingPattern(t)));
+  if (nonDupOpening.length > 0) {
+    const offset = hashSeed(seed);
+    return nonDupOpening[offset % nonDupOpening.length];
+  }
 
   if (available.length > 0) {
+    // All have duplicate openings — fall back ignoring opening dedup
     const offset = hashSeed(seed);
     return available[offset % available.length];
   }
 
   // All used in this build — fallback without dedup restriction
+  // (but still respect venenoso limit if possible)
+  const allTemplates = ctx.templates;
+  if (isVenenoso && venenosoCount >= 1) {
+    return null; // venenoso limit hit, no fallback
+  }
   const offset = hashSeed(seed);
-  return ctx.templates[offset % ctx.templates.length];
+  return allTemplates[offset % allTemplates.length];
+}
+
+/**
+ * Returns true if the given label+subtype combination maps to a 'venenoso' tone context.
+ * Used by the service to track the venenosoCount per snapshot.
+ */
+export function isVenenosoContext(label: RadarLabelKey, subtype: RadarSignalSubtype): boolean {
+  const libKey = LABEL_TO_LIB_KEY[label];
+  const contextKey = SUBTYPE_TO_CONTEXT[subtype];
+  if (!libKey || !contextKey) return false;
+  const ctx = copyLib.labels[libKey]?.contexts[contextKey];
+  return ctx?.tone === 'venenoso';
 }
 
 // ── Subtype selection hints ────────────────────────────────────────────────────
@@ -185,6 +234,8 @@ export function resolveSubtype(
  * @param usedTemplateIds     Set of already-used template texts in this build
  * @param _usedRemateTexts    Unused in v3 (no remates); kept for call-site compat
  * @param matchId             Used as seed for deterministic template offset
+ * @param usedOpenings        Set of opening patterns (4 words) already used in this snapshot
+ * @param venenosoCount       Number of 'venenoso' tone phrases already used in this snapshot
  */
 export function renderPreMatchText(
   label: RadarLabelKey,
@@ -194,14 +245,17 @@ export function renderPreMatchText(
   usedTemplateIds: Set<string>,
   _usedRemateTexts: Set<string>,
   matchId: string = '',
+  usedOpenings: Set<string> = new Set(),
+  venenosoCount: number = 0,
 ): string | null {
   const libKey = LABEL_TO_LIB_KEY[label];
   const contextKey = SUBTYPE_TO_CONTEXT[subtype];
 
-  const text = selectTemplate(libKey, contextKey, usedTemplateIds, matchId);
+  const text = selectTemplate(libKey, contextKey, usedTemplateIds, matchId, usedOpenings, venenosoCount);
   if (!text) return null;
 
   usedTemplateIds.add(text);
+  usedOpenings.add(openingPattern(text));
   return text;
 }
 

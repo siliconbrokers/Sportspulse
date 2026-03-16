@@ -64,8 +64,22 @@ export function evaluateCandidates(input: SignalEvaluatorInput): RadarEvaluatedM
     );
 
     // Determine dominant signal and label via precedence
-    const { dominantSignal, dominantSignalScore, labelKey } = resolveDominantSignal(signalScores);
+    let { dominantSignal, dominantSignalScore, labelKey } = resolveDominantSignal(signalScores);
     if (!labelKey) continue; // No signal passed threshold
+
+    // Bootstrap guard: en jornadas 1-3, etiquetas analíticas fuertes
+    // requieren score elevado para evitar señales con evidencia insuficiente.
+    const BOOTSTRAP_THRESHOLD_SENAL = 80;   // vs normal 64
+    const BOOTSTRAP_THRESHOLD_ENGANOSO = 85; // vs normal 68
+
+    if (candidate.evidenceTier === 'BOOTSTRAP') {
+      if (labelKey === 'SENAL_DE_ALERTA' && dominantSignalScore < BOOTSTRAP_THRESHOLD_SENAL) {
+        labelKey = 'EN_LA_MIRA'; // degradar
+      }
+      if (labelKey === 'PARTIDO_ENGANOSO' && dominantSignalScore < BOOTSTRAP_THRESHOLD_ENGANOSO) {
+        labelKey = 'BAJO_EL_RADAR'; // degradar
+      }
+    }
 
     // radarScore = dominantSignalScore + small context boost
     const contextBoost = computeContextBoost(homeCtx, awayCtx);

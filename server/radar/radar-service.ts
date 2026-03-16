@@ -22,6 +22,7 @@ import {
   resolveSubtype,
   renderPreMatchText,
   selectReasons,
+  isVenenosoContext,
   type SubtypeHints,
 } from './radar-text-renderer.js';
 import { resolveEvidenceTier } from './radar-evidence-tier.js';
@@ -87,7 +88,7 @@ export async function buildOrGetRadarSnapshot(
  * Full build pipeline for a Radar snapshot.
  */
 async function buildRadarSnapshot(input: BuildRadarInput): Promise<RadarServiceResult | null> {
-  const { competitionKey, seasonKey, matchday, competitionId, dataSource, buildNowUtc } = input;
+  const { competitionKey, seasonKey, matchday, competitionId, dataSource, buildNowUtc, force } = input;
 
   const seasonId = dataSource.getSeasonId?.(competitionId);
   if (!seasonId) {
@@ -140,12 +141,17 @@ async function buildRadarSnapshot(input: BuildRadarInput): Promise<RadarServiceR
   const generatedAt = buildNowUtc;
   const radarKey = `radar:${competitionKey}:${seasonKey}:${matchday}`;
 
+  const isHistoricalRebuild = force === true;
+
   // Build and write match snapshots (first, before index)
   const matchSnapshotMap = new Map<string, RadarMatchSnapshot>();
   const cardEntries: RadarCardEntry[] = [];
   const usedTexts = new Set<string>();
   const usedTemplateIds = new Set<string>();
   const usedRemateIds = new Set<string>();
+  // Tone-dedup tracking: opening patterns and venenoso count per snapshot
+  const usedOpenings = new Set<string>();
+  let venenosoCount = 0;
 
   for (let i = 0; i < selected.length; i++) {
     const ev = selected[i];
@@ -161,7 +167,13 @@ async function buildRadarSnapshot(input: BuildRadarInput): Promise<RadarServiceR
       usedTemplateIds,
       usedRemateIds,
       ev.candidate.matchId,
+      usedOpenings,
+      venenosoCount,
     );
+    // Update venenosoCount if a venenoso-tone template was rendered
+    if (preMatchText && isVenenosoContext(ev.labelKey, subtype)) {
+      venenosoCount++;
+    }
     const reasons = selectReasons(ev.labelKey, evidenceTier, usedTexts);
 
     if (!preMatchText || reasons.length < 2) {
@@ -185,8 +197,8 @@ async function buildRadarSnapshot(input: BuildRadarInput): Promise<RadarServiceR
       dataQuality: 'OK',
       policyVersion: POLICY_VERSION,
       isHistoricalSnapshot: false,
-      isHistoricalRebuild: false,
-      buildReason: 'AUTO_PRE_MATCH_GENERATION',
+      isHistoricalRebuild,
+      buildReason: isHistoricalRebuild ? 'MANUAL_FORCE_REBUILD' : 'AUTO_PRE_MATCH_GENERATION',
       generatedAt,
       updatedAt: generatedAt,
       resolvedAt: null,
@@ -257,12 +269,12 @@ async function buildRadarSnapshot(input: BuildRadarInput): Promise<RadarServiceR
     dataQuality: 'OK',
     policyVersion: POLICY_VERSION,
     isHistoricalSnapshot: false,
-    isHistoricalRebuild: false,
+    isHistoricalRebuild,
     generatedAt,
     updatedAt: generatedAt,
     cardsCount: cardEntries.length,
     cards: cardEntries,
-    buildReason: 'AUTO_PRE_MATCH_GENERATION',
+    buildReason: isHistoricalRebuild ? 'MANUAL_FORCE_REBUILD' : 'AUTO_PRE_MATCH_GENERATION',
   };
 
   await writeIndexSnapshot(index, dir);
