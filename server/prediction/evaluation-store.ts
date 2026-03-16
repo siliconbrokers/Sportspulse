@@ -164,8 +164,6 @@ function extractPredictionFields(snapshot: PredictionSnapshot): {
 } {
   try {
     const response = JSON.parse(snapshot.response_payload_json) as Record<string, unknown>;
-    const predictions = response['predictions'] as Record<string, unknown> | undefined;
-    const core = predictions?.['core'] as Record<string, unknown> | undefined;
 
     function num(v: unknown): number | null { return typeof v === 'number' ? v : null; }
     function str(v: unknown): string | null { return typeof v === 'string' ? v : null; }
@@ -175,6 +173,24 @@ function extractPredictionFields(snapshot: PredictionSnapshot): {
       ? rawReasons.map((r) => (typeof r === 'string' ? r : JSON.stringify(r)))
       : [];
 
+    // V3 format: flat output with prob_home_win at root level
+    const isV3 = snapshot.engine_id === 'v3_unified' || typeof response['prob_home_win'] === 'number';
+    if (isV3) {
+      const expl = response['explanation'] as Record<string, unknown> | undefined;
+      return {
+        predicted_result:    str(response['predicted_result']),
+        p_home_win:          num(response['prob_home_win']),
+        p_draw:              num(response['prob_draw']),
+        p_away_win:          num(response['prob_away_win']),
+        expected_goals_home: num(expl?.['effective_attack_home']) ?? num(response['lambda_home']),
+        expected_goals_away: num(expl?.['effective_attack_away']) ?? num(response['lambda_away']),
+        reasons,
+      };
+    }
+
+    // Spec v1.3 format: nested predictions.core.*
+    const predictions = response['predictions'] as Record<string, unknown> | undefined;
+    const core = predictions?.['core'] as Record<string, unknown> | undefined;
     return {
       predicted_result:    str(core?.['predicted_result']),
       p_home_win:          num(core?.['p_home_win']),

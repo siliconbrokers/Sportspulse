@@ -89,13 +89,34 @@ Implement Radar v2 as a standalone module in `server/radar-v2/` with new ontolog
 - Copy library separada para v2 → reutiliza v3 de v1
 - Predictor integration → proyecto separado
 
+### Integración con motor predictivo (2026-03-16)
+
+**Estado:** ✅ IMPLEMENTADO — build limpio, 80 tests radar-v2 pasando, 1732 totales OK
+
+**Archivos modificados/creados:**
+- `server/radar-v2/radar-v2-types.ts` — `RadarV2PredictionContext`, campo `predictionContext` en `RadarV2Card`, version bump `radar-v2-integrated-1.1.0`
+- `server/radar-v2/radar-v2-prediction-fetcher.ts` — NUEVO: extrae `RadarV2PredictionContext` de `PredictionStore`
+- `server/radar-v2/radar-v2-card-resolver.ts` — `CardResolverInput.predictionFetcher`, razón cuantitativa, re-anchoring amplifier (secondary badge SENAL_DE_ALERTA en CONTEXT+TOO_CLOSE)
+- `server/radar-v2/radar-v2-service.ts` — `BuildRadarV2Input.predictionFetcher`
+- `server/radar-v2/radar-v2-api-adapter.ts` — Constructor acepta `PredictionStore?`, construye fetcher
+- `server/radar-v2/radar-v2-validator.ts` — Regla 9: valida `predictionContext` si presente
+- `server/radar-v2/index.ts` — Exporta `RadarV2PredictionContext`, `PredictionFetcher`
+- `server/index.ts` — Pasa `predictionStore` a `RadarV2ApiAdapter`
+- `server/radar-v2/test/radar-v2-prediction-integration.test.ts` — NUEVO: 13 tests
+
+**Contratos:**
+- `predictionContext` es aditivo → schema version sigue `2.0.0`
+- Gating: NOT_ELIGIBLE→null | LIMITED_MODE→xG only | FULL_MODE→completo
+- Degradación silenciosa: si no hay predictor data → `predictionContext: null`
+- preMatchText frozen, verdict append-only — INVARIANTE RESPETADO
+
 ### Próximos pasos por fase
 
 | Fase | Estado |
 |------|--------|
 | Phase 1 — Core implementation | ✅ COMPLETO |
-| Phase 2 — Validation & QA | ✅ PARCIAL (gaps menores) |
+| Phase 2 — Validation & QA | ✅ COMPLETO |
 | Phase 3 — Integration testing | ✅ COMPLETO |
+| Phase 3b — Predictor integration | ✅ COMPLETO (2026-03-16) |
 | Phase 4 — Shadow mode | ⏸ PENDIENTE |
 | Phase 5 — Controlled UI rollout | ⏸ PENDIENTE |
-| Predictor integration | 🚫 FUERA DE SCOPE |

@@ -6,7 +6,7 @@ import type { PredictionDTO, PredictionOutcomeDTO } from '../src/types/snapshot.
 
 const basePrediction: PredictionDTO = {
   type: 'winner',
-  label: 'Ganador: FC Barcelona',
+  label: 'FC Barcelona',
   value: { winner: 'HOME', probHome: 0.55, probDraw: 0.25, probAway: 0.20 },
   confidence: 'high',
   generatedAt: '2026-03-04T11:00:00Z',
@@ -62,12 +62,12 @@ describe('PredictionDetailModule — visibility', () => {
 });
 
 describe('PredictionDetailModule — badges por estado', () => {
-  it('SCHEDULED con predicción → muestra label, sin badge "Pendiente"', () => {
+  it('SCHEDULED con predicción → muestra probabilidades', () => {
     render(<DetailPanel detail={makeDetail('SCHEDULED', basePrediction, { status: 'pending' })} onClose={() => {}} />);
     const el = screen.getByTestId('match-estimate');
-    // Cuando hay label de predicción, el badge "Pendiente" no debe aparecer (redundante y confuso)
-    expect(el.textContent).toContain('Ganador: FC Barcelona');
-    expect(el.textContent).not.toContain('Pendiente');
+    // El bloque de pronóstico muestra las probabilidades del partido.
+    expect(el.textContent).toContain('55%');
+    expect(el.textContent).toContain('Empate');
   });
 
   it('IN_PROGRESS → badge "Pendiente" (en vivo, pendiente de evaluación)', () => {

@@ -12,6 +12,7 @@ import type {
   RadarV2DataQuality,
   RadarV2EvidenceTier,
 } from './radar-v2-types.js';
+import type { PredictionFetcher } from './radar-v2-prediction-fetcher.js';
 import {
   RADAR_V2_SCHEMA_VERSION,
   RADAR_V2_GENERATOR_VERSION,
@@ -33,6 +34,8 @@ export interface BuildRadarV2Input {
   dataSource: DataSource;
   buildNowUtc: string;
   force?: boolean;
+  /** Fetcher opcional del motor predictivo. null → predictionContext = null en todas las cards. */
+  predictionFetcher?: PredictionFetcher | null;
 }
 
 /**
@@ -58,7 +61,7 @@ export async function buildOrGetV2Snapshot(
 }
 
 async function buildV2Snapshot(input: BuildRadarV2Input): Promise<RadarV2Snapshot | null> {
-  const { competitionKey, seasonKey, matchday, competitionId, dataSource, buildNowUtc, force } = input;
+  const { competitionKey, seasonKey, matchday, competitionId, dataSource, buildNowUtc, force, predictionFetcher } = input;
 
   const seasonId = dataSource.getSeasonId?.(competitionId);
   if (!seasonId) {
@@ -82,8 +85,8 @@ async function buildV2Snapshot(input: BuildRadarV2Input): Promise<RadarV2Snapsho
     buildNowUtc,
   });
 
-  // Resolve cards (includes diversity filter, text rendering, reasons)
-  const cards = resolveV2Cards({ evaluated });
+  // Resolve cards (includes diversity filter, text rendering, reasons, prediction context)
+  const cards = resolveV2Cards({ evaluated, predictionFetcher });
 
   // Determine data quality
   const dataQuality = resolveDataQuality(evidenceTier, standings.length);

@@ -2,14 +2,18 @@
  * Radar SportPulse v2 — API Adapter
  * Bridges the v2 radar service with the API layer.
  *
- * CRITICAL: NO predictor integration. NO PredictionStore. NO V3PredictionOutput.
- * This adapter is standalone per spec.sportpulse.radar-v2-package-index.md §Explicitly Out of Scope.
+ * Integración con predictor: opcional.
+ * Si se provee un PredictionStore, el adapter construye un PredictionFetcher
+ * que se pasa al service para adjuntar predictionContext a las cards.
+ * Si no se provee, degradación silenciosa: predictionContext = null en todas las cards.
  */
 
 import type { Match } from '@sportpulse/canonical';
 import type { DataSource } from '@sportpulse/snapshot';
 import { buildOrGetV2Snapshot } from './radar-v2-service.js';
 import type { RadarV2Snapshot } from './radar-v2-types.js';
+import type { PredictionStore } from '../prediction/prediction-store.js';
+import { buildPredictionFetcher } from './radar-v2-prediction-fetcher.js';
 
 export interface RadarV2LiveMatchData {
   matchId: string;
@@ -49,7 +53,10 @@ function normalizeSeasonKey(raw: string): string {
 }
 
 export class RadarV2ApiAdapter {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly predictionStore?: PredictionStore | null,
+  ) {}
 
   async getRadar(
     competitionId: string,
@@ -67,6 +74,11 @@ export class RadarV2ApiAdapter {
     const seasonKey = normalizeSeasonKey(seasonKeyRaw);
 
     try {
+      // Construir fetcher de predicciones si hay store disponible
+      const predictionFetcher = this.predictionStore
+        ? buildPredictionFetcher(this.predictionStore)
+        : null;
+
       const snapshot = await buildOrGetV2Snapshot({
         competitionKey,
         seasonKey,
@@ -74,6 +86,7 @@ export class RadarV2ApiAdapter {
         competitionId,
         dataSource: this.dataSource,
         buildNowUtc,
+        predictionFetcher,
       });
 
       if (!snapshot) {

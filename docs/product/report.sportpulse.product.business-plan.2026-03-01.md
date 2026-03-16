@@ -3,7 +3,7 @@ artifact_id: REPORT-SPORTPULSE-PRODUCT-BUSINESS-PLAN-2026-03
 title: "Business Plan v2.1 (March 2026)"
 artifact_class: report
 status: active
-version: 2.4.0
+version: 2.9.0
 project: sportpulse
 domain: product
 slug: business-plan
@@ -16,7 +16,7 @@ related_artifacts: []
 canonical_path: docs/product/report.sportpulse.product.business-plan.2026-03-01.md
 ---
 # SportsPulse — Plan de Negocio
-**Versión 2.4 — Marzo 2026**
+**Versión 2.9 — Marzo 2026**
 
 > **Nota metodológica:** Las proyecciones de este plan se presentan en dos escenarios — Conservador y Optimista — basados en benchmarks de la industria verificados. Las fuentes de cada supuesto material están citadas. Los números sin fuente verificable se identifican explícitamente como estimaciones derivadas.
 
@@ -36,6 +36,8 @@ La propuesta de valor se construye sobre tres pilares:
 **Mercado objetivo:** fanáticos de fútbol hispanohablantes — LATAM (Uruguay, Argentina, México, Colombia, Chile, Perú y resto de la región) más la comunidad latina en Estados Unidos. España se mantiene como mercado activo y de credibilidad internacional. Brasil queda fuera del alcance inicial por diferencia de idioma y complejidad de entrada.
 
 **Por qué este mercado:** comparte idioma, comparte ligas de referencia (Copa Libertadores, Copa América, Eliminatorias CONMEBOL), y carece completamente de una plataforma de análisis independiente en español. Los 62 millones de hispanos en USA son el segmento de mayor poder adquisitivo del mapa y el menos atendido en herramientas analíticas deportivas — un hecho verificado por Nielsen (2024) y McKinsey (2025).
+
+**Horizonte inmediato — Copa del Mundo 2026 (11 junio):** accuracy público, registro de usuario y predicciones del Mundial activas. Ventana de adquisición orgánica máxima.
 
 **Metas a 18 meses:**
 
@@ -75,7 +77,43 @@ Las apps que piden registro al llegar pierden entre el 60% y el 80% de los usuar
 
 ---
 
-## 3. La Solución — Visión del Producto
+## 3. Usuarios Objetivo — Tres Personas
+
+### Persona 1 — El analítico quemado por tipsters
+
+**Perfil:** 25-40 años. Sigue fútbol con seriedad. Ha pagado por picks de tipsters en Twitter/X y fue defraudado. Desconfía de cualquier predicción que no muestra su historial. Cuando ve "90% de accuracy" en cualquier plataforma, cierra la pestaña.
+
+**Motivación:** quiere señal verificable, no opinión. Le importa el intervalo de confianza tanto como el resultado predicho. Lee el error explicado del lunes y lo valora más que 10 aciertos en fila.
+
+**Comportamiento:** sesiones largas en DetailPanel. Navega el historial de accuracy. Comparte las predicciones contraintuitivas que salen bien. Es el usuario que genera boca a boca de calidad.
+
+**Conversión:** convierte después del Acto 2 del aha moment — cuando verificó que el modelo acertó algo que siguió. El track record público es el gatillo. Alta retención post-conversión.
+
+### Persona 2 — El fanático casual
+
+**Perfil:** 20-45 años. Sigue a su equipo y a la liga local. No le interesan los modelos ni la estadística — le interesa saber qué va a pasar este fin de semana y por qué su equipo merece atención hoy.
+
+**Motivación:** relevancia editorial rápida. El treemap le dice en 3 segundos a qué partido vale la pena prestarle atención. El resultado más probable le da un marco para el partido. No necesita más profundidad que eso.
+
+**Comportamiento:** sesiones cortas y frecuentes. Alta correlación con días de partido. Retención difícil en semanas sin partidos relevantes de su equipo.
+
+**Conversión:** más difícil. Convierte si el partido de su equipo favorito tiene algo en juego y el modelo dice algo que lo sorprende. El "lunes de accuracy" no le interesa. La alerta de contexto pre-partido sí.
+
+### Persona 3 — El usuario apostador que busca señal independiente
+
+**Perfil:** 25-50 años. Apuesta con cierta seriedad — no recreativo, no profesional. Usa múltiples fuentes antes de cada decisión. Desconfía de las casas de apuestas como fuente de señal porque sabe que el precio está diseñado para capturar dinero, no para predecir bien.
+
+**Motivación:** quiere saber si un modelo independiente ve algo diferente al mercado. La divergencia entre SportsPulse y las odds es exactamente la señal que busca. No le importa si SportsPulse "recomienda apostar" — le importa si el modelo ve algo que el mercado no está viendo.
+
+**Comportamiento:** los patrones de uso más intensos de los tres perfiles. Más sesiones por semana, más tiempo en DetailPanel, mayor ratio de conversión a Pro. Revisa predicciones antes de cada jornada. Vuelve post-partido a verificar.
+
+**Conversión:** la más alta de los tres perfiles. Tiene motivación económica directa y disposición a pagar establecida. El flag de divergencia con el mercado (feature free) es el gancho. El historial de divergencias con resultados (feature Pro) es el gatillo de conversión.
+
+**Nota de posicionamiento:** SportsPulse no es una plataforma de apuestas ni se posiciona como tal. No hay afiliación, no hay links a casas de apuestas, no hay publicidad de apuestas. Persona 3 usa el producto por su propio criterio. La posición ética es sobre cómo se financia el negocio — no sobre quién puede usarlo.
+
+---
+
+## 4. La Solución — Visión del Producto
 
 ### 3.1 Definición
 
@@ -166,43 +204,7 @@ FotMob es el espejo más honesto de lo que SportsPulse puede aspirar a ser: boot
 
 ---
 
-## 5. Usuarios Objetivo — Personas
-
-### Persona 1: El fanático analítico (segmento principal)
-
-**Perfil:** Hombre, 25-40 años, urbano. Argentina, México, Colombia, o latino en USA. Ve 2-4 partidos por semana, conoce el xG, usa Twitter/X para análisis. SofaScore le da datos pero no le dice qué hacer con ellos.
-
-**Necesidad:** Entender rápido si vale la pena ver un partido esta noche. Contexto, no solo score.
-
-**Disposición a pagar:** Media-alta. Ya paga DAZN o ESPN+. Pagaría USD 4-8/mes por algo que le ahorre tiempo.
-
-### Persona 2: El fanático de un equipo específico (segmento de volumen)
-
-**Perfil:** 20-45 años. Sigue principalmente a su equipo — Boca, River, Chivas, América, Nacional, Peñarol, Barcelona. No le importa analizar ligas enteras, solo quiere saber todo sobre su equipo.
-
-**Necesidad:** Notificaciones relevantes sobre su equipo. Resumen de lo que se perdió. Predicción del próximo partido.
-
-**Disposición a pagar:** Media.
-
-### Persona 3: El latino en USA (segmento de alto LTV)
-
-**Perfil:** 22-45 años, hispano en USA, salario en dólares. Sigue Liga MX, su selección de origen y Copa Libertadores. Consume contenido deportivo en español aunque viva en inglés. No tiene una herramienta de análisis seria en su idioma.
-
-**Necesidad:** El mismo producto que Persona 1, en español, cubriendo sus ligas.
-
-**Disposición a pagar:** Alta. USD 7.99/mes no es una barrera con salario americano. Es el segmento de mayor LTV del mapa.
-
-**Respaldo:** Latinos gastan 15% más que el promedio en productos deportivos ⁵. Copa América final 2024: 12M viewers, 53% hispanos ⁷.
-
-### Persona 4: El creador de contenido deportivo (nicho premium)
-
-**Perfil:** Periodista deportivo, blogger, creador en TikTok/YouTube/Twitter. Necesita datos verificables para respaldar análisis. Busca fuentes que no sean SofaScore porque todos las usan.
-
-**Disposición a pagar:** Alta. USD 10-15/mes por acceso API o exportación de datos.
-
----
-
-## 6. Análisis Competitivo
+## 5. Análisis Competitivo
 
 ### 6.1 Mapa competitivo
 
@@ -230,24 +232,49 @@ FotMob es el espejo más honesto de lo que SportsPulse puede aspirar a ser: boot
 
 ### 7.1 Ingresos primarios — Suscripción freemium
 
+La frontera free/Pro está diseñada con un principio único: **free prueba que el modelo existe y funciona — Pro explica cómo funciona y lo conecta con lo que le importa específicamente al usuario.** El gate no está en los datos básicos sino en la profundidad y la personalización.
+
 **Free (siempre gratis)**
-- Dashboard de atención completo (treemap + señales)
-- Resultados y calendario
-- Predicciones básicas (1X2 sin detalle de confianza)
-- Noticias y highlights
-- 1 liga favorita, alertas básicas de resultado
+
+| Feature | Detalle |
+|---------|---------|
+| Dashboard de atención | Treemap completo + señales |
+| Resultados y calendario | Todos los partidos de ligas cubiertas |
+| Probabilidades 1X2 completas | Los tres porcentajes visibles (ej. 68% / 18% / 14%) |
+| Resultado más probable | Consecuencia directa de los porcentajes |
+| Comparación vs mercado (flag) | Indicador de divergencia alta/baja — sin historial |
+| Track record global por liga | Página de accuracy pública, todos los partidos, todas las ligas |
+| Briefs contextuales | Vinculados al partido en DetailPanel, TTL 24–48h |
+| Alertas básicas de resultado | Gol, resultado final |
+| 1 liga favorita | Seguimiento básico |
+| **Publicidad display** | Slots de banner estándar en dashboard y DetailPanel. Anunciantes: streaming deportivo, merchandise, ticketing — sin publicidad de casas de apuestas (ver §7.2). Se elimina completamente en Pro. |
 
 **Pro — ver pricing §7.3**
-- Predicciones detalladas: scoreline esperado, xG, intervalos de confianza, explicación del modelo
-- Historial de accuracy del modelo por liga y equipo
-- Historial personal de predicciones con accuracy propio
-- Alertas inteligentes con contexto del modelo
-- Resumen post-partido "qué me perdí"
-- Favoritos ilimitados, sin publicidad
 
-### 7.2 Ingresos secundarios — Afiliación selectiva
+| Feature | Detalle |
+|---------|---------|
+| Scoreline esperado | Distribución de los marcadores más probables con probabilidades |
+| xG esperado | Goles esperados por equipo en función del historial de oportunidades |
+| Intervalo de confianza | Rango de certeza de cada predicción — diferencia un modelo calibrado de una opinión |
+| Explicación del modelo | Las señales específicas que determinaron la predicción (Elo diferencial, forma reciente, ventaja local) |
+| Track record por equipo | Accuracy del modelo sobre los partidos de un equipo específico, partido a partido |
+| Historial de divergencias con mercado | Cuándo el modelo discrepó del mercado y qué pasó en cada caso |
+| Alertas inteligentes con contexto | "Boca perdiendo 0-2 en el 80', partido de alta relevancia. Scoreline esperado actual: 0-2 (62%)" |
+| Resumen post-partido enriquecido | Qué predijo el modelo, qué pasó, en qué minuto cambió la dinámica |
+| Accuracy personal del usuario | Historial de predicciones propias con accuracy acumulado |
+| Favoritos ilimitados, sin publicidad | — |
 
-Afiliación a servicios no de apuestas: streaming deportivo (DAZN, ESPN+, VTV Play), merchandising oficial, ticketing. Estimado: 15-25% del ingreso total a escala, nunca fuente primaria.
+### 7.2 Ingresos secundarios — Publicidad display y afiliación selectiva
+
+**Publicidad display (Tier 0 — activa desde el free tier inicial)**
+
+Slots de banner estándar en dashboard y DetailPanel, visibles únicamente para usuarios free. Política de anunciantes estricta: streaming deportivo, merchandise oficial, ticketing — **sin publicidad de casas de apuestas bajo ninguna forma** (directo, programático o afiliación). La publicidad de apuestas pagaría CPMs más altos pero destruiría el posicionamiento de independencia que es el diferencial central del producto.
+
+CPM estimado en apps deportivas sin apuestas: USD 2–3 (vs. USD 10–30+ con apuestas). Con 10.000 MAU a una sesión de 3–5 páginas/día, el ingreso esperado es modesto (~USD 200–600/mes) pero pre-paywall — no requiere que el usuario convierta. Se elimina completamente en Pro.
+
+**Afiliación selectiva (Tier 1 — a partir de Fase Post-Mundial)**
+
+Afiliación a servicios no de apuestas: streaming deportivo (DAZN, ESPN+, VTV Play), merchandising oficial, ticketing. Solo se activa con suficiente base de usuarios para que el volumen justifique la integración. Estimado a escala: 15–25% del ingreso total, nunca fuente primaria.
 
 ### 7.3 Pricing por segmento
 
@@ -272,6 +299,85 @@ La conversión free→Pro es el supuesto más sensible del modelo. Los benchmark
 | Hard paywall | 12% | Sin tier gratuito, requiere pago desde el inicio |
 
 SportsPulse tiene factores a favor de conversión superior a la mediana: alta diferenciación, audiencia de nicho con disposición a pagar verificada, y un feature Pro (track record del modelo) que no existe en el mercado. Aun así, la mediana de la industria es el punto de partida honesto para proyectar.
+
+### 7.5 Onboarding — flujo de registro
+
+**Principio:** el usuario tiene que experimentar el producto antes de que se le pida nada. El registro se pide en el momento de mayor intención demostrada — cuando el usuario ya intentó acceder a algo que vale la pena.
+
+**Flujo:**
+
+1. **Primer contacto — sin fricción.** El dashboard es completamente visible sin registro. 1X2 con porcentajes libres para todos los partidos.
+
+2. **Gate contextual — en el momento correcto.** Cuando el usuario abre el DetailPanel de un partido y toca cualquier elemento bloqueado (scoreline, xG, confianza, explicación del modelo), aparece: *"¿Querés ver el análisis completo? Registrate — es gratis."* Los elementos bloqueados son visibles en estructura pero no en contenido: el usuario ve que existen tres cards de scoreline con los números tapados. Entiende qué hay detrás sin necesidad de texto explicativo.
+
+3. **Registro — sin fricción.** Email o Google/X OAuth. Un solo paso. Sin formulario largo, sin verificación de edad, sin pasos intermedios.
+
+4. **Post-registro — micro-pantalla contextual.** No una pantalla de bienvenida genérica. Una pantalla que ancla el valor en el partido que trajo al usuario: *"Ya sos parte de SportsPulse. Ahora podés ver el scoreline esperado, xG, nivel de confianza y las señales que determinaron la predicción."* Botón: *"Ver análisis de [nombre del partido]."* El usuario vuelve exactamente donde estaba, con el contenido desbloqueado.
+
+**Lo que no se hace:** tour de onboarding, wizard de configuración, pantalla de selección de ligas al entrar. La personalización (equipo favorito, ligas de interés) se propone progresivamente durante el uso, no como barrera de entrada.
+
+### 7.7 Descubrimiento de valor Pro
+
+### 7.8 Página de accuracy público — principios de diseño
+
+> Esta sección define los principios y decisiones tomadas. El diseño visual y el copy requieren iteración de producto antes de implementar — no están cerrados aquí.
+
+**El problema central del mercado:** todos los competidores de predicciones deportivas publican números imposibles (90–99% accuracy). En ese contexto, mostrar un 57% honesto sin contexto genera el efecto contrario al deseado: el usuario asume incompetencia. La página de accuracy tiene que resolver este problema de percepción antes de cualquier otra cosa.
+
+**Principio 1 — La comparación es el producto, no el número.**
+
+El accuracy de SportsPulse no se defiende solo. Se defiende puesto al lado de referencias que el usuario ya conoce:
+
+| Referencia | Accuracy 1X2 | Por qué importa para el usuario |
+|------------|-------------|--------------------------------|
+| Elegir al azar | ~38% | El piso. Muestra que predecir fútbol es difícil. |
+| Tipsters de Twitter | ~43% | El comparador emocional — Persona 1 fue quemada por ellos. Cobran por picks y aciertan *menos que el azar*. |
+| Casas de apuestas | ~53–54% | El techo de referencia. El mejor predictor público con toda su infraestructura. |
+| SportsPulse general | ~57% | Por encima del mercado en promedio. |
+| SportsPulse alta confianza | ~62–65% | Claramente por encima del mercado en el subconjunto donde el modelo es más seguro. |
+
+**Principio 2 — For dummies arriba, profundidad abajo.**
+
+Arriba del fold: solo conteo visual (●●●●●●○○○● = 7/10) y la tabla de comparación. Sin porcentajes globales, sin jerga estadística. Un usuario no técnico entiende que 7/10 es mejor que 4/10 sin necesidad de saber qué es un Brier score.
+
+Debajo del fold: historial completo filtrable, accuracy por nivel de confianza, errores con contexto, track record por equipo (gate Pro).
+
+**Principio 3 — La verificabilidad es el diferenciador, no el número.**
+
+En un mercado donde todos mienten, la afirmación correcta no es "somos más precisos" — es "somos los únicos que no podemos mentir porque cada predicción tiene timestamp anterior al partido y cualquiera puede verificarla."
+
+Esa garantía tiene que aparecer prominentemente en la página: *"Cada predicción fue hecha antes del partido. Podés verificar cualquiera."* No como nota al pie — como elemento central del diseño.
+
+**Principio 4 — Los errores tan visibles como los aciertos.**
+
+La credibilidad de largo plazo depende de no esconder los errores. El lunes de accuracy (§9) empieza por los partidos que el modelo erró, con contexto. La página de accuracy muestra las pérdidas en el historial sin filtro. Eso es lo que ningún competidor hace — y es exactamente lo que construye confianza sostenible. — cómo el usuario entiende qué hay detrás del gate
+
+Un paywall invisible no convierte. Cada feature Pro debe ser visible como forma antes de ser accesible como contenido: el usuario sabe que existe, entiende qué contiene, y siente el gap entre lo que tiene y lo que podría tener.
+
+**Mecanismo de preview por feature:**
+
+| Feature Pro | Qué ve el usuario free |
+|-------------|------------------------|
+| Scoreline esperado | Cards de los 3 marcadores más probables con probabilidades bloqueadas — ve la estructura, no los números |
+| Intervalo de confianza | Debajo del 68%: *"¿Qué tan seguro está el modelo? →"* con el rango bloqueado |
+| Explicación del modelo | Lista de señales con texto bloqueado: el usuario ve que hay un razonamiento, no cuál es |
+| Track record por equipo | En la página de accuracy: *"Accuracy del modelo sobre River Plate: [🔒 Pro]"* — el nombre del equipo ya está visible |
+| Historial de divergencias | El flag de divergencia es free; debajo: *"Ver historial de divergencias y sus resultados → Pro"* |
+| xG esperado | Número bloqueado con descripción visible de qué es y por qué importa |
+
+**Los tres momentos de conversión de mayor impacto:**
+
+1. **Partido de alto impacto del equipo favorito (pre-partido)** — máxima atención emocional, máxima disposición a pagar. El CTA *"Ver análisis completo → Pro"* tiene el contexto correcto.
+
+2. **Después de que el modelo acertó algo que el usuario siguió** — el usuario vuelve, ve que el modelo acertó, siente la validación. En ese momento: *"¿Qué predice el modelo para el próximo partido de este equipo? → Pro"*. Es el Acto 3 del aha moment y el instante de mayor disposición a pagar en todo el funnel.
+
+3. **Divergencia alta con el mercado** — el flag es free: *"El modelo ve algo diferente al mercado."* El análisis de por qué diverge está en Pro. El usuario que quiere entender esa divergencia ya está convencido de que hay algo ahí.
+
+**Trial de 7 días:**
+
+Algunos features Pro — especialmente la explicación del modelo y el scoreline distribution — necesitan ser experimentados para crear deseo. Una descripción textual no genera lo mismo que ver la distribución real de un partido que importa.
+
+La primera vez que el usuario toca un feature Pro → *"Probá Pro 7 días gratis."* Al día 5 → recordatorio con resumen de lo que usó. Al vencimiento → paywall real. El trial resuelve el problema estructural de que el usuario no puede evaluar lo que no ha visto.
 
 ---
 
@@ -323,7 +429,22 @@ Un competidor puede copiar la UI en semanas y comprar los mismos datos en días.
 
 El producto convence a los primeros 1.000 usuarios sin marketing pagado. Con tracción orgánica demostrable, se activa adquisición pagada. El error clásico es gastar en adquisición antes de que el producto retenga.
 
-### 9.2 Fase 1 — Tracción orgánica (meses 1-6) — Uruguay + Argentina
+### 9.2 SEO — estrategia y roadmap de implementación
+
+**Cobertura objetivo:** una URL indexable por partido, por liga y por torneo cubierto. Cada URL es una entrada orgánica independiente con alta intención de búsqueda. Las búsquedas objetivo son exactamente las que generan el tráfico más valioso: "predicción Boca River hoy", "pronóstico Copa Libertadores semifinal", "tabla LaLiga jornada 35".
+
+**Estado ideal (mundo perfecto):** SSR con páginas estáticas generadas por partido/liga/torneo, `<title>` + `<meta description>` + `<og:image>` dinámicos por página, sitemap XML automático, datos estructurados `schema.org/SportsEvent` para resultados ricos en la SERP (fecha, equipos, predicción visible sin entrar al sitio).
+
+**Implementación pragmática en dos etapas:**
+
+| Etapa | Qué | Cuándo | Esfuerzo |
+|-------|-----|--------|----------|
+| **Mínimo viable** | Sitemap XML automático + `<title>` y `<meta description>` dinámicos (React Helmet) + prerendering estático para los 64 partidos del Mundial | Fase Sprint — antes del 11 junio | 3-5 días |
+| **SSR completo** | Migración a Next.js o framework SSR equivalente — páginas estáticas para todo el catálogo de partidos/ligas/torneos | Fase Post-Mundial | Sprint dedicado |
+
+**Por qué el mínimo viable importa ahora:** Google tarda 3-6 meses en rankear páginas nuevas. Lo que se indexa en abril-mayo 2026 rankea justo para el Mundial. Las páginas de los 64 partidos del torneo indexadas antes del 11 de junio capturan tráfico orgánico de alta intención durante todo el torneo — sin costo de adquisición.
+
+### 9.3 Fase 1 — Tracción orgánica (meses 1-6) — Uruguay + Argentina
 
 **Objetivo conservador:** 8.000 usuarios. **Objetivo optimista:** 15.000 usuarios.
 
@@ -333,7 +454,7 @@ El producto convence a los primeros 1.000 usuarios sin marketing pagado. Con tra
 - **SEO de cola larga:** "predicción Boca River este sábado", "pronóstico Copa Libertadores". Volumen real, baja competencia en análisis independiente en español.
 - **Outreach a comunidades de análisis:** acceso Pro gratuito a cuentas de análisis en Twitter/X, podcasts, blogs a cambio de mención honesta.
 
-### 9.3 Fase 2 — México (meses 7-12)
+### 9.4 Fase 2 — México (meses 7-12)
 
 **Objetivo conservador:** 25.000 usuarios acumulados. **Objetivo optimista:** 45.000.
 
@@ -342,58 +463,131 @@ El producto convence a los primeros 1.000 usuarios sin marketing pagado. Con tra
 - TikTok y YouTube en español (más relevantes que Twitter/X en México)
 - US Latinos: se activan orgánicamente al tener Liga MX cubierta; asegurar que el producto funciona en timezone USA y que USD 7.99 está disponible en App Store / Play Store
 
-### 9.4 Fase 3 — Colombia, Chile, consolidación (meses 13-18)
+### 9.5 Fase 3 — Colombia, Chile, consolidación (meses 13-18)
 
 **Objetivo conservador:** 35.000 usuarios. **Objetivo optimista:** 80.000.
 
 - Liga BetPlay + Primera Chile: misma secuencia que México
-- Newsletter semanal propio con análisis del modelo
+- Newsletter semanal propio con análisis del modelo — ancla el lunes de accuracy como evento de contenido recurrente
 - Programa de referidos: un mes Pro gratis por cada amigo que convierte
 - App mobile nativa: requerida para desbloquear push notifications en USA
+
+### 9.6 Estrategia de contenido — ritmo semanal
+
+El contenido no es marketing separado del producto — es el producto distribuido en dosis digeribles. El objetivo es que SportsPulse tenga presencia en el feed del fanático incluso en días sin partido.
+
+**Principio operativo: el contenido es el sistema, no un proceso editorial separado.**
+
+El calendario de contenido no requiere redacción manual. Las predicciones ya existen, los resultados entran automáticamente, el accuracy se calcula en el motor. El pipeline de contenido es un entregable técnico que formatea datos existentes en piezas distribuibles — texto estructurado + imagen generada — listas para publicar con revisión mínima del fundador. Costo operativo: cero.
+
+**Ritmo semanal base:**
+
+| Día | Pieza | Origen de datos | Canal |
+|-----|-------|-----------------|-------|
+| Lunes | Accuracy de la semana: qué acertó, qué erró, con qué margen. **Empezar por los errores.** | Track A — predicciones + resultados de la semana anterior | Twitter/X + newsletter |
+| Miércoles | Predicción del partido más relevante + divergencia vs mercado ("el modelo ve X, el mercado ve Y") | Motor predictivo + The Odds API | Twitter/X + TikTok |
+| Viernes | Preview fin de semana: los 3 partidos de mayor atención del treemap + predicciones resumidas | Dashboard treemap + motor predictivo | Twitter/X + Instagram |
+
+**Por qué este ritmo:**
+
+- **Lunes de accuracy** ancla el hábito semanal. Es el único contenido de este tipo en el mercado hispanohablante. Empezar por los errores construye credibilidad más rápido que empezar por los aciertos — y es exactamente lo que ningún tipster de Twitter hace.
+- **Miércoles de predicción** captura búsqueda orgánica pre-partido y da visibilidad a la divergencia con el mercado. La divergencia es el diferencial editorial que ningún competidor puede replicar sin modelo independiente.
+- **Viernes de preview** es shareworthy orgánico: los usuarios lo comparten con amigos antes del fin de semana. Genera adquisición sin costo.
+
+**Ventana Copa del Mundo (11 junio → 19 julio 2026):**
+
+El ritmo se intensifica adaptado al calendario del torneo:
+- **Antes de cada ronda eliminatoria:** predicciones para todos los partidos de la fase publicadas simultáneamente con comparación vs mercado
+- **Después de cada jornada:** resumen de accuracy publicado dentro de las 2 horas post-partido
+- **Post-Mundial:** primer reporte de accuracy agregado del torneo — el mayor activo de credibilidad acumulable en el corto plazo
+
+**Medición de contenido:**
+
+El KPI no es alcance. Es usuarios que llegan desde contenido, ven el producto, y se registran. Métrica de corte a los 90 días: ¿qué día de la semana y qué tipo de pieza genera más registros por impresión? Las piezas que no generan registros se eliminan o reformatean — no se acumula por inercia.
 
 ---
 
 ## 10. Roadmap de Producto
 
-### Fase A — Fundación (gran parte completa)
-- ✅ Dashboard de atención, motor predictivo, resultados en vivo, noticias, eventos y streaming
-- 🔲 **Walk-forward histórico** — ejecutar evaluación sobre ≥200 partidos históricos por liga (LaLiga, Premier, Liga Argentina) sin lookahead. Publicar como "demostración metodológica" con disclosure explícito de origen histórico. Acorta el tiempo a credibilidad en 4–6 meses respecto a esperar solo validación forward.
-- 🔲 **Accuracy público** — página con historial verificable del modelo. Primer paso antes del registro. Muestra walk-forward histórico (con disclosure) + partidos forward acumulados desde activación.
+> **Nota de fecha:** Este roadmap fue revisado con fecha real de referencia 16 de marzo de 2026. Copa del Mundo 2026 arranca el 11 de junio de 2026 — 87 días desde la fecha de revisión. Las fases están expresadas en fechas absolutas, no en "meses desde lanzamiento".
 
-> **Nota sobre noticias en Fase A:** la pestaña "Noticias" existente (RSS + redirección externa) se mantiene como está. No se mejora ni rediseña en esta fase. El contenido contextual avanzado (briefs vinculados a partidos) es una feature de Fase D, no de fundación.
+### Estado actual del producto (16 de marzo 2026)
 
-### Fase B — Liga MX + Copa Libertadores (meses 1-6)
-- 🔲 Ingesta datos históricos Liga MX (mínimo 3 temporadas)
-- 🔲 Calibración y forward validation Liga MX
-- 🔲 Copa Libertadores y Eliminatorias CONMEBOL en dashboard y predicciones
-- 🔲 **Comparación vs mercado** — integrar probabilidades implícitas de odds de mercado (Pinnacle/Bet365) partido a partido. Mostrar divergencias como señal editorial. Usar como benchmark externo en la página de accuracy.
+| Feature | Estado |
+|---------|--------|
+| Dashboard, motor predictivo, resultados, noticias, eventos, streaming | ✅ Producción |
+| Cobertura de ligas: LaLiga, Premier, Bundesliga, Liga Uruguaya, Liga Argentina | ✅ Producción |
+| Motor Mundial / selecciones nacionales | ✅ Arquitectura lista — sin perfil World Cup configurado ni fuente de datos activa |
+| Página de accuracy | ✅ Implementada — bloqueada detrás de flag interno. Hacerla pública es trabajo de días. |
+| Comparación vs mercado de odds | ✅ Implementada completa (The Odds API v4) — desactivada por falta de API key |
+| Registro / login | ❌ No existe |
+| Paywall Pro | ❌ No existe |
+| Alertas de contexto | ❌ No existe |
+| Lunes de accuracy automático | ❌ No existe |
 
-### Fase C — Identidad de usuario (meses 1-3)
-- 🔲 Registro / login (email o Google OAuth)
-- 🔲 Dashboard personalizado, equipos y ligas favoritas
-- 🔲 Notificaciones web básicas
+---
 
-### Fase D — Propuesta Pro (meses 3-6)
-- 🔲 Paywall freemium con pricing diferenciado por mercado
-- 🔲 Predicciones detalladas Pro (scoreline, xG, confianza, explicación)
-- 🔲 Alertas inteligentes Pro, resumen post-partido, accuracy personal
-- 🔲 **Briefs contextuales en DetailPanel** — máximo 2–3 briefs por partido, vinculados al equipo local/visitante, provenientes de feeds RSS existentes, sin summarización LLM, con fuente visible y link externo preservado. TTL 24–48h. Sin archivo. Viven exclusivamente dentro de la ficha de partido, nunca como destino independiente. La decisión completa, reglas editoriales y criterios de descarte están en Anexo D.
+### Fase Sprint — Copa del Mundo (ahora → 1 junio 2026)
 
-### Fase E — Escala regional (meses 6-12)
-- 🔲 App mobile nativa — requerida para USA
-- 🔲 Activación México con track record público
-- 🔲 Programa de referidos y newsletter
+> **Objetivo:** llegar al inicio del Mundial con el máximo de producto aprovechable. Esta es la mayor ventana de adquisición orgánica que el producto va a tener en años.
 
-### Fase F — Expansión (meses 12-18)
+- 🔲 **Accuracy público** — exponer las páginas de labs existentes como rutas públicas. Días de trabajo. Prerequisito de todo lo demás. Ver §7.6 para principios de diseño — el diseño visual y copy requieren iteración.
+- 🔲 **Walk-forward histórico** — ejecutar evaluación sobre ≥200 partidos históricos por liga (LaLiga, Premier, Liga Argentina) sin lookahead. Publicar como "demostración metodológica" con disclosure. Alimenta la página de accuracy desde el día 1.
+- 🔲 **Comparación vs mercado** — activar The Odds API (ya implementada, solo necesita `THE_ODDS_API_KEY`). Mostrar divergencias como señal editorial en la página de accuracy y en el DetailPanel.
+- 🔲 **Copa del Mundo 2026** — crear `world-cup.ts` competition profile, activar competitionId "WC" en football-data.org (proveedor ya integrado, `WC` verificado como `TIER_ONE` con el token actual — sin bloqueante de proveedor), ingresar histórico de selecciones para backfill Elo. El engine ya soporta `NATIONAL_TEAM_TOURNAMENT` con K-factors diferenciados.
+- 🔲 **Registro / login** — email o Google OAuth. **Crítico:** sin registro, el Mundial construye tráfico anónimo irrecuperable. Con registro, construye una base de usuarios con email para monetizar después. Cada semana que se retrasa es audiencia que se pierde.
+- 🔲 **Pipeline de contenido automatizado** — generación de piezas distribuibles (accuracy semanal, predicción de partido destacado, preview de fin de semana) a partir de datos existentes: Track A, motor predictivo, The Odds API, treemap. Salida: texto estructurado + imagen, lista para publicar con revisión mínima. **Tiene que estar listo para la ventana del Mundial** — 39 días de torneo con jornadas diarias es el caso de uso más exigente y el de mayor audiencia. Costo operativo post-automatización: cero.
+
+> **Nota sobre noticias en Fase Sprint:** la pestaña "Noticias" existente (RSS + redirección externa) se mantiene como está. No se mejora ni rediseña ahora.
+
+---
+
+### Ventana Copa del Mundo (11 junio → 19 julio 2026)
+
+> Esta no es una fase de construcción — es una fase de ejecución y adquisición. El producto tiene que estar listo antes del 11 de junio. Durante el torneo, el foco es contenido y distribución.
+
+- Predicciones públicas para cada partido del Mundial con comparación vs mercado
+- Lunes de accuracy manual (semanal) mientras no existe el scheduler automático
+- Contenido en Twitter/X y TikTok: predicción pre-partido → resultado → accuracy publicado
+- Captura de usuarios registrados — el Mundial es la excusa para que alguien se registre
+- **Lo que NO va a existir todavía:** paywall Pro, alertas push, app mobile. Esta ventana es adquisición pura.
+
+---
+
+### Fase Post-Mundial — Monetización (agosto → diciembre 2026)
+
+> El Mundial deja una base de usuarios registrados. Esta fase la monetiza.
+
+- 🔲 **Paywall freemium Pro** — con pricing diferenciado por mercado y trial 7 días. Stripe cubre el rollout inicial para todo LATAM y España. Implementar con la base de usuarios construida durante el Mundial. Ver §7.1 para la frontera free/Pro exacta y §7.5 para los mecanismos de descubrimiento.
+- 🔲 **Predicciones detalladas Pro** — scoreline, xG, confianza, explicación del modelo, con previews visibles para usuarios free
+- 🔲 **Alertas de contexto** — dos tipos medidos por separado: predicción actualizada (>10% cambio) y alta relevancia detectada. Canal: web push + email. Ver §11 para métricas de evaluación.
+- 🔲 **Liga MX — Apertura 2026** (arranca ~julio 2026) — proveedor API-Football ya disponible, configurar competitionId, walk-forward histórico, forward validation activa desde el primer partido. Ver nota técnica en esta sección.
+- 🔲 **Lunes de accuracy automatizado** — scheduler semanal que publica el resumen de accuracy de la semana anterior. Reemplaza el proceso manual del período del Mundial.
+- 🔲 **Dashboard personalizado** — equipos y ligas favoritas, notificaciones web básicas de resultado
+
+> **Nota técnica Liga MX:** El engine ya soporta Apertura/Clausura (no resetea Elo entre torneos, solo corte en julio) y liguilla via `stage_type = PLAYOFF`. Trabajo pendiente: CompetitionProfile específica para Liga MX. Si el free tier de API-Football (100 req/día) es insuficiente para backfill, upgrade al plan básico (~USD 10–15/mes).
+
+---
+
+### Fase Escala Regional (2027)
+
+- 🔲 App mobile nativa — requerida para push notifications en USA y para el segmento latino en USA
+- 🔲 Copa Libertadores y Eliminatorias CONMEBOL con predicciones y track record
+- 🔲 Activación México con track record público consolidado (≥200 partidos evaluados)
+- 🔲 Briefs contextuales en DetailPanel Pro. Ver Anexo D para reglas completas.
+- 🔲 Programa de referidos y newsletter propio
+- 🔲 **Mercado Pago — Argentina** — integración de Mercado Pago como método de pago alternativo a Stripe para el mercado argentino. Segunda etapa de pagos: Stripe opera desde el lanzamiento del paywall, Mercado Pago se agrega cuando Argentina muestre volumen de usuarios que no convierten por falta del método local.
+
+---
+
+### Fase Expansión (2027+)
+
 - 🔲 Colombia + Chile
-- 🔲 API pública beta para creadores de contenido
-
-### Fase G — Horizonte (18+ meses)
-- 🔲 Copa del Mundo 2026 — ventana de máxima exposición para un producto hispanohablante con foco en USA + LATAM
+- 🔲 API pública beta para creadores de contenido y partnerships con cuentas de análisis — requiere base de usuarios consolidada y track record sólido antes de activar. No viable antes del Mundial.
 - 🔲 Serie A, Champions League
 - 🔲 Evaluación de entrada a Brasil
 - 🔲 Módulo B2B para medios
-- 🔲 **Señales de evento como input del modelo** — detección de lesiones confirmadas de titulares y cambios de DT recientes desde fuentes verificadas, incorporados como flags explícitos en el output de predicción. Solo si: el sistema puede actuar dentro de la ventana pre-ajuste del mercado, la entidad (jugador + equipo + partido) se resuelve con confianza, y el impacto en calibración se valida con datos reales. Ver Anexo B §B.8 para las condiciones completas. No priorizar antes de que el track record y el paywall Pro estén consolidados.
+- 🔲 **Señales de evento como input del modelo** — detección de lesiones confirmadas de titulares y cambios de DT desde fuentes verificadas, como flags explícitos en el output. Ver Anexo B §B.8 para condiciones completas.
 
 ---
 
@@ -407,6 +601,13 @@ El producto convence a los primeros 1.000 usuarios sin marketing pagado. Con tra
 | DAU/MAU ratio | > 25% | > 35% |
 | Retención D30 | > 40% | > 50% |
 | Predicciones vistas/usuario/mes | > 5 | > 8 |
+| Visitas en días sin partido del equipo favorito | > 2/semana | > 3/semana |
+| CTR alerta "predicción actualizada" | baseline (60 días) | > 20% |
+| CTR alerta "alta relevancia detectada" | baseline (60 días) | > 15% |
+| Apertura lunes de accuracy | — | > 30% de MAU activos |
+| Registros atribuidos a contenido / semana | baseline (90 días) | KPI de corte por pieza y día |
+
+> **Nota:** Las dos métricas de alertas arrancan en baseline durante los primeros 60 días. El objetivo no es un número predefinido sino determinar cuál de los dos tipos genera retorno real y con qué margen de diferencia, para priorizar o eliminar en consecuencia.
 
 ### 11.2 Proyecciones financieras — dos escenarios
 
@@ -440,6 +641,8 @@ Las proyecciones se basan en los benchmarks de conversión freemium verificados 
 
 > **Base de planificación recomendada:** escenario conservador para costos y escenario base para inversión en crecimiento. El optimista como referencia de upside, no como expectativa.
 
+> **Publicidad display — flujo complementario pre-paywall:** los tres escenarios anteriores modelan solo ingresos de suscripción. La publicidad display (§7.2) agrega un flujo independiente estimado en USD 200–600/mes con 10K MAU, escalando a USD 800–2.000/mes con 30K MAU (CPM USD 2–3, sin apuestas). Es pre-paywall — se genera sin requerir que el usuario convierta. No forma parte de los escenarios porque no es la palanca de valor del negocio, pero sí reduce el tiempo hasta el break-even.
+
 ### 11.3 Métricas de credibilidad del modelo
 
 | Métrica | Umbral mínimo |
@@ -469,10 +672,11 @@ Estas métricas se publican tal cual, incluyendo malos resultados. El compromiso
 
 | Item | Cuándo | Costo est. |
 |------|--------|-----------|
-| APIs ligas adicionales (Liga MX, Colombia) | Oleada 2-3 | USD 50-150/mes |
+| API-Football upgrade (Liga MX + LATAM) | Oleada 2 si free tier insuficiente | USD 10-50/mes |
 | Stripe fees | Al activar Pro | 2.9% + USD 0.30/transacción |
 | Auth provider (Clerk/Auth0) | Al activar registro | USD 0-25/mes hasta 10K MAU |
 | Email (Resend/Postmark) | Al activar alertas | USD 20-50/mes |
+| Producción de contenido semanal | Fase Sprint (automatizado) | USD 0 — pipeline técnico sobre datos existentes |
 | Push notifications | Fase D-E | USD 0-50/mes |
 | Infraestructura adicional | >30K MAU | USD 150-400/mes |
 | App mobile nativa | Fase E | USD 2.000-5.000 (único) |
@@ -495,7 +699,7 @@ El modelo es rentable desde muy temprano. El riesgo financiero no es la estructu
 | Conversión 5% (optimista) | La mediana real es 2.18% — 5% requiere ejecución excelente | Planificar con escenario conservador, revisar cada trimestre |
 | 80K usuarios en 18 meses | SofaScore tardó años en llegar a 28M globales. 20-40K es más realista sin paid acquisition | No escalar paid ads hasta tener retención D30 > 40% probada |
 | SAM 73M usuarios | Estimación derivada no verificada por terceros | Usarlo como orden de magnitud, no como dato de mercado |
-| Pago en Argentina | 74% no puede pagar todos sus servicios. Stripe requiere entidad local | Integrar Mercado Pago antes de activar paywall en Argentina |
+| Pago en Argentina | 74% no puede pagar todos los servicios que desea. Stripe puede tener fricción sin método local. | Stripe activo desde el lanzamiento del paywall. Mercado Pago se agrega en Fase Escala cuando el volumen de Argentina justifique la integración. No es bloqueante del lanzamiento. |
 
 ### 13.2 Riesgos competitivos
 
@@ -511,7 +715,7 @@ El modelo es rentable desde muy temprano. El riesgo financiero no es la estructu
 |--------|-----------|
 | Accuracy bajo en ligas nuevas | No publicar hasta ≥200 partidos. Validar privado antes de publicar. |
 | APIs de Liga MX con datos incompletos | API-Football cubre Liga MX. Validar calidad de datos históricos antes de comenzar ingesta. |
-| Regulación predicciones deportivas por mercado | No operar como plataforma de apuestas. Consultar asesor legal en México y Argentina antes de activar pagos. |
+| Regulación predicciones deportivas por mercado | SportsPulse publica estadísticas, no opera como plataforma de apuestas — funcionalmente equivalente a un periódico que publica pronósticos. Consulta legal amplia en México y Argentina durante Fase Sprint, en paralelo al desarrollo. La pregunta central es clasificación del producto bajo el marco legal local, no licencias de juego. No es gate bloqueante del roadmap — es due diligence antes de activar pagos en agosto 2026. |
 
 ---
 
@@ -569,9 +773,17 @@ Se activa cuando: >30K MAU con retención D30 > 40% demostrada, >1.000 Pro activ
 
 Perfil de inversor: angels o fondos en SaaS / medios deportivos hispanohablantes. No: fondos ligados a industria de apuestas.
 
-### 16.3 Copa del Mundo 2026 como ventana estratégica
+### 16.3 Copa del Mundo 2026 como ventana de adquisición inmediata
 
-Copa del Mundo 2026 se juega en USA, México y Canadá. Es la mayor ventana de exposición posible para un producto hispanohablante con foco en LATAM y US Latinos. Llegar a esa ventana con track record sólido en múltiples ligas y base de usuarios activa es el objetivo real del horizonte de 18 meses — independientemente del escenario financiero que se materialice.
+Copa del Mundo 2026 arranca el **11 de junio de 2026** — 87 días desde la fecha de este plan. Se juega en USA, México y Canadá. Es la mayor ventana de exposición posible para un producto hispanohablante con foco en LATAM y US Latinos.
+
+**La postura correcta:** el Mundial llega antes de que el paywall Pro y el sistema de usuarios estén completamente construidos. No es una falla — es la secuencia correcta si se ejecuta bien. El Mundial construye la base de usuarios; la monetización viene después con esa base.
+
+**Lo que tiene que estar listo antes del 11 de junio:** accuracy público, registro de usuario, predicciones del Mundial, comparación vs mercado activa. Todo esto es técnicamente alcanzable con el producto existente.
+
+**Lo que no va a estar listo para el Mundial:** paywall Pro completo, alertas push, app mobile. Eso no impide aprovechar el torneo — impide monetizarlo directamente. La monetización viene en agosto–diciembre 2026 con la base construida durante el torneo.
+
+El riesgo real no es llegar sin paywall. Es llegar sin registro de usuario y perder audiencia anónima irrecuperable.
 
 ---
 
@@ -1100,5 +1312,5 @@ Si los briefs se implementan en Fase D, evaluarlos con estas métricas antes de 
 
 ---
 
-*SportsPulse Business Plan v2.4 — Marzo 2026*
+*SportsPulse Business Plan v2.9 — Marzo 2026*
 *Estado: Borrador para revisión — no vinculante hasta aprobación del fundador*

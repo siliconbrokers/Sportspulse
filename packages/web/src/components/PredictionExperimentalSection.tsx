@@ -15,6 +15,18 @@ import type { MarketsData } from './MarketsPanel.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface SignalsData {
+  xg_used: boolean;
+  xg_coverage: string | null;
+  absence_applied: boolean;
+  absence_count_home: number;
+  absence_count_away: number;
+  lineup_used_home: boolean;
+  lineup_used_away: boolean;
+  market_blend_applied: boolean;
+  warnings: string[];
+}
+
 interface ExperimentalPrediction {
   match_id: string;
   competition_id: string;
@@ -30,6 +42,7 @@ interface ExperimentalPrediction {
   markets: MarketsData | null;
   generated_at: string;
   engine_version: string;
+  signals: SignalsData | null;
 }
 
 interface PredictionExperimentalSectionProps {
@@ -155,6 +168,96 @@ const footerStyle: React.CSSProperties = {
   color: 'var(--sp-text-35, #9ca3af)',
 };
 
+// ── SignalsPanel ───────────────────────────────────────────────────────────────
+
+interface SignalChipProps {
+  label: string;
+  active: boolean;
+  detail?: string | null;
+}
+
+function SignalChip({ label, active, detail }: SignalChipProps) {
+  const chipStyle: React.CSSProperties = {
+    borderRadius: 6,
+    padding: '4px 8px',
+    fontSize: 11,
+    fontWeight: 600,
+    backgroundColor: active ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.04)',
+    color: active ? 'rgba(134,239,172,0.9)' : 'var(--sp-text-35, #9ca3af)',
+    whiteSpace: 'nowrap' as const,
+  };
+
+  const text = active
+    ? `${label} ✓${detail ? ` (${detail})` : ''}`
+    : `${label} — sin datos`;
+
+  return <span style={chipStyle}>{text}</span>;
+}
+
+function SignalsPanel({ signals }: { signals: SignalsData }) {
+  const absenceDetail =
+    signals.absence_applied &&
+    (signals.absence_count_home > 0 || signals.absence_count_away > 0)
+      ? `${signals.absence_count_home}+${signals.absence_count_away}`
+      : null;
+
+  const lineupActive = signals.lineup_used_home || signals.lineup_used_away;
+
+  const hasPartialCoverage = signals.warnings.includes('XG_PARTIAL_COVERAGE');
+  const hasLimitedData =
+    signals.warnings.includes('NO_PRIOR') || signals.warnings.includes('FALLBACK_BASELINE');
+
+  const panelStyle: React.CSSProperties = {
+    marginTop: 10,
+    marginBottom: 4,
+  };
+
+  const gridStyle: React.CSSProperties = {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  };
+
+  const partialNoteStyle: React.CSSProperties = {
+    fontSize: 10,
+    color: 'var(--sp-text-35, #9ca3af)',
+    marginTop: 4,
+  };
+
+  const limitedNoteStyle: React.CSSProperties = {
+    fontSize: 10,
+    color: 'rgba(245,158,11,0.8)',
+    marginTop: 6,
+  };
+
+  return (
+    <div style={panelStyle}>
+      <span style={sectionLabelStyle}>Señales activas</span>
+      <div style={gridStyle}>
+        <SignalChip
+          label="xG histórico"
+          active={signals.xg_used}
+          detail={signals.xg_coverage}
+        />
+        {hasPartialCoverage && (
+          <div style={{ ...partialNoteStyle, flexBasis: '100%' }}>Cobertura parcial</div>
+        )}
+        <SignalChip
+          label="Lesionados/Bajas"
+          active={signals.absence_applied}
+          detail={absenceDetail}
+        />
+        <SignalChip label="Alineación" active={lineupActive} />
+        <SignalChip label="Cuotas" active={signals.market_blend_applied} />
+      </div>
+      {hasLimitedData && (
+        <div style={limitedNoteStyle}>Motor usando datos limitados</div>
+      )}
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function PredictionExperimentalSection({
@@ -277,6 +380,11 @@ export function PredictionExperimentalSection({
           homeTeamName={homeTeamName}
           awayTeamName={awayTeamName}
         />
+      )}
+
+      {/* Signals panel (V3 only) */}
+      {!isNotEligible && data.signals && (
+        <SignalsPanel signals={data.signals} />
       )}
 
       {/* Footer */}

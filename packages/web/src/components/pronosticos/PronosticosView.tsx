@@ -142,6 +142,7 @@ export function PronosticosView({ competitionId, matchday }: PronosticosViewProp
               setFocusMatchId(isToggleOff ? null : matchCard.matchId);
             }}
             animationDelay={i * 40}
+            competitionId={competitionId}
           />
         ))}
       </div>

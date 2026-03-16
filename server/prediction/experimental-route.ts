@@ -57,6 +57,18 @@ interface MarketOddsDto {
   edge_away: number;
 }
 
+interface SignalsDto {
+  xg_used: boolean;
+  xg_coverage: string | null;
+  absence_applied: boolean;
+  absence_count_home: number;
+  absence_count_away: number;
+  lineup_used_home: boolean;
+  lineup_used_away: boolean;
+  market_blend_applied: boolean;
+  warnings: string[];
+}
+
 interface ExperimentalPredictionResponse {
   match_id: string;
   competition_id: string;
@@ -73,6 +85,7 @@ interface ExperimentalPredictionResponse {
   expected_goals_away: number | null;
   markets: MarketsDto | null;
   market_odds: MarketOddsDto | null;
+  signals: SignalsDto | null;
 }
 
 // ── Helper: safely parse a JSON string, returning null on failure ──────────────
@@ -138,6 +151,30 @@ function extractCoreFieldsFromV3(response: Record<string, unknown>): Pick<
     expected_goals_home: num(expl?.['effective_attack_home']) ?? num(response['lambda_home']),
     expected_goals_away: num(expl?.['effective_attack_away']) ?? num(response['lambda_away']),
     markets:             rawMarkets ?? null,
+  };
+}
+
+function extractSignalsFromV3(response: Record<string, unknown>): SignalsDto {
+  const expl = response['explanation'] as Record<string, unknown> | null | undefined;
+  const warnings = response['warnings'];
+  const warningsArr: string[] = Array.isArray(warnings)
+    ? warnings.filter((w): w is string => typeof w === 'string')
+    : [];
+
+  const xgUsed = expl?.['xg_used'] === true;
+  const covMatches = typeof expl?.['xg_coverage_matches'] === 'number' ? expl['xg_coverage_matches'] as number : 0;
+  const totMatches = typeof expl?.['xg_total_matches'] === 'number' ? expl['xg_total_matches'] as number : 0;
+
+  return {
+    xg_used: xgUsed,
+    xg_coverage: xgUsed && totMatches > 0 ? `${covMatches}/${totMatches}` : null,
+    absence_applied: expl?.['absence_adjustment_applied'] === true,
+    absence_count_home: typeof expl?.['absence_count_home'] === 'number' ? expl['absence_count_home'] as number : 0,
+    absence_count_away: typeof expl?.['absence_count_away'] === 'number' ? expl['absence_count_away'] as number : 0,
+    lineup_used_home: expl?.['lineup_used_home'] === true,
+    lineup_used_away: expl?.['lineup_used_away'] === true,
+    market_blend_applied: expl?.['market_blend_applied'] === true,
+    warnings: warningsArr,
   };
 }
 
@@ -238,6 +275,13 @@ export function registerExperimentalPredictionRoute(
     }
 
     // 7. Build and return response
+
+    // Extract signals (V3 only) — reuse already-parsed responsePayload
+    const isV3 = snap.engine_id === 'v3_unified' || snap.engine_version === '3.0';
+    const signals: SignalsDto | null = isV3 && responsePayload
+      ? extractSignalsFromV3(responsePayload as Record<string, unknown>)
+      : null;
+
     const result: ExperimentalPredictionResponse = {
       match_id:         snap.match_id,
       competition_id:   snap.competition_id,
@@ -248,6 +292,7 @@ export function registerExperimentalPredictionRoute(
       reasons:          parseReasons(snap.reasons_json),
       ...coreFields,
       market_odds,
+      signals,
     };
 
     return reply.send(result);

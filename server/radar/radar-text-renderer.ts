@@ -41,7 +41,7 @@ interface CopyLibraryV3 {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const copyLib: CopyLibraryV3 = require('../../docs/specs/prediction/radar/radar-editorial-copy-library-rioplatense-v3.json');
+const copyLib: CopyLibraryV3 = require('../../docs/specs/prediction/radar/Version 1/radar-editorial-copy-library-rioplatense-v3.json');
 
 // ── Label key mapping (code key → v3 JSON key) ────────────────────────────────
 

@@ -451,9 +451,9 @@ async function main() {
   const lineupSource = new LineupSource();
   // RadarApiAdapter usa predictionStore como fuente primaria de probabilidades V3
   const radarService = new RadarApiAdapter(dataSource, predictionStore);
-  // Radar v2: standalone, NO predictor integration
+  // Radar v2: integrado con predictionStore para predictionContext en cards
   const radarV2Enabled = process.env.RADAR_V2_ENABLED === 'true';
-  const radarV2Service = radarV2Enabled ? new RadarV2ApiAdapter(dataSource) : undefined;
+  const radarV2Service = radarV2Enabled ? new RadarV2ApiAdapter(dataSource, predictionStore) : undefined;
   const evaluationStore = new EvaluationStore();
   const v2PredictionStore = new V2PredictionStore();
 

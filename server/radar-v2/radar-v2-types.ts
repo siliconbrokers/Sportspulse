@@ -117,6 +117,11 @@ export interface RadarV2Card {
   reasons: RadarV2Reason[];
   preMatchText: string;
   verdict: RadarV2Verdict | null;
+  /**
+   * Contexto cuantitativo del motor predictivo — adjuntado en build time, frozen.
+   * null si el predictor no tiene datos para este partido, o si es NOT_ELIGIBLE.
+   */
+  predictionContext: RadarV2PredictionContext | null;
 }
 
 // ── Snapshot envelope (spec §4) ──────────────────────────────────────────────
@@ -167,8 +172,45 @@ export interface RadarV2InternalCandidate {
   subtype: string;
 }
 
+// ── Prediction context (integrated from predictor, frozen at build time) ─────
+
+/**
+ * Contexto cuantitativo del motor predictivo, capturado en build time y frozen con el snapshot.
+ * Nunca modifica preMatchText ni verdict — es información adicional de lectura.
+ *
+ * Gating:
+ *   - NOT_ELIGIBLE → no se adjunta (predictionContext = null en la card)
+ *   - LIMITED_MODE → solo xG presente (probs calibradas = null, predictedResult = null)
+ *   - FULL_MODE    → bloque completo
+ */
+export interface RadarV2PredictionContext {
+  operatingMode: 'FULL_MODE' | 'LIMITED_MODE' | 'NOT_ELIGIBLE';
+  eligibilityStatus: 'ELIGIBLE' | 'NOT_ELIGIBLE';
+  /** Probabilidad calibrada de victoria local. null si NOT_ELIGIBLE o LIMITED_MODE. */
+  probHomeWin: number | null;
+  /** Probabilidad calibrada de empate. null si NOT_ELIGIBLE o LIMITED_MODE. */
+  probDraw: number | null;
+  /** Probabilidad calibrada de victoria visitante. null si NOT_ELIGIBLE o LIMITED_MODE. */
+  probAwayWin: number | null;
+  /** Goles esperados local (lambda_home). null si NOT_ELIGIBLE. */
+  expectedGoalsHome: number | null;
+  /** Goles esperados visitante (lambda_away). null si NOT_ELIGIBLE. */
+  expectedGoalsAway: number | null;
+  /** Resultado predicho. null si NOT_ELIGIBLE o LIMITED_MODE. */
+  predictedResult: 'HOME' | 'DRAW' | 'AWAY' | 'TOO_CLOSE' | null;
+  /** top_1_prob - top_2_prob. null si NOT_ELIGIBLE o LIMITED_MODE. */
+  favoriteMargin: number | null;
+  /** P(total goles >= 3). null si NOT_ELIGIBLE. */
+  over2_5: number | null;
+  /** P(ambos marcan >= 1). null si NOT_ELIGIBLE. */
+  bttsYes: number | null;
+  calibrationMode: 'bootstrap' | 'trained' | 'not_applied';
+  engineId: string;
+  generatedAt: string;
+}
+
 // ── Generator version ────────────────────────────────────────────────────────
 
-export const RADAR_V2_GENERATOR_VERSION = 'radar-v2-standalone-1.0.0';
+export const RADAR_V2_GENERATOR_VERSION = 'radar-v2-integrated-1.1.0';
 export const RADAR_V2_SCHEMA_VERSION = '2.0.0' as const;
 export const RADAR_V2_MAX_CARDS = 3;

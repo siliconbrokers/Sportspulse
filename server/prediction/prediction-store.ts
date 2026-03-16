@@ -86,17 +86,31 @@ function extractSnapshotFields(response: unknown): ExtractedSnapshotFields {
   // FULL_MODE/LIMITED_MODE distinction. Falls back to eligibility_status when
   // operating_mode is absent (older response shapes).
   const internals = r?.['internals'] as Record<string, unknown> | null | undefined;
+  // V3 engine uses `eligibility: 'ELIGIBLE' | 'LIMITED' | 'NOT_ELIGIBLE'` — map to OperatingMode
+  const v3Eligibility = typeof r?.['eligibility'] === 'string' ? (r['eligibility'] as string) : null;
+  const v3ModeFromEligibility = v3Eligibility === 'ELIGIBLE'
+    ? 'FULL_MODE'
+    : v3Eligibility === 'LIMITED'
+      ? 'LIMITED_MODE'
+      : v3Eligibility === 'NOT_ELIGIBLE'
+        ? 'NOT_ELIGIBLE'
+        : null;
   const mode = typeof r?.['operating_mode'] === 'string'
     ? (r['operating_mode'] as string)
-    : typeof r?.['eligibility_status'] === 'string'
-      ? (r['eligibility_status'] as string) // fallback for NOT_ELIGIBLE responses
-      : 'UNKNOWN';
+    : v3ModeFromEligibility                   // V3 uses 'eligibility' field
+      ?? (typeof r?.['mode'] === 'string' ? (r['mode'] as string) : null)
+      ?? (typeof r?.['eligibility_status'] === 'string' ? (r['eligibility_status'] as string) : null)
+      ?? 'UNKNOWN';
 
+  // calibration_mode: spec stores under internals; V3 stores at root level
   const calibration_mode = typeof internals?.['calibration_mode'] === 'string'
     ? (internals['calibration_mode'] as string)
-    : null;
+    : typeof r?.['calibration_mode'] === 'string'
+      ? (r['calibration_mode'] as string)
+      : null;
 
-  const rawReasons = r?.['reasons'];
+  // reasons: spec uses 'reasons'; V3 uses 'warnings' — fall back to warnings if reasons absent
+  const rawReasons = r?.['reasons'] ?? r?.['warnings'];
   const reasons_json = JSON.stringify(Array.isArray(rawReasons) ? rawReasons : []);
 
   const rawFlags = r?.['data_integrity_flags'];
@@ -168,11 +182,20 @@ export class PredictionStore {
   // ── Write ────────────────────────────────────────────────────────────────────
 
   /**
-   * Saves a successful prediction snapshot to the in-memory store.
+   * Saves a successful prediction snapshot to the in-memory store (upsert by match_id+engine_id).
+   * Replaces the existing snapshot for the same match+engine combination so the store
+   * stays bounded at O(matches × engines) rather than growing unboundedly on each refresh cycle.
    * Does NOT automatically persist to disk — call persist() explicitly.
    */
   save(snapshot: PredictionSnapshot): void {
-    this.snapshots.push(snapshot);
+    const idx = this.snapshots.findIndex(
+      (s) => s.match_id === snapshot.match_id && s.engine_id === snapshot.engine_id,
+    );
+    if (idx >= 0) {
+      this.snapshots[idx] = snapshot;
+    } else {
+      this.snapshots.push(snapshot);
+    }
   }
 
   /**

@@ -352,8 +352,9 @@ async function runMatchPredictions(
     }
   }
 
-  // Persist evaluation store after all matches in this competition
-  evaluationStore?.persist().catch(console.error);
+  // Persist stores after all matches in this competition (awaited to reduce crash-loss window)
+  await store.persist().catch(console.error);
+  await evaluationStore?.persist().catch(console.error);
 
   console.log(
     `[V3Runner] ${logCode} (${strategy}): ${predicted}/${scheduled.length} predictions stored ` +

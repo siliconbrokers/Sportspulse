@@ -371,16 +371,17 @@ describe('PredictionStore', () => {
     expect(results[0].match_id).toBe(MATCH_ID);
   });
 
-  it('findByMatch() returns results sorted by generated_at descending', async () => {
+  it('findByMatch() upserts by match_id+engine_id — second save replaces first', async () => {
     const store = freshStore();
 
+    // Same match_id + engine_id: second save replaces first (upsert semantics)
     store.save(buildSnapshot(MATCH_ID, COMP_ID, {}, notEligibleResponse()));
     await new Promise((r) => setTimeout(r, 2));
     store.save(buildSnapshot(MATCH_ID, COMP_ID, {}, fullModeResponse()));
 
     const results = store.findByMatch(MATCH_ID);
-    expect(results[0].mode).toBe('FULL_MODE');
-    expect(results[1].mode).toBe('NOT_ELIGIBLE');
+    expect(results).toHaveLength(1);
+    expect(results[0].mode).toBe('FULL_MODE'); // most recent wins
   });
 
   it('findByCompetition() filters by competitionId and respects limit', () => {

@@ -13,7 +13,7 @@
  *   8. verdict exists before match is final
  */
 
-import type { RadarV2Snapshot, RadarV2Card } from './radar-v2-types.js';
+import type { RadarV2Snapshot, RadarV2Card, RadarV2PredictionContext } from './radar-v2-types.js';
 import { VALID_FAMILY_LABELS, RADAR_V2_MAX_CARDS } from './radar-v2-types.js';
 
 export interface ValidationError {
@@ -118,6 +118,56 @@ function validateCard(card: RadarV2Card, index: number): ValidationError[] {
   // 8. verdict before final state -- verdict should only exist when snapshot lifecycle permits
   // This is checked at the service level, not card level (we check card.verdict exists
   // but the card itself doesn't carry lifecycle state -- the snapshot status does)
+
+  // 9. predictionContext structure (if present)
+  if (card.predictionContext !== null && card.predictionContext !== undefined) {
+    const ctxErrors = validatePredictionContext(card.predictionContext, index);
+    errors.push(...ctxErrors);
+  }
+
+  return errors;
+}
+
+function validatePredictionContext(
+  ctx: RadarV2PredictionContext,
+  cardIndex: number,
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  const validModes = ['FULL_MODE', 'LIMITED_MODE', 'NOT_ELIGIBLE'];
+  if (!validModes.includes(ctx.operatingMode)) {
+    errors.push({
+      code: 'INVALID_PREDICTION_CONTEXT',
+      message: `Card ${cardIndex}: predictionContext.operatingMode invalid: "${ctx.operatingMode}"`,
+      cardIndex,
+    });
+  }
+
+  if (ctx.eligibilityStatus !== 'ELIGIBLE' && ctx.eligibilityStatus !== 'NOT_ELIGIBLE') {
+    errors.push({
+      code: 'INVALID_PREDICTION_CONTEXT',
+      message: `Card ${cardIndex}: predictionContext.eligibilityStatus invalid: "${ctx.eligibilityStatus}"`,
+      cardIndex,
+    });
+  }
+
+  // In FULL_MODE, calibrated probs should be present and valid
+  if (ctx.operatingMode === 'FULL_MODE') {
+    if (
+      ctx.probHomeWin !== null &&
+      ctx.probDraw !== null &&
+      ctx.probAwayWin !== null
+    ) {
+      const sum = ctx.probHomeWin + ctx.probDraw + ctx.probAwayWin;
+      if (Math.abs(sum - 1) > 0.02) {
+        errors.push({
+          code: 'INVALID_PREDICTION_CONTEXT',
+          message: `Card ${cardIndex}: predictionContext probs sum ${sum.toFixed(4)} is not ~1.0`,
+          cardIndex,
+        });
+      }
+    }
+  }
 
   return errors;
 }

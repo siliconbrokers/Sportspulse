@@ -11,8 +11,10 @@ import type {
   RadarV2Card,
   RadarV2Reason,
   RadarV2Label,
+  RadarV2PredictionContext,
 } from './radar-v2-types.js';
 import { V2_LABEL_TEXT, RADAR_V2_MAX_CARDS, LABEL_TO_FAMILY } from './radar-v2-types.js';
+import type { PredictionFetcher } from './radar-v2-prediction-fetcher.js';
 import type { V2EvaluatedMatch } from './radar-v2-candidate-evaluator.js';
 import { resolveFamilies } from './radar-v2-family-resolver.js';
 import { applyDiversityFilter } from '../radar/radar-diversity-filter.js';
@@ -95,10 +97,83 @@ function selectV2Reasons(
   return selected.slice(0, 3);
 }
 
+// ── Quantitative reason builder ──────────────────────────────────────────────
+
+/**
+ * Construye una razón cuantitativa desde el predictionContext (FULL_MODE only).
+ * Retorna null si no hay datos suficientes para una razón significativa.
+ */
+function buildQuantitativeReason(
+  ctx: RadarV2PredictionContext,
+  label: RadarV2Label,
+): RadarV2Reason | null {
+  if (ctx.operatingMode !== 'FULL_MODE') return null;
+
+  // Para etiquetas de MISALIGNMENT: resaltar si el modelo dice partido parejo o predict != favorito obvio
+  if (label === 'SENAL_DE_ALERTA' || label === 'PARTIDO_ENGANOSO') {
+    if (
+      ctx.favoriteMargin !== null &&
+      ctx.favoriteMargin < 0.15 &&
+      ctx.probDraw !== null &&
+      ctx.probHomeWin !== null &&
+      ctx.probAwayWin !== null
+    ) {
+      const pDraw = Math.round(ctx.probDraw * 100);
+      const pAway = Math.round(ctx.probAwayWin * 100);
+      return {
+        code: 'PREDICTOR_TIGHT_MARGINS',
+        weight: 0.6,
+        text: `El modelo asigna ${pDraw}% al empate y ${pAway}% a la visita — diferencia ajustada.`,
+      };
+    }
+    if (ctx.predictedResult === 'TOO_CLOSE') {
+      return {
+        code: 'PREDICTOR_TOO_CLOSE',
+        weight: 0.5,
+        text: 'El modelo no puede definir un resultado claro — márgenes de probabilidad muy ajustados.',
+      };
+    }
+  }
+
+  // Para DYNAMICS (PARTIDO_ABIERTO): resaltar si over_2_5 o btts es alto
+  if (label === 'PARTIDO_ABIERTO') {
+    if (ctx.over2_5 !== null && ctx.over2_5 >= 0.55) {
+      const pOver = Math.round(ctx.over2_5 * 100);
+      return {
+        code: 'PREDICTOR_HIGH_OVER',
+        weight: 0.6,
+        text: `El modelo estima ${pOver}% de probabilidad de más de 2.5 goles.`,
+      };
+    }
+    if (ctx.bttsYes !== null && ctx.bttsYes >= 0.5) {
+      const pBtts = Math.round(ctx.bttsYes * 100);
+      return {
+        code: 'PREDICTOR_HIGH_BTTS',
+        weight: 0.5,
+        text: `Ambos marcan: ${pBtts}% de probabilidad según el modelo.`,
+      };
+    }
+  }
+
+  // Para DUELO_CERRADO: resaltar si over_2_5 es bajo
+  if (label === 'DUELO_CERRADO' && ctx.over2_5 !== null && ctx.over2_5 < 0.35) {
+    const pUnder = Math.round((1 - ctx.over2_5) * 100);
+    return {
+      code: 'PREDICTOR_LOW_SCORING',
+      weight: 0.5,
+      text: `El modelo asigna ${pUnder}% de probabilidad a menos de 2.5 goles.`,
+    };
+  }
+
+  return null;
+}
+
 // ── Card building ────────────────────────────────────────────────────────────
 
 export interface CardResolverInput {
   evaluated: V2EvaluatedMatch[];
+  /** Fetcher opcional de predicciones por matchId. null → sin predictionContext */
+  predictionFetcher?: PredictionFetcher | null;
 }
 
 /**
@@ -106,7 +181,7 @@ export interface CardResolverInput {
  * Applies diversity filter, renders text, builds structured output.
  */
 export function resolveV2Cards(input: CardResolverInput): RadarV2Card[] {
-  const { evaluated } = input;
+  const { evaluated, predictionFetcher } = input;
 
   if (evaluated.length === 0) return [];
 
@@ -161,12 +236,43 @@ export function resolveV2Cards(input: CardResolverInput): RadarV2Card[] {
       venenosoCount++;
     }
 
+    // Fetch prediction context (optional, degradación silenciosa)
+    const predictionContext = predictionFetcher ? predictionFetcher(ev.matchId) : null;
+
+    // Family re-anchoring amplifier (FULL_MODE only):
+    // Si el predictor dice partido muy parejo (TOO_CLOSE o favoriteMargin < 0.15)
+    // y la familia dominante es CONTEXT → añadir SENAL_DE_ALERTA como secondary badge
+    // para señalar la tensión analítica. No reemplaza la familia — amplifica la lectura.
+    let secondaryBadges = familyRes.secondaryBadges;
+    if (
+      predictionContext &&
+      predictionContext.operatingMode === 'FULL_MODE' &&
+      familyRes.dominantFamily === 'CONTEXT'
+    ) {
+      const isTightByPredictor =
+        predictionContext.predictedResult === 'TOO_CLOSE' ||
+        (predictionContext.favoriteMargin !== null && predictionContext.favoriteMargin < 0.15);
+
+      if (isTightByPredictor && !secondaryBadges.includes('SENAL_DE_ALERTA')) {
+        secondaryBadges = [...secondaryBadges, 'SENAL_DE_ALERTA'];
+      }
+    }
+
     // Select structured reasons
     const reasons = selectV2Reasons(
       ev.primaryLabel,
       ev.evidenceTier === 'STABLE',
       usedReasonCodes,
     );
+
+    // Enriquecer con razón cuantitativa si hay contexto de predictor (FULL_MODE)
+    if (predictionContext && predictionContext.operatingMode === 'FULL_MODE') {
+      const quantReason = buildQuantitativeReason(predictionContext, ev.primaryLabel);
+      if (quantReason && !usedReasonCodes.has(quantReason.code) && reasons.length < 3) {
+        reasons.push(quantReason);
+        usedReasonCodes.add(quantReason.code);
+      }
+    }
 
     if (!preMatchText || reasons.length < 2) {
       console.warn(`[RadarV2] Could not build card for match ${ev.matchId}, skipping`);
@@ -180,7 +286,7 @@ export function resolveV2Cards(input: CardResolverInput): RadarV2Card[] {
       matchId: ev.matchId,
       family: familyRes.dominantFamily,
       primaryLabel: familyRes.primaryLabel,
-      secondaryBadges: familyRes.secondaryBadges,
+      secondaryBadges,
       subtype: subtype as string,
       confidenceBand: ev.confidenceBand,
       radarScore: ev.radarScore,
@@ -188,6 +294,7 @@ export function resolveV2Cards(input: CardResolverInput): RadarV2Card[] {
       reasons,
       preMatchText: sanitized,
       verdict: null,
+      predictionContext: predictionContext ?? null,
     });
   }
 

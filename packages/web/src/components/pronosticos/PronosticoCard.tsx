@@ -12,6 +12,8 @@ import { useTheme } from '../../hooks/use-theme.js';
 import { getMatchDisplayStatus } from '../../utils/match-status.js';
 import { ProbabilityBars } from '../shared/ProbabilityBars.js';
 import { resolveTeamName } from '../../utils/resolve-team-name.js';
+import { MarketsPanel } from '../MarketsPanel.js';
+import type { MarketsData } from '../MarketsPanel.js';
 
 // ── CSS injected once ─────────────────────────────────────────────────────────
 
@@ -131,17 +133,39 @@ export interface PronosticoCardProps {
   live?: RadarLiveMatchData | null;
   onViewMatch?: (teamId: string) => void;
   animationDelay?: number;
+  competitionId?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animationDelay = 0 }: PronosticoCardProps) {
+export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animationDelay = 0, competitionId }: PronosticoCardProps) {
   useEffect(() => { injectStyles(); }, []);
 
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+
+  const [marketsExpanded, setMarketsExpanded] = useState(false);
+  const [marketsData, setMarketsData] = useState<MarketsData | null>(null);
+
+  // Fetch markets data for SCHEDULED (PRE_MATCH) desktop cards — fire-and-forget
+  useEffect(() => {
+    if (!competitionId || !matchCard.matchId || isMobile) return;
+    if (matchCard.status !== 'SCHEDULED') return;
+    const controller = new AbortController();
+    fetch(
+      `/api/ui/predictions/experimental?matchId=${encodeURIComponent(matchCard.matchId)}&competitionId=${encodeURIComponent(competitionId)}`,
+      { signal: controller.signal },
+    )
+      .then((res) => (res.ok ? (res.json() as Promise<{ markets?: MarketsData | null }>) : null))
+      .then((json) => {
+        if (controller.signal.aborted || !json?.markets) return;
+        setMarketsData(json.markets);
+      })
+      .catch(() => {});
+    return () => { controller.abort(); };
+  }, [matchCard.matchId, matchCard.status, competitionId, isMobile]);
 
   // ── Status ────────────────────────────────────────────────────────────────
   const ds       = getMatchDisplayStatus(matchCard.status ?? 'SCHEDULED', matchCard.kickoffUtc ?? null);
@@ -480,7 +504,37 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
           </div>
         )}
         {isPost && VerdictBlock}
+
+        {/* Toggle mercados — solo desktop, solo PRE_MATCH, solo cuando hay datos */}
+        {!isPost && !isLive && !isZombie && marketsData && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setMarketsExpanded((v) => !v); }}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '2px 0', alignSelf: 'flex-start',
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 10, fontWeight: 600,
+              color: 'var(--sp-text-35, #9ca3af)',
+            }}
+          >
+            {marketsExpanded ? '▲' : '▼'} Mercados
+          </button>
+        )}
       </div>
+
+      {/* Panel de mercados — colapsable */}
+      {marketsExpanded && marketsData && (
+        <div
+          style={{ padding: '0 12px 12px', borderTop: '1px solid var(--sp-border-6)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MarketsPanel
+            markets={marketsData}
+            homeTeamName={homeName}
+            awayTeamName={awayName}
+          />
+        </div>
+      )}
     </div>
   );
 }
