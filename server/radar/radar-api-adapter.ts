@@ -11,6 +11,8 @@ import { EventStatus } from '@sportpulse/canonical';
 import type { DataSource } from '@sportpulse/snapshot';
 import { buildOrGetRadarSnapshot } from './radar-service.js';
 import type { RadarIndexSnapshot } from './radar-types.js';
+import type { PredictionStore } from '../prediction/prediction-store.js';
+import type { V3PredictionOutput } from '@sportpulse/prediction';
 
 export interface RadarLiveMatchData {
   matchId: string;
@@ -54,7 +56,10 @@ function competitionKeyFromId(competitionId: string): string {
 }
 
 export class RadarApiAdapter {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly predictionStore?: PredictionStore,
+  ) {}
 
   async getRadar(
     competitionId: string,
@@ -128,23 +133,36 @@ export class RadarApiAdapter {
       const homeTeam = teamMap.get(match.homeTeamId);
       const awayTeam = teamMap.get(match.awayTeamId);
 
-      // Compute Poisson+DC probabilities with shrinkage toward league average
+      // Probabilidades: preferir snapshot V3 del PredictionStore si disponible
       let probHomeWin: number | undefined;
       let probDraw:    number | undefined;
       let probAwayWin: number | undefined;
+      let preMatchText: string | undefined;
 
-      const homeLambdas = resolveTeamLambdas(match.homeTeamId, allMatches, buildNowUtc, 'HOME', leagueAvgGoals);
-      const awayLambdas = resolveTeamLambdas(match.awayTeamId, allMatches, buildNowUtc, 'AWAY', leagueAvgGoals);
-      const probs = computeMatchProbs(homeLambdas, awayLambdas);
-      if (probs) {
-        probHomeWin = probs.homeWin;
-        probDraw    = probs.draw;
-        probAwayWin = probs.awayWin;
+      const v3Snapshot = this.predictionStore
+        ? findV3Snapshot(this.predictionStore, match.matchId)
+        : null;
+
+      if (v3Snapshot && v3Snapshot.prob_home_win != null) {
+        // V3 source: usar predicciones del motor unificado
+        probHomeWin = v3Snapshot.prob_home_win;
+        probDraw    = v3Snapshot.prob_draw ?? undefined;
+        probAwayWin = v3Snapshot.prob_away_win ?? undefined;
+        preMatchText = v3Snapshot.pre_match_text ?? undefined;
+      } else {
+        // Fallback: cálculo Radar propio (Poisson+DC on-the-fly)
+        const homeLambdas = resolveTeamLambdas(match.homeTeamId, allMatches, buildNowUtc, 'HOME', leagueAvgGoals);
+        const awayLambdas = resolveTeamLambdas(match.awayTeamId, allMatches, buildNowUtc, 'AWAY', leagueAvgGoals);
+        const probs = computeMatchProbs(homeLambdas, awayLambdas);
+        if (probs) {
+          probHomeWin = probs.homeWin;
+          probDraw    = probs.draw;
+          probAwayWin = probs.awayWin;
+        }
+        preMatchText = (probHomeWin != null && probDraw != null && probAwayWin != null)
+          ? renderProbText(probHomeWin, probDraw, probAwayWin, match.matchId)
+          : undefined;
       }
-
-      const preMatchText = (probHomeWin != null && probDraw != null && probAwayWin != null)
-        ? renderProbText(probHomeWin, probDraw, probAwayWin, match.matchId)
-        : undefined;
 
       liveData.push({
         matchId: match.matchId,
@@ -166,6 +184,23 @@ export class RadarApiAdapter {
     }
 
     return liveData;
+  }
+}
+
+// ── V3 snapshot lookup ────────────────────────────────────────────────────────
+
+/**
+ * Busca el snapshot V3 más reciente para un partido dado.
+ * Retorna el V3PredictionOutput parseado, o null si no hay snapshot V3.
+ */
+function findV3Snapshot(store: PredictionStore, matchId: string): V3PredictionOutput | null {
+  const snapshots = store.findByMatch(matchId);
+  const v3 = snapshots.find((s) => s.engine_id === 'v3_unified' && s.generation_status === 'ok');
+  if (!v3) return null;
+  try {
+    return JSON.parse(v3.response_payload_json) as V3PredictionOutput;
+  } catch {
+    return null;
   }
 }
 

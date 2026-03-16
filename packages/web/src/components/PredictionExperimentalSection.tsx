@@ -10,6 +10,8 @@
  * Implements AbortController cleanup to prevent race conditions on remount.
  */
 import { useState, useEffect } from 'react';
+import { MarketsPanel } from './MarketsPanel.js';
+import type { MarketsData } from './MarketsPanel.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -25,6 +27,7 @@ interface ExperimentalPrediction {
   predicted_result: string | null;
   expected_goals_home: number | null;
   expected_goals_away: number | null;
+  markets: MarketsData | null;
   generated_at: string;
   engine_version: string;
 }
@@ -265,6 +268,15 @@ export function PredictionExperimentalSection({
             </div>
           )}
         </div>
+      )}
+
+      {/* Markets panel (V3 only — null when not available) */}
+      {!isNotEligible && data.markets && (
+        <MarketsPanel
+          markets={data.markets}
+          homeTeamName={homeTeamName}
+          awayTeamName={awayTeamName}
+        />
       )}
 
       {/* Footer */}
