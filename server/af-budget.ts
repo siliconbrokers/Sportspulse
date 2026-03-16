@@ -1,20 +1,20 @@
 /**
  * af-budget — Presupuesto diario compartido para API-Football v3.
  *
- * Coordina los 3 consumidores (LiveOverlay, IncidentSource, CLIOverlay)
- * para que no agoten independientemente los 100 req/día del plan free.
+ * Plan: 20.000 req/mes ≈ 667 req/día promedio.
+ * Uso estimado: 150–200 req/día en pico (matchday con T3 completo).
  *
  * Asignación de presupuesto:
- *   0–79 req  → operación normal para todos los consumidores
- *   80–99 req → LiveOverlay throttlea a 20 min; Incidents/CLI siguen con lo que queda
- *   100+ req  → cuota agotada (hard stop) hasta medianoche UTC
+ *   0–499 req  → operación normal para todos los consumidores
+ *   500–599 req → LiveOverlay throttlea a 20 min; Incidents/CLI siguen con lo que queda
+ *   600+ req   → cuota agotada (hard stop) hasta medianoche UTC
  *
  * La cuota agotada también se detecta por respuesta explícita de la API
  * (HTTP 200 con { errors: { requests: "You have reached the limit..." } }).
  */
 
-const HARD_LIMIT  = 100;
-const BRAKE_LIVE  = 80;  // LiveOverlay empieza a throttlear aquí
+const HARD_LIMIT  = 600;
+const BRAKE_LIVE  = 500;  // LiveOverlay empieza a throttlear aquí
 
 let _requestsToday       = 0;
 let _dayUtc              = currentDayUtc();

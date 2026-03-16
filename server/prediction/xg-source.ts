@@ -7,7 +7,7 @@
  * Cache en disco por fixture: cache/xg/{leagueId}/{season}/{fixtureId}.json
  * TTL infinito para partidos FINISHED (los xG no cambian post-match).
  *
- * Budget: consume MAX_XG_REQUESTS_PER_CYCLE requests de xG por ciclo de refresh,
+ * Budget: 1 request por fixture sin agotar (cuota diaria es el único límite),
  * más 1 request para la lista de fixtures (TTL 1h en memoria).
  *
  * Fault isolation: cualquier error retorna [] silenciosamente.
@@ -27,9 +27,6 @@ import { normTeamName } from './injury-source.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** Max xG stats requests per call to getHistoricalXg (budget conservation). */
-const MAX_XG_REQUESTS_PER_CYCLE = 5;
-
 /** TTL for in-memory fixture list cache (per league+season). */
 const FIXTURE_LIST_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -43,6 +40,7 @@ const AF_LEAGUE_IDS: Record<string, number> = {
   'comp:football-data:PL':   39,  // Premier League
   'comp:football-data:BL1':  78,  // Bundesliga
   'comp:thesportsdb:4432':  268,  // Liga Uruguaya
+  'comp:sportsdb-ar:4406':  128,  // Liga Argentina
 };
 
 // ── Disk cache types ───────────────────────────────────────────────────────────
@@ -346,10 +344,9 @@ export class XgSource {
         }),
       );
 
-      // Step 3: Fetch missing fixtures up to budget limit
+      // Step 3: Fetch missing fixtures (cuota es el único límite)
       let fetched = 0;
       for (const f of toFetch) {
-        if (fetched >= MAX_XG_REQUESTS_PER_CYCLE) break;
         if (isQuotaExhausted()) break;
 
         // Resolve canonical team IDs from AF team names via normTeamName matching
