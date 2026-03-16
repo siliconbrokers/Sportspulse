@@ -121,6 +121,24 @@ export type {
 // ── Motor Predictivo V2 ────────────────────────────────────────────────────
 export * from './engine/v2/index.js';
 
+// ── Motor Predictivo V3 (Unificado) ────────────────────────────────────────
+// Solo exports únicos de V3 — constantes y tipos con mismo nombre que V2 se omiten
+// para evitar ambigüedad. Acceder a V3 internals via import directo a packages/prediction/src/engine/v3/.
+export { runV3Engine } from './engine/v3/index.js';
+export type {
+  V3MatchRecord,
+  V3EngineInput,
+  V3PredictionOutput,
+  V3Explanation,
+  TeamTDStats,
+  ShrunkStats,
+  PriorResult,
+  MatchSignalRA,
+  RecencyDeltas,
+  V3Warning,
+  PoissonMatrixResult,
+} from './engine/v3/index.js';
+
 // ── Response Builder (Phase 4 — §21) ──────────────────────────────────────
 export { buildPredictionResponse } from './response-builder.js';
 export type {

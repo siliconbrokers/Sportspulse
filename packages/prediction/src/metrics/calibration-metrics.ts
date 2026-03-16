@@ -151,9 +151,10 @@ export function computeClassificationMetrics(
 // ── Probability scoring metrics ────────────────────────────────────────────
 
 /**
- * Log loss and Brier score for 1X2 probability predictions.
+ * Log loss, Brier score, and RPS for 1X2 probability predictions.
  *
  * Per §23.2: "log loss, Brier score, calibración por buckets"
+ * RPS (Ranked Probability Score) is a proper scoring rule for ordinal outcomes.
  */
 export interface ProbabilityMetrics {
   /** Log loss over all predictions. Lower is better. §23.2 */
@@ -161,13 +162,52 @@ export interface ProbabilityMetrics {
 
   /** Mean Brier score over all predictions. Lower is better. §23.2 */
   readonly brier_score: number;
+
+  /**
+   * Mean Ranked Probability Score (RPS) over all predictions. Lower is better.
+   *
+   * RPS captures the ordinal structure H > D > A — a prediction that places mass
+   * far from the actual outcome is penalized more heavily than Brier score.
+   *
+   * Formula (K=3):
+   *   F1 = p_home;  F2 = p_home + p_draw
+   *   O1 = I(outcome=HOME);  O2 = I(outcome∈{HOME,DRAW})
+   *   RPS = ½ × [(F1−O1)² + (F2−O2)²]
+   *
+   * Range [0, 1]. Baseline (1/3 each): ≈ 0.222 for uniform outcome distribution.
+   */
+  readonly rps: number;
 }
 
 /**
- * Compute log loss and Brier score for a batch of predictions.
+ * Compute RPS for a single prediction.
+ *
+ * Pure function. Stable for use outside batch evaluation.
+ *
+ * @param probs   Calibrated 1X2 probabilities { home, draw, away }
+ * @param outcome Actual match outcome
+ */
+export function computeMatchRPS(
+  probs: { home: number; draw: number; away: number },
+  outcome: 'HOME' | 'DRAW' | 'AWAY',
+): number {
+  // Cumulative forecasts
+  const F1 = probs.home;
+  const F2 = probs.home + probs.draw;
+
+  // Cumulative outcomes (ordinal: HOME > DRAW > AWAY)
+  const O1 = outcome === 'HOME' ? 1 : 0;
+  const O2 = outcome === 'HOME' || outcome === 'DRAW' ? 1 : 0;
+
+  return 0.5 * ((F1 - O1) ** 2 + (F2 - O2) ** 2);
+}
+
+/**
+ * Compute log loss, Brier score, and RPS for a batch of predictions.
  *
  * Log loss = -mean(log(p_correct_class)) per prediction.
  * Brier score = mean(Σ(p_i - o_i)^2) per prediction (sum over 3 classes).
+ * RPS = mean(computeMatchRPS(probs, outcome)) per prediction.
  *
  * @param records Batch of prediction records
  */
@@ -177,12 +217,13 @@ export function computeProbabilityMetrics(
   const total = records.length;
 
   if (total === 0) {
-    return { log_loss: 0, brier_score: 0 };
+    return { log_loss: 0, brier_score: 0, rps: 0 };
   }
 
   const LOG_EPSILON = 1e-15; // clamp to avoid log(0)
   let totalLogLoss = 0;
   let totalBrier = 0;
+  let totalRPS = 0;
 
   for (const record of records) {
     const { home, draw, away } = record.calibrated_probs;
@@ -200,11 +241,15 @@ export function computeProbabilityMetrics(
     // Brier score: Σ(p_i - o_i)^2 over 3 classes
     const brier = (home - o_home) ** 2 + (draw - o_draw) ** 2 + (away - o_away) ** 2;
     totalBrier += brier;
+
+    // RPS
+    totalRPS += computeMatchRPS(record.calibrated_probs, outcome);
   }
 
   return {
     log_loss: totalLogLoss / total,
     brier_score: totalBrier / total,
+    rps: totalRPS / total,
   };
 }
 

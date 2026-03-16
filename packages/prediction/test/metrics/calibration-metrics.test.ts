@@ -19,6 +19,7 @@ import {
   computeProbabilityMetrics,
   computeCalibrationBuckets,
   computeFullCalibrationMetrics,
+  computeMatchRPS,
 } from '../../src/metrics/calibration-metrics.js';
 import type { PredictionRecord } from '../../src/metrics/calibration-metrics.js';
 
@@ -189,6 +190,85 @@ describe('computeProbabilityMetrics — log loss and Brier score (§23.2)', () =
     const expected_brier = (0.6 - 1) ** 2 + (0.3 - 0) ** 2 + (0.1 - 0) ** 2;
     const result = computeProbabilityMetrics([record]);
     expect(result.brier_score).toBeCloseTo(expected_brier, 10);
+  });
+
+  it('returns zero rps for empty input', () => {
+    const result = computeProbabilityMetrics([]);
+    expect(result.rps).toBe(0);
+  });
+
+  it('rps is included in the probability metrics result', () => {
+    const record: PredictionRecord = {
+      predicted_result: 'HOME',
+      actual_outcome: 'HOME',
+      calibrated_probs: { home: 0.7, draw: 0.2, away: 0.1 },
+    };
+    const result = computeProbabilityMetrics([record]);
+    expect(typeof result.rps).toBe('number');
+    expect(result.rps).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// ── RPS (Ranked Probability Score) ────────────────────────────────────────
+
+describe('computeMatchRPS — proper scoring rule for ordinal outcomes', () => {
+  it('perfect home prediction → RPS = 0', () => {
+    // p_home=1, outcome=HOME: F1=1, F2=1, O1=1, O2=1 → 0
+    expect(computeMatchRPS({ home: 1, draw: 0, away: 0 }, 'HOME')).toBeCloseTo(0, 10);
+  });
+
+  it('perfect draw prediction → RPS = 0', () => {
+    // p_draw=1, outcome=DRAW: F1=0, F2=1, O1=0, O2=1 → 0
+    expect(computeMatchRPS({ home: 0, draw: 1, away: 0 }, 'DRAW')).toBeCloseTo(0, 10);
+  });
+
+  it('perfect away prediction → RPS = 0', () => {
+    // p_away=1, outcome=AWAY: F1=0, F2=0, O1=0, O2=0 → 0
+    expect(computeMatchRPS({ home: 0, draw: 0, away: 1 }, 'AWAY')).toBeCloseTo(0, 10);
+  });
+
+  it('worst prediction: p_home=1 but outcome=AWAY → RPS = 1', () => {
+    // F1=1, F2=1, O1=0, O2=0 → ½[(1-0)²+(1-0)²] = 1
+    expect(computeMatchRPS({ home: 1, draw: 0, away: 0 }, 'AWAY')).toBeCloseTo(1, 10);
+  });
+
+  it('adjacent miss: p_home=1 but outcome=DRAW → RPS = 0.5', () => {
+    // F1=1, F2=1, O1=0, O2=1 → ½[(1-0)²+(1-1)²] = 0.5
+    expect(computeMatchRPS({ home: 1, draw: 0, away: 0 }, 'DRAW')).toBeCloseTo(0.5, 10);
+  });
+
+  it('uniform prediction 1/3 each, outcome=HOME → RPS ≈ 0.2778', () => {
+    // F1=1/3, F2=2/3, O1=1, O2=1 → ½[(1/3-1)²+(2/3-1)²] = ½[4/9+1/9] = 5/18
+    const expected = 5 / 18;
+    expect(computeMatchRPS({ home: 1 / 3, draw: 1 / 3, away: 1 / 3 }, 'HOME')).toBeCloseTo(expected, 8);
+  });
+
+  it('uniform prediction 1/3 each, outcome=DRAW → RPS ≈ 0.1667', () => {
+    // F1=1/3, F2=2/3, O1=0, O2=1 → ½[(1/3-0)²+(2/3-1)²] = ½[1/9+1/9] = 1/9
+    const expected = 1 / 9;
+    expect(computeMatchRPS({ home: 1 / 3, draw: 1 / 3, away: 1 / 3 }, 'DRAW')).toBeCloseTo(expected, 8);
+  });
+
+  it('uniform prediction 1/3 each, outcome=AWAY → RPS ≈ 0.2778', () => {
+    // F1=1/3, F2=2/3, O1=0, O2=0 → ½[(1/3-0)²+(2/3-0)²] = ½[1/9+4/9] = 5/18
+    const expected = 5 / 18;
+    expect(computeMatchRPS({ home: 1 / 3, draw: 1 / 3, away: 1 / 3 }, 'AWAY')).toBeCloseTo(expected, 8);
+  });
+
+  it('ordinal penalty: predicting home when away wins > predicting draw when away wins', () => {
+    // Predicting home (far from away) should get higher RPS than predicting draw (adjacent to away)
+    const rpsHome = computeMatchRPS({ home: 1, draw: 0, away: 0 }, 'AWAY');     // = 1.0
+    const rpsDraw = computeMatchRPS({ home: 0, draw: 1, away: 0 }, 'AWAY');     // = 0.5
+    expect(rpsHome).toBeGreaterThan(rpsDraw);
+  });
+
+  it('mean RPS over batch of perfect predictions = 0', () => {
+    const records: PredictionRecord[] = [
+      { predicted_result: 'HOME', actual_outcome: 'HOME', calibrated_probs: { home: 1, draw: 0, away: 0 } },
+      { predicted_result: 'DRAW', actual_outcome: 'DRAW', calibrated_probs: { home: 0, draw: 1, away: 0 } },
+      { predicted_result: 'AWAY', actual_outcome: 'AWAY', calibrated_probs: { home: 0, draw: 0, away: 1 } },
+    ];
+    expect(computeProbabilityMetrics(records).rps).toBeCloseTo(0, 10);
   });
 });
 

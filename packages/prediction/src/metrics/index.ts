@@ -10,6 +10,7 @@ export {
   computeProbabilityMetrics,
   computeCalibrationBuckets,
   computeFullCalibrationMetrics,
+  computeMatchRPS,
 } from './calibration-metrics.js';
 
 export type {
