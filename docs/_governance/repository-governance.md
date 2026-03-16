@@ -209,6 +209,30 @@ archive/
 
 If the repository already has an approved alternative structure, preserve it and apply these rules semantically.
 
+### 6.1 Internal structure of `docs/specs/`
+
+Specs are organized by **system module**, not by artifact type (all are specs) or by date.
+Each subdirectory maps to one primary module or concern of the system.
+
+```text
+docs/specs/
+  api/          ← API contract, endpoints, response shapes, refresh strategy
+  competition/  ← competition resolution, standings, audit/evolution models
+  data/         ← data normalization, source integration, backfill
+  layout/       ← treemap algorithm, layout stability
+  pipeline/     ← signals, scoring policy, snapshot engine, matchday cache
+  portal/       ← UI/UX, frontend components, interaction, news, events, video
+  prediction/   ← predictive engine spec, conformance, observation, ADRs
+    radar/      ← Radar editorial system (sub-module of prediction)
+```
+
+**Placement rules for specs:**
+- A spec belongs in the module it primarily governs. Cross-cutting specs go in the module that owns the contract.
+- `prediction/radar/` is a sub-module of `prediction/` — Radar is part of the prediction layer, not a standalone module.
+- ADRs (`adr.*`) related to a module live inside that module's folder.
+- No further nesting beyond one level (e.g. `portal/features/` is forbidden — use `portal/` directly).
+- When in doubt, prefer a shallower placement over creating a new subdirectory.
+
 ---
 
 ## 7. Naming standards by artifact class

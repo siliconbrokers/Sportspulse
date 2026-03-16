@@ -1,7 +1,7 @@
 /**
  * Radar SportPulse — Text Renderer (Rioplatense Editorial Copy Library v3)
- * Source: radar_docs/radar-editorial-copy-library-rioplatense-v3.json
- * Dev notes: radar_docs/radar-editorial-copy-v3-dev-notes.md
+ * Source: docs/specs/prediction/radar/radar-editorial-copy-library-rioplatense-v3.json
+ * Dev notes: docs/specs/prediction/radar/radar-editorial-copy-v3-dev-notes.md
  *
  * V3 changes vs v2:
  *   - Templates are plain strings (no id/tone/text objects)
@@ -41,7 +41,7 @@ interface CopyLibraryV3 {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const copyLib: CopyLibraryV3 = require('../../radar_docs/radar-editorial-copy-library-rioplatense-v3.json');
+const copyLib: CopyLibraryV3 = require('../../docs/specs/prediction/radar/radar-editorial-copy-library-rioplatense-v3.json');
 
 // ── Label key mapping (code key → v3 JSON key) ────────────────────────────────
 
