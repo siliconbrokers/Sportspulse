@@ -400,6 +400,10 @@ Do not force Radar into the existing fixture card if that damages readability.
 - hover effects beyond basic affordance
 - advanced animations
 
+### Implementation note (2026-03)
+
+The MVP spec stated "no animation required," but the implementation includes `animationDelay` escalonado (60ms per card) in `RadarSection.tsx`. This improves perceived polish without violating the spec (which prohibits rather than requires absence of animation). Cards are also ordered deterministically in the UI: LIVE matches first, then by `startTimeUtc` ascending.
+
 ---
 
 ## 23. Responsive behavior summary

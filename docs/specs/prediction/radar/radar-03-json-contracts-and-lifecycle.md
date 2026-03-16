@@ -218,12 +218,28 @@ Each card entry in `index.json` must contain only the fields needed to render th
   ],
   "favoriteSide": "HOME",
   "underdogSide": "AWAY",
+  "probHomeWin": 0.45,
+  "probDraw": 0.28,
+  "probAwayWin": 0.27,
+  "preMatchText": "La tabla sugiere un cruce más simple de lo que muestran las señales previas.",
   "verdict": null,
   "verdictTitle": null,
   "verdictText": null,
   "postMatchNote": null
 }
 ```
+
+### Probability fields
+
+Added in integration with the Predictive Engine:
+
+| Field | Type | Source | Description |
+|-------|------|--------|-------------|
+| `probHomeWin` | `number \| undefined` | PredictionStore v3 or Poisson+DC fallback | Home win probability [0..1] |
+| `probDraw` | `number \| undefined` | PredictionStore v3 or Poisson+DC fallback | Draw probability [0..1] |
+| `probAwayWin` | `number \| undefined` | PredictionStore v3 or Poisson+DC fallback | Away win probability [0..1] |
+
+These fields are documented in detail in `radar-07-prediction-integration.md`.
 
 ### Recommended optional fields
 
@@ -283,6 +299,8 @@ Each card entry in `index.json` must contain only the fields needed to render th
 - `FALLBACK_USED`
 - `INCONSISTENT_SOURCE`
 - `UNRESOLVED`
+
+**Implementation note (2026-03):** Currently always written as `'OK'`. The condition that triggers `'INCONSISTENT_SOURCE'` is not yet defined. See plan item RADAR-DATA-QUALITY.
 
 ### `verdict`
 - `CONFIRMED`
@@ -474,6 +492,8 @@ If an exceptional reconstruction is needed:
 ```
 
 A rebuild must never be presented as the original historical editorial output.
+
+**Implementation note (2026-03):** Currently always written as `false`. There is no explicit rebuild mechanism implemented yet. Snapshots are built once; the distinction between first generation and a deliberate historical rebuild is not tracked. See plan item RADAR-REBUILD-MECHANISM.
 
 ---
 

@@ -86,3 +86,88 @@ Status: APPROVED — implementing
 
 ### RADAR-7: Tests [DONE]
 - Unit + contract + UI tests
+
+---
+
+## Backlog pendiente (post-audit 2026-03-16)
+
+### RADAR-BOOTSTRAP-EVIDENCE
+**Qué:** Implementar carga de temporada anterior como supporting evidence en BOOTSTRAP (matchdays 1-3).
+
+**Por qué:** La spec (radar-01 §10) lo permite. Mejoraría la calidad de señales en las primeras jornadas.
+
+**Scope:** `radar-candidate-builder.ts` — aceptar `prevSeasonMatches` opcional; `radar-service.ts` — pasarlo desde DataSource.
+
+**Bloqueante:** Requiere que DataSource exponga partidos de temporada anterior.
+
+**Prioridad:** Media
+
+---
+
+### RADAR-FEATURE-FLAGS
+**Qué:** Integrar `enableRadarSection`, `enableRadarPostMatchVerdict` con el back office (portal-config-store).
+
+**Por qué:** La spec (radar-01 §23) los define. Permite desactivar el Radar por liga desde el admin.
+
+**Scope:** `radar-route.ts`, `RadarSection.tsx`, `portal-config-store.ts`.
+
+**Prioridad:** Baja
+
+---
+
+### RADAR-TONE-DEDUP
+**Qué:** Aplicar restricciones de tone editorial: máx 1 `venenoso` por label por snapshot; no repetir opening pattern de 4+ palabras.
+
+**Por qué:** La spec (radar-02 §14) lo exige. Sin esto pueden colarse frases de tono inconsistente.
+
+**Scope:** `radar-text-renderer.ts` — `selectTemplate()`.
+
+**Prioridad:** Baja
+
+---
+
+### RADAR-REBUILD-MECHANISM
+**Qué:** Implementar rebuild explícito de snapshot histórico con `isHistoricalRebuild = true`.
+
+**Por qué:** La spec (radar-03 §16) lo define. Necesario para integridad auditora.
+
+**Scope:** `radar-service.ts`, `radar-snapshot-writer.ts`.
+
+**Prioridad:** Baja
+
+---
+
+### RADAR-BOOTSTRAP-GUARD
+**Qué:** Agregar guard en signal evaluator para restringir etiquetas analíticas fuertes en BOOTSTRAP.
+
+**Por qué:** La spec (radar-02 §21) establece restricciones en jornadas 1-3. Sin guard pueden aparecer con evidencia insuficiente.
+
+**Scope:** `radar-signal-evaluator.ts` — verificar `evidenceTier` antes de permitir SENAL_DE_ALERTA y PARTIDO_ENGANOSO.
+
+**Prioridad:** Media
+
+---
+
+### RADAR-DATA-QUALITY
+**Qué:** Implementar detección de `dataQuality: 'INCONSISTENT_SOURCE'`.
+
+**Por qué:** La spec (radar-03 §9) lo define. Sin esto el campo no tiene utilidad.
+
+**Scope:** `radar-service.ts` — definir criterio (ej: match con múltiples fuentes inconsistentes) y escribirlo al snapshot.
+
+**Prioridad:** Baja
+
+---
+
+### RADAR-SIGNAL-V3-INTEGRATION
+**Qué:** Alimentar los signal scores del evaluador con outputs del motor predictivo v3.
+
+**Por qué:** Actualmente las etiquetas (PARTIDO_ABIERTO, DUELO_CERRADO, SENAL_DE_ALERTA) se calculan con heurísticas independientes del motor predictivo. Usar `btts_prob`, `over_2_5_prob`, y el gap modelo/tabla mejoraría la coherencia y precisión.
+
+**Scope:** `radar-signal-evaluator.ts`, `radar-service.ts` — integrar PredictionStore como input opcional.
+
+**Bloqueante:** Requiere que PredictionStore esté disponible en el contexto del RadarService.
+
+**Impacto:** Alto — cambiaría qué partidos reciben qué etiqueta.
+
+**Prioridad:** Alta (deuda arquitectural principal)

@@ -288,6 +288,14 @@ Within one matchday snapshot:
 - do not repeat an opening pattern of 4+ words within the same label in the same snapshot
 - max 1 venenoso-tone phrase per label per snapshot when alternatives exist
 
+### Implementation note (2026-03)
+
+Deduplication by exact text is fully implemented. However, the following restrictions are **pending implementation**:
+- Restriction of "max 1 venenoso per label per snapshot" — the selector does not validate tone preferences in runtime; the v3 template library was designed to minimize this conflict, but no enforcement gate exists.
+- Opening pattern restriction (4+ words) — not validated by `radar-text-renderer.ts` during template selection.
+
+Both restrictions are deferred to a future integration cycle. See plan item RADAR-TONE-DEDUP.
+
 ---
 
 ## 15. Sanitization rules for pre-match text
@@ -530,6 +538,12 @@ If evidence is insufficient, prefer:
 - `Bajo el radar`
 
 or reject the card entirely.
+
+### Implementation note (2026-03)
+
+The analytical label restrictions for BOOTSTRAP tier are **not currently enforced**. In the current implementation (radar-signal-evaluator.ts), labels like `SENAL_DE_ALERTA` and `PARTIDO_ENGANOSO` can appear in matchday 1-3 without additional guard logic beyond the standard signal thresholds.
+
+The `evidenceTier=BOOTSTRAP` marker is persisted and signals to users that evidence is limited, but there is no additional algorithmic restriction on analytical label eligibility during bootstrap jornadas. This is a known pending clarification. See plan item RADAR-BOOTSTRAP-GUARD.
 
 ---
 
