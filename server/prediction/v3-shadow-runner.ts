@@ -34,6 +34,7 @@ import type { OddsService } from '../odds/odds-service.js';
 import type { InjurySource } from './injury-source.js';
 import { normTeamName } from './injury-source.js';
 import type { XgSource } from './xg-source.js';
+import type { LineupSource } from './lineup-source.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -113,6 +114,7 @@ export async function runV3Shadow(
   oddsService?: OddsService,
   injurySource?: InjurySource,
   xgSource?: XgSource,
+  lineupSource?: LineupSource,
 ): Promise<void> {
   try {
     const buildNowUtc = new Date().toISOString();
@@ -150,7 +152,7 @@ export async function runV3Shadow(
         dataSource, seasonId, competitionId, competitionCode,
         currentSeasonMatches, prevSeasonMatches, buildNowUtc, store, 'fd',
         38, // FD leagues (EPL/PD): standard 38-game season
-        evaluationStore, oddsService, injurySource, xgSource,
+        evaluationStore, oddsService, injurySource, xgSource, lineupSource,
       );
     }
 
@@ -176,7 +178,7 @@ export async function runV3Shadow(
       await runMatchPredictions(
         dataSource, seasonId, desc.competitionId, desc.providerLeagueId,
         currentSeasonMatches, prevSeasonMatches, buildNowUtc, store, 'datasource',
-        desc.expectedSeasonGames, evaluationStore, oddsService, injurySource, xgSource,
+        desc.expectedSeasonGames, evaluationStore, oddsService, injurySource, xgSource, lineupSource,
       );
     }
 
@@ -204,6 +206,7 @@ async function runMatchPredictions(
   oddsService?: OddsService,
   injurySource?: InjurySource,
   xgSource?: XgSource,
+  lineupSource?: LineupSource,
 ): Promise<void> {
   const scheduled = dataSource.getMatches(seasonId).filter(
     (m) =>
@@ -282,6 +285,7 @@ async function runMatchPredictions(
         buildNowUtc,
         expectedSeasonGames,
         injuries,
+        historicalXg,
       };
 
       const output = runV3Engine(input);
