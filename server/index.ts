@@ -1,4 +1,5 @@
 import { buildApp } from '@sportpulse/api';
+import { resolveDisplayName } from '@sportpulse/canonical';
 import { FootballDataSource } from './football-data-source.js';
 import { FootballDataTournamentSource, WC_PROVIDER_KEY } from './football-data-tournament-source.js';
 import { WC_CONFIG, CLI_CONFIG } from './tournament-config.js';
@@ -43,6 +44,7 @@ import { OddsService } from './odds/odds-service.js';
 import { InjurySource } from './prediction/injury-source.js';
 import { XgSource } from './prediction/xg-source.js';
 import { LineupSource } from './prediction/lineup-source.js';
+import { runAfShadowValidation } from './prediction/af-shadow-runner.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig, isFeatureEnabled } from './portal-config-store.js';
 import { registerAdminRoutes } from './admin-router.js';
@@ -407,8 +409,8 @@ async function main() {
 
           results.push({
             id:               m.matchId,
-            homeTeam:         home?.name ?? home?.shortName ?? m.homeTeamId,
-            awayTeam:         away?.name ?? away?.shortName ?? m.awayTeamId,
+            homeTeam:         home ? resolveDisplayName(home.name, home.shortName) : m.homeTeamId,
+            awayTeam:         away ? resolveDisplayName(away.name, away.shortName) : m.awayTeamId,
             homeTla:          home?.tla,
             awayTla:          away?.tla,
             homeCrestUrl:     home?.crestUrl ?? null,
@@ -684,6 +686,14 @@ async function main() {
     if (v3FdCompIds.length > 0 || v3NonFdDescriptors.length > 0) {
       void runV3Shadow(dataSource, v3FdCompIds, v3NonFdDescriptors, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, v3SeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource);
     }
+    // AF vs FD historical shadow validation — feature-flagged, fault-isolated
+    // Activa con: SHADOW_AF_VALIDATION_ENABLED=true
+    if (process.env.SHADOW_AF_VALIDATION_ENABLED === 'true') {
+      const afShadowKey = process.env.APIFOOTBALL_KEY ?? '';
+      const afShadowSeason = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
+      void runAfShadowValidation(dataSource, FD_COMP_IDS, historicalStateServiceFV, afShadowSeason, afShadowKey);
+    }
+
     // OE-3: capture ground truth for completed matches
     captureResults(dataSource, evaluationStore, ALL_COMP_IDS);
 

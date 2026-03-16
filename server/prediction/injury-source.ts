@@ -23,7 +23,7 @@ import type { InjuryRecord, AbsenceType, PlayerPosition } from '@sportpulse/pred
 const AF_LEAGUE_IDS: Record<string, number> = {
   'comp:football-data:PD':  140,  // LaLiga
   'comp:football-data:PL':   39,  // Premier League
-  'comp:football-data:BL1':  78,  // Bundesliga
+  'comp:openligadb:bl1':     78,  // Bundesliga
   'comp:thesportsdb:4432':  268,  // Liga Uruguaya
   'comp:sportsdb-ar:4406':  128,  // Liga Argentina
 };

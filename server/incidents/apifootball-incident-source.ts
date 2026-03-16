@@ -15,6 +15,7 @@
  *   comp:football-data:PL   → League 39  (Premier League)
  *   comp:openligadb:bl1     → League 78  (Bundesliga)
  *   comp:thesportsdb:4432   → League 268 (Liga Uruguaya)
+ *   comp:sportsdb-ar:4406   → League 128 (Liga Argentina)
  *   comp:football-data-wc:WC → League 1  (World Cup 2026)
  */
 import { promises as fs } from 'node:fs';
@@ -47,6 +48,7 @@ const COMP_LEAGUE_MAP: Record<string, LeagueConfig> = {
   'comp:football-data:PL':      { id: 39,  season: europeanSeason },
   'comp:openligadb:bl1':        { id: 78,  season: europeanSeason },
   'comp:thesportsdb:4432':      { id: 268, season: (k) => new Date(k).getUTCFullYear() },
+  'comp:sportsdb-ar:4406':      { id: 128, season: (k) => new Date(k).getUTCFullYear() },
   'comp:football-data-wc:WC':   { id: 1,   season: (k) => new Date(k).getUTCFullYear() },
   'comp:football-data-cli:CLI': { id: 13,  season: (k) => new Date(k).getUTCFullYear() },
 };
