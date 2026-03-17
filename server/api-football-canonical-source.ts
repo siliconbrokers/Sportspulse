@@ -34,6 +34,11 @@ import { classifyStatus, classifyPeriod } from '@sportpulse/canonical';
 import { COMPETITION_REGISTRY, resolveAfSeason } from './competition-registry.js';
 import type { DataSource, StandingEntry, MatchGoalEventDTO, TopScorerEntry, SubTournamentInfo } from '@sportpulse/snapshot';
 import {
+  isQuotaExhausted as isAfQuotaExhausted,
+  consumeRequest as consumeAfRequest,
+  markQuotaExhausted as markAfQuotaExhausted,
+} from './af-budget.js';
+import {
   checkMatchdayCache,
   persistMatchdayCache,
   persistTeamsCache,
@@ -115,6 +120,7 @@ interface AfStandingRow {
 interface AfResponse<T> {
   results: number;
   response: T[];
+  errors?: Record<string, unknown>;
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -614,14 +620,29 @@ export class ApiFootballCanonicalSource implements DataSource {
   }
 
   private async apiGet<T>(path: string): Promise<T[]> {
+    // Budget guard — never call provider if quota is exhausted
+    if (isAfQuotaExhausted()) {
+      throw new Error(`[AfCanonical] Quota exhausted — skipping ${path}`);
+    }
+
     const url = `${BASE_URL}${path}`;
     const res = await fetch(url, {
       headers: { 'x-apisports-key': this.apiKey },
+      signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) {
       throw new Error(`[AfCanonical] HTTP ${res.status} for ${url}`);
     }
     const body = (await res.json()) as AfResponse<T>;
+
+    // Detect quota exhaustion from API response body
+    if (body.errors && Object.keys(body.errors).length > 0) {
+      markAfQuotaExhausted();
+      throw new Error(`[AfCanonical] Quota error for ${url}: ${JSON.stringify(body.errors)}`);
+    }
+
+    consumeAfRequest();
+
     if (!body.response) {
       throw new Error(`[AfCanonical] No response field for ${url}`);
     }

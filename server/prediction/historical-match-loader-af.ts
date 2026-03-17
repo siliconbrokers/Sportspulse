@@ -9,19 +9,26 @@
  *   - Temporada corriente (año actual): TTL 6 horas
  *   - Temporadas pasadas:               TTL 1 año (inmutables)
  *
+ * Budget: integrado con af-budget.ts — respeta isQuotaExhausted() y registra consumeRequest().
+ *
  * Retorna V3MatchRecord[] listo para pasarse a runV3Engine como prevSeasonMatches.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { V3MatchRecord } from '@sportpulse/prediction';
+import {
+  isQuotaExhausted,
+  consumeRequest,
+  markQuotaExhausted,
+} from '../../af-budget.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const BASE_URL = 'https://v3.football.api-sports.io';
 const CACHE_DIR = path.resolve(process.cwd(), 'cache/historical/apifootball');
-const TTL_CURRENT_MS  = 6 * 3600_000;   // 6 h — current season (matches still being played)
-const TTL_PAST_MS     = 365 * 24 * 3600_000; // 1 year — past seasons (immutable)
+const TTL_CURRENT_MS  = 6 * 3600_000;         // 6 h — temporada corriente (partidos acumulando)
+const TTL_PAST_MS     = 365 * 24 * 3600_000;  // 1 año — temporadas pasadas (inmutables)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,6 +40,7 @@ interface AfFixtureLite {
 
 interface AfResponse<T> {
   response: T[];
+  errors?: Record<string, unknown>;
 }
 
 interface CacheDoc {
@@ -57,14 +65,12 @@ function currentSeasonYear(): number {
   const now   = new Date();
   const year  = now.getUTCFullYear();
   const month = now.getUTCMonth(); // 0-indexed
-  // European convention: before July → previous year start
-  // Also works for calendar-year leagues where current = same year
   return month < 6 ? year - 1 : year;
 }
 
 function isCacheFresh(savedAt: string, leagueId: number, year: number): boolean {
-  const ttl    = year < currentSeasonYear() ? TTL_PAST_MS : TTL_CURRENT_MS;
-  const ageMs  = Date.now() - new Date(savedAt).getTime();
+  const ttl   = year < currentSeasonYear() ? TTL_PAST_MS : TTL_CURRENT_MS;
+  const ageMs = Date.now() - new Date(savedAt).getTime();
   return ageMs < ttl;
 }
 
@@ -107,7 +113,8 @@ function writeCache(leagueId: number, year: number, records: V3MatchRecord[]): v
 
 /**
  * Carga los partidos FINISHED de una liga y temporada desde API-Football.
- * Usa caché de disco para minimizar requests (100 req/día de cuota compartida).
+ * Usa caché de disco para minimizar requests (cuota diaria compartida).
+ * Integrado con af-budget: respeta el hard stop y registra cada request.
  *
  * @param leagueId   ID numérico de la liga en API-Football (ej: 140 = LaLiga)
  * @param year       Año de temporada (ej: 2024 = temporada 2024-25 para ligas europeas)
@@ -118,9 +125,15 @@ export async function loadAfHistoricalMatches(
   year: number,
   apiKey: string,
 ): Promise<V3MatchRecord[]> {
-  // Cache hit
+  // Cache hit — no provider call needed
   const cached = readCache(leagueId, year);
   if (cached !== null) return cached;
+
+  // Budget check — never call provider if quota is exhausted
+  if (isQuotaExhausted()) {
+    console.warn(`[AfHistoricalLoader] QUOTA EXHAUSTED — skipping fetch ${leagueId}/${year}`);
+    return [];
+  }
 
   // Fetch from API
   const url = `${BASE_URL}/fixtures?league=${leagueId}&season=${year}`;
@@ -130,11 +143,21 @@ export async function loadAfHistoricalMatches(
   try {
     const res = await fetch(url, {
       headers: { 'x-apisports-key': apiKey },
+      signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
     const body = (await res.json()) as AfResponse<AfFixtureLite>;
+
+    // Detect quota exhaustion from API response body
+    if (body.errors && Object.keys(body.errors).length > 0) {
+      markQuotaExhausted();
+      console.warn(`[AfHistoricalLoader] API quota error ${leagueId}/${year}:`, body.errors);
+      return [];
+    }
+
+    consumeRequest();
     fixtures = body.response ?? [];
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

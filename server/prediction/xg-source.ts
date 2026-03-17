@@ -108,6 +108,60 @@ interface AfStatsResponse {
 
 // ── Disk cache helpers ────────────────────────────────────────────────────────
 
+// Fixture list disk cache — survives server restarts
+const FIXTURE_LIST_DISK_TTL_CURRENT_MS = 24 * 60 * 60_000;      // 24h — current season
+const FIXTURE_LIST_DISK_TTL_PAST_MS    = 365 * 24 * 60 * 60_000; // 1 year — past seasons immutable
+
+function currentSeasonYear(): number {
+  const now   = new Date();
+  const year  = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  return month < 6 ? year - 1 : year;
+}
+
+interface FixtureListDiskDoc {
+  version: 1;
+  leagueId: number;
+  season: number;
+  savedAt: string;
+  fixtures: FixtureListEntry[];
+}
+
+function fixtureListDiskPath(leagueId: number, season: number): string {
+  return join(CACHE_ROOT, String(leagueId), String(season), 'fixture-list.json');
+}
+
+async function readFixtureListFromDisk(leagueId: number, season: number): Promise<FixtureListEntry[] | null> {
+  const p = fixtureListDiskPath(leagueId, season);
+  try {
+    const raw = await fs.readFile(p, 'utf-8');
+    const doc = JSON.parse(raw) as FixtureListDiskDoc;
+    if (doc.version !== 1 || doc.leagueId !== leagueId || doc.season !== season) return null;
+    const ttl = season < currentSeasonYear() ? FIXTURE_LIST_DISK_TTL_PAST_MS : FIXTURE_LIST_DISK_TTL_CURRENT_MS;
+    if (Date.now() - new Date(doc.savedAt).getTime() > ttl) return null;
+    return doc.fixtures;
+  } catch {
+    return null;
+  }
+}
+
+async function writeFixtureListToDisk(leagueId: number, season: number, fixtures: FixtureListEntry[]): Promise<void> {
+  const p = fixtureListDiskPath(leagueId, season);
+  const tmp = `${p}.tmp`;
+  const doc: FixtureListDiskDoc = {
+    version: 1,
+    leagueId,
+    season,
+    savedAt: new Date().toISOString(),
+    fixtures,
+  };
+  try {
+    await fs.mkdir(join(CACHE_ROOT, String(leagueId), String(season)), { recursive: true });
+    await fs.writeFile(tmp, JSON.stringify(doc), 'utf-8');
+    await fs.rename(tmp, p);
+  } catch { /* non-fatal */ }
+}
+
 function buildCachePath(leagueId: number, season: number, fixtureId: number): string {
   return join(CACHE_ROOT, String(leagueId), String(season), `${fixtureId}.json`);
 }
@@ -161,14 +215,25 @@ async function fetchFixtureList(
   apiKey: string,
 ): Promise<FixtureListEntry[]> {
   const cacheKey = `${leagueId}:${season}`;
-  const cached = _fixtureListCache.get(cacheKey);
-  if (cached && Date.now() - cached.fetchedAt < FIXTURE_LIST_TTL_MS) {
-    return cached.fixtures;
+
+  // Level 1: in-memory (fastest)
+  const mem = _fixtureListCache.get(cacheKey);
+  if (mem && Date.now() - mem.fetchedAt < FIXTURE_LIST_TTL_MS) {
+    return mem.fixtures;
   }
 
+  // Level 2: disk (survives restarts)
+  const disk = await readFixtureListFromDisk(leagueId, season);
+  if (disk) {
+    _fixtureListCache.set(cacheKey, { fixtures: disk, fetchedAt: Date.now() });
+    console.log(`[XgSource] fixture list DISK HIT league=${leagueId} season=${season} count=${disk.length}`);
+    return disk;
+  }
+
+  // Level 3: API fetch
   if (isQuotaExhausted()) {
     console.log(`[XgSource] Quota exhausted — skipping fixture list for league ${leagueId} season ${season}`);
-    return cached?.fixtures ?? [];
+    return mem?.fixtures ?? [];
   }
 
   const url = `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=${season}&status=FT`;
@@ -180,19 +245,19 @@ async function fetchFixtureList(
 
     if (!res.ok) {
       console.warn(`[XgSource] HTTP ${res.status} fetching fixture list for league ${leagueId}`);
-      return cached?.fixtures ?? [];
+      return mem?.fixtures ?? [];
     }
 
     data = await res.json() as AfFixturesResponse;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[XgSource] fetch error for fixture list (league ${leagueId}): ${msg}`);
-    return cached?.fixtures ?? [];
+    return mem?.fixtures ?? [];
   }
 
   if (detectQuotaFromBody(data.errors)) {
     markQuotaExhausted();
-    return cached?.fixtures ?? [];
+    return mem?.fixtures ?? [];
   }
 
   const fixtures: FixtureListEntry[] = (data.response ?? []).map((entry) => ({
@@ -205,7 +270,8 @@ async function fetchFixtureList(
   }));
 
   _fixtureListCache.set(cacheKey, { fixtures, fetchedAt: Date.now() });
-  console.log(`[XgSource] fixture list loaded: league=${leagueId} season=${season} count=${fixtures.length}`);
+  void writeFixtureListToDisk(leagueId, season, fixtures); // fire-and-forget
+  console.log(`[XgSource] fixture list API FETCH: league=${leagueId} season=${season} count=${fixtures.length}`);
   return fixtures;
 }
 

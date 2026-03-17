@@ -65,6 +65,38 @@ export interface NonFdCompDescriptor {
   expectedSeasonGames?: number;
 }
 
+// ── Module-level prev-season cache (24h TTL) ──────────────────────────────────
+// Prevents repeated disk reads / API fetches of immutable prev-season data on
+// every scheduler cycle. Key: `{provider}:{leagueId}:{year}`.
+
+const PREV_SEASON_MEM_TTL_MS = 24 * 60 * 60_000; // 24h — prev season is immutable
+
+interface PrevSeasonEntry {
+  records:    V3MatchRecord[];
+  loadedAt:   number;
+}
+
+const _prevSeasonMemCache = new Map<string, PrevSeasonEntry>();
+
+function prevCacheKey(provider: string, leagueId: string, year: number): string {
+  return `${provider}:${leagueId}:${year}`;
+}
+
+function getPrevFromMem(provider: string, leagueId: string, year: number): V3MatchRecord[] | null {
+  const key   = prevCacheKey(provider, leagueId, year);
+  const entry = _prevSeasonMemCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.loadedAt > PREV_SEASON_MEM_TTL_MS) {
+    _prevSeasonMemCache.delete(key);
+    return null;
+  }
+  return entry.records;
+}
+
+function setPrevInMem(provider: string, leagueId: string, year: number, records: V3MatchRecord[]): void {
+  _prevSeasonMemCache.set(prevCacheKey(provider, leagueId, year), { records, loadedAt: Date.now() });
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function seasonBoundaryIso(seasonStartYear: number): string {
@@ -178,14 +210,20 @@ export async function runV3Shadow(
       const currentSeasonMatches = extractFinishedFromDataSource(dataSource, seasonId, buildNowUtc);
 
       let prevSeasonMatches: V3MatchRecord[];
-      if (desc.provider === 'openligadb') {
+      const memCached = getPrevFromMem(desc.provider, desc.providerLeagueId, prevSeasonYear);
+      if (memCached !== null) {
+        prevSeasonMatches = memCached;
+        console.log(`[V3Runner] prevSeason MEM HIT ${desc.provider}/${desc.providerLeagueId}/${prevSeasonYear}: ${memCached.length} records`);
+      } else if (desc.provider === 'openligadb') {
         prevSeasonMatches = await loadOLGPrevSeason(desc.providerLeagueId, prevSeasonYear);
+        setPrevInMem(desc.provider, desc.providerLeagueId, prevSeasonYear, prevSeasonMatches);
       } else if (desc.provider === 'apifootball') {
         prevSeasonMatches = await loadAfHistoricalMatches(
           Number(desc.providerLeagueId),
           prevSeasonYear,
           desc.afApiKey ?? '',
         );
+        setPrevInMem(desc.provider, desc.providerLeagueId, prevSeasonYear, prevSeasonMatches);
       } else {
         prevSeasonMatches = await loadSDBPrevSeason(
           desc.providerLeagueId,
@@ -193,6 +231,7 @@ export async function runV3Shadow(
           desc.sdbApiKey ?? '123',
           prevSeasonYear,
         );
+        setPrevInMem(desc.provider, desc.providerLeagueId, prevSeasonYear, prevSeasonMatches);
       }
 
       await runMatchPredictions(

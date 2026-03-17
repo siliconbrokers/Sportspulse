@@ -11,18 +11,80 @@
  *
  * La cuota agotada también se detecta por respuesta explícita de la API
  * (HTTP 200 con { errors: { requests: "You have reached the limit..." } }).
+ *
+ * Persistencia en disco: el contador sobrevive reinicios del servidor.
+ * Archivo: cache/af-budget.json — escritura atómica (.tmp → rename).
  */
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const HARD_LIMIT  = 600;
 const BRAKE_LIVE  = 500;  // LiveOverlay empieza a throttlear aquí
+
+const BUDGET_FILE = path.join(process.cwd(), 'cache', 'af-budget.json');
+
+interface BudgetDoc {
+  date: string;           // YYYY-MM-DD UTC
+  requestsToday: number;
+  quotaExhaustedUntil: number; // timestamp ms, 0 si no está agotada
+}
 
 let _requestsToday       = 0;
 let _dayUtc              = currentDayUtc();
 let _quotaExhaustedUntil = 0;
 
+// ── Disk persistence ──────────────────────────────────────────────────────────
+
 function currentDayUtc(): string {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
 }
+
+/** Reads the persisted budget from disk. Returns null if missing or stale day. */
+function loadFromDisk(): BudgetDoc | null {
+  try {
+    const raw = fs.readFileSync(BUDGET_FILE, 'utf-8');
+    const doc = JSON.parse(raw) as BudgetDoc;
+    if (doc.date !== currentDayUtc()) return null; // different day → ignore
+    return doc;
+  } catch {
+    return null;
+  }
+}
+
+/** Writes current budget state to disk atomically (fire-and-forget). */
+function persistToDisk(): void {
+  const doc: BudgetDoc = {
+    date: _dayUtc,
+    requestsToday: _requestsToday,
+    quotaExhaustedUntil: _quotaExhaustedUntil,
+  };
+  const tmp = `${BUDGET_FILE}.${process.pid}.tmp`;
+  try {
+    fs.mkdirSync(path.dirname(BUDGET_FILE), { recursive: true });
+    fs.writeFileSync(tmp, JSON.stringify(doc), 'utf-8');
+    fs.renameSync(tmp, BUDGET_FILE);
+  } catch {
+    try { fs.unlinkSync(tmp); } catch { /* ignore */ }
+  }
+}
+
+// ── Startup: restore from disk ─────────────────────────────────────────────
+
+(function initFromDisk() {
+  const saved = loadFromDisk();
+  if (saved) {
+    _requestsToday       = saved.requestsToday;
+    _quotaExhaustedUntil = saved.quotaExhaustedUntil;
+    _dayUtc              = saved.date;
+    console.log(
+      `[AfBudget] Restaurado desde disco: ${_requestsToday}/${HARD_LIMIT} requests hoy (${_dayUtc})` +
+      (_quotaExhaustedUntil > Date.now() ? ' — CUOTA AGOTADA' : ''),
+    );
+  }
+})();
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
 function resetIfNewDay(): void {
   const today = currentDayUtc();
@@ -31,8 +93,11 @@ function resetIfNewDay(): void {
     _requestsToday       = 0;
     _quotaExhaustedUntil = 0;
     console.log('[AfBudget] Nuevo día UTC — contador de requests reseteado');
+    persistToDisk();
   }
 }
+
+// ── Public API ────────────────────────────────────────────────────────────────
 
 /** True si la cuota está agotada (por detección API o por límite contado). */
 export function isQuotaExhausted(): boolean {
@@ -50,6 +115,11 @@ export function isLiveBrakeActive(): boolean {
 export function consumeRequest(): void {
   resetIfNewDay();
   _requestsToday++;
+  // Log at thresholds for visibility
+  if (_requestsToday === 100 || _requestsToday === 200 || _requestsToday === 400 || _requestsToday === BRAKE_LIVE) {
+    console.warn(`[AfBudget] ${_requestsToday}/${HARD_LIMIT} requests hoy (brake: ${_requestsToday >= BRAKE_LIVE})`);
+  }
+  persistToDisk();
 }
 
 /**
@@ -66,6 +136,7 @@ export function markQuotaExhausted(): void {
     `[AfBudget] Cuota agotada — ${_requestsToday}/${HARD_LIMIT} requests hoy. ` +
     `Suspendido hasta ${nextMidnight.toISOString()}`,
   );
+  persistToDisk(); // persist immediately (synchronous path already done above)
 }
 
 /** Estadísticas actuales para logging y respuestas de API. */

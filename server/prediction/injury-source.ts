@@ -11,6 +11,8 @@
  * MKT-T3-01
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   isQuotaExhausted,
   consumeRequest,
@@ -37,11 +39,22 @@ const AF_LEAGUE_IDS: Record<string, number> = {
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const MEM_CACHE_TTL_MS  = 6 * 60 * 60 * 1000;  // 6 hours — in-memory
+const DISK_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours — disk (injuries don't change intra-day)
+const CACHE_DIR = path.join(process.cwd(), 'cache', 'injuries');
 
 interface CacheEntry {
   records: InjuryRecord[];
   fetchedAt: number;
+}
+
+interface DiskCacheDoc {
+  version: 1;
+  leagueId: number;
+  season: number;
+  date: string;
+  savedAt: string;
+  records: InjuryRecord[];
 }
 
 // Key: `${leagueId}:${season}:${date}`
@@ -55,7 +68,7 @@ function getCached(leagueId: number, season: number, date: string): InjuryRecord
   const key = cacheKey(leagueId, season, date);
   const entry = _cache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.fetchedAt > CACHE_TTL_MS) {
+  if (Date.now() - entry.fetchedAt > MEM_CACHE_TTL_MS) {
     _cache.delete(key);
     return null;
   }
@@ -64,6 +77,41 @@ function getCached(leagueId: number, season: number, date: string): InjuryRecord
 
 function setCache(leagueId: number, season: number, date: string, records: InjuryRecord[]): void {
   _cache.set(cacheKey(leagueId, season, date), { records, fetchedAt: Date.now() });
+}
+
+function diskCachePath(leagueId: number, season: number, date: string): string {
+  return path.join(CACHE_DIR, String(leagueId), String(season), `${date}.json`);
+}
+
+function readDiskCache(leagueId: number, season: number, date: string): InjuryRecord[] | null {
+  const p = diskCachePath(leagueId, season, date);
+  try {
+    const raw = fs.readFileSync(p, 'utf-8');
+    const doc = JSON.parse(raw) as DiskCacheDoc;
+    if (doc.version !== 1 || doc.leagueId !== leagueId || doc.season !== season || doc.date !== date) return null;
+    if (Date.now() - new Date(doc.savedAt).getTime() > DISK_CACHE_TTL_MS) return null;
+    return doc.records;
+  } catch {
+    return null;
+  }
+}
+
+function writeDiskCache(leagueId: number, season: number, date: string, records: InjuryRecord[]): void {
+  const p = diskCachePath(leagueId, season, date);
+  const tmp = `${p}.tmp`;
+  const doc: DiskCacheDoc = {
+    version: 1,
+    leagueId,
+    season,
+    date,
+    savedAt: new Date().toISOString(),
+    records,
+  };
+  try {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(tmp, JSON.stringify(doc), 'utf-8');
+    fs.renameSync(tmp, p);
+  } catch { /* non-fatal */ }
 }
 
 // ── Normalization helpers ──────────────────────────────────────────────────────
@@ -121,13 +169,18 @@ async function fetchInjuriesForDate(
     return [];
   }
 
-  // Check in-memory cache
+  // Level 1: in-memory cache
   const cached = getCached(leagueId, season, dateIso);
-  if (cached !== null) {
-    return cached;
+  if (cached !== null) return cached;
+
+  // Level 2: disk cache (survives restarts)
+  const fromDisk = readDiskCache(leagueId, season, dateIso);
+  if (fromDisk !== null) {
+    setCache(leagueId, season, dateIso, fromDisk);
+    return fromDisk;
   }
 
-  // Budget check
+  // Budget check before hitting API
   if (isQuotaExhausted()) {
     console.log(`[InjurySource] Quota exhausted — skipping fetch for ${competitionId} ${dateIso}`);
     return [];
@@ -194,6 +247,7 @@ async function fetchInjuriesForDate(
 
   console.log(`[InjurySource] ${competitionId} ${dateIso}: ${records.length} injuries fetched (${entries.length} raw entries)`);
   setCache(leagueId, season, dateIso, records);
+  writeDiskCache(leagueId, season, dateIso, records);
   return records;
 }
 
