@@ -99,6 +99,7 @@ function injectAnimations() {
 function normStr(s: string) {
   return s
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')  // decode HTML entities
+    .replace(/'/g, '')                                                      // strip apostrophes: "Newell's" → "Newells"
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

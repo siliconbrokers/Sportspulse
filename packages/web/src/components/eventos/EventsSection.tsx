@@ -71,6 +71,7 @@ const CANONICAL_LEAGUES = new Set(['URUGUAY_PRIMERA', 'ARGENTINA_PRIMERA', 'LALI
 function normName(s: string): string {
   return s
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')  // decode HTML entities
+    .replace(/'/g, '')                                                      // strip apostrophes: "Newell's" → "Newells"
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
