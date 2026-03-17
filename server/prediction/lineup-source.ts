@@ -15,6 +15,8 @@
  * MKT-T3-04
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   isQuotaExhausted,
   consumeRequest,
@@ -42,8 +44,11 @@ const AF_LEAGUE_IDS: Record<string, number> = {
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
-const FIXTURES_CACHE_TTL_MS = 1 * 60 * 60 * 1000;   // 1 hour
-const LINEUPS_CACHE_TTL_MS  = 2 * 60 * 60 * 1000;   // 2 hours
+const FIXTURES_MEM_TTL_MS  = 1 * 60 * 60 * 1000;   // 1 hour in-memory
+const LINEUPS_MEM_TTL_MS   = 2 * 60 * 60 * 1000;   // 2 hours in-memory
+const FIXTURES_DISK_TTL_MS = 24 * 60 * 60 * 1000;  // 24h disk (fixture list immutable after matchday)
+const LINEUPS_DISK_TTL_MS  = 24 * 60 * 60 * 1000;  // 24h disk (lineup confirmed, won't change)
+const CACHE_DIR = path.join(process.cwd(), 'cache', 'lineups');
 
 interface FixturesCacheEntry {
   fixtures: AfFixture[];
@@ -55,10 +60,77 @@ interface LineupsCacheEntry {
   fetchedAt: number;
 }
 
+interface FixturesDiskDoc {
+  version: 1;
+  leagueId: number;
+  date: string;
+  savedAt: string;
+  fixtures: AfFixture[];
+}
+
+interface LineupsDiskDoc {
+  version: 1;
+  fixtureId: number;
+  savedAt: string;
+  lineups: ConfirmedLineupRecord[];
+}
+
 // Key: `${leagueId}:${date}`
 const _fixturesCache = new Map<string, FixturesCacheEntry>();
 // Key: `${fixtureId}`
 const _lineupsCache  = new Map<number, LineupsCacheEntry>();
+
+// ── Disk helpers ──────────────────────────────────────────────────────────────
+
+function fixturesDiskPath(leagueId: number, date: string): string {
+  return path.join(CACHE_DIR, String(leagueId), `${date}.json`);
+}
+
+function lineupsDiskPath(fixtureId: number): string {
+  return path.join(CACHE_DIR, 'fixtures', `${fixtureId}.json`);
+}
+
+function readFixturesDisk(leagueId: number, date: string): AfFixture[] | null {
+  try {
+    const raw = fs.readFileSync(fixturesDiskPath(leagueId, date), 'utf-8');
+    const doc = JSON.parse(raw) as FixturesDiskDoc;
+    if (doc.version !== 1 || doc.leagueId !== leagueId || doc.date !== date) return null;
+    if (Date.now() - new Date(doc.savedAt).getTime() > FIXTURES_DISK_TTL_MS) return null;
+    return doc.fixtures;
+  } catch { return null; }
+}
+
+function writeFixturesDisk(leagueId: number, date: string, fixtures: AfFixture[]): void {
+  const p = fixturesDiskPath(leagueId, date);
+  const tmp = `${p}.tmp`;
+  try {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const doc: FixturesDiskDoc = { version: 1, leagueId, date, savedAt: new Date().toISOString(), fixtures };
+    fs.writeFileSync(tmp, JSON.stringify(doc), 'utf-8');
+    fs.renameSync(tmp, p);
+  } catch { /* non-fatal */ }
+}
+
+function readLineupsDisk(fixtureId: number): ConfirmedLineupRecord[] | null {
+  try {
+    const raw = fs.readFileSync(lineupsDiskPath(fixtureId), 'utf-8');
+    const doc = JSON.parse(raw) as LineupsDiskDoc;
+    if (doc.version !== 1 || doc.fixtureId !== fixtureId) return null;
+    if (Date.now() - new Date(doc.savedAt).getTime() > LINEUPS_DISK_TTL_MS) return null;
+    return doc.lineups;
+  } catch { return null; }
+}
+
+function writeLineupsDisk(fixtureId: number, lineups: ConfirmedLineupRecord[]): void {
+  const p = lineupsDiskPath(fixtureId);
+  const tmp = `${p}.tmp`;
+  try {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const doc: LineupsDiskDoc = { version: 1, fixtureId, savedAt: new Date().toISOString(), lineups };
+    fs.writeFileSync(tmp, JSON.stringify(doc), 'utf-8');
+    fs.renameSync(tmp, p);
+  } catch { /* non-fatal */ }
+}
 
 function fixturesCacheKey(leagueId: number, date: string): string {
   return `${leagueId}:${date}`;
@@ -68,7 +140,7 @@ function getCachedFixtures(leagueId: number, date: string): AfFixture[] | null {
   const key   = fixturesCacheKey(leagueId, date);
   const entry = _fixturesCache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.fetchedAt > FIXTURES_CACHE_TTL_MS) {
+  if (Date.now() - entry.fetchedAt > FIXTURES_MEM_TTL_MS) {
     _fixturesCache.delete(key);
     return null;
   }
@@ -82,7 +154,7 @@ function setCachedFixtures(leagueId: number, date: string, fixtures: AfFixture[]
 function getCachedLineups(fixtureId: number): ConfirmedLineupRecord[] | null {
   const entry = _lineupsCache.get(fixtureId);
   if (!entry) return null;
-  if (Date.now() - entry.fetchedAt > LINEUPS_CACHE_TTL_MS) {
+  if (Date.now() - entry.fetchedAt > LINEUPS_MEM_TTL_MS) {
     _lineupsCache.delete(fixtureId);
     return null;
   }
@@ -163,8 +235,16 @@ async function fetchFixturesForDate(
   season: number,
   date: string,
 ): Promise<AfFixture[]> {
+  // Level 1: in-memory
   const cached = getCachedFixtures(leagueId, date);
   if (cached !== null) return cached;
+
+  // Level 2: disk (survives restart)
+  const fromDisk = readFixturesDisk(leagueId, date);
+  if (fromDisk !== null) {
+    setCachedFixtures(leagueId, date, fromDisk);
+    return fromDisk;
+  }
 
   if (isQuotaExhausted()) {
     console.log(`[LineupSource] Quota exhausted — skipping fixtures fetch for league ${leagueId} ${date}`);
@@ -202,12 +282,21 @@ async function fetchFixturesForDate(
 
   const fixtures = data.response ?? [];
   setCachedFixtures(leagueId, date, fixtures);
+  writeFixturesDisk(leagueId, date, fixtures);
   return fixtures;
 }
 
 async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineupRecord[]> {
+  // Level 1: in-memory
   const cached = getCachedLineups(fixtureId);
   if (cached !== null) return cached;
+
+  // Level 2: disk (survives restart)
+  const fromDisk = readLineupsDisk(fixtureId);
+  if (fromDisk !== null) {
+    setCachedLineups(fixtureId, fromDisk);
+    return fromDisk;
+  }
 
   if (isQuotaExhausted()) {
     console.log(`[LineupSource] Quota exhausted — skipping lineups fetch for fixture ${fixtureId}`);
@@ -268,6 +357,7 @@ async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineu
 
   // Note: _afTeamName is stripped after resolution — not part of the contract type.
   setCachedLineups(fixtureId, records);
+  writeLineupsDisk(fixtureId, records);
   return records;
 }
 

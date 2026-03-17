@@ -145,6 +145,7 @@ export function getBudgetStats(): {
   limit: number;
   exhausted: boolean;
   brakeActive: boolean;
+  quotaExhaustedUntil: number;
 } {
   resetIfNewDay();
   return {
@@ -152,5 +153,6 @@ export function getBudgetStats(): {
     limit: HARD_LIMIT,
     exhausted: isQuotaExhausted(),
     brakeActive: isLiveBrakeActive(),
+    quotaExhaustedUntil: _quotaExhaustedUntil,
   };
 }

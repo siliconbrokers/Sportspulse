@@ -37,6 +37,8 @@ export function statusRoute(deps: AppDependencies): FastifyPluginAsync {
           }
         }
 
+        const budget = deps.getBudgetStats?.();
+
         reply.header('Cache-Control', 'no-cache').send({
           ok: true,
           allLoaded: Object.values(competitions).every(c => c.loaded),
@@ -49,6 +51,18 @@ export function statusRoute(deps: AppDependencies): FastifyPluginAsync {
           },
           competitions,
           tournaments: tournamentStatus,
+          apifootball: budget
+            ? {
+                requestsToday:       budget.requestsToday,
+                limit:               budget.limit,
+                remainingToday:      Math.max(0, budget.limit - budget.requestsToday),
+                exhausted:           budget.exhausted,
+                brakeActive:         budget.brakeActive,
+                quotaResetsAt:       budget.exhausted && budget.quotaExhaustedUntil
+                  ? new Date(budget.quotaExhaustedUntil).toISOString()
+                  : null,
+              }
+            : null,
           ts: new Date().toISOString(),
         });
       });

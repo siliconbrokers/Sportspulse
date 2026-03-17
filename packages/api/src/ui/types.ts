@@ -196,6 +196,14 @@ export interface PortalConfigSnapshot {
   };
 }
 
+export interface BudgetStats {
+  requestsToday: number;
+  limit: number;
+  exhausted: boolean;
+  brakeActive: boolean;
+  quotaExhaustedUntil: number;
+}
+
 export interface AppDependencies {
   snapshotService: SnapshotService;
   dataSource: DataSource;
@@ -211,4 +219,6 @@ export interface AppDependencies {
   getPortalConfig?: () => PortalConfigSnapshot;
   /** IDs to check in status endpoint — from COMPETITION_REGISTRY filtered by isCompetitionEnabled */
   competitionIds?: string[];
+  /** Returns current API-Football budget stats — wired from server/af-budget.ts */
+  getBudgetStats?: () => BudgetStats;
 }
