@@ -40,9 +40,9 @@ export function ProbabilityBars({
         {label}
       </div>
 
-      {/* Números alineados con width:% igual que las barras */}
+      {/* Números: 3 columnas fijas — siempre visibles independiente del valor (incluye 0%) */}
       <div style={{ display: 'flex', marginBottom: 5 }}>
-        <div style={{ width: `${pH}%`, textAlign: 'left', minWidth: 0 }}>
+        <div style={{ flex: 1, textAlign: 'left', minWidth: 0, overflow: 'hidden' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>{pH}%</div>
           {showTeamNames && homeTeamName && (
             <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -50,11 +50,11 @@ export function ProbabilityBars({
             </div>
           )}
         </div>
-        <div style={{ width: `${pD}%`, textAlign: 'center', minWidth: 0 }}>
+        <div style={{ flex: 1, textAlign: 'center', minWidth: 0, overflow: 'hidden' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-50)' }}>{pD}%</div>
           <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1 }}>Empate</div>
         </div>
-        <div style={{ width: `${pA}%`, textAlign: 'right', minWidth: 0 }}>
+        <div style={{ flex: 1, textAlign: 'right', minWidth: 0, overflow: 'hidden' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-88)' }}>{pA}%</div>
           {showTeamNames && awayTeamName && (
             <div style={{ fontSize: 10, color: 'var(--sp-text-35)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
