@@ -21,7 +21,7 @@ import {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
-} from '../../af-budget.js';
+} from '../af-budget.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
