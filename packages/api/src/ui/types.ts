@@ -173,6 +173,8 @@ export interface UpcomingMatchDTO {
   scoreAway: number | null;
   /** Período del partido — undefined cuando la API no lo reporta (e.g. football-data IN_PLAY sin distinción 1T/2T). */
   matchPeriod?: 'FIRST_HALF' | 'HALF_TIME' | 'SECOND_HALF' | 'EXTRA_TIME' | 'PENALTIES';
+  /** Minuto real reportado por la API (AF: fixture.status.elapsed). Solo cuando IN_PROGRESS. */
+  elapsedMinutes?: number | null;
 }
 
 export interface IUpcomingService {

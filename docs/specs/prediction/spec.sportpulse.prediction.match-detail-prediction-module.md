@@ -13,7 +13,7 @@ updated_at: 2026-03-15
 supersedes: []
 superseded_by: []
 related_artifacts: []
-canonical_path: docs/specs/spec.sportpulse.prediction.match-detail-prediction-module.md
+canonical_path: docs/specs/prediction/spec.sportpulse.prediction.match-detail-prediction-module.md
 ---
 # **Match Detail Persistent Prediction Module Specification**
 

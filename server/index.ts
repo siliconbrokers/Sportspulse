@@ -45,6 +45,8 @@ import { InjurySource } from './prediction/injury-source.js';
 import { XgSource } from './prediction/xg-source.js';
 import { LineupSource } from './prediction/lineup-source.js';
 import { runAfShadowValidation } from './prediction/af-shadow-runner.js';
+import { ApiFootballCanonicalSource, AF_COMPETITION_CONFIGS, AF_PROVIDER_KEY } from './api-football-canonical-source.js';
+import { COMPETITION_REGISTRY, REGISTRY_BY_ID } from './competition-registry.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig, isFeatureEnabled } from './portal-config-store.js';
 import { registerAdminRoutes } from './admin-router.js';
@@ -202,14 +204,59 @@ async function main() {
     console.log('[PortalConfig] Copa Libertadores deshabilitada — startup fetch omitido');
   }
 
-  // Routing: Liga Uruguaya/Argentina → TheSportsDB, BL1 → OpenLigaDB, WC/CA/CLI → tournament sources, resto → football-data.org
-  const routingDataSource = new RoutingDataSource(fdSource, [
-    { competitionId: UY_COMPETITION_ID, providerKey: SPORTSDB_PROVIDER_KEY, source: sportsDbSource },
-    { competitionId: AR_COMPETITION_ID, providerKey: AR_PROVIDER_KEY, source: sportsDbArSource },
-    { competitionId: OLG_COMPETITION_ID, providerKey: OPENLIGADB_PROVIDER_KEY, source: openLigaDbSource },
-    { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
-    { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
-  ]);
+  // ── API-Football Canonical Migration (Track C) ─────────────────────────────
+  // When AF_CANONICAL_ENABLED=true, replace legacy league sources with ApiFootballCanonicalSource.
+  // WC and CLI tournament sources are always preserved.
+  const AF_CANONICAL_ENABLED = process.env.AF_CANONICAL_ENABLED === 'true';
+  const AF_KEY = process.env.APIFOOTBALL_KEY ?? '';
+  let afCanonicalSource: ApiFootballCanonicalSource | null = null;
+  let AF_COMP_IDS: string[] = [];
+
+  if (AF_CANONICAL_ENABLED) {
+    if (!AF_KEY) {
+      console.warn('[AfCanonical] AF_CANONICAL_ENABLED=true but APIFOOTBALL_KEY not set — falling back to legacy sources');
+    } else {
+      console.log('[AfCanonical] AF_CANONICAL_ENABLED=true — using API-Football as primary source for leagues');
+      afCanonicalSource = new ApiFootballCanonicalSource(AF_KEY);
+      AF_COMP_IDS = Object.keys(AF_COMPETITION_CONFIGS);
+
+      // Fetch all AF competitions sequentially (small delays to avoid quota bursts)
+      for (let i = 0; i < AF_COMP_IDS.length; i++) {
+        const compId = AF_COMP_IDS[i];
+        if (!isCompetitionEnabled(compId)) {
+          console.log(`[AfCanonical] ${compId} deshabilitado — startup fetch omitido`);
+          continue;
+        }
+        try {
+          await afCanonicalSource.fetchCompetition(compId);
+        } catch (err) {
+          console.error(`[AfCanonical] Error fetching ${compId}:`, err);
+        }
+        if (i < AF_COMP_IDS.length - 1) {
+          await new Promise((r) => setTimeout(r, 2000)); // 2s between fetches
+        }
+      }
+    }
+  }
+
+  // Routing: conditionally use AF canonical source for leagues, always keep WC/CLI
+  const routingDataSource = AF_CANONICAL_ENABLED && afCanonicalSource
+    ? new RoutingDataSource(fdSource, [
+        ...AF_COMP_IDS.map((compId) => ({
+          competitionId: compId,
+          providerKey:   AF_PROVIDER_KEY,
+          source:        afCanonicalSource!,
+        })),
+        { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
+        { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
+      ])
+    : new RoutingDataSource(fdSource, [
+        { competitionId: UY_COMPETITION_ID, providerKey: SPORTSDB_PROVIDER_KEY, source: sportsDbSource },
+        { competitionId: AR_COMPETITION_ID, providerKey: AR_PROVIDER_KEY, source: sportsDbArSource },
+        { competitionId: OLG_COMPETITION_ID, providerKey: OPENLIGADB_PROVIDER_KEY, source: openLigaDbSource },
+        { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
+        { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
+      ]);
 
   // Live score overlay: API-Football v3 — refresh cada 2 min durante partidos,
   // 15 min en idle. Score en fuente = 15s (vs ~5 min de football-data.org free tier).
@@ -254,16 +301,30 @@ async function main() {
 
   // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy, league-aware)
   const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`).filter((id) => isCompetitionEnabled(id));
-  const ALL_COMP_IDS = [
-    ...FD_COMP_IDS,
-    UY_COMPETITION_ID,
-    AR_COMPETITION_ID,
-    OLG_COMPETITION_ID,
-    WC_COMPETITION_ID,
-    CLI_COMPETITION_ID,
-  ].filter((id) => isCompetitionEnabled(id));
+  const ALL_COMP_IDS = (AF_CANONICAL_ENABLED && afCanonicalSource
+    ? [
+        ...AF_COMP_IDS,
+        WC_COMPETITION_ID,
+        CLI_COMPETITION_ID,
+      ]
+    : [
+        ...FD_COMP_IDS,
+        UY_COMPETITION_ID,
+        AR_COMPETITION_ID,
+        OLG_COMPETITION_ID,
+        WC_COMPETITION_ID,
+        CLI_COMPETITION_ID,
+      ]
+  ).filter((id) => isCompetitionEnabled(id));
   // V2 only supports football-data.org competitions (historical loader only covers FD)
   const fdCompetitionCodeMap = new Map(FD_COMPETITION_CODES.map((c) => [`comp:football-data:${c}`, c]));
+  // In AF mode: map AF competition IDs → FD codes so V3 shadow can still query HistoricalStateService
+  // (historical data is stored by FD code; team IDs differ but the runner falls back gracefully)
+  if (AF_CANONICAL_ENABLED) {
+    fdCompetitionCodeMap.set('comp:apifootball:140', 'PD');
+    fdCompetitionCodeMap.set('comp:apifootball:39',  'PL');
+    fdCompetitionCodeMap.set('comp:apifootball:78',  'BL1');
+  }
   function normTeamName(s: string) {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   }
@@ -276,13 +337,15 @@ async function main() {
     // El costo es mínimo (~100 equipos en memoria, O(n) iteración).
     leagueCrestMaps = new Map();
     globalCrestMap = new Map();
-    const leagueToCompIds: Record<string, string[]> = {
-      URUGUAY_PRIMERA:   [UY_COMPETITION_ID],
-      ARGENTINA_PRIMERA: [AR_COMPETITION_ID],
-      PREMIER_LEAGUE:    FD_COMPETITION_CODES.includes('PL') ? ['comp:football-data:PL'] : [],
-      LALIGA:            FD_COMPETITION_CODES.includes('PD') ? ['comp:football-data:PD'] : [],
-      BUNDESLIGA:        [OLG_COMPETITION_ID],
-    };
+    const leagueToCompIds: Record<string, string[]> = AF_CANONICAL_ENABLED && afCanonicalSource
+      ? Object.fromEntries(COMPETITION_REGISTRY.map((e) => [e.normalizedLeague, [e.id]]))
+      : {
+          URUGUAY_PRIMERA:   [UY_COMPETITION_ID],
+          ARGENTINA_PRIMERA: [AR_COMPETITION_ID],
+          PREMIER_LEAGUE:    FD_COMPETITION_CODES.includes('PL') ? ['comp:football-data:PL'] : [],
+          LALIGA:            FD_COMPETITION_CODES.includes('PD') ? ['comp:football-data:PD'] : [],
+          BUNDESLIGA:        [OLG_COMPETITION_ID],
+        };
     for (const [league, compIds] of Object.entries(leagueToCompIds)) {
       const map = new Map<string, string>();
       for (const compId of compIds) {
@@ -326,15 +389,21 @@ async function main() {
 
   // Build matchEventsService first — used as goals fallback for IncidentService.
   const matchEventsService = new MatchEventsService(SPORTSDB_API_KEY, dataSource);
-  // OpenLigaDB handles its own goal events natively (BL1)
-  matchEventsService.registerProvider(OPENLIGADB_PROVIDER_KEY, openLigaDbSource);
+  // OpenLigaDB handles its own goal events natively (BL1) — only in legacy mode
+  if (!AF_CANONICAL_ENABLED) {
+    matchEventsService.registerProvider(OPENLIGADB_PROVIDER_KEY, openLigaDbSource);
+  }
   // API-Football handles post-match goal events for PD, PL, URU (disk-cached, 1 req/match)
   if (AF_KEY_FOR_INCIDENTS) {
     const apiFootballSource = new ApiFootballSource(AF_KEY_FOR_INCIDENTS, dataSource);
     matchEventsService.registerProvider('football-data', apiFootballSource);
     matchEventsService.registerProvider('thesportsdb', apiFootballSource);
     matchEventsService.registerProvider(AR_PROVIDER_KEY, apiFootballSource);
-    console.log('[ApiFootballSource] registered for football-data + thesportsdb + sportsdb-ar');
+    // When AF is the canonical source, all matches use provider key 'apifootball'
+    if (AF_CANONICAL_ENABLED) {
+      matchEventsService.registerProvider(AF_PROVIDER_KEY, apiFootballSource);
+    }
+    console.log('[ApiFootballSource] registered for football-data + thesportsdb + sportsdb-ar' + (AF_CANONICAL_ENABLED ? ' + apifootball' : ''));
   } else {
     console.warn('[ApiFootballSource] APIFOOTBALL_KEY not set — PD/PL/URU goal events disabled');
   }
@@ -346,10 +415,17 @@ async function main() {
   const PORTAL_TZ = 'America/Montevideo';
 
   const COMP_LEAGUE_KEY: Record<string, string> = {
+    // Legacy IDs
     [UY_COMPETITION_ID]:  'URUGUAY_PRIMERA',
     [AR_COMPETITION_ID]:  'ARGENTINA_PRIMERA',
     [OLG_COMPETITION_ID]: 'BUNDESLIGA',
+    [WC_COMPETITION_ID]:  'MUNDIAL',
+    [CLI_COMPETITION_ID]: 'COPA_LIBERTADORES',
   };
+  // API-Football canonical IDs — derived from registry (single source of truth)
+  for (const entry of COMPETITION_REGISTRY) {
+    COMP_LEAGUE_KEY[entry.id] = entry.normalizedLeague;
+  }
   for (const code of FD_COMPETITION_CODES) {
     const id = `comp:football-data:${code}`;
     COMP_LEAGUE_KEY[id] =
@@ -358,8 +434,6 @@ async function main() {
       : code === 'BL1' ? 'BUNDESLIGA'
       : 'OTRA';
   }
-  COMP_LEAGUE_KEY[WC_COMPETITION_ID] = 'MUNDIAL';
-  COMP_LEAGUE_KEY[CLI_COMPETITION_ID] = 'COPA_LIBERTADORES';
 
   function isToday(isoStr: string, tz: string): boolean {
     const now = new Date();
@@ -427,6 +501,7 @@ async function main() {
             scoreHome:        isLive ? (m.scoreHome ?? null) : null,
             scoreAway:        isLive ? (m.scoreAway ?? null) : null,
             matchPeriod:      isLive ? m.matchPeriod : undefined,
+            elapsedMinutes:   isLive ? (m.elapsedMinutes ?? undefined) : undefined,
           });
         }
       }
@@ -462,7 +537,15 @@ async function main() {
   // H11 — Forward Validation pipeline (feature-flagged)
   const forwardValStore = new ForwardValidationStore();
   const historicalStateServiceFV = new HistoricalStateService({ apiToken: API_TOKEN! });
-  const forwardValRunner = new ForwardValidationRunner(dataSource, predictionService, historicalStateServiceFV, forwardValStore);
+  // AF canonical competition IDs — use DataSource-derived Elo instead of FD historical loader.
+  // All five AF leagues (EU + URU + ARG) use team:apifootball:* IDs incompatible with FD loader.
+  const AF_FV_COMP_IDS = COMPETITION_REGISTRY
+    .filter((e) => !e.isTournament)
+    .map((e) => e.id);
+  const forwardValRunner = new ForwardValidationRunner(
+    dataSource, predictionService, historicalStateServiceFV, forwardValStore,
+    AF_FV_COMP_IDS,
+  );
   const forwardValEvaluator = new ForwardValidationEvaluator(forwardValStore, dataSource);
 
   // Composite tournament source — delega a WC, CA o CLI según competitionId
@@ -476,7 +559,33 @@ async function main() {
     getTournamentMatches: (id: string) => tournamentSources.get(id)?.getTournamentMatches(id) ?? null,
   };
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getFullConfig });
+  // Enrich portal-config with visual metadata from COMPETITION_REGISTRY
+  // so the frontend receives all it needs and doesn't hardcode any provider-specific IDs.
+  function getEnrichedPortalConfig() {
+    const raw = getFullConfig();
+    return {
+      competitions: raw.competitions.map((c) => {
+        const meta = REGISTRY_BY_ID.get(c.id);
+        return {
+          id:               c.id,
+          slug:             c.slug,
+          displayName:      c.displayName,
+          enabled:          c.enabled,
+          normalizedLeague: meta?.normalizedLeague ?? 'OTRA',
+          newsKey:          meta?.newsKey ?? null,
+          accentColor:      meta?.accentColor ?? '#6b7280',
+          isTournament:     meta?.isTournament ?? false,
+          logoUrl:          meta?.logoUrl ?? null,
+          seasonLabel:      meta?.seasonLabel ?? null,
+          phases:           meta?.phases ?? null,
+          startDate:        meta?.startDate ?? null,
+        };
+      }),
+      features: { tv: raw.features.tv, predictions: raw.features.predictions },
+    };
+  }
+
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getEnrichedPortalConfig });
   registerAdminRoutes(app);
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
@@ -545,18 +654,10 @@ async function main() {
 
   function getAllMatchSnapshots(): MatchSnapshot[] {
     const all: MatchSnapshot[] = [];
-    for (const code of FD_COMPETITION_CODES) {
-      const seasonId = dataSource.getSeasonId(`comp:football-data:${code}`);
+    for (const compId of ALL_COMP_IDS) {
+      const seasonId = dataSource.getSeasonId(compId);
       if (seasonId) all.push(...dataSource.getMatches(seasonId));
     }
-    const uySeasonId = dataSource.getSeasonId(UY_COMPETITION_ID);
-    if (uySeasonId) all.push(...dataSource.getMatches(uySeasonId));
-    const olgSeasonId = dataSource.getSeasonId(OLG_COMPETITION_ID);
-    if (olgSeasonId) all.push(...dataSource.getMatches(olgSeasonId));
-    const wcSeasonId = wcSource.getSeasonId(WC_COMPETITION_ID);
-    if (wcSeasonId) all.push(...wcSource.getMatches(wcSeasonId));
-    const cliSeasonId = cliSource.getSeasonId(CLI_COMPETITION_ID);
-    if (cliSeasonId) all.push(...cliSource.getMatches(cliSeasonId));
     return all;
   }
 
@@ -587,44 +688,61 @@ async function main() {
   }
 
   async function runRefreshInner(): Promise<void> {
-    // Re-read enabled state on each refresh cycle so changes take effect without restart
-    const enabledFdCodes = FD_COMPETITION_CODES.filter((c) =>
-      isCompetitionEnabled(`comp:football-data:${c}`),
-    );
-    for (let i = 0; i < enabledFdCodes.length; i++) {
-      const code = enabledFdCodes[i];
-      try {
-        await fdSource.fetchCompetition(code);
-        snapshotService.invalidateAll();
-      } catch (err) {
-        console.error(`Refresh failed for ${code}:`, err);
+    if (AF_CANONICAL_ENABLED && afCanonicalSource) {
+      // AF mode: refresh all AF competitions sequentially
+      const enabledAfIds = AF_COMP_IDS.filter((id) => isCompetitionEnabled(id));
+      for (let i = 0; i < enabledAfIds.length; i++) {
+        const compId = enabledAfIds[i];
+        try {
+          await afCanonicalSource.fetchCompetition(compId);
+          snapshotService.invalidateAll();
+        } catch (err) {
+          console.error(`[AfCanonical] Refresh failed for ${compId}:`, err);
+        }
+        if (i < enabledAfIds.length - 1) {
+          await new Promise<void>((r) => setTimeout(r, 1500));
+        }
       }
-      if (i < enabledFdCodes.length - 1) {
-        await new Promise<void>((r) => setTimeout(r, 7000));
+    } else {
+      // Legacy mode: refresh FD, TheSportsDB, OpenLigaDB
+      const enabledFdCodes = FD_COMPETITION_CODES.filter((c) =>
+        isCompetitionEnabled(`comp:football-data:${c}`),
+      );
+      for (let i = 0; i < enabledFdCodes.length; i++) {
+        const code = enabledFdCodes[i];
+        try {
+          await fdSource.fetchCompetition(code);
+          snapshotService.invalidateAll();
+        } catch (err) {
+          console.error(`Refresh failed for ${code}:`, err);
+        }
+        if (i < enabledFdCodes.length - 1) {
+          await new Promise<void>((r) => setTimeout(r, 7000));
+        }
       }
-    }
-    if (isCompetitionEnabled(UY_COMPETITION_ID)) {
-      try {
-        await sportsDbSource.fetchSeason();
-        snapshotService.invalidateAll();
-      } catch (err) {
-        console.error('Refresh failed for Liga Uruguaya:', err);
+      if (isCompetitionEnabled(UY_COMPETITION_ID)) {
+        try {
+          await sportsDbSource.fetchSeason();
+          snapshotService.invalidateAll();
+        } catch (err) {
+          console.error('Refresh failed for Liga Uruguaya:', err);
+        }
       }
-    }
-    if (isCompetitionEnabled(AR_COMPETITION_ID)) {
-      try {
-        await sportsDbArSource.fetchSeason();
-        snapshotService.invalidateAll();
-      } catch (err) {
-        console.error('Refresh failed for Liga Argentina:', err);
+      if (isCompetitionEnabled(AR_COMPETITION_ID)) {
+        try {
+          await sportsDbArSource.fetchSeason();
+          snapshotService.invalidateAll();
+        } catch (err) {
+          console.error('Refresh failed for Liga Argentina:', err);
+        }
       }
-    }
-    if (isCompetitionEnabled(OLG_COMPETITION_ID)) {
-      try {
-        await openLigaDbSource.fetchSeason();
-        snapshotService.invalidateAll();
-      } catch (err) {
-        console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
+      if (isCompetitionEnabled(OLG_COMPETITION_ID)) {
+        try {
+          await openLigaDbSource.fetchSeason();
+          snapshotService.invalidateAll();
+        } catch (err) {
+          console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
+        }
       }
     }
     if (isCompetitionEnabled(WC_COMPETITION_ID)) {
@@ -650,48 +768,71 @@ async function main() {
     // evaluationStore NOT passed: V3 runner is the authoritative source for evaluation.
     // Passing it here would let spec (prior_rating=false → league baseline) overwrite V3 records.
     void runShadow(dataSource, ALL_COMP_IDS, predictionService, predictionStore);
-    // V2 structural shadow — fire-and-forget, fault-isolated. FD competitions only.
-    const v2SeasonYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
-    void runV2Shadow(dataSource, FD_COMP_IDS, historicalStateServiceFV, v2PredictionStore, fdCompetitionCodeMap, v2SeasonYear);
-    // V3 unified shadow — fire-and-forget, fault-isolated.
-    // FD comps: usa HistoricalStateService (current + prev season).
-    // Non-FD (BL1, URU, ARG): DataSource actual + NonFdLoader para temporada anterior.
-    const v3SeasonYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
-    const v3FdCompIds = FD_COMP_IDS.filter((id) => isCompetitionEnabled(id) && isV3ShadowEnabled(id));
-    const v3NonFdDescriptors: NonFdCompDescriptor[] = [
-      {
-        competitionId: OLG_COMPETITION_ID,
-        provider: 'openligadb',
-        providerLeagueId: OLG_LEAGUE,
-        providerKey: OPENLIGADB_PROVIDER_KEY,
-        expectedSeasonGames: 34, // Bundesliga: 18 teams, 34 matchdays
-      },
-      {
-        competitionId: UY_COMPETITION_ID,
-        provider: 'thesportsdb',
-        providerLeagueId: UY_LEAGUE_ID,
-        providerKey: SPORTSDB_PROVIDER_KEY,
-        sdbApiKey: SPORTSDB_API_KEY,
-        expectedSeasonGames: 15, // URU Clausura/Apertura: ~16 teams, single round-robin (~15 games)
-      },
-      {
-        competitionId: AR_COMPETITION_ID,
-        provider: 'thesportsdb',
-        providerLeagueId: AR_LEAGUE_ID,
-        providerKey: AR_PROVIDER_KEY,
-        sdbApiKey: SPORTSDB_API_KEY,
-        expectedSeasonGames: 19, // ARG Apertura/Clausura: ~20 teams, single round-robin (~19 games)
-      },
-    ].filter((d) => isCompetitionEnabled(d.competitionId) && isV3ShadowEnabled(d.competitionId));
-    if (v3FdCompIds.length > 0 || v3NonFdDescriptors.length > 0) {
-      void runV3Shadow(dataSource, v3FdCompIds, v3NonFdDescriptors, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, v3SeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource);
+
+    const shadowSeasonYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
+
+    if (AF_CANONICAL_ENABLED && afCanonicalSource) {
+      // AF mode: todas las competencias usan API-Football como fuente única.
+      // currentSeasonMatches viene del DataSource (team:apifootball:* IDs).
+      // prevSeasonMatches viene de loadAfHistoricalMatches (mismos IDs, consistente).
+      // V2 shadow omitido: IDs de teams incompatibles con AF.
+      const AF_V3_COMPS: NonFdCompDescriptor[] = COMPETITION_REGISTRY
+        .filter((e) => !e.isTournament) // torneos no tienen motor predictivo aún
+        .map((e) => ({
+          competitionId:       e.id,
+          provider:            'apifootball' as const,
+          providerLeagueId:    String(e.leagueId),
+          providerKey:         AF_PROVIDER_KEY,
+          afApiKey:            AF_KEY,
+          expectedSeasonGames: e.expectedSeasonGames,
+        }))
+        .filter((d) => isCompetitionEnabled(d.competitionId) && isV3ShadowEnabled(d.competitionId));
+      if (AF_V3_COMPS.length > 0) {
+        void runV3Shadow(dataSource, [], AF_V3_COMPS, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, shadowSeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource);
+      }
+    } else {
+      // Legacy mode: V2 + V3 shadow for FD and non-FD competitions
+      void runV2Shadow(dataSource, FD_COMP_IDS, historicalStateServiceFV, v2PredictionStore, fdCompetitionCodeMap, shadowSeasonYear);
+      const v3FdCompIds = FD_COMP_IDS.filter((id) => isCompetitionEnabled(id) && isV3ShadowEnabled(id));
+      const v3NonFdDescriptors: NonFdCompDescriptor[] = [
+        {
+          competitionId: OLG_COMPETITION_ID,
+          provider: 'openligadb',
+          providerLeagueId: OLG_LEAGUE,
+          providerKey: OPENLIGADB_PROVIDER_KEY,
+          expectedSeasonGames: 34,
+        },
+        {
+          competitionId: UY_COMPETITION_ID,
+          provider: 'thesportsdb',
+          providerLeagueId: UY_LEAGUE_ID,
+          providerKey: SPORTSDB_PROVIDER_KEY,
+          sdbApiKey: SPORTSDB_API_KEY,
+          expectedSeasonGames: 15,
+        },
+        {
+          competitionId: AR_COMPETITION_ID,
+          provider: 'thesportsdb',
+          providerLeagueId: AR_LEAGUE_ID,
+          providerKey: AR_PROVIDER_KEY,
+          sdbApiKey: SPORTSDB_API_KEY,
+          expectedSeasonGames: 19,
+        },
+      ].filter((d) => isCompetitionEnabled(d.competitionId) && isV3ShadowEnabled(d.competitionId));
+      if (v3FdCompIds.length > 0 || v3NonFdDescriptors.length > 0) {
+        void runV3Shadow(dataSource, v3FdCompIds, v3NonFdDescriptors, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, shadowSeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource);
+      }
     }
+
     // AF vs FD historical shadow validation — feature-flagged, fault-isolated
     // Activa con: SHADOW_AF_VALIDATION_ENABLED=true
     if (process.env.SHADOW_AF_VALIDATION_ENABLED === 'true') {
       const afShadowKey = process.env.APIFOOTBALL_KEY ?? '';
-      const afShadowSeason = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
-      void runAfShadowValidation(dataSource, FD_COMP_IDS, historicalStateServiceFV, afShadowSeason, afShadowKey);
+      // In AF mode, use AF comp IDs instead of FD comp IDs
+      const shadowCompIds = AF_CANONICAL_ENABLED
+        ? COMPETITION_REGISTRY.filter((e) => !e.isTournament && e.seasonKind === 'european').map((e) => e.id)
+        : FD_COMP_IDS;
+      void runAfShadowValidation(dataSource, shadowCompIds, historicalStateServiceFV, shadowSeasonYear, afShadowKey);
     }
 
     // OE-3: capture ground truth for completed matches
@@ -700,8 +841,11 @@ async function main() {
     // Forward validation — feature-flagged, fault-isolated
     const fvEnabled = process.env.FORWARD_VALIDATION_ENABLED === 'true';
     if (fvEnabled) {
-      const fvCompetitions = (process.env.FORWARD_VALIDATION_COMPETITIONS ?? 'PD,PL,BL1')
-        .split(',').map(c => `comp:football-data:${c.trim()}`);
+      // In AF mode: use AF competition IDs; in legacy mode: build from FD codes
+      const fvCompetitions = AF_CANONICAL_ENABLED && afCanonicalSource
+        ? COMPETITION_REGISTRY.filter((e) => !e.isTournament).map((e) => e.id).filter((id) => isCompetitionEnabled(id))
+        : (process.env.FORWARD_VALIDATION_COMPETITIONS ?? 'PD,PL,BL1')
+            .split(',').map(c => `comp:football-data:${c.trim()}`);
       const seasonStartYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
       void forwardValRunner.run(fvCompetitions, seasonStartYear).then(result => {
         if (result.frozen > 0 || result.errors > 0) {

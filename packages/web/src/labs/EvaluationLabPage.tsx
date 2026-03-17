@@ -438,7 +438,7 @@ export function EvaluationLabPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchEvaluation('comp:football-data:PD');
+      const result = await fetchEvaluation('comp:apifootball:140');
       setData(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

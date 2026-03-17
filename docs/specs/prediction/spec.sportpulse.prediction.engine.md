@@ -13,7 +13,7 @@ updated_at: 2026-03-15
 supersedes: ['SPEC-SPORTPULSE-PREDICTION-ENGINE-V2']
 superseded_by: []
 related_artifacts: []
-canonical_path: docs/specs/spec.sportpulse.prediction.engine.md
+canonical_path: docs/specs/prediction/spec.sportpulse.prediction.engine.md
 ---
 # SportPulse — Especificación técnica v1.3 del motor predictivo de partidos y competiciones
 

@@ -51,6 +51,8 @@ export interface Match {
   status: EventStatus;
   /** Período del partido — disponible solo cuando la API lo reporta (TheSportsDB: 1H/HT/2H; football-data: PAUSED=HT). */
   matchPeriod?: MatchPeriod;
+  /** Minuto de juego reportado por la API (AF: fixture.status.elapsed). Solo presente cuando IN_PROGRESS. */
+  elapsedMinutes?: number | null;
   homeTeamId: string;
   awayTeamId: string;
   scoreHome: number | null;

@@ -7,7 +7,7 @@ import { useLiveMatchClock } from '../../hooks/use-live-match-clock.js';
 import type { ParsedEvent, EventosFeed } from '../../hooks/use-events.js';
 import { openEventDirect } from '../../hooks/use-events.js';
 import { getMatchDisplayStatus, ZOMBIE_THRESHOLD_MIN, AUTOFINISH_THRESHOLD_MIN } from '../../utils/match-status.js';
-import { COMP_ID_TO_NORMALIZED_LEAGUE, MANAGED_NORMALIZED_LEAGUES } from '../../utils/competition-meta.js';
+import { MANAGED_NORMALIZED_LEAGUES, NORMALIZED_LEAGUE_TO_ACCENT, COMP_ID_TO_NORMALIZED_LEAGUE } from '../../utils/competition-meta.js';
 import { useTeamDetail } from '../../hooks/use-team-detail.js';
 import { DetailPanel } from '../DetailPanel.js';
 
@@ -33,6 +33,7 @@ interface UpcomingMatchDTO {
   scoreHome: number | null;
   scoreAway: number | null;
   matchPeriod?: 'FIRST_HALF' | 'HALF_TIME' | 'SECOND_HALF' | 'EXTRA_TIME' | 'PENALTIES';
+  elapsedMinutes?: number | null;
 }
 
 /** Estado visual de un partido en vivo tras aplicar el zombie guard (alias local) */
@@ -45,15 +46,11 @@ const CARD_GAP       = 12;
 
 // ZOMBIE_THRESHOLD_MIN y AUTOFINISH_THRESHOLD_MIN vienen de match-status.ts (importados arriba)
 
+// Derived from NORMALIZED_LEAGUE_TO_ACCENT (competition-meta → DEFAULT_CONFIG → registry)
+// Copa América no está en el registry (no es una liga activa del portal) — fallback manual.
 const LEAGUE_ACCENT: Record<string, string> = {
-  URUGUAY_PRIMERA:    '#3b82f6',
-  ARGENTINA_PRIMERA:  '#74b9ff',
-  LALIGA:             '#f59e0b',
-  PREMIER_LEAGUE:     '#a855f7',
-  BUNDESLIGA:         '#ef4444',
-  MUNDIAL:            '#22c55e',
-  COPA_AMERICA:       '#3b82f6',
-  COPA_LIBERTADORES:  '#eab308',
+  COPA_AMERICA: '#3b82f6', // no tiene competitionId en el portal, fallback estático
+  ...NORMALIZED_LEAGUE_TO_ACCENT,
 };
 
 const LEAGUE_LABEL: Record<string, string> = {
@@ -174,6 +171,7 @@ function upcomingToEvent(m: UpcomingMatchDTO, streamUrlMap: Map<string, string>)
     scoreHome:                   m.scoreHome,
     scoreAway:                   m.scoreAway,
     matchPeriod:                 m.matchPeriod,
+    elapsedMinutes:              m.elapsedMinutes,
   };
 }
 
@@ -237,7 +235,7 @@ function LiveMatchCard({
   const isLive      = event.normalizedStatus === 'EN_VIVO';
   const liveState   = isLive ? getLiveState(event) : 'live';
   const isZombie    = liveState === 'zombie';
-  const clockText   = useLiveMatchClock(event.startsAtSource, event.matchPeriod, isLive && !isZombie);
+  const clockText   = useLiveMatchClock(event.startsAtSource, event.matchPeriod, isLive && !isZombie, event.elapsedMinutes);
   const isStream    = !!event.openUrl;
   const isCanonical = event.id.startsWith('canonical:');
   const accent      = LEAGUE_ACCENT[event.normalizedLeague] ?? '#6b7280';

@@ -36,6 +36,7 @@ export interface ParsedEvent {
   scoreHome?: number | null;
   scoreAway?: number | null;
   matchPeriod?: 'FIRST_HALF' | 'HALF_TIME' | 'SECOND_HALF' | 'EXTRA_TIME' | 'PENALTIES';
+  elapsedMinutes?: number | null;
 }
 
 export interface EventosFeed {

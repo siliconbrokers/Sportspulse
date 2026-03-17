@@ -13,7 +13,7 @@ updated_at: 2026-03-15
 supersedes: []
 superseded_by: []
 related_artifacts: []
-canonical_path: docs/specs/spec.sportpulse.portal.video-highlights.md
+canonical_path: docs/specs/portal/spec.sportpulse.portal.video-highlights.md
 ---
 # SportPulse — Especificación de video destacado por liga en panel de noticias
 

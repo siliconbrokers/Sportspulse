@@ -47,10 +47,17 @@ interface OddsEvent {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const SPORT_KEYS: Record<string, string> = {
+  // Legacy IDs — kept for backward compatibility (AF_CANONICAL_ENABLED=false)
   'comp:football-data:PD':  'soccer_spain_la_liga',
   'comp:football-data:PL':  'soccer_epl',
   'comp:football-data:BL1': 'soccer_germany_bundesliga',
   'comp:thesportsdb:4432':  'soccer_uruguay_primera_division',
+  // AF canonical IDs (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:140':   'soccer_spain_la_liga',
+  'comp:apifootball:39':    'soccer_epl',
+  'comp:apifootball:78':    'soccer_germany_bundesliga',
+  'comp:apifootball:268':   'soccer_uruguay_primera_division',
+  'comp:apifootball:128':   'soccer_argentina_primera_division',
 };
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes

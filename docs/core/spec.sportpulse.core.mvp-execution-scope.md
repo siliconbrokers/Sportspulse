@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-CORE-MVP-EXECUTION-SCOPE
 title: "MVP Execution Scope"
 artifact_class: spec
 status: active
-version: 1.0.0
+version: 2.0.0
 project: sportpulse
 domain: core
 slug: mvp-execution-scope
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-16
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,8 +17,8 @@ canonical_path: docs/core/spec.sportpulse.core.mvp-execution-scope.md
 ---
 # SportPulse — MVP Execution Scope
 
-Version: 1.1
-Status: Authoritative execution scope for MVP delivery — amended to include Predictive Engine (v1.1)  
+Version: 2.0
+Status: Authoritative execution scope for MVP delivery — amended to include Predictive Engine and commercial pillars (v2.0)
 Scope: Executable MVP boundaries, deliverables, exclusions, workflows, and acceptance scope for AI-assisted and human development  
 Audience: Product, Backend, Frontend, QA, Ops, AI-assisted development workflows
 
@@ -59,13 +59,12 @@ If a lower-level implementation proposal introduces scope outside this document 
 
 ## 3. MVP product statement
 
-The MVP is a **football-only, single-competition, snapshot-first dashboard** that helps a user understand:
+The MVP is a **football-only, snapshot-first analytics platform** that delivers two co-equal product experiences:
 
-- which teams deserve attention right now
-- why those teams are prominent
-- what upcoming match context is relevant
+1. A treemap-based attention dashboard that shows which teams deserve attention, why, and what upcoming match context is relevant.
+2. A match prediction surface that shows calibrated outcome probabilities backed by a publicly visible, accumulating track record.
 
-The MVP is delivered through a treemap-based dashboard with explainable detail.
+The MVP must begin building the track record from day one. The track record is not a post-MVP feature. It is the core competitive asset.
 
 ---
 
@@ -73,13 +72,16 @@ The MVP is delivered through a treemap-based dashboard with explainable detail.
 
 The MVP must prove, in product terms, that SportPulse can deliver:
 
-1. **competition-wide attention prioritization**
-2. **fast user orientation**
-3. **explainable prominence**
-4. **coherent snapshot rendering**
-5. **stable enough visual behavior to be trusted**
+1. **competition-wide attention prioritization** — teams ranked by explainable, deterministic score
+2. **fast user orientation** — a user can understand relevance within seconds
+3. **explainable prominence** — every tile size has a traceable reason
+4. **coherent snapshot rendering** — dashboard is stable under varying data conditions
+5. **credible match predictions** — calibrated 1X2 probabilities visible to all users
+6. **verifiable track record** — predictions timestamped before kickoff, accuracy visible publicly
+7. **freemium conversion surface** — free users see enough to trust; Pro users get depth
 
-The MVP does not need to prove advanced monetization, personalization, or predictive sophistication.
+The MVP does not need to prove personalization or multi-competition scale.
+The MVP must prove that predictions are trustworthy enough to motivate a Pro subscription.
 
 ---
 
@@ -169,6 +171,48 @@ In scope:
 ### Navigation invariants
 - Navigation state must not replace snapshot identity semantics.
 - UI state restoration must not recompute backend truth.
+
+---
+
+## 5.6 Prediction surface
+
+The MVP must expose match predictions to users before and during the prediction window.
+
+Minimum required:
+- calibrated 1X2 probabilities (home / draw / away) — visible to all users
+- operating mode indicator (FULL / LIMITED / N/A)
+- model explanation stub (what data drove this prediction) — visible to all users
+
+Pro-only (depth):
+- scoreline distribution top-N
+- expected goals (xG)
+- derived markets (O/U 2.5, BTTS)
+- per-team historical accuracy for this competition
+
+### Prediction surface invariants
+- Free predictions show 1X2 only; paywall triggers on depth
+- Operating mode must be visible (a NOT_ELIGIBLE match shows "Predicción no disponible")
+- Frontend must not compute probabilities; display only returned values
+
+---
+
+## 5.7 Track record visibility
+
+The MVP must make the track record publicly visible.
+
+Minimum required:
+- accuracy percentage per competition (last N predictions with operating_mode = FULL_MODE)
+- count of evaluated predictions
+- last updated timestamp
+
+This surface does not require interactive filtering or drill-down in MVP. A static aggregate per competition is sufficient.
+
+### Track record invariants
+- Only pre-kickoff predictions count
+- Accuracy computation is backend-produced; frontend displays
+- Data must not be filtered to show only favorable results
+- **Publication threshold:** accuracy for a given competition must not be displayed until ≥200 evaluated predictions exist for that competition (per Business Plan v3.0 §11.2). Below threshold, show prediction count but suppress numeric accuracy.
+- Walk-forward historical data may be shown earlier, but must carry explicit disclosure: "evaluación walk-forward histórica — no es historial operativo en tiempo real"
 
 ---
 
@@ -556,23 +600,24 @@ The MVP is not done merely because:
 ## 17. Explicit boundaries between MVP and post-MVP
 
 ### 17.1 MVP must answer
-- does attention prioritization feel valuable?
-- is form + agenda enough to create usefulness?
-- does explainability help trust?
-- does treemap work as a comprehension surface?
+- Does attention prioritization feel valuable?
+- Is form + agenda enough to create usefulness for the dashboard?
+- Does explainability help trust in both the dashboard and the predictions?
+- Do users find predictions credible enough to consider Pro?
+- Does the track record accumulate cleanly and remain auditable?
 
 ### 17.2 Post-MVP may answer
-- should we personalize?
-- should we add match-level attention?
-- should we add richer signals?
-- should we support more competitions?
-- should we add notification loops?
-- should we optimize monetization?
+- Should we personalize attention or predictions by user history?
+- Should we add match-level attention tiles to the dashboard?
+- Should we add richer scoring signals (xG-driven, H2H, fatigue)?
+- Should we support more competitions simultaneously?
+- Should we add notification loops?
+- Should we expand to national team competitions?
 
-Those are not MVP blockers.
+**Note:** Pro tier monetization is a Day-1 concern, not a post-MVP question. The funnel architecture must be in place before the product goes to general users.
 
 ---
 
 ## 18. One-paragraph summary
 
-The SportPulse MVP execution scope is a football-only, single-competition, snapshot-first product that must ingest provider data, normalize it canonically, compute a small explainable scoring model, generate deterministic treemap geometry server-side, expose the result through internal UI APIs, and render a dashboard plus team detail experience that remains trustworthy under degraded data conditions. Anything beyond that is outside the executable MVP unless explicitly approved.
+The SportPulse MVP execution scope is a football-only, snapshot-first analytics platform that must ingest provider data, normalize it canonically, compute an explainable attention scoring model, generate deterministic treemap geometry server-side, compute calibrated match outcome predictions using a versioned Elo + Poisson engine, expose predictions publicly with a visible track record, gate depth analytics behind a freemium Pro paywall, and render the full experience through internal UI APIs to a frontend that remains trustworthy under degraded data conditions. Anything beyond that is outside the executable MVP unless explicitly approved.

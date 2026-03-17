@@ -19,7 +19,9 @@
     "validate:v2": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/validate-v2-walkforward.ts",
     "validate:v2:segmented": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/validate-v2-segmented.ts",
     "backtest:v1:historical": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/run-backtest-historical.ts",
-    "train:calibrator": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/train-global-calibrator.ts"
+    "backtest:v3:historical": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/run-backtest-v3-historical.ts",
+    "train:calibrator": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/train-global-calibrator.ts",
+    "validate:registry": "pnpm tsx scripts/validate-doc-registry.ts"
   },
   "lint-staged": {
     "packages/*/src/**/*.ts": [
@@ -28,6 +30,12 @@
     ],
     "packages/*/test/**/*.ts": [
       "prettier --write"
+    ],
+    "docs/**/*.md": [
+      "pnpm tsx scripts/validate-doc-registry.ts"
+    ],
+    "docs/_registry/document-registry.md": [
+      "pnpm tsx scripts/validate-doc-registry.ts"
     ]
   },
   "devDependencies": {

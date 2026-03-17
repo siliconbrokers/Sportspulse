@@ -28,11 +28,18 @@ const LEGACY_DIR = path.join(process.cwd(), 'cache', 'incidents');
 // ── League slug mapping ───────────────────────────────────────────────────────
 
 const COMP_SLUG: Record<string, string> = {
+  // Legacy IDs — kept for backward compatibility (AF_CANONICAL_ENABLED=false)
   'comp:football-data:PD':    'laliga',
   'comp:football-data:PL':    'premier',
   'comp:openligadb:bl1':      'bundesliga',
   'comp:thesportsdb:4432':    'uruguay',
   'comp:football-data-wc:WC': 'worldcup',
+  // AF canonical IDs (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:140':     'laliga',
+  'comp:apifootball:39':      'premier',
+  'comp:apifootball:78':      'bundesliga',
+  'comp:apifootball:268':     'uruguay',
+  'comp:apifootball:128':     'argentina',
 };
 
 function deriveLeagueSlug(competitionId: string): string {
@@ -51,6 +58,8 @@ function deriveSeason(kickoffUtc: string, competitionId: string): string {
   const month = d.getUTCMonth() + 1; // 1-based
 
   const calendarYear = competitionId === 'comp:thesportsdb:4432'
+    || competitionId === 'comp:apifootball:268'  // Uruguay (AF canonical)
+    || competitionId === 'comp:apifootball:128'  // Argentina (AF canonical)
     || competitionId.includes('wc');
 
   if (calendarYear) return String(year);

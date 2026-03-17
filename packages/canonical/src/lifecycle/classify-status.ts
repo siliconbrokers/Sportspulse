@@ -33,6 +33,18 @@ const STATUS_MAP: Record<string, EventStatus> = {
   FT: EventStatus.FINISHED,
   FINAL: EventStatus.FINISHED,
 
+  // API-Football v3 specific
+  NS: EventStatus.SCHEDULED,         // Not Started
+  BT: EventStatus.IN_PROGRESS,       // Break Time (between ET halves)
+  INT: EventStatus.IN_PROGRESS,      // Interrupted (brief interruption)
+  AET: EventStatus.FINISHED,         // After Extra Time
+  AWD: EventStatus.FINISHED,         // Awarded (match awarded)
+  WO: EventStatus.FINISHED,          // Walkover
+  SUSP: EventStatus.POSTPONED,       // Suspended
+  PST: EventStatus.POSTPONED,        // Postponed
+  ABD: EventStatus.POSTPONED,        // Abandoned
+  CANC: EventStatus.CANCELED,        // Cancelled
+
   // TheSportsDB specific
   'MATCH FINISHED': EventStatus.FINISHED,
   'NOT STARTED': EventStatus.SCHEDULED,
@@ -70,6 +82,7 @@ export function classifyPeriod(providerStatus: string): MatchPeriod | undefined 
   if (s === 'HT' || s === 'PAUSED') return MatchPeriod.HALF_TIME;
   if (s === '2H') return MatchPeriod.SECOND_HALF;
   if (s === 'ET' || s === 'EXTRA TIME') return MatchPeriod.EXTRA_TIME;
-  if (s === 'PEN' || s === 'PENALTIES') return MatchPeriod.PENALTIES;
+  if (s === 'PEN' || s === 'PENALTIES' || s === 'P') return MatchPeriod.PENALTIES;
+  if (s === 'BT') return MatchPeriod.HALF_TIME;   // API-Football Break Time ≈ half-time between ET periods
   return undefined;
 }

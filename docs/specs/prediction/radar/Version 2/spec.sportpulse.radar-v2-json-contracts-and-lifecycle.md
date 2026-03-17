@@ -10,7 +10,7 @@ slug: radar-v2-json-contracts-and-lifecycle
 owner: team
 created_at: 2026-03-16
 updated_at: 2026-03-16
-canonical_path: docs/specs/spec.sportpulse.radar-v2-json-contracts-and-lifecycle.md
+canonical_path: docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-json-contracts-and-lifecycle.md
 ---
 
 # Radar SportPulse — JSON Contracts and Lifecycle v2

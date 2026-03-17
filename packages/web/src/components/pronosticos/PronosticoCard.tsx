@@ -149,9 +149,9 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
   const [marketsExpanded, setMarketsExpanded] = useState(false);
   const [marketsData, setMarketsData] = useState<MarketsData | null>(null);
 
-  // Fetch markets data for SCHEDULED (PRE_MATCH) desktop cards — fire-and-forget
+  // Fetch markets data for SCHEDULED (PRE_MATCH) cards — fire-and-forget
   useEffect(() => {
-    if (!competitionId || !matchCard.matchId || isMobile) return;
+    if (!competitionId || !matchCard.matchId) return;
     if (matchCard.status !== 'SCHEDULED') return;
     const controller = new AbortController();
     fetch(
@@ -165,7 +165,7 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
       })
       .catch(() => {});
     return () => { controller.abort(); };
-  }, [matchCard.matchId, matchCard.status, competitionId, isMobile]);
+  }, [matchCard.matchId, matchCard.status, competitionId]);
 
   // ── Status ────────────────────────────────────────────────────────────────
   const ds       = getMatchDisplayStatus(matchCard.status ?? 'SCHEDULED', matchCard.kickoffUtc ?? null);

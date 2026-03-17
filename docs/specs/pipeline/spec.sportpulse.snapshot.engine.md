@@ -13,7 +13,7 @@ updated_at: 2026-03-15
 supersedes: []
 superseded_by: []
 related_artifacts: []
-canonical_path: docs/specs/spec.sportpulse.snapshot.engine.md
+canonical_path: docs/specs/pipeline/spec.sportpulse.snapshot.engine.md
 ---
 # SportPulse — Snapshot Engine Specification
 

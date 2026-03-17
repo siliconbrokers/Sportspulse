@@ -13,7 +13,7 @@ updated_at: 2026-03-15
 supersedes: []
 superseded_by: ['SPEC-SPORTPULSE-PREDICTION-ENGINE']
 related_artifacts: []
-canonical_path: docs/specs/adr.sportpulse.prediction.pe-v2-production-authorization.md
+canonical_path: docs/specs/prediction/adr.sportpulse.prediction.pe-v2-production-authorization.md
 ---
 # SP-PRED-V2 — Motor Predictivo V2: Autorización de Producción y Trazabilidad de Engine
 

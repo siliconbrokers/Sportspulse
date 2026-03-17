@@ -31,7 +31,10 @@ import type {
  * Para estas, se bypasea API-Football completamente — solo goles disponibles.
  */
 const NATIVE_GOALS_COMPETITIONS = new Set([
+  // Legacy IDs — kept for backward compatibility (AF_CANONICAL_ENABLED=false)
   'comp:openligadb:bl1',
+  // AF canonical IDs (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:78',   // Bundesliga — uses native goals provider, no API-Football quota
 ]);
 
 /** True si la competición NO usa API-Football para incidentes. */

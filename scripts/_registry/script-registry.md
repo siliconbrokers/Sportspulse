@@ -774,6 +774,23 @@ Use this template when adding a script.
 
 ---
 
+### SCRIPT-SPORTPULSE-GOVERNANCE-VALIDATE-DOC-REGISTRY
+
+- **Purpose:** Validates consistency between `docs/_registry/document-registry.md` and governed artifacts on disk. Detects: registry paths that don't exist, governed docs without registry entry, version mismatches, status mismatches. Exits with code 1 if errors found (suitable for CI).
+- **Owner:** Platform / Governance
+- **Canonical path:** `scripts/validate-doc-registry.ts`
+- **Entrypoint:** `scripts/validate-doc-registry.ts`
+- **Execution:** `pnpm tsx scripts/validate-doc-registry.ts` / `pnpm tsx scripts/validate-doc-registry.ts --fix-hints`
+- **Inputs:** `docs/_registry/document-registry.md`, all `.md` files in `docs/` with YAML frontmatter
+- **Outputs:** stdout report (errors/warnings); exit 1 on errors
+- **Frequency:** On demand; recommended after any artifact creation, rename, or reorganization
+- **Observability:** stdout, exit code
+- **Supersedes:** []
+- **Superseded by:** []
+- **Notes:** Excludes `docs/archive/`, `docs/_governance/`, `docs/_registry/` from unregistered-doc check. Handles both 5-column and 6-column registry table formats.
+
+---
+
 ## 13. Review checklist
 
 Before considering this registry trustworthy, verify:

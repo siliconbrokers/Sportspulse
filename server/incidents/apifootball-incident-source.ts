@@ -10,17 +10,20 @@
  *          → /fixtures?date=&league=&season= (fallback, free plan: 2022-2024 only)
  *   3. Fetch /fixtures/events?fixture={id} → map to IncidentEvent[]
  *
- * Covered competitions:
- *   comp:football-data:PD   → League 140 (LaLiga)
- *   comp:football-data:PL   → League 39  (Premier League)
- *   comp:openligadb:bl1     → League 78  (Bundesliga)
- *   comp:thesportsdb:4432   → League 268 (Liga Uruguaya)
- *   comp:sportsdb-ar:4406   → League 128 (Liga Argentina)
- *   comp:football-data-wc:WC → League 1  (World Cup 2026)
+ * Covered competitions (canonical IDs when AF_CANONICAL_ENABLED=true):
+ *   comp:apifootball:140 → League 140 (LaLiga)
+ *   comp:apifootball:39  → League 39  (Premier League)
+ *   comp:apifootball:78  → League 78  (Bundesliga)
+ *   comp:apifootball:268 → League 268 (Liga Uruguaya)
+ *   comp:apifootball:128 → League 128 (Liga Argentina)
+ *   comp:apifootball:13  → League 13  (Copa Libertadores)
+ *   comp:apifootball:1   → League 1   (World Cup 2026)
+ * Legacy IDs (AF_CANONICAL_ENABLED=false) are preserved for backward compat.
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { MatchCoreInput, IncidentEvent } from './types.js';
+import { COMPETITION_REGISTRY, resolveAfSeason } from '../competition-registry.js';
 
 import {
   isQuotaExhausted as isAfQuotaExhausted,
@@ -43,7 +46,16 @@ interface LeagueConfig {
   season: (kickoffUtc: string) => number;
 }
 
+// AF canonical entries derived from COMPETITION_REGISTRY (single source of truth)
+const AF_CANONICAL_LEAGUE_MAP: Record<string, LeagueConfig> = Object.fromEntries(
+  COMPETITION_REGISTRY.map((e) => [
+    e.id,
+    { id: e.leagueId, season: (k: string) => resolveAfSeason(k, e.seasonKind) },
+  ]),
+);
+
 const COMP_LEAGUE_MAP: Record<string, LeagueConfig> = {
+  // Legacy IDs (pre AF_CANONICAL_ENABLED) — kept for backward compatibility
   'comp:football-data:PD':      { id: 140, season: europeanSeason },
   'comp:football-data:PL':      { id: 39,  season: europeanSeason },
   'comp:openligadb:bl1':        { id: 78,  season: europeanSeason },
@@ -51,6 +63,8 @@ const COMP_LEAGUE_MAP: Record<string, LeagueConfig> = {
   'comp:sportsdb-ar:4406':      { id: 128, season: (k) => new Date(k).getUTCFullYear() },
   'comp:football-data-wc:WC':   { id: 1,   season: (k) => new Date(k).getUTCFullYear() },
   'comp:football-data-cli:CLI': { id: 13,  season: (k) => new Date(k).getUTCFullYear() },
+  // AF canonical IDs — derived from registry
+  ...AF_CANONICAL_LEAGUE_MAP,
 };
 
 function europeanSeason(kickoffUtc: string): number {
@@ -156,7 +170,15 @@ export class ApiFootballIncidentSource {
     let entry = map[matchCore.matchId] ?? null;
 
     if (!entry) {
-      entry = await this.resolveFixture(matchCore, config);
+      // AF canonical match IDs encode the fixture ID directly: match:apifootball:{fixtureId}
+      // Skip the 3-step search chain — use a single /fixtures/{id} call instead.
+      const afMatch = /^match:apifootball:(\d+)$/.exec(matchCore.matchId);
+      if (afMatch) {
+        entry = await this.resolveViaFixtureId(parseInt(afMatch[1], 10));
+      } else {
+        entry = await this.resolveFixture(matchCore, config);
+      }
+
       if (!entry) {
         console.warn(`[AfIncidents] No fixture found for ${matchCore.matchId} (${matchCore.homeTeamName} vs ${matchCore.awayTeamName})`);
         return [];
@@ -166,6 +188,18 @@ export class ApiFootballIncidentSource {
     }
 
     return this.fetchEvents(entry.fixtureId, entry.homeTeamId);
+  }
+
+  /** Resolves homeTeamId for a known fixtureId via /fixtures/{id} — used for AF canonical matches. */
+  private async resolveViaFixtureId(fixtureId: number): Promise<FixtureEntry | null> {
+    try {
+      const data = await this.apiGet<{ response: AfFixtureItem[] }>(`/fixtures?id=${fixtureId}`);
+      const f = data.response?.[0];
+      if (!f) return null;
+      return { fixtureId: f.fixture.id, homeTeamId: f.teams.home.id };
+    } catch {
+      return null;
+    }
   }
 
   private async resolveFixture(

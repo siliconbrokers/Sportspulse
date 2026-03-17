@@ -3,7 +3,7 @@ artifact_id: SPEC-SPORTPULSE-CORE-REPO-STRUCTURE-AND-MODULE-BOUNDARIES
 title: "Repo Structure and Module Boundaries"
 artifact_class: spec
 status: active
-version: 1.0.0
+version: 1.1.0
 project: sportpulse
 domain: core
 slug: repo-structure-and-module-boundaries
@@ -67,36 +67,65 @@ This is the recommended MVP repository layout.
 sportpulse/
   README.md
   docs/
+    _registry/
+      document-registry.md
     core/
-      constitution.md
-      domain-glossary-and-invariants.md
-      mvp-execution-scope.md
-      non-functional-requirements.md
+      spec.sportpulse.core.constitution.md
+      spec.sportpulse.core.domain-glossary-and-invariants.md
+      spec.sportpulse.core.mvp-execution-scope.md
+      spec.sportpulse.core.non-functional-requirements.md
+      spec.sportpulse.ops.operational-baseline.md
+      spec.sportpulse.core.repo-structure-and-module-boundaries.md
+      spec.sportpulse.shared.errors-and-warnings-taxonomy.md
+      spec.sportpulse.qa.acceptance-test-matrix.md
+      spec.sportpulse.qa.golden-snapshot-fixtures.md
+      spec.sportpulse.qa.prediction-track-record-fixtures.md
+      spec.sportpulse.core.implementation-backlog.md
+      spec.sportpulse.core.ai-sdd-operating-protocol.md
+      spec.sportpulse.core.subagents-definition.md
+      spec.sportpulse.core.universal-case-intake-protocol.md
     specs/
-      signals-spec.md
-      metrics-spec.md
-      scoring-policy-spec.md
-      snapshot-engine-spec.md
-      dashboard-snapshot-dto.md
-      api-contract.md
-      treemap-algorithm-spec.md
-      layout-stability-spec.md
+      pipeline/
+        spec.sportpulse.signals.core.md
+        spec.sportpulse.signals.metrics.md
+        spec.sportpulse.scoring.policy.md
+        spec.sportpulse.snapshot.engine.md
+        spec.sportpulse.snapshot.dashboard-dto.md
+        spec.sportpulse.server.matchday-cache.md
+      api/
+        spec.sportpulse.api.contract.md
+        spec.sportpulse.api.refresh-optimization.md
+      layout/
+        spec.sportpulse.layout.treemap-algorithm.md
+        spec.sportpulse.layout.stability.md
+      portal/
+        spec.sportpulse.web.ui.md
+        spec.sportpulse.portal.interaction.md
+        [additional portal specs]
+      prediction/
+        spec.sportpulse.prediction.engine.md
+        spec.sportpulse.prediction.conformance-test-plan.md
+        [additional prediction specs]
+      competition/
+      data/
     architecture/
-      backend-architecture.md
-      frontend-architecture.md
-      component-map.md
-      interaction-spec.md
+      spec.sportpulse.server.backend-architecture.md
+      spec.sportpulse.web.frontend-architecture.md
+      spec.sportpulse.web.component-map.md
     data/
-      data-normalization.md
-      event-lifecycle.md
-      data-quality.md
+      spec.sportpulse.data.normalization.md
+      spec.sportpulse.data.event-lifecycle.md
+      spec.sportpulse.data.quality.md
     evolution/
-      feature-evolution.md
+      spec.sportpulse.product.feature-evolution.md
+      spec.sportpulse.product.product-loop.md
     product/
-      mvp-strategic-brief.md
-      mvp-one-pager.md
+      report.sportpulse.product.business-plan.2026-03-01.md  [active — v3.0]
+      spec.sportpulse.product.mvp-strategic-brief.md         [superseded]
+      spec.sportpulse.product.mvp-one-pager.md               [superseded]
+    audits/
+    plans/
     archive/
-      legacy-drafts/
   packages/
     shared/
       src/
@@ -192,6 +221,7 @@ sportpulse/
   tools/
     fixtures/
       golden/
+      prediction/
       generators/
     scripts/
     ci/

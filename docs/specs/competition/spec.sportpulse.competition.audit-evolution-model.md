@@ -13,7 +13,7 @@ updated_at: 2026-03-15
 supersedes: []
 superseded_by: []
 related_artifacts: []
-canonical_path: docs/specs/spec.sportpulse.competition.audit-evolution-model.md
+canonical_path: docs/specs/competition/spec.sportpulse.competition.audit-evolution-model.md
 ---
 \# Spec 1 — Auditoría y evolución del modelo de competiciones  
 \#\# Proyecto: Portal de resultados  

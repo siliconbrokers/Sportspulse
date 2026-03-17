@@ -52,16 +52,8 @@ function isAdminRoute(): boolean {
   return window.location.pathname.startsWith('/admin');
 }
 
-// Static metadata per competition ID — isTournament cannot come from the config service
-const COMP_META_STATIC: Record<string, { code: string; isTournament: boolean }> = {
-  'comp:thesportsdb:4432':      { code: '4432',    isTournament: false },
-  'comp:sportsdb-ar:4406':      { code: '4406-ar', isTournament: false },
-  'comp:football-data:PD':      { code: 'PD',      isTournament: false },
-  'comp:football-data:PL':      { code: 'PL',      isTournament: false },
-  'comp:openligadb:bl1':        { code: 'BL1',     isTournament: false },
-  'comp:football-data-cli:CLI': { code: 'CLI',     isTournament: true  },
-  'comp:football-data-wc:WC':   { code: 'WC',      isTournament: true  },
-};
+// COMP_META_STATIC eliminado — isTournament y code (slug) ahora vienen de portal-config.
+// El backend enriquece CompetitionEntry con estos campos desde competition-registry.ts.
 
 export function AppRoot() {
   if (isPlayerTestRoute()) {
@@ -87,17 +79,13 @@ function BootGate() {
   return <App portalConfig={portalConfig} />;
 }
 
-const FALLBACK_COMP_ID = 'comp:thesportsdb:4432';
+const FALLBACK_COMP_ID = 'comp:apifootball:268';
 
 function App({ portalConfig }: { portalConfig: PortalConfig }) {
-  // Compute enabled competitions in display order (same order as COMP_META_STATIC keys)
-  const COMPETITIONS = Object.keys(COMP_META_STATIC)
-    .map((id) => {
-      const entry = portalConfig.competitions.find((c) => c.id === id);
-      const enabled = entry ? entry.enabled : true;
-      return { id, ...COMP_META_STATIC[id], enabled };
-    })
-    .filter((c) => c.enabled);
+  // Competitions in display order — all metadata comes from portal-config (server-driven)
+  const COMPETITIONS = portalConfig.competitions
+    .filter((c) => c.enabled)
+    .map((c) => ({ id: c.id, code: c.slug, isTournament: c.isTournament ?? false, enabled: true }));
 
   const firstCompId = COMPETITIONS[0]?.id ?? FALLBACK_COMP_ID;
   const [competitionId, setCompetitionIdRaw] = useState(firstCompId);
@@ -259,6 +247,7 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
                   <PronosticosView
                     competitionId={resolvedCompetitionId}
                     matchday={matchday}
+                    subTournamentKey={subTournamentKey}
                   />
                 </>
               )}

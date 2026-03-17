@@ -74,6 +74,8 @@ export interface NextMatchDTO {
   matchStatus?: string;
   /** Período del partido — undefined cuando la API no lo reporta. */
   matchPeriod?: 'FIRST_HALF' | 'HALF_TIME' | 'SECOND_HALF' | 'EXTRA_TIME' | 'PENALTIES';
+  /** Minuto real reportado por la API (AF: fixture.status.elapsed). Solo cuando IN_PROGRESS. */
+  elapsedMinutes?: number | null;
   prediction?: PredictionDTO;
   predictionOutcome?: PredictionOutcomeDTO;
   /** Goals scored in this match — populated only for FINISHED matches. */

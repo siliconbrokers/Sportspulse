@@ -26,11 +26,18 @@ import { normTeamName } from './injury-source.js';
 // ── League ID mapping (same as injury-source.ts) ──────────────────────────────
 
 const AF_LEAGUE_IDS: Record<string, number> = {
+  // Legacy IDs
   'comp:football-data:PD':  140,  // LaLiga
   'comp:football-data:PL':   39,  // Premier League
   'comp:openligadb:bl1':     78,  // Bundesliga
   'comp:thesportsdb:4432':  268,  // Liga Uruguaya
   'comp:sportsdb-ar:4406':  128,  // Liga Argentina
+  // API-Football canonical IDs (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:140':   140,
+  'comp:apifootball:39':     39,
+  'comp:apifootball:78':     78,
+  'comp:apifootball:268':   268,
+  'comp:apifootball:128':   128,
 };
 
 // ── Cache ─────────────────────────────────────────────────────────────────────

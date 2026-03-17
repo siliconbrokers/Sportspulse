@@ -149,7 +149,7 @@
         "matchId": "match:football-data:30",
         "kickoffUtc": "2026-03-05T20:00:00Z",
         "opponentTeamId": "team:football-data:81",
-        "opponentName": "FC Barcelona",
+        "opponentName": "Barcelona",
         "opponentRecentForm": [
           "W",
           "L"
@@ -211,7 +211,7 @@
     },
     {
       "teamId": "team:football-data:81",
-      "teamName": "FC Barcelona",
+      "teamName": "Barcelona",
       "recentForm": [
         "W",
         "L"
@@ -399,6 +399,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -437,6 +438,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -479,6 +481,7 @@
       "away": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -512,7 +515,8 @@
       },
       "home": {
         "teamId": "team:football-data:81",
-        "name": "FC Barcelona",
+        "name": "Barcelona",
+        "shortName": "Barcelona",
         "formChip": {
           "icon": "❌",
           "label": "Viene mal",
@@ -551,6 +555,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -592,7 +597,8 @@
       },
       "away": {
         "teamId": "team:football-data:81",
-        "name": "FC Barcelona",
+        "name": "Barcelona",
+        "shortName": "Barcelona",
         "formChip": {
           "icon": "❌",
           "label": "Viene mal",
@@ -631,6 +637,7 @@
       "away": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -663,6 +670,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -672,7 +680,8 @@
       },
       "away": {
         "teamId": "team:football-data:81",
-        "name": "FC Barcelona",
+        "name": "Barcelona",
+        "shortName": "Barcelona",
         "formChip": {
           "icon": "❌",
           "label": "Viene mal",

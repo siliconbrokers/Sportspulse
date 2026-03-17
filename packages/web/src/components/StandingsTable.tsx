@@ -18,37 +18,50 @@ interface Zone {
   color: string;
 }
 
+const PD_ZONES: Zone[] = [
+  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
+  { from: 5,  to: 6,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
+  { from: 7,  to: 7,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
+  { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+];
+const PL_ZONES: Zone[] = [
+  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
+  { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
+  { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
+  { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+];
+const BL1_ZONES: Zone[] = [
+  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
+  { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
+  { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
+  { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: '#eab308' },
+  { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+];
+const URU_ZONES: Zone[] = [
+  { from: 1, to: 1, type: 'ucl', emoji: '🔵', label: 'Copa Libertadores', color: '#00E0FF' },
+  { from: 2, to: 5, type: 'uel', emoji: '🟠', label: 'Copa Sudamericana', color: '#F97316' },
+];
+// Argentina Liga Profesional — 28 equipos (Apertura 2025)
+const AR_ZONES: Zone[] = [
+  { from: 1,  to: 1,  type: 'ucl',        emoji: '🔵', label: 'Libertadores',  color: '#22c55e' },
+  { from: 2,  to: 4,  type: 'uel',        emoji: '🟠', label: 'Sudamericana',  color: '#22d3ee' },
+  { from: 25, to: 28, type: 'relegation', emoji: '🔴', label: 'Descenso',      color: '#ef4444' },
+];
+
 const ZONE_CONFIGS: Record<string, Zone[]> = {
-  'comp:football-data:PD': [
-    { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
-    { from: 5,  to: 6,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
-    { from: 7,  to: 7,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
-    { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
-  ],
-  'comp:football-data:PL': [
-    { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
-    { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
-    { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
-    { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
-  ],
-  'comp:openligadb:bl1': [
-    { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
-    { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
-    { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
-    { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: '#eab308' },
-    { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
-  ],
-  'comp:football-data:BL1': [
-    { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
-    { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
-    { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
-    { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: '#eab308' },
-    { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
-  ],
-  'comp:thesportsdb:4432': [
-    { from: 1, to: 1, type: 'ucl', emoji: '🔵', label: 'Copa Libertadores', color: '#00E0FF' },
-    { from: 2, to: 5, type: 'uel', emoji: '🟠', label: 'Copa Sudamericana', color: '#F97316' },
-  ],
+  // API-Football canonical IDs
+  'comp:apifootball:140': PD_ZONES,
+  'comp:apifootball:39':  PL_ZONES,
+  'comp:apifootball:78':  BL1_ZONES,
+  'comp:apifootball:268': URU_ZONES,
+  'comp:apifootball:128': AR_ZONES,
+  // Legacy IDs (kept for backward compat)
+  'comp:football-data:PD':  PD_ZONES,
+  'comp:football-data:PL':  PL_ZONES,
+  'comp:openligadb:bl1':    BL1_ZONES,
+  'comp:football-data:BL1': BL1_ZONES,
+  'comp:thesportsdb:4432':  URU_ZONES,
+  'comp:sportsdb-ar:4406':  AR_ZONES,
 };
 
 function getZone(competitionId: string, position: number): Zone | null {

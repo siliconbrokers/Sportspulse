@@ -13,7 +13,7 @@ updated_at: 2026-03-15
 supersedes: []
 superseded_by: []
 related_artifacts: []
-canonical_path: docs/specs/spec.sportpulse.data.qcbl-conmebol-2026-backfill.md
+canonical_path: docs/specs/data/spec.sportpulse.data.qcbl-conmebol-2026-backfill.md
 ---
 \# SPEC\_QCBL\_CONMEBOL\_2026\_BACKFILL.md
 

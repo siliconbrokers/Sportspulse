@@ -17,11 +17,20 @@ import type { MatchCoreInput } from './types.js';
 // ── Mapa de competición → slug de Flashscore ──────────────────────────────────
 
 const FS_COMPETITION_SLUGS: Record<string, string> = {
+  // Legacy IDs — kept for backward compatibility (AF_CANONICAL_ENABLED=false)
   'comp:football-data:PD':      'football/spain/laliga',
   'comp:football-data:PL':      'football/england/premier-league',
   'comp:openligadb:bl1':        'football/germany/bundesliga',
   'comp:thesportsdb:4432':      'football/uruguay/primera-division',
   'comp:football-data-wc:WC':   'football/world/world-cup-2026',
+  // AF canonical IDs (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:140':       'football/spain/laliga',
+  'comp:apifootball:39':        'football/england/premier-league',
+  'comp:apifootball:78':        'football/germany/bundesliga',
+  'comp:apifootball:268':       'football/uruguay/primera-division',
+  'comp:apifootball:128':       'football/argentina/liga-profesional',
+  'comp:apifootball:13':        'football/south-america/copa-libertadores',
+  'comp:apifootball:1':         'football/world/world-cup-2026',
 };
 
 // ── Normalización de nombres para fuzzy match ─────────────────────────────────

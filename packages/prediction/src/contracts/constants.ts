@@ -86,22 +86,38 @@ export const PRIOR_RATING_CROSS_SEASON_CARRY_ALLOWED: boolean = true;
  * semantics change gate per SDD versioning rules).
  */
 export const OFFICIAL_SENIOR_11V11_COMPETITION_IDS: ReadonlySet<string> = new Set([
-  // ── LaLiga (football-data.org competition code PD) ──────────────────────
+  // ── LaLiga ──────────────────────────────────────────────────────────────
   'PD',
   'comp:football-data:PD',
+  'comp:apifootball:140',
 
-  // ── Premier League (football-data.org competition code PL) ──────────────
+  // ── Premier League ───────────────────────────────────────────────────────
   'PL',
   'comp:football-data:PL',
+  'comp:apifootball:39',
 
-  // ── Bundesliga (football-data.org competition code BL1) ─────────────────
+  // ── Bundesliga ───────────────────────────────────────────────────────────
   'BL1',
   'comp:football-data:BL1',
+  'comp:openligadb:bl1',
+  'comp:apifootball:78',
 
-  // ── Liga Uruguaya (TheSportsDB league ID 4432) ───────────────────────────
+  // ── Liga Uruguaya ────────────────────────────────────────────────────────
   '4432',
   'TheSportsDB:4432',
   'comp:thesportsdb:4432',
+  'comp:apifootball:268',
+
+  // ── Liga Argentina ───────────────────────────────────────────────────────
+  '4406',
+  'comp:sportsdb-ar:4406',
+  'comp:apifootball:128',
+
+  // ── Copa Libertadores ────────────────────────────────────────────────────
+  'comp:apifootball:13',
+
+  // ── Copa del Mundo 2026 ──────────────────────────────────────────────────
+  'comp:apifootball:1',
 ]);
 
 /**

@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-CORE-AI-SDD-OPERATING-PROTOCOL
 title: "AI SDD Operating Protocol"
 artifact_class: spec
 status: active
-version: 1.0.0
+version: 1.2.0
 project: sportpulse
 domain: core
 slug: ai-sdd-operating-protocol
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-16
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,8 +17,8 @@ canonical_path: docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md
 ---
 # SportPulse — AI SDD Operating Protocol
 
-Version: 1.0  
-Status: Authoritative protocol for AI-assisted development under Spec-Driven Development (SDD)  
+Version: 1.2
+Status: Authoritative protocol for AI-assisted development under Spec-Driven Development (SDD)
 Scope: Rules, workflow, deliverables, gates, and constraints for AI-assisted development of SportPulse MVP  
 Audience: Engineers, QA, Product, Ops, AI agents and orchestration systems
 
@@ -86,50 +86,58 @@ A change is material if it alters:
 Material changes require version discipline.
 
 ### 3.3 “Golden truth”
-Golden fixtures define expected truth under controlled inputs.  
+Golden fixtures define expected truth under controlled inputs.
 If golden fixtures fail, the default assumption is: regression until proven otherwise.
+
+Two fixture families exist and must be treated independently:
+- **F1–F6** (snapshot fixtures): truth locks for the attention dashboard pipeline (canonical→signals→scoring→layout→snapshot). Governed by `docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md`.
+- **PF-01–PF-06** (prediction fixtures): truth locks for the prediction pipeline (determinism, distribution integrity, track record threshold, calibration, operating mode, anti-lookahead). Governed by `docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md`.
+
+A failure in either family is a regression until proven otherwise. They have different comparison semantics and versioning models — do not conflate them.
 
 ---
 
 ## 4. Authoritative corpus and precedence
 
 ### 4.1 Highest-level governance
-1. `SportPulse_Constitution_v2.0_Master.md`
+1. `docs/core/spec.sportpulse.core.constitution.md` (v3.0)
 
 ### 4.2 Domain truth backbone
-2. `Domain_Glossary_and_Invariants_v1.0.md`
+2. `docs/core/spec.sportpulse.core.domain-glossary-and-invariants.md` (v2.0)
 
 ### 4.3 Execution boundaries
-3. `MVP_Execution_Scope_v1.0.md`
+3. `docs/core/spec.sportpulse.core.mvp-execution-scope.md` (v2.0)
 
 ### 4.4 Non-functional baseline
-4. `Non_Functional_Requirements_v1.0.md`
+4. `docs/core/spec.sportpulse.core.non-functional-requirements.md`
 
 ### 4.5 Architecture boundaries
-5. `Repo_Structure_and_Module_Boundaries_v1.0.md`
+5. `docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md`
 
 ### 4.6 Taxonomy
-6. `Errors_and_Warnings_Taxonomy_v1.0.md`
+6. `docs/core/spec.sportpulse.shared.errors-and-warnings-taxonomy.md`
 
 ### 4.7 Acceptance truth and fixtures
-7. `Acceptance_Test_Matrix_v1.0.md`  
-8. `Golden_Snapshot_Fixtures_v1.0.md`
+7. `docs/core/spec.sportpulse.qa.acceptance-test-matrix.md`
+8. `docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md` — F1–F6 (snapshot pipeline)
+9. `docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md` — PF-01–PF-06 (prediction pipeline)
 
-### 4.8 Active core technical specs (corrected)
-9. `signals-spec-corrected.md`  
-10. `metrics-spec-corrected.md`  
-11. `scoring-policy-spec-corrected.md`  
-12. `snapshot-engine-spec-corrected.md`  
-13. `dashboard-snapshot-dto-corrected-v1.2.md`  
-14. `api-contract-corrected.md`  
-15. `treemap-algorithm-spec-corrected.md`  
-16. `layout-stability-spec-corrected.md`  
-17. `frontend-architecture-corrected.md`  
-18. `ui-spec-corrected.md`
+### 4.8 Active core technical specs
+9. `docs/specs/pipeline/spec.sportpulse.signals.core.md`
+10. `docs/specs/pipeline/spec.sportpulse.signals.metrics.md`
+11. `docs/specs/pipeline/spec.sportpulse.scoring.policy.md`
+12. `docs/specs/pipeline/spec.sportpulse.snapshot.engine.md`
+13. `docs/specs/pipeline/spec.sportpulse.snapshot.dashboard-dto.md`
+14. `docs/specs/api/spec.sportpulse.api.contract.md`
+15. `docs/specs/layout/spec.sportpulse.layout.treemap-algorithm.md`
+16. `docs/specs/layout/spec.sportpulse.layout.stability.md`
+17. `docs/architecture/spec.sportpulse.web.frontend-architecture.md`
+18. `docs/specs/portal/spec.sportpulse.web.ui.md`
 
-### 4.9 Strategic inputs (non-binding for implementation details)
-19. `SportPulse_MVP_Strategic_Brief_v1.0.md`  
-20. `SportPulse_MVP_One_Pager_v1.0.md`
+### 4.9 Strategic reference (non-binding for implementation details)
+19. `docs/product/report.sportpulse.product.business-plan.2026-03-01.md` — Business Plan v3.0 (versión canónica). Contexto comercial, modelo freemium, prioridades de producto. No override técnico sobre specs de menor jerarquía.
+
+Previous strategic brief files (`docs/product/spec.sportpulse.product.mvp-strategic-brief.md`, `docs/product/spec.sportpulse.product.mvp-one-pager.md`) are `status: superseded` in the registry. They exist for traceability only and must not be used for implementation decisions.
 
 ### 4.10 Archive (non-authoritative)
 Any document in `docs/archive/` is non-authoritative and must not be used for implementation truth.

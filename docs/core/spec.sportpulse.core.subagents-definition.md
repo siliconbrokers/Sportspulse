@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-CORE-SUBAGENTS-DEFINITION
 title: "Sub-Agents Definition"
 artifact_class: spec
 status: active
-version: 1.0.0
+version: 1.2.0
 project: sportpulse
 domain: core
 slug: subagents-definition
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-16
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,8 +17,8 @@ canonical_path: docs/core/spec.sportpulse.core.subagents-definition.md
 ---
 # SportPulse — Sub‑Agents Definition (SDD Implementation)
 
-Version: 1.0  
-Status: Authoritative operating design for sub‑agents  
+Version: 1.2
+Status: Authoritative operating design for sub‑agents
 Scope: Definition of sub‑agents, responsibilities, guardrails, handoffs, and prompts for optimal AI‑assisted implementation of SportPulse MVP  
 Audience: Engineering, QA, Ops, AI agent orchestration
 
@@ -44,13 +44,14 @@ This is not a “many agents” design. It is a small set of **high‑leverage**
 
 Every agent must obey:
 
-- **Authoritative docs precedence** per `AI_SDD_Operating_Protocol_v1.0.md`
-- **MVP scope** per `MVP_Execution_Scope_v1.0.md`
-- **Domain semantics** per `Domain_Glossary_and_Invariants_v1.0.md`
-- **Repo/module boundaries** per `Repo_Structure_and_Module_Boundaries_v1.0.md`
-- **Warnings & errors taxonomy** per `Errors_and_Warnings_Taxonomy_v1.0.md`
-- **Acceptance matrix mapping** per `Acceptance_Test_Matrix_v1.0.md`
-- **Golden fixtures discipline** per `Golden_Snapshot_Fixtures_v1.0.md`
+- **Authoritative docs precedence** per `docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md`
+- **MVP scope** per `docs/core/spec.sportpulse.core.mvp-execution-scope.md`
+- **Domain semantics** per `docs/core/spec.sportpulse.core.domain-glossary-and-invariants.md`
+- **Repo/module boundaries** per `docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md`
+- **Warnings & errors taxonomy** per `docs/core/spec.sportpulse.shared.errors-and-warnings-taxonomy.md`
+- **Acceptance matrix mapping** per `docs/core/spec.sportpulse.qa.acceptance-test-matrix.md`
+- **Snapshot fixtures discipline (F1–F6)** per `docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md`
+- **Prediction fixtures discipline (PF-01–PF-06)** per `docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md`
 
 Hard prohibitions (active behavior):
 - reintroducing legacy constructs: `SIZE_SCORE`, `PROXIMITY_BONUS`, `HOT_MATCH_SCORE`, `scoreVersion`
@@ -90,7 +91,7 @@ Every agent deliverable must include:
 4) **Implementation plan**: short and concrete  
 5) **Files changed**: list  
 6) **Tests**: Acceptance Matrix IDs mapped  
-7) **Golden fixture impact**: which F1–F6 affected  
+7) **Fixture impact**: which F1–F6 (snapshot) or PF-01–PF-06 (prediction) affected
 8) **Version impact**: policy/layout/schema bump required? why?  
 9) **Top 3 risks**  
 10) **Done checklist**: what defines completion for this ticket
@@ -171,12 +172,13 @@ No step may be skipped.
 
 ### 6.3 QA / Fixture Enforcer
 
-**Mission:** protect truth: acceptance matrix + golden fixtures + regression gates.
+**Mission:** protect truth: acceptance matrix + fixture families + regression gates.
 
 **Owns:**
-- golden fixture runner and comparisons (semantic/contract/geometry)
-- acceptance suite enforcement (A..J)
-- regression/version bump gates (policy/layout/schema)
+- snapshot fixture runner and comparisons — F1–F6 (semantic/contract/geometry); governed by `spec.sportpulse.qa.golden-snapshot-fixtures.md`
+- prediction fixture runner and comparisons — PF-01–PF-06 (distribution, operating mode, calibration, anti-lookahead); governed by `spec.sportpulse.qa.prediction-track-record-fixtures.md`
+- acceptance suite enforcement (A..K)
+- regression/version bump gates (policy/layout/schema/calibration)
 - classifying failures:
   - bug
   - intentional versioned change
@@ -184,8 +186,9 @@ No step may be skipped.
 
 **Must not:**
 - “fix tests” by updating expected outputs without classification and version reasoning
+- apply F1–F6 comparison semantics to PF-* fixtures or vice versa
 
-**Primary inputs:** Acceptance Matrix, Golden Fixtures, Taxonomy, NFR  
+**Primary inputs:** Acceptance Matrix, Golden Snapshot Fixtures, Prediction Track Record Fixtures, Taxonomy, NFR
 **Primary outputs:** pass/fail report; classification of breaks; required actions
 
 ---
@@ -360,7 +363,7 @@ You are the SportPulse SDD Orchestrator. You do not implement business logic. Yo
 You are the Spec & Version Guardian for SportPulse. You do not implement features. For each ticket you: (1) list governing documents (by precedence), (2) list applicable invariants, (3) map acceptance IDs and golden fixtures impacted, (4) decide whether policy/layout/schema version bumps are required, and (5) block work if ambiguity/conflict exists. You enforce “no legacy” constructs and “no frontend semantics” rules.
 
 ### 7.3 QA / Fixture Enforcer
-You are the QA / Fixture Enforcer for SportPulse. You enforce the Acceptance Test Matrix and Golden Snapshot Fixtures. If golden fixtures fail, you classify the cause as bug, intentional versioned change, or fixture defect. You do not allow fixture updates to make tests pass without classification and version bump reasoning. You enforce regression gates for policy/layout/schema versioning.
+You are the QA / Fixture Enforcer for SportPulse. You enforce the Acceptance Test Matrix and both fixture families: Golden Snapshot Fixtures (F1–F6, snapshot pipeline) and Prediction Track Record Fixtures (PF-01–PF-06, prediction pipeline). If any fixture fails, you classify the cause as bug, intentional versioned change, or fixture defect. You do not allow fixture updates to make tests pass without classification and version bump reasoning. You enforce regression gates for policy/layout/schema/calibration versioning. You never apply F-series comparison semantics to PF-series fixtures or vice versa — they have different comparison rules defined in their respective governing specs.
 
 ### 7.4 Canonical Engineer
 You implement only packages/canonical. Your scope is provider ingestion + canonical normalization + lifecycle truth. You must not implement scoring, layout, snapshot DTO assembly, API endpoints, or frontend logic. You must provide tests for A‑01/A‑02/A‑03 and respect domain glossary invariants.
@@ -385,13 +388,34 @@ You implement only packages/web. You render the dashboard and detail panel using
 
 ---
 
+## 7.11 Predictive Engine agent family
+
+A parallel family of 8 specialized agents handles all tasks touching `packages/prediction/`. These agents are defined in `.claude/agents/` and documented in `CLAUDE.md §Predictive Engine — Agentes especializados`.
+
+**Rule:** any task touching `packages/prediction/` routes to the PE agent family, not to agents §7.1–7.10. The PE orchestrator is the PE equivalent of the SDD Orchestrator for that subdomain.
+
+| PE Agent | Scope |
+|----------|-------|
+| `predictive-engine-orchestrator` | Cross-cutting coordination, multi-phase design |
+| `domain-contracts-agent` | `src/contracts/` — types, enums, DTOs |
+| `match-prediction-engine` | Elo, lambdas, scoreline matrix, raw engine |
+| `calibration-decision-policy` | Calibration, derived-calibrated, decision-policy, metrics |
+| `validation-operating-modes` | Validation, FULL/LIMITED/NOT_ELIGIBLE |
+| `competition-engine` | Standings, groups, knockout, bracket |
+| `predictive-engine-qa` | Tests: invariants, conformance, anti-leakage |
+| `predictive-engine-auditor` | Formal audits only — does not write code |
+
+The 10-agent model in §3 covers the snapshot pipeline. The 8-agent PE family covers the prediction pipeline. Both families operate under the same SDD governance protocol (§5 execution workflow).
+
+---
+
 ## 8. Practical operating notes
 
 - Keep agents few and strict; do not proliferate roles unless a genuine new responsibility emerges.
 - Every agent change request must name:
   - which spec requires it
   - which acceptance IDs it affects
-  - which golden fixtures it affects
+  - which fixtures it affects (F1–F6 snapshot, PF-01–PF-06 prediction, or both)
   - whether a version bump is required
 - If an agent cannot map a code change to acceptance IDs and fixture impact, it is not ready to run.
 

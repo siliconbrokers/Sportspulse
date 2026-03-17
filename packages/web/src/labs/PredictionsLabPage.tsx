@@ -341,7 +341,7 @@ export function PredictionsLabPage() {
       {!loading && !error && snapshots.length === 0 && (
         <div style={{ fontSize: 13, color: '#64748b', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, padding: '16px 20px' }}>
           Sin predicciones almacenadas. Activa{' '}
-          <code style={{ color: '#facc15' }}>PREDICTION_SHADOW_ENABLED=comp:football-data:PD</code>{' '}
+          <code style={{ color: '#facc15' }}>PREDICTION_SHADOW_ENABLED=comp:apifootball:140</code>{' '}
           para comenzar.
         </div>
       )}

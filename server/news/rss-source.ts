@@ -20,11 +20,12 @@ interface FeedConfig {
 
 export const RSS_CONFIG: Record<
   Exclude<LeagueKey, 'URU'>,
-  { competitionLabel: string; competitionId: string; feeds: FeedConfig[] }
+  { competitionLabel: string; competitionId: string; afCompetitionId?: string; feeds: FeedConfig[] }
 > = {
   AR: {
     competitionLabel: 'Liga Profesional Argentina',
     competitionId: 'comp:sportsdb-ar:4406',
+    afCompetitionId: 'comp:apifootball:128',
     feeds: [
       {
         url: 'https://www.infobae.com/arc/outboundfeeds/rss/category/deportes/',
@@ -53,6 +54,7 @@ export const RSS_CONFIG: Record<
   LL: {
     competitionLabel: 'LaLiga',
     competitionId: 'comp:football-data:PD',
+    afCompetitionId: 'comp:apifootball:140',
     feeds: [
       { url: 'https://www.marca.com/rss/futbol/primera-division.xml', sourceName: 'Marca' },
       { url: 'https://www.mundodeportivo.com/rss/futbol.xml', sourceName: 'Mundo Deportivo' },
@@ -61,6 +63,7 @@ export const RSS_CONFIG: Record<
   EPL: {
     competitionLabel: 'Premier League',
     competitionId: 'comp:football-data:PL',
+    afCompetitionId: 'comp:apifootball:39',
     feeds: [
       { url: 'https://www.skysports.com/rss/12040', sourceName: 'Sky Sports' },
       {
@@ -73,6 +76,7 @@ export const RSS_CONFIG: Record<
   BUN: {
     competitionLabel: 'Bundesliga',
     competitionId: 'comp:football-data:BL1',
+    afCompetitionId: 'comp:apifootball:78',
     feeds: [
       { url: 'https://newsfeed.kicker.de/news/bundesliga', sourceName: 'Kicker' },
     ],

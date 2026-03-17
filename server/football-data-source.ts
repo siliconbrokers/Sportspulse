@@ -109,11 +109,11 @@ export class FootballDataSource implements DataSource {
     return cached?.teams ?? [];
   }
 
-  getMatches(seasId: string): Match[] {
+  getMatches(seasId: string, subTournamentKey?: string): Match[] {
     for (const entry of this.cache.values()) {
-      if (entry.seasonId === seasId) {
-        return entry.matches;
-      }
+      if (entry.seasonId !== seasId) continue;
+      if (!subTournamentKey) return entry.matches;
+      return entry.matches.filter((m) => m.subTournamentKey === subTournamentKey);
     }
     return [];
   }
@@ -132,13 +132,13 @@ export class FootballDataSource implements DataSource {
     }));
   }
 
-  getCurrentMatchday(compId: string): number | undefined {
+  getCurrentMatchday(compId: string, _subTournamentKey?: string): number | undefined {
     const cached = this.getCached(compId);
     if (!cached) return undefined;
     return this.getBestDisplayMatchday(compId) ?? cached.currentMatchday;
   }
 
-  getLastPlayedMatchday(compId: string): number | undefined {
+  getLastPlayedMatchday(compId: string, _subTournamentKey?: string): number | undefined {
     const cached = this.getCached(compId);
     if (!cached) return undefined;
 
@@ -162,7 +162,7 @@ export class FootballDataSource implements DataSource {
     return last;
   }
 
-  getBestDisplayMatchday(compId: string): number | undefined {
+  getBestDisplayMatchday(compId: string, _subTournamentKey?: string): number | undefined {
     const cached = this.getCached(compId);
     if (!cached) return undefined;
 
@@ -193,7 +193,7 @@ export class FootballDataSource implements DataSource {
     return highestFinished ?? cached.currentMatchday;
   }
 
-  getNextMatchday(compId: string): number | undefined {
+  getNextMatchday(compId: string, _subTournamentKey?: string): number | undefined {
     const cached = this.getCached(compId);
     if (!cached) return undefined;
 
@@ -213,7 +213,7 @@ export class FootballDataSource implements DataSource {
     return next;
   }
 
-  getTotalMatchdays(compId: string): number {
+  getTotalMatchdays(compId: string, _subTournamentKey?: string): number {
     // Known totals per competition code (football-data.org handles PD and PL only).
     // BL1 is routed to OpenLigaDB which returns 34 independently.
     const KNOWN: Record<string, number> = { PD: 38, PL: 38 };

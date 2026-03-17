@@ -352,6 +352,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -390,6 +391,7 @@
       "home": {
         "teamId": "team:football-data:78",
         "name": "Atletico Madrid",
+        "shortName": "Atletico Madrid",
         "formChip": {
           "icon": "✅",
           "label": "Viene bien",
@@ -428,6 +430,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -470,6 +473,7 @@
       "away": {
         "teamId": "team:football-data:78",
         "name": "Atletico Madrid",
+        "shortName": "Atletico Madrid",
         "formChip": {
           "icon": "✅",
           "label": "Viene bien",
@@ -508,6 +512,7 @@
       "away": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -542,6 +547,7 @@
       "home": {
         "teamId": "team:football-data:78",
         "name": "Atletico Madrid",
+        "shortName": "Atletico Madrid",
         "formChip": {
           "icon": "✅",
           "label": "Viene bien",
@@ -580,6 +586,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -622,6 +629,7 @@
       "away": {
         "teamId": "team:football-data:78",
         "name": "Atletico Madrid",
+        "shortName": "Atletico Madrid",
         "formChip": {
           "icon": "✅",
           "label": "Viene bien",
@@ -660,6 +668,7 @@
       "away": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -694,6 +703,7 @@
       "home": {
         "teamId": "team:football-data:78",
         "name": "Atletico Madrid",
+        "shortName": "Atletico Madrid",
         "formChip": {
           "icon": "✅",
           "label": "Viene bien",
@@ -730,6 +740,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",

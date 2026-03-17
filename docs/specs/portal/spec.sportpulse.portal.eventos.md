@@ -13,7 +13,7 @@ updated_at: 2026-03-15
 supersedes: []
 superseded_by: []
 related_artifacts: []
-canonical_path: docs/specs/spec.sportpulse.portal.eventos.md
+canonical_path: docs/specs/portal/spec.sportpulse.portal.eventos.md
 ---
 # Portal Resultados — Especificación funcional y técnica
 ## Módulo **Eventos** (V1 + V2)

@@ -7,6 +7,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { COMPETITION_REGISTRY } from './competition-registry.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -40,18 +41,16 @@ interface AuditEntry {
 }
 
 // ── Catalog ───────────────────────────────────────────────────────────────────
-// Fixed catalog of all known competitions. Adding new ones requires code change
-// (by design — spec §15 defers dynamic catalog to future feature).
+// Derived from COMPETITION_REGISTRY — single source of truth.
+// Adding a new competition only requires adding it to competition-registry.ts.
 
-const CATALOG_DEFAULTS: Omit<CompetitionConfig, 'updatedAt' | 'updatedBy'>[] = [
-  { id: 'comp:thesportsdb:4432',      slug: 'URU',  displayName: 'Fútbol Uruguayo',    enabled: true },
-  { id: 'comp:sportsdb-ar:4406',      slug: 'AR',   displayName: 'Liga Argentina',      enabled: true },
-  { id: 'comp:football-data:PD',      slug: 'PD',   displayName: 'La Liga',             enabled: true },
-  { id: 'comp:football-data:PL',      slug: 'PL',   displayName: 'Premier League',      enabled: true },
-  { id: 'comp:openligadb:bl1',        slug: 'BL1',  displayName: 'Bundesliga',          enabled: true },
-  { id: 'comp:football-data-cli:CLI', slug: 'CLI',  displayName: 'Copa Libertadores',   enabled: true },
-  { id: 'comp:football-data-wc:WC',   slug: 'WC',   displayName: 'Copa del Mundo 2026', enabled: true },
-];
+const CATALOG_DEFAULTS: Omit<CompetitionConfig, 'updatedAt' | 'updatedBy'>[] =
+  COMPETITION_REGISTRY.map((e) => ({
+    id:          e.id,
+    slug:        e.slug,
+    displayName: e.displayName,
+    enabled:     true,
+  }));
 
 const FEATURE_DEFAULTS: Omit<PortalFeatureConfig, 'updatedAt' | 'updatedBy'> = {
   tv: true,

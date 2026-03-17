@@ -13,7 +13,7 @@ updated_at: 2026-03-15
 supersedes: []
 superseded_by: []
 related_artifacts: []
-canonical_path: docs/specs/spec.sportpulse.web.match-map-visual-encoding.md
+canonical_path: docs/specs/portal/spec.sportpulse.web.match-map-visual-encoding.md
 ---
 # SportPulse — Match Map Visual Encoding & Interactions
 

@@ -2,7 +2,7 @@
 
 > Machine-maintained index of all governed artifacts in `docs/`.
 > Update this file whenever an artifact is created, renamed, superseded, or archived.
-> Last updated: 2026-03-15
+> Last updated: 2026-03-16 (residual patch — BP uniqueness, constitution title, intake serialization, PF-* governance adoption)
 
 ---
 
@@ -10,55 +10,101 @@
 
 | artifact_id | title | class | status | version | canonical_path |
 |-------------|-------|-------|--------|---------|----------------|
-| SPEC-SPORTPULSE-CORE-CONSTITUTION | SportPulse Constitution v2.0 | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.constitution.md |
-| SPEC-SPORTPULSE-CORE-DOMAIN-GLOSSARY-AND-INVARIANTS | Domain Glossary and Invariants | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.domain-glossary-and-invariants.md |
-| SPEC-SPORTPULSE-CORE-MVP-EXECUTION-SCOPE | MVP Execution Scope | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.mvp-execution-scope.md |
+| SPEC-SPORTPULSE-CORE-CONSTITUTION | SportPulse Constitution v3.0 | spec | active | 3.0.0 | docs/core/spec.sportpulse.core.constitution.md |
+| SPEC-SPORTPULSE-CORE-DOMAIN-GLOSSARY-AND-INVARIANTS | Domain Glossary and Invariants | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.domain-glossary-and-invariants.md |
+| SPEC-SPORTPULSE-CORE-MVP-EXECUTION-SCOPE | MVP Execution Scope | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.mvp-execution-scope.md |
 | SPEC-SPORTPULSE-CORE-NON-FUNCTIONAL-REQUIREMENTS | Non-Functional Requirements | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.non-functional-requirements.md |
 | SPEC-SPORTPULSE-OPS-OPERATIONAL-BASELINE | Operational Baseline | spec | active | 1.0.0 | docs/core/spec.sportpulse.ops.operational-baseline.md |
-| SPEC-SPORTPULSE-CORE-REPO-STRUCTURE-AND-MODULE-BOUNDARIES | Repo Structure and Module Boundaries | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md |
+| SPEC-SPORTPULSE-CORE-REPO-STRUCTURE-AND-MODULE-BOUNDARIES | Repo Structure and Module Boundaries | spec | active | 1.1.0 | docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md |
 | SPEC-SPORTPULSE-SHARED-ERRORS-AND-WARNINGS-TAXONOMY | Errors and Warnings Taxonomy | spec | active | 1.0.0 | docs/core/spec.sportpulse.shared.errors-and-warnings-taxonomy.md |
-| SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX | Acceptance Test Matrix | spec | active | 1.0.0 | docs/core/spec.sportpulse.qa.acceptance-test-matrix.md |
+| SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX | Acceptance Test Matrix | spec | active | 1.1.0 | docs/core/spec.sportpulse.qa.acceptance-test-matrix.md |
 | SPEC-SPORTPULSE-QA-GOLDEN-SNAPSHOT-FIXTURES | Golden Snapshot Fixtures | spec | active | 1.0.0 | docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md |
-| SPEC-SPORTPULSE-CORE-IMPLEMENTATION-BACKLOG | Implementation Backlog (SDD) | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.implementation-backlog.md |
-| SPEC-SPORTPULSE-CORE-AI-SDD-OPERATING-PROTOCOL | AI SDD Operating Protocol | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md |
-| SPEC-SPORTPULSE-CORE-SUBAGENTS-DEFINITION | Sub-Agents Definition | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.subagents-definition.md |
-| SPEC-SPORTPULSE-CORE-UNIVERSAL-CASE-INTAKE-PROTOCOL | Universal Case Intake Protocol | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.universal-case-intake-protocol.md |
+| SPEC-SPORTPULSE-QA-PREDICTION-TRACK-RECORD-FIXTURES | Prediction Track Record Fixtures | spec | active | 1.0.0 | docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md |
+| SPEC-SPORTPULSE-CORE-IMPLEMENTATION-BACKLOG | Implementation Backlog (SDD) | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.implementation-backlog.md |
+| SPEC-SPORTPULSE-CORE-AI-SDD-OPERATING-PROTOCOL | AI SDD Operating Protocol | spec | active | 1.2.0 | docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md |
+| SPEC-SPORTPULSE-CORE-SUBAGENTS-DEFINITION | Sub-Agents Definition | spec | active | 1.2.0 | docs/core/spec.sportpulse.core.subagents-definition.md |
+| SPEC-SPORTPULSE-CORE-UNIVERSAL-CASE-INTAKE-PROTOCOL | Universal Case Intake Protocol | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.universal-case-intake-protocol.md |
 
 ---
 
 ## Technical Specifications (`docs/specs/`)
 
+> Specs reorganized into subdirectories per governance §6.1 after initial registry creation. Paths updated 2026-03-16.
+
+### Pipeline (`docs/specs/pipeline/`)
+
 | artifact_id | title | class | status | version | canonical_path |
 |-------------|-------|-------|--------|---------|----------------|
-| SPEC-SPORTPULSE-SIGNALS-CORE | Signals Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.signals.core.md |
-| SPEC-SPORTPULSE-SIGNALS-METRICS | Metrics Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.signals.metrics.md |
-| SPEC-SPORTPULSE-SCORING-POLICY | Scoring Policy | spec | active | 1.0.0 | docs/specs/spec.sportpulse.scoring.policy.md |
-| SPEC-SPORTPULSE-SNAPSHOT-ENGINE | Snapshot Engine Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.snapshot.engine.md |
-| SPEC-SPORTPULSE-SNAPSHOT-DASHBOARD-DTO | Dashboard Snapshot DTO | spec | active | 1.2.0 | docs/specs/spec.sportpulse.snapshot.dashboard-dto.md |
-| SPEC-SPORTPULSE-API-CONTRACT | API Contract | spec | active | 1.0.0 | docs/specs/spec.sportpulse.api.contract.md |
-| SPEC-SPORTPULSE-LAYOUT-TREEMAP-ALGORITHM | Treemap Algorithm Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.layout.treemap-algorithm.md |
-| SPEC-SPORTPULSE-LAYOUT-STABILITY | Layout Stability Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.layout.stability.md |
-| SPEC-SPORTPULSE-WEB-UI | UI Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.web.ui.md |
-| SPEC-SPORTPULSE-WEB-DISPLAY-HINTS | Display Hints Specification | spec | active | 1.1.0 | docs/specs/spec.sportpulse.web.display-hints.md |
-| SPEC-SPORTPULSE-WEB-MATCH-MAP-VISUAL-ENCODING | Match Map Visual Encoding | spec | active | 1.0.0 | docs/specs/spec.sportpulse.web.match-map-visual-encoding.md |
-| SPEC-SPORTPULSE-PORTAL-INTERACTION | Interaction Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.portal.interaction.md |
-| SPEC-SPORTPULSE-PORTAL-EVENTOS | Eventos Portal Specification | spec | active | 2.0.0 | docs/specs/spec.sportpulse.portal.eventos.md |
-| SPEC-SPORTPULSE-PORTAL-VIDEO-HIGHLIGHTS | Video Highlights Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.portal.video-highlights.md |
-| SPEC-SPORTPULSE-PORTAL-NEWS-SECTION | News Section by League Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.portal.news-section.md |
-| SPEC-SPORTPULSE-PORTAL-MATCH-DETAIL-CARD-UPDATE | Match Detail Card Update Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.portal.match-detail-card-update.md |
-| SPEC-SPORTPULSE-PORTAL-TOURNAMENT-UI-CORRECTIONS | Tournament UI Corrections Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.portal.tournament-ui-corrections.md |
-| SPEC-SPORTPULSE-PORTAL-UI-NAV-TOURNAMENT-CORRECTIONS | UI Nav and Tournament Corrections Technical Spec | spec | active | 1.0.0 | docs/specs/spec.sportpulse.portal.ui-nav-tournament-corrections.md |
-| SPEC-SPORTPULSE-SERVER-MATCHDAY-CACHE | Matchday Cache Technical Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.server.matchday-cache.md |
-| SPEC-SPORTPULSE-API-REFRESH-OPTIMIZATION | API Refresh and Consumption Optimization | spec | active | 1.0.0 | docs/specs/spec.sportpulse.api.refresh-optimization.md |
-| SPEC-SPORTPULSE-PREDICTION-ENGINE | Predictive Engine Specification v1.3 | spec | active | 1.3.0 | docs/specs/spec.sportpulse.prediction.engine.md |
-| SPEC-SPORTPULSE-PREDICTION-CONFORMANCE-TEST-PLAN | Predictive Engine v1.3 Conformance Test Plan | spec | active | 1.3.0 | docs/specs/spec.sportpulse.prediction.conformance-test-plan.md |
-| SPEC-SPORTPULSE-PREDICTION-PE-IMPLEMENTATION-SUMMARY | Predictive Engine Implementation Summary | spec | active | 1.0.0 | docs/specs/spec.sportpulse.prediction.pe-implementation-summary.md |
-| SPEC-SPORTPULSE-PREDICTION-MATCH-DETAIL-PREDICTION-MODULE | Match Detail Persistent Prediction Module | spec | active | 1.0.0 | docs/specs/spec.sportpulse.prediction.match-detail-prediction-module.md |
-| SPEC-SPORTPULSE-PREDICTION-TRACK-A-OBSERVATION-AUTOMATION | Track A Backend Observation Automation | spec | active | 1.0.0 | docs/specs/spec.sportpulse.prediction.track-a-observation-automation.md |
-| SPEC-SPORTPULSE-COMPETITION-AUDIT-EVOLUTION-MODEL | Auditoría y Evolución del Modelo de Competiciones | spec | active | 1.0.0 | docs/specs/spec.sportpulse.competition.audit-evolution-model.md |
-| SPEC-SPORTPULSE-DATA-QCBL-CONMEBOL-2026-BACKFILL | QCBL CONMEBOL 2026 Backfill Specification | spec | active | 1.0.0 | docs/specs/spec.sportpulse.data.qcbl-conmebol-2026-backfill.md |
-| SPEC-SPORTPULSE-DATA-LUTA-URUGUAY-MULTISOURCE-INTEGRATION | LUTA Uruguay Multi-Source Integration | spec | active | 1.0.0 | docs/specs/spec.sportpulse.data.luta-uruguay-multisource-integration.md |
-| ADR-SPORTPULSE-PREDICTION-PE-V2-PRODUCTION-AUTHORIZATION | PE V2 Production Authorization | adr | superseded | 1.0.0 | docs/specs/adr.sportpulse.prediction.pe-v2-production-authorization.md |
+| SPEC-SPORTPULSE-SIGNALS-CORE | Signals Specification | spec | active | 1.0.0 | docs/specs/pipeline/spec.sportpulse.signals.core.md |
+| SPEC-SPORTPULSE-SIGNALS-METRICS | Metrics Specification | spec | active | 1.0.0 | docs/specs/pipeline/spec.sportpulse.signals.metrics.md |
+| SPEC-SPORTPULSE-SCORING-POLICY | Scoring Policy | spec | active | 1.0.0 | docs/specs/pipeline/spec.sportpulse.scoring.policy.md |
+| SPEC-SPORTPULSE-SNAPSHOT-ENGINE | Snapshot Engine Specification | spec | active | 1.0.0 | docs/specs/pipeline/spec.sportpulse.snapshot.engine.md |
+| SPEC-SPORTPULSE-SNAPSHOT-DASHBOARD-DTO | Dashboard Snapshot DTO | spec | active | 1.2.0 | docs/specs/pipeline/spec.sportpulse.snapshot.dashboard-dto.md |
+| SPEC-SPORTPULSE-SERVER-MATCHDAY-CACHE | Matchday Cache Technical Specification | spec | active | 1.0.0 | docs/specs/pipeline/spec.sportpulse.server.matchday-cache.md |
+
+### API (`docs/specs/api/`)
+
+| artifact_id | title | class | status | version | canonical_path |
+|-------------|-------|-------|--------|---------|----------------|
+| SPEC-SPORTPULSE-API-CONTRACT | API Contract | spec | active | 1.0.0 | docs/specs/api/spec.sportpulse.api.contract.md |
+| SPEC-SPORTPULSE-API-REFRESH-OPTIMIZATION | API Refresh and Consumption Optimization | spec | active | 1.0.0 | docs/specs/api/spec.sportpulse.api.refresh-optimization.md |
+
+### Layout (`docs/specs/layout/`)
+
+| artifact_id | title | class | status | version | canonical_path |
+|-------------|-------|-------|--------|---------|----------------|
+| SPEC-SPORTPULSE-LAYOUT-TREEMAP-ALGORITHM | Treemap Algorithm Specification | spec | active | 1.0.0 | docs/specs/layout/spec.sportpulse.layout.treemap-algorithm.md |
+| SPEC-SPORTPULSE-LAYOUT-STABILITY | Layout Stability Specification | spec | active | 1.0.0 | docs/specs/layout/spec.sportpulse.layout.stability.md |
+
+### Portal (`docs/specs/portal/`)
+
+| artifact_id | title | class | status | version | canonical_path |
+|-------------|-------|-------|--------|---------|----------------|
+| SPEC-SPORTPULSE-WEB-UI | UI Specification | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.web.ui.md |
+| SPEC-SPORTPULSE-WEB-DISPLAY-HINTS | Display Hints Specification | spec | active | 1.1.0 | docs/specs/portal/spec.sportpulse.web.display-hints.md |
+| SPEC-SPORTPULSE-WEB-MATCH-MAP-VISUAL-ENCODING | Match Map Visual Encoding | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.web.match-map-visual-encoding.md |
+| SPEC-SPORTPULSE-PORTAL-INTERACTION | Interaction Specification | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.portal.interaction.md |
+| SPEC-SPORTPULSE-PORTAL-EVENTOS | Eventos Portal Specification | spec | active | 2.0.0 | docs/specs/portal/spec.sportpulse.portal.eventos.md |
+| SPEC-SPORTPULSE-PORTAL-VIDEO-HIGHLIGHTS | Video Highlights Specification | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.portal.video-highlights.md |
+| SPEC-SPORTPULSE-PORTAL-NEWS-SECTION | News Section by League Specification | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.portal.news-section.md |
+| SPEC-SPORTPULSE-PORTAL-MATCH-DETAIL-CARD-UPDATE | Match Detail Card Update Specification | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.portal.match-detail-card-update.md |
+| SPEC-SPORTPULSE-PORTAL-TOURNAMENT-UI-CORRECTIONS | Tournament UI Corrections Specification | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.portal.tournament-ui-corrections.md |
+| SPEC-SPORTPULSE-PORTAL-UI-NAV-TOURNAMENT-CORRECTIONS | UI Nav and Tournament Corrections Technical Spec | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.portal.ui-nav-tournament-corrections.md |
+
+### Prediction (`docs/specs/prediction/`)
+
+| artifact_id | title | class | status | version | canonical_path |
+|-------------|-------|-------|--------|---------|----------------|
+| SPEC-SPORTPULSE-PREDICTION-ENGINE | Predictive Engine Specification v1.3 | spec | active | 1.3.0 | docs/specs/prediction/spec.sportpulse.prediction.engine.md |
+| SPEC-SPORTPULSE-PREDICTION-CONFORMANCE-TEST-PLAN | Predictive Engine v1.3 Conformance Test Plan | spec | active | 1.3.0 | docs/specs/prediction/spec.sportpulse.prediction.conformance-test-plan.md |
+| SPEC-SPORTPULSE-PREDICTION-PE-IMPLEMENTATION-SUMMARY | Predictive Engine Implementation Summary | spec | active | 1.0.0 | docs/specs/prediction/spec.sportpulse.prediction.pe-implementation-summary.md |
+| SPEC-SPORTPULSE-PREDICTION-MATCH-DETAIL-PREDICTION-MODULE | Match Detail Persistent Prediction Module | spec | active | 1.0.0 | docs/specs/prediction/spec.sportpulse.prediction.match-detail-prediction-module.md |
+| SPEC-SPORTPULSE-PREDICTION-TRACK-A-OBSERVATION-AUTOMATION | Track A Backend Observation Automation | spec | active | 1.0.0 | docs/specs/prediction/spec.sportpulse.prediction.track-a-observation-automation.md |
+| ADR-SPORTPULSE-PREDICTION-PE-V2-PRODUCTION-AUTHORIZATION | PE V2 Production Authorization | adr | superseded | 1.0.0 | docs/specs/prediction/adr.sportpulse.prediction.pe-v2-production-authorization.md |
+| SPEC-SPORTPULSE-RADAR-V2-CORE | Radar v2 Core Spec | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-core.md |
+| SPEC-SPORTPULSE-RADAR-V2-RENDERING | Radar v2 Editorial Rendering Policy | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-editorial-rendering-policy.md |
+| SPEC-SPORTPULSE-RADAR-V2-IMPLEMENTATION | Radar v2 Implementation Guide | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-implementation-guide.md |
+| SPEC-SPORTPULSE-RADAR-V2-CONTRACTS | Radar v2 JSON Contracts and Lifecycle | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-json-contracts-and-lifecycle.md |
+| SPEC-SPORTPULSE-RADAR-V2-MIGRATION | Radar v2 Migration and Rollout Plan | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-migration-and-rollout-plan.md |
+| SPEC-SPORTPULSE-RADAR-V2-PACKAGE-INDEX | Radar v2 Package Index | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-package-index.md |
+| SPEC-SPORTPULSE-RADAR-V2-PREDICTION-INTEGRATION | Radar v2 Prediction Integration | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-prediction-integration.md |
+| SPEC-SPORTPULSE-RADAR-V2-QA | Radar v2 QA Acceptance and Edge Cases | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-qa-acceptance-and-edge-cases.md |
+| SPEC-SPORTPULSE-RADAR-V2-UIUX | Radar v2 UI/UX Spec | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-ui-ux-spec.md |
+| RADAR-07-PREDICTION-INTEGRATION | Radar v1 Prediction Integration | spec | active | 1.0.0 | docs/specs/prediction/radar/Version 1/radar-07-prediction-integration.md |
+| RADAR-08-IMPLEMENTATION-DECISIONS | Radar v1 Implementation Decisions | spec | active | 1.0.0 | docs/specs/prediction/radar/Version 1/radar-08-implementation-decisions.md |
+
+### Competition (`docs/specs/competition/`)
+
+| artifact_id | title | class | status | version | canonical_path |
+|-------------|-------|-------|--------|---------|----------------|
+| SPEC-SPORTPULSE-COMPETITION-AUDIT-EVOLUTION-MODEL | Auditoría y Evolución del Modelo de Competiciones | spec | active | 1.0.0 | docs/specs/competition/spec.sportpulse.competition.audit-evolution-model.md |
+
+### Data (`docs/specs/data/` and `docs/data/`)
+
+| artifact_id | title | class | status | version | canonical_path |
+|-------------|-------|-------|--------|---------|----------------|
+| SPEC-SPORTPULSE-DATA-QCBL-CONMEBOL-2026-BACKFILL | QCBL CONMEBOL 2026 Backfill Specification | spec | active | 1.0.0 | docs/specs/data/spec.sportpulse.data.qcbl-conmebol-2026-backfill.md |
+| SPEC-SPORTPULSE-DATA-LUTA-URUGUAY-MULTISOURCE-INTEGRATION | LUTA Uruguay Multi-Source Integration | spec | active | 1.0.0 | docs/specs/data/spec.sportpulse.data.luta-uruguay-multisource-integration.md |
 
 ---
 
@@ -95,9 +141,9 @@
 
 | artifact_id | title | class | status | version | canonical_path |
 |-------------|-------|-------|--------|---------|----------------|
-| SPEC-SPORTPULSE-PRODUCT-MVP-STRATEGIC-BRIEF | MVP Strategic Brief | spec | active | 1.0.0 | docs/product/spec.sportpulse.product.mvp-strategic-brief.md |
-| SPEC-SPORTPULSE-PRODUCT-MVP-ONE-PAGER | MVP One Pager | spec | active | 1.0.0 | docs/product/spec.sportpulse.product.mvp-one-pager.md |
-| REPORT-SPORTPULSE-PRODUCT-BUSINESS-PLAN-2026-03 | Business Plan v1.0 (March 2026) | report | active | 1.0.0 | docs/product/report.sportpulse.product.business-plan.2026-03-01.md |
+| SPEC-SPORTPULSE-PRODUCT-MVP-STRATEGIC-BRIEF | MVP Strategic Brief | spec | superseded | 1.0.0 | docs/product/spec.sportpulse.product.mvp-strategic-brief.md |
+| SPEC-SPORTPULSE-PRODUCT-MVP-ONE-PAGER | MVP One Pager | spec | superseded | 1.0.0 | docs/product/spec.sportpulse.product.mvp-one-pager.md |
+| REPORT-SPORTPULSE-PRODUCT-BUSINESS-PLAN-2026-03 | Business Plan v3.0 (March 2026) — Versión Canónica | report | active | 3.0.0 | docs/product/report.sportpulse.product.business-plan.2026-03-01.md |
 
 ---
 
@@ -108,6 +154,7 @@
 | AUDIT-SPORTPULSE-PREDICTION-PE-2026-03-10 | Predictive Engine Formal Audit — 2026-03-10 (FROZEN) | audit | active | 1.0.0 | docs/audits/PE-audit-2026-03-10.md |
 | AUDIT-SPORTPULSE-PREDICTION-PE-2026-03-11 | Predictive Engine Audit — 2026-03-11 | audit | active | 1.0.0 | docs/audits/PE-audit-2026-03-11.md |
 | AUDIT-SPORTPULSE-PREDICTION-PD-VALIDATION-2026-03-10 | Predictive Engine PD Validation — 2026-03-10 | audit | active | 1.0.0 | docs/audits/PE-validation-PD-2026-03-10.md |
+| AUDIT-SPORTPULSE-PREDICTION-PE-2026-03-15 | Predictive Engine Audit — 2026-03-15 | audit | active | 1.0.0 | docs/audits/PE-audit-2026-03-15.md |
 
 ---
 

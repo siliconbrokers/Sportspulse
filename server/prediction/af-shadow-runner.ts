@@ -20,16 +20,25 @@ import type { HistoricalStateService } from './historical-state-service.js';
 // ── Mapping FD competition IDs → AF league IDs ───────────────────────────────
 
 const AF_LEAGUE_IDS: Record<string, number> = {
+  // Legacy FD IDs
   'comp:football-data:PD': 140, // LaLiga
   'comp:football-data:PL':  39, // Premier League
   'comp:football-data:BL1': 78, // Bundesliga (FD code BL1; runtime comp is openligadb:bl1)
+  // API-Football canonical IDs (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:140':  140,
+  'comp:apifootball:39':    39,
+  'comp:apifootball:78':    78,
 };
 
-// Map FD competition ID → FD competition code (for HistoricalStateService)
+// Map competition ID → FD competition code (for HistoricalStateService)
 const FD_COMP_CODE: Record<string, string> = {
   'comp:football-data:PD':  'PD',
   'comp:football-data:PL':  'PL',
   'comp:football-data:BL1': 'BL1',
+  // API-Football canonical IDs (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:140': 'PD',
+  'comp:apifootball:39':  'PL',
+  'comp:apifootball:78':  'BL1',
 };
 
 // ── Runner ────────────────────────────────────────────────────────────────────
@@ -69,6 +78,12 @@ export async function runAfShadowValidation(
   for (const competitionId of enabled) {
     const leagueId = AF_LEAGUE_IDS[competitionId];
     const fdCode   = FD_COMP_CODE[competitionId];
+
+    if (!fdCode) {
+      console.log(`[AfShadowRunner] ${competitionId}: no FD code mapping — skipping`);
+      results.push({ competitionId, verdict: 'SKIP' });
+      continue;
+    }
 
     try {
       // Step 1: get FD historical records (shared cache — no extra cost)

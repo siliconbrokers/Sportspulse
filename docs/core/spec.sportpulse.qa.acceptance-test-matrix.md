@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX
 title: "Acceptance Test Matrix"
 artifact_class: spec
 status: active
-version: 1.0.0
+version: 1.1.0
 project: sportpulse
 domain: qa
 slug: acceptance-test-matrix
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-16
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,8 +17,8 @@ canonical_path: docs/core/spec.sportpulse.qa.acceptance-test-matrix.md
 ---
 # SportPulse — Acceptance Test Matrix (MVP)
 
-Version: 1.0  
-Status: Authoritative acceptance matrix for MVP validation  
+Version: 1.1
+Status: Authoritative acceptance matrix for MVP validation
 Scope: Executable acceptance criteria and test cases for deterministic, explainable, snapshot-first SportPulse MVP  
 Audience: QA, Backend, Frontend, Ops, AI-assisted development workflows
 
@@ -626,6 +626,51 @@ The MVP cannot be considered complete unless these tests pass:
 
 ---
 
+---
+
+## K — Prediction surface + Track record
+
+These tests cover the prediction UX surface, track record integrity, and freemium gating introduced in MVP Execution Scope v2.0 §5.6–5.7 and Implementation Backlog v2.0 Phase 10–11.
+
+### K-01 — Prediction display for FULL_MODE match
+**Precondition:** match with `operatingMode = FULL_MODE`, `calibrated_1x2_probs` populated.
+**Expected:** DetailPanel shows home / draw / away calibrated probabilities and an operating mode indicator.
+**Must not:** display raw scoreline distribution to free-tier users.
+**Pass gate:** probabilities sum within floating-point tolerance of 1.0; no raw distribution fields exposed to free user.
+
+### K-02 — NOT_ELIGIBLE graceful state
+**Precondition:** match with `operatingMode = NOT_ELIGIBLE`.
+**Expected:** DetailPanel shows "Predicción no disponible" (or equivalent) indicator.
+**Must not:** show any probability value (including zeros); must not show an empty numeric field.
+**Pass gate:** prediction block renders with explicit unavailability message; no numeric probability values in DOM.
+
+### K-03 — Track record aggregate correctness
+**Precondition:** ≥200 evaluated predictions with `operatingMode = FULL_MODE` and known outcomes for the queried competition (per Business Plan v3.0 §11.2 credibility threshold). Below this threshold the endpoint must return `{ accuracy: null, predictionCount: N, lastEvaluatedAt, belowThreshold: true }` — it must not show a numeric accuracy figure.
+**Expected:** at ≥200, `GET /api/ui/track-record?competitionId=X` returns `{ accuracy, predictionCount, lastEvaluatedAt, belowThreshold: false }`.
+**Invariant:** only pre-kickoff predictions included; accuracy independently verifiable from raw data; `belowThreshold: true` suppresses numeric display.
+**Pass gate:** accuracy value matches manual computation from the same prediction corpus; below-threshold response hides accuracy and shows appropriate message; no fabricated accuracy surfaced before the 200-prediction gate.
+
+### K-04 — Pro depth paywall gate
+**Precondition (free tier):** authenticated user without Pro subscription.
+**Expected:** scoreline distribution, xG, O/U, BTTS fields not visible; paywall CTA visible.
+**Precondition (Pro tier):** authenticated user with active Pro subscription.
+**Expected:** all depth fields visible; no paywall block.
+**Invariant:** backend returns full payload in both cases; gating is presentation-only.
+**Pass gate:** free user DOM contains no depth field values; Pro user DOM contains all depth fields.
+
+### K-05 — Pro subscription flow
+**Precondition:** user completes Stripe Pro subscription checkout.
+**Expected:** Pro flag propagates to frontend within same session; depth predictions visible without paywall block.
+**Pass gate:** subscription status reflected in session; no paywall after confirmed payment.
+
+### K-06 — Registration deferral
+**Precondition:** new anonymous user arrives on dashboard.
+**Expected:** no registration prompt on first visit.
+**Expected:** registration prompt appears only when user attempts a Pro-gated action or explicit save/bookmark.
+**Pass gate:** first 5 interactions produce no registration modal; Pro-gated action triggers registration prompt.
+
+---
+
 ## 7. Notes on automation
 
 Automation priority:
@@ -645,4 +690,4 @@ But semantic correctness must be automated.
 
 ## 8. One-paragraph summary
 
-This acceptance matrix defines the concrete pass/fail conditions for SportPulse MVP across canonical normalization, signal computation, scoring policy execution, deterministic treemap geometry, snapshot assembly, UI API contracts, degraded-state handling, frontend rendering, and regression/version discipline. The MVP is considered real only when deterministic, explainable, snapshot-first behavior is verified under both normal and degraded conditions, with golden fixtures preventing silent semantic drift.
+This acceptance matrix defines the concrete pass/fail conditions for SportPulse across canonical normalization, signal computation, scoring policy execution, deterministic treemap geometry, snapshot assembly, UI API contracts, degraded-state handling, frontend rendering, regression/version discipline (A–J), and the prediction surface plus track record (K). The product is considered real only when deterministic, explainable, snapshot-first behavior is verified under both normal and degraded conditions, prediction probabilities are correctly gated by operating mode and subscription tier, track record data is accurate and cherry-pick-proof, and golden fixtures prevent silent semantic drift.

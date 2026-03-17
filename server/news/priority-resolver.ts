@@ -4,6 +4,7 @@ import type { StandingsProvider } from './types.js';
 // Used when lastPlayedMatchday < 5 or standings unavailable
 
 const STATIC_FALLBACK: Record<string, string[]> = {
+  // Legacy IDs — kept for backward compatibility (AF_CANONICAL_ENABLED=false)
   'comp:football-data:PD': [
     'Real Madrid', 'Barcelona', 'Atlético de Madrid', 'Sevilla', 'Real Sociedad',
   ],
@@ -12,6 +13,22 @@ const STATIC_FALLBACK: Record<string, string[]> = {
   ],
   'comp:football-data:BL1': [
     'Bayern München', 'Borussia Dortmund', 'Bayer Leverkusen', 'RB Leipzig', 'Stuttgart',
+  ],
+  // AF canonical IDs (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:140': [
+    'Real Madrid', 'Barcelona', 'Atlético de Madrid', 'Sevilla', 'Real Sociedad',
+  ],
+  'comp:apifootball:39': [
+    'Manchester City', 'Liverpool', 'Arsenal', 'Chelsea', 'Manchester United',
+  ],
+  'comp:apifootball:78': [
+    'Bayern München', 'Borussia Dortmund', 'Bayer Leverkusen', 'RB Leipzig', 'Stuttgart',
+  ],
+  'comp:apifootball:268': [
+    'Nacional', 'Peñarol', 'River Plate', 'Defensor Sporting', 'Danubio',
+  ],
+  'comp:apifootball:128': [
+    'Boca Juniors', 'River Plate', 'Racing Club', 'Independiente', 'San Lorenzo',
   ],
 };
 

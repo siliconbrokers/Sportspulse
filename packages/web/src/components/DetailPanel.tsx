@@ -143,16 +143,18 @@ function MatchHeader({
   headerLabel,
   kickoffUtc,
   matchPeriod,
+  elapsedMinutes,
 }: {
   vm: MatchDetailViewModel;
   timezone: string;
   headerLabel: string;
   kickoffUtc?: string;
   matchPeriod?: string;
+  elapsedMinutes?: number | null;
 }) {
   const isLive    = vm.uiState === 'IN_PLAY';
   const isZombie  = vm.uiState === 'PENDING_CONFIRMATION';
-  const clockText = useLiveMatchClock(kickoffUtc ?? null, matchPeriod ?? null, isLive && !isZombie);
+  const clockText = useLiveMatchClock(kickoffUtc ?? null, matchPeriod ?? null, isLive && !isZombie, elapsedMinutes);
   const hasScore  = vm.score.home != null && vm.score.away != null;
 
   // Color semántico del score según estado
@@ -1178,6 +1180,7 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
             headerLabel={headerLabel}
             kickoffUtc={nm?.kickoffUtc}
             matchPeriod={nm?.matchPeriod}
+            elapsedMinutes={nm?.elapsedMinutes}
           />
 
           {/* PRE_MATCH */}

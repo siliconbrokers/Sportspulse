@@ -1,15 +1,15 @@
 ---
 artifact_id: SPEC-SPORTPULSE-CORE-CONSTITUTION
-title: "SportPulse Constitution v2.0"
+title: "SportPulse Constitution v3.0"
 artifact_class: spec
 status: active
-version: 2.0.0
+version: 3.0.0
 project: sportpulse
 domain: core
 slug: constitution
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-16
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,8 +17,8 @@ canonical_path: docs/core/spec.sportpulse.core.constitution.md
 ---
 # SportPulse — Constitution (MVP + Design Constraints)
 
-Version: 2.0  
-Status: Authoritative constitutional document  
+Version: 3.0
+Status: Authoritative constitutional document
 Scope: Product constitution, architectural boundaries, MVP constraints, governance, and documentary hierarchy  
 Audience: Product, Backend, Frontend, QA, Ops, Design
 
@@ -44,16 +44,17 @@ It governs the system, the boundaries, and the hierarchy of more detailed specif
 
 ## 2. Product definition
 
-SportPulse is a **snapshot-first sports attention dashboard**.
+SportPulse is a **snapshot-first football analytics platform** for the Spanish-speaking football fan.
 
-Its purpose is to transform normalized sports data into a deterministic, explainable, visually stable dashboard that helps users understand:
+It combines two co-equal product pillars:
 
-- which teams deserve attention now
-- why they deserve that attention
-- what relevant upcoming events exist
-- how those priorities are represented consistently in the UI
+**Pillar 1 — Attention dashboard.** Transforms normalized football competition data into a deterministic, explainable, visually stable dashboard that shows users which teams deserve attention, why, and what upcoming events are relevant.
 
-SportPulse is not a raw scores app, not a live betting engine, not a provider mirror, and not a front-end-calculated visualization layer.
+**Pillar 2 — Match prediction engine.** Computes match outcome predictions using a versioned Elo + Poisson model, produces calibrated 1X2 probabilities and derived markets (O/U, BTTS, scorelines), and builds a verifiable public track record that constitutes the core competitive moat.
+
+Both pillars share the same architectural principles: snapshot-first, backend-owned semantics, determinism, explainability, provider isolation, and versioned evolution.
+
+**What SportPulse is not:** a raw scores app, a live betting engine, a tipster platform, a prediction market, a bookmaker affiliate, or a front-end-calculated visualization layer.
 
 ---
 
@@ -71,6 +72,10 @@ The current MVP is fixed to:
 - **snapshot-driven rendering**
 - **backend-owned scoring**
 - **backend-owned treemap geometry**
+- **predictive engine:** Elo rating + Poisson lambda → scoreline matrix → calibrated 1X2 + derived markets
+- **prediction operating modes:** FULL_MODE / LIMITED_MODE / NOT_ELIGIBLE per validation rules
+- **track record accumulation:** predictions timestamped before kickoff, stored for accuracy evaluation
+- **freemium tier separation:** 1X2 free / depth (scoreline, xG, model explanation, history) Pro-only
 
 ### 3.2 MVP scoring basis
 
@@ -80,6 +85,8 @@ The MVP attention model is intentionally narrow:
 - team next scheduled match proximity
 
 The active scoring signal set is defined in dedicated specs, but constitutionally the MVP is constrained to the **form + agenda** concept and must remain explainable and deterministic.
+
+The prediction pipeline is architecturally distinct from the attention scoring pipeline. It does not feed the treemap layout. Both pipelines are backend-owned, deterministic, and versioned independently.
 
 ### 3.3 MVP non-goals
 
@@ -219,29 +226,46 @@ It defines system principles, documentary authority, MVP boundaries, and design 
 
 The following documents are the active implementation-level sources of truth:
 
-#### Core scoring and snapshot documents
-- `signals-spec-corrected.md`
-- `metrics-spec-corrected.md`
-- `scoring-policy-spec-corrected.md`
-- `snapshot-engine-spec-corrected.md`
-- `dashboard-snapshot-dto-corrected-v1.2.md`
+#### Core governance
+- `docs/core/spec.sportpulse.core.domain-glossary-and-invariants.md`
+- `docs/core/spec.sportpulse.core.mvp-execution-scope.md`
+- `docs/core/spec.sportpulse.core.non-functional-requirements.md`
+- `docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md`
+- `docs/core/spec.sportpulse.shared.errors-and-warnings-taxonomy.md`
+- `docs/core/spec.sportpulse.qa.acceptance-test-matrix.md`
+- `docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md`
+- `docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md`
 
-#### UI and architecture documents
-- `frontend-architecture-corrected.md`
-- `ui-spec-corrected.md`
-- `api-contract-corrected.md`
-- `treemap-algorithm-spec-corrected.md`
-- `layout-stability-spec-corrected.md`
+#### Attention dashboard pipeline
+- `docs/specs/pipeline/spec.sportpulse.signals.core.md`
+- `docs/specs/pipeline/spec.sportpulse.signals.metrics.md`
+- `docs/specs/pipeline/spec.sportpulse.scoring.policy.md`
+- `docs/specs/pipeline/spec.sportpulse.snapshot.engine.md`
+- `docs/specs/pipeline/spec.sportpulse.snapshot.dashboard-dto.md`
+- `docs/specs/layout/spec.sportpulse.layout.treemap-algorithm.md`
+- `docs/specs/layout/spec.sportpulse.layout.stability.md`
+- `docs/specs/api/spec.sportpulse.api.contract.md`
 
-#### Supporting system documents
-- `component-map.md`
-- `interaction-spec.md`
-- `backend-architecture.md`
-- `data-normalization.md`
-- `event-lifecycle.md`
-- `data-quality.md`
-- `feature-evolution.md`
-- `product-loop.md`
+#### Prediction engine
+- `docs/specs/prediction/spec.sportpulse.prediction.engine.md`
+- `docs/specs/prediction/spec.sportpulse.prediction.conformance-test-plan.md`
+
+#### Frontend and portal
+- `docs/architecture/spec.sportpulse.web.frontend-architecture.md`
+- `docs/specs/portal/spec.sportpulse.web.ui.md`
+- `docs/specs/portal/spec.sportpulse.portal.interaction.md`
+
+#### Architecture and data
+- `docs/architecture/spec.sportpulse.web.component-map.md`
+- `docs/architecture/spec.sportpulse.server.backend-architecture.md`
+- `docs/data/spec.sportpulse.data.normalization.md`
+- `docs/data/spec.sportpulse.data.event-lifecycle.md`
+- `docs/data/spec.sportpulse.data.quality.md`
+- `docs/evolution/spec.sportpulse.product.feature-evolution.md`
+- `docs/evolution/spec.sportpulse.product.product-loop.md`
+
+#### Strategic reference (non-binding for implementation details)
+- `docs/product/report.sportpulse.product.business-plan.2026-03-01.md`
 
 ### 5.3 Conflict resolution rule
 
@@ -820,10 +844,12 @@ SportPulse must remain:
 - frontend-honest
 - visually stable through explicit contracts, not hidden heuristics
 
+The product's competitive moat — the only asset that cannot be fabricated retroactively — is its **verifiable track record**: timestamped predictions, auditable methodology, public accuracy history. This moat is constitutional. It must be protected with the same discipline as scoring determinism.
+
 The product is allowed to grow in sophistication, but every increase in sophistication must preserve these constitutional traits or explicitly version beyond them.
 
 ---
 
 ## 25. Appendix — One-paragraph operational summary
 
-SportPulse is a snapshot-first football dashboard whose backend ingests provider data, normalizes it into canonical entities, computes deterministic signals and scores using versioned policies, produces versioned treemap geometry server-side, and exposes that result through internal snapshot APIs to a frontend that renders and explains the result without recalculating semantic truth. The constitution governs these boundaries; the corrected specs implement them.
+SportPulse is a snapshot-first football analytics platform with two co-equal product pillars: an attention dashboard that ingests provider data, normalizes it into canonical entities, computes deterministic signals and scores using versioned policies, generates treemap geometry server-side, and exposes the result through internal APIs for a frontend that renders and explains without recalculating semantic truth; and a match prediction engine that computes Elo-based calibrated outcome probabilities, builds a verifiable public track record, and exposes depth analytics behind a freemium Pro paywall. Both pillars share the same constitutional principles: backend ownership of semantics, provider isolation, determinism, explainability, and versioned evolution. The constitution governs these boundaries; the corrected specs implement them.

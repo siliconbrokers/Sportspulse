@@ -10,7 +10,7 @@ slug: radar-v2-core
 owner: team
 created_at: 2026-03-16
 updated_at: 2026-03-16
-canonical_path: docs/specs/spec.sportpulse.radar-v2-core.md
+canonical_path: docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-core.md
 ---
 
 # Radar SportPulse — Core Specification v2

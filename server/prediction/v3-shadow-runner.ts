@@ -30,6 +30,7 @@ import { buildSnapshot } from './prediction-store.js';
 import type { EvaluationStore } from './evaluation-store.js';
 import { HistoricalStateService } from './historical-state-service.js';
 import { loadOLGPrevSeason, loadSDBPrevSeason } from './non-fd-prev-season-loader.js';
+import { loadAfHistoricalMatches } from './historical-match-loader-af.js';
 import type { OddsService } from '../odds/odds-service.js';
 import type { InjurySource } from './injury-source.js';
 import { normTeamName } from './injury-source.js';
@@ -40,18 +41,22 @@ import type { LineupSource } from './lineup-source.js';
 
 /**
  * Descriptor de una competencia no-FD para la carga de temporada anterior.
- * Si provider='openligadb': usa loadOLGPrevSeason(league, prevYear).
- * Si provider='thesportsdb' o 'sportsdb-ar': usa loadSDBPrevSeason(leagueId, providerKey, apiKey, prevYear).
+ *   provider='openligadb':  usa loadOLGPrevSeason(league, prevYear).
+ *   provider='thesportsdb': usa loadSDBPrevSeason(leagueId, providerKey, apiKey, prevYear).
+ *   provider='apifootball': usa loadAfHistoricalMatches(leagueId, prevYear, apiKey).
+ *                           currentSeasonMatches vienen del DataSource (team IDs consistentes).
  */
 export interface NonFdCompDescriptor {
   competitionId: string;
-  provider: 'openligadb' | 'thesportsdb';
-  /** League code para OLG (e.g. 'bl1') o leagueId para SDB (e.g. '4432') */
+  provider: 'openligadb' | 'thesportsdb' | 'apifootball';
+  /** League code para OLG (e.g. 'bl1'), leagueId para SDB (e.g. '4432') o AF (e.g. '140') */
   providerLeagueId: string;
-  /** Clave canónica usada en canonicalTeamId (e.g. 'openligadb', 'thesportsdb', 'sportsdb-ar') */
+  /** Clave canónica usada en canonicalTeamId (e.g. 'openligadb', 'thesportsdb', 'apifootball') */
   providerKey: string;
-  /** API key para SDB (ignorado para OLG) */
+  /** API key para SDB o API-Football (ignorado para OLG) */
   sdbApiKey?: string;
+  /** API key para API-Football (solo para provider='apifootball') */
+  afApiKey?: string;
   /**
    * Partidos esperados por equipo en una temporada completa.
    * Usado para derivar THRESHOLD_ELIGIBLE adaptativo (§14 adaptive).
@@ -129,19 +134,28 @@ export async function runV3Shadow(
       if (!seasonId) continue;
 
       let allHistorical: V3MatchRecord[];
-      try {
-        const records = await historicalService.getAllMatches(competitionCode, currentSeasonYear);
-        allHistorical = records.map((r) => ({
-          homeTeamId: r.homeTeamId,
-          awayTeamId: r.awayTeamId,
-          utcDate: r.utcDate,
-          homeGoals: r.homeGoals,
-          awayGoals: r.awayGoals,
-        }));
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`[V3Runner] failed to load FD history for ${competitionCode}: ${msg}`);
-        allHistorical = [];
+      // AF canonical competitions: team IDs are `team:apifootball:*`.
+      // The FD HistoricalStateService stores `team:football-data:*` IDs — they never match.
+      // Use extractFinishedFromDataSource instead to get the correct AF team IDs.
+      const isAfCanonical = competitionId.startsWith('comp:apifootball:');
+      if (isAfCanonical) {
+        allHistorical = extractFinishedFromDataSource(dataSource, seasonId, buildNowUtc);
+        console.log(`[V3Runner] AF canonical ${competitionId}: ${allHistorical.length} records from DataSource`);
+      } else {
+        try {
+          const records = await historicalService.getAllMatches(competitionCode, currentSeasonYear);
+          allHistorical = records.map((r) => ({
+            homeTeamId: r.homeTeamId,
+            awayTeamId: r.awayTeamId,
+            utcDate: r.utcDate,
+            homeGoals: r.homeGoals,
+            awayGoals: r.awayGoals,
+          }));
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`[V3Runner] failed to load FD history for ${competitionCode}: ${msg}`);
+          allHistorical = [];
+        }
       }
 
       const boundary = seasonBoundaryIso(currentSeasonYear);
@@ -166,6 +180,12 @@ export async function runV3Shadow(
       let prevSeasonMatches: V3MatchRecord[];
       if (desc.provider === 'openligadb') {
         prevSeasonMatches = await loadOLGPrevSeason(desc.providerLeagueId, prevSeasonYear);
+      } else if (desc.provider === 'apifootball') {
+        prevSeasonMatches = await loadAfHistoricalMatches(
+          Number(desc.providerLeagueId),
+          prevSeasonYear,
+          desc.afApiKey ?? '',
+        );
       } else {
         prevSeasonMatches = await loadSDBPrevSeason(
           desc.providerLeagueId,

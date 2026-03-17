@@ -2,6 +2,29 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Declaración de agente — Regla CRÍTICA
+
+**Toda respuesta que ejecute trabajo concreto DEBE terminar declarando el agente que realmente lo ejecutó.**
+
+Formato obligatorio:
+
+```
+Agente: <NombreAgente> (<ModeloReal>) | Tokens: ~<N>k input / ~<N>k output
+```
+
+Ejemplos:
+- `Agente: frontend-engineer (Sonnet) | Tokens: ~12k input / ~2k output`
+- `Agente: git-ops (Haiku) | Tokens: ~8k input / ~1k output`
+- `Agente: architect (Opus) | Tokens: ~20k input / ~3k output`
+- `Agente: Claude Code (Sonnet) | Tokens: ~15k input / ~1k output` ← cuando el main instance hace el trabajo
+
+**Reglas:**
+- Declarar el agente que **realmente ejecutó** — no el "recomendado". Si el main instance hizo el trabajo sin despachar a un subagente, declarar `Claude Code (<ModeloActual>)`.
+- **NO declarar en respuestas puramente conversacionales** (preguntas, diagnósticos, aclaraciones sin edición/escritura/bash con cambio de estado).
+- Aplica a: código, docs, configs, patches, cualquier respuesta que modifique estado.
+
+---
+
 ## Gestión de Tareas — Regla obligatoria
 
 - **Cada vez que el usuario pide una funcionalidad nueva** (no una corrección de bug), crear automáticamente una tarea con `TaskCreate` ANTES de implementar, con subject descriptivo, description con contexto y criterios de aceptación, y metadata con `tier` y `agent`.
@@ -106,8 +129,8 @@ When information conflicts, the higher-numbered document loses:
 6. `docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md` — architecture and dependency rules
 7. `docs/core/spec.sportpulse.shared.errors-and-warnings-taxonomy.md` — error/warning codes and semantics
 8. `docs/core/spec.sportpulse.qa.acceptance-test-matrix.md` + `docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md` — truth locks
-9. Core technical specs: `docs/specs/spec.sportpulse.signals.core.md`, `docs/specs/spec.sportpulse.signals.metrics.md`, `docs/specs/spec.sportpulse.scoring.policy.md`, `docs/specs/spec.sportpulse.snapshot.engine.md`, `docs/specs/spec.sportpulse.snapshot.dashboard-dto.md`, `docs/specs/spec.sportpulse.api.contract.md`, `docs/specs/spec.sportpulse.layout.treemap-algorithm.md`, `docs/specs/spec.sportpulse.layout.stability.md`, `docs/architecture/spec.sportpulse.web.frontend-architecture.md`, `docs/specs/spec.sportpulse.web.ui.md`
-10. Supporting docs: `docs/architecture/spec.sportpulse.web.component-map.md`, `docs/specs/spec.sportpulse.portal.interaction.md`, `docs/architecture/spec.sportpulse.server.backend-architecture.md`, `docs/data/spec.sportpulse.data.normalization.md`, `docs/data/spec.sportpulse.data.event-lifecycle.md`, `docs/data/spec.sportpulse.data.quality.md`, `docs/evolution/spec.sportpulse.product.feature-evolution.md`, `docs/evolution/spec.sportpulse.product.product-loop.md`
+9. Core technical specs: `docs/specs/pipeline/spec.sportpulse.signals.core.md`, `docs/specs/pipeline/spec.sportpulse.signals.metrics.md`, `docs/specs/pipeline/spec.sportpulse.scoring.policy.md`, `docs/specs/pipeline/spec.sportpulse.snapshot.engine.md`, `docs/specs/pipeline/spec.sportpulse.snapshot.dashboard-dto.md`, `docs/specs/api/spec.sportpulse.api.contract.md`, `docs/specs/layout/spec.sportpulse.layout.treemap-algorithm.md`, `docs/specs/layout/spec.sportpulse.layout.stability.md`, `docs/architecture/spec.sportpulse.web.frontend-architecture.md`, `docs/specs/portal/spec.sportpulse.web.ui.md`
+10. Supporting docs: `docs/architecture/spec.sportpulse.web.component-map.md`, `docs/specs/portal/spec.sportpulse.portal.interaction.md`, `docs/architecture/spec.sportpulse.server.backend-architecture.md`, `docs/data/spec.sportpulse.data.normalization.md`, `docs/data/spec.sportpulse.data.event-lifecycle.md`, `docs/data/spec.sportpulse.data.quality.md`, `docs/evolution/spec.sportpulse.product.feature-evolution.md`, `docs/evolution/spec.sportpulse.product.product-loop.md`
 11. `docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md` — governs how AI participates in development
 12. `docs/core/spec.sportpulse.core.subagents-definition.md` — sub-agent system: roles, prompts, handoffs, execution workflow
 13. `docs/core/spec.sportpulse.core.implementation-backlog.md` — ticket graph with phases, dependencies, and acceptance mapping
@@ -300,16 +323,58 @@ Un audit sin artefacto persistido no cuenta como evidencia de conformidad.
 
 ### Cuándo usar Agent tool (subagentes)
 
-El Agent tool **usa el mismo modelo de la sesión**. Solo es útil para:
+Los agentes definidos en `.claude/agents/` con `model:` en su frontmatter usan **ese modelo específico** (e.g. `architect` corre Opus, `git-ops` corre Haiku). El Agent tool genérico sin definición de agente usa el modelo de la sesión.
+
+El Agent tool es útil para:
 - **Paralelismo**: lanzar múltiples tareas independientes simultáneamente
 - **Aislamiento de contexto**: evitar que boilerplate contamine el contexto principal
 - **Exploración**: buscar en codebase sin gastar contexto del principal
+- **Cambio de modelo**: despachar a `architect` para diseño en Opus, `git-ops` para infra en Haiku
 
-**NO usar Agent tool para "ahorro de costo"** — no cambia el modelo.
+---
+
+### Agent Dispatch — Reglas de despacho obligatorio
+
+**El main instance NO debe hacer trabajo que pertenezca a un agente.**
+Estas reglas son de cumplimiento obligatorio en toda sesión, no solo cuando es conveniente.
+
+#### Investigación / búsqueda de archivos
+| Situación | Acción obligatoria |
+|-----------|-------------------|
+| Buscar archivos por patrón o keyword en >3 archivos | Lanzar `Explore` (quick/medium/very thorough según alcance) |
+| Entender cómo funciona una sección del codebase | Lanzar `Explore` — nunca leer 5+ archivos con Read directamente |
+| Root cause de un bug que involucra múltiples capas | Lanzar `architect` para diagnóstico |
+
+#### Implementación de código
+| Situación | Acción obligatoria |
+|-----------|-------------------|
+| Cualquier edit en `packages/web/src/` | `frontend-engineer` |
+| Cualquier edit en `packages/{api,canonical,signals,scoring,layout,snapshot}/src/` o `server/` | `backend-engineer` |
+| Cualquier edit en `packages/prediction/` | Agente PE correspondiente (ver tabla PE) |
+| Fix de 1 sola línea en un archivo de código | OK hacer directamente si el cambio es trivial y está 100% claro |
+
+#### Operaciones de infraestructura
+| Situación | Acción obligatoria |
+|-----------|-------------------|
+| Editar `.env`, `package.json`, `tsconfig*.json`, CI YAML | `git-ops` |
+| Commits de git | `git-ops` |
+| Actualizar CLAUDE.md, MEMORY.md, README.md | `git-ops` |
+| Agregar/quitar dependencias | `git-ops` |
+
+#### Anti-patrón prohibido
+❌ **Main instance investiga exhaustivamente (lee 10+ archivos, corre 15 curls) y LUEGO lanza un agente para formalizar.**
+✅ **Main instance identifica el tipo de tarea → lanza el agente correcto de entrada → recibe resultado.**
+
+El main instance debe hacer diagnóstico *superficial* (2-3 reads o greps para confirmar el scope) y luego delegar. El trabajo pesado siempre va al agente.
+
+#### Paralelismo obligatorio
+Cuando hay 2+ tareas independientes (distintos archivos, distintos dominios), siempre lanzarlas en paralelo en un solo mensaje. Nunca secuencial si no hay dependencia real.
+
+---
 
 ### Enforcement automático por tier
 
-**Nunca bloquear ni pedir al usuario que cambie de modelo manualmente.** Proceder siempre con el modelo activo. Al finalizar la tarea, declarar el tier recomendado como referencia.
+**Nunca bloquear ni pedir al usuario que cambie de modelo manualmente.** Proceder siempre con el modelo activo. Al finalizar, declarar el agente que ejecutó el trabajo (ver § Declaración de agente). No declarar en respuestas puramente conversacionales.
 
 | Acción | Tier recomendado |
 |--------|-----------------|
@@ -376,7 +441,7 @@ All phases (0-9) complete + Phase 10 (UI Polish) complete + News + Video Highlig
 - `server/football-data-source.ts` — football-data.org adapter
 - `server/the-sports-db-source.ts` — TheSportsDB adapter (Liga Uruguaya)
 - `server/routing-data-source.ts` — composite routing by competitionId
-- `server/matchday-cache.ts` — file-based JSON cache per matchday (spec: `docs/specs/spec.sportpulse.server.matchday-cache.md` v1.0)
+- `server/matchday-cache.ts` — file-based JSON cache per matchday (spec: `docs/specs/pipeline/spec.sportpulse.server.matchday-cache.md` v1.0)
   - Cache dir: `/cache/{provider}/{competitionId}/{season}/matchday-{NN}.json` (runtime, not versioned)
   - Atomic write (.tmp → rename), TTL by status (finished=1y, live=60s, scheduled=6h, mixed=5min)
   - Integrated in both data sources via `checkMatchdayCache` / `persistMatchdayCache`

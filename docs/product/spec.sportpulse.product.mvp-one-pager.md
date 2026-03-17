@@ -2,16 +2,16 @@
 artifact_id: SPEC-SPORTPULSE-PRODUCT-MVP-ONE-PAGER
 title: "MVP One Pager"
 artifact_class: spec
-status: active
+status: superseded
 version: 1.0.0
 project: sportpulse
 domain: product
 slug: mvp-one-pager
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-16
 supersedes: []
-superseded_by: []
+superseded_by: ["REPORT-SPORTPULSE-PRODUCT-BUSINESS-PLAN-2026-03"]
 related_artifacts: []
 canonical_path: docs/product/spec.sportpulse.product.mvp-one-pager.md
 ---

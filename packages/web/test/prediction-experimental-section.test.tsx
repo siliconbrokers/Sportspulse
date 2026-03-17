@@ -2,13 +2,15 @@
  * PE-78 UI Tests — PredictionExperimentalSection
  *
  * UI1: 404 (flag off or no prediction) → no render, clean absence
- * UI2: LIMITED_MODE → degradation notice visible, no 1X2 probs
- * UI3: FULL_MODE → probabilities visible, no degradation notice
+ * UI2: LIMITED_MODE → degradation notice visible, markets shown if available
+ * UI3: FULL_MODE → markets visible (O/U, BTTS, xG, scorelines), no degradation notice
  *
  * Stabilization gate requirement: validate the visible representation
  * of the experimental section, not just the API layer.
  *
  * Spec authority: PE-78 rollout doc, PredictionExperimentalSection.tsx
+ * NOTE: 1X2 block is intentionally absent from ExperimentalSection (shown in PronosticoCard radar).
+ * NOTE: "Resultado esperado" row was removed per design decision (duplicate with card header).
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -35,6 +37,22 @@ function makeProps(overrides: Partial<{
   };
 }
 
+function makeMarkets(xgHome = 1.8, xgAway = 1.2) {
+  return {
+    over_under: { over_0_5: 0.95, under_0_5: 0.05, over_1_5: 0.80, under_1_5: 0.20, over_2_5: 0.55, under_2_5: 0.45, over_3_5: 0.30, under_3_5: 0.70, over_4_5: 0.15, under_4_5: 0.85 },
+    btts: { yes: 0.52, no: 0.48 },
+    double_chance: { home_or_draw: 0.72, draw_or_away: 0.55, home_or_away: 0.73 },
+    dnb: { home: 0.62, away: 0.38 },
+    asian_handicap: { home_minus_half: 0.45, home_plus_half: 0.72, away_minus_half: 0.28, away_plus_half: 0.55 },
+    expected_goals: { home: xgHome, away: xgAway, total: xgHome + xgAway, implied_goal_line: 2.5 },
+    top_scorelines: [
+      { home: 1, away: 1, probability: 0.13 },
+      { home: 2, away: 1, probability: 0.11 },
+      { home: 1, away: 0, probability: 0.10 },
+    ],
+  };
+}
+
 function fullModePayload() {
   return {
     match_id: MATCH_ID,
@@ -48,6 +66,8 @@ function fullModePayload() {
     predicted_result: 'HOME',
     expected_goals_home: 1.8,
     expected_goals_away: 1.2,
+    markets: makeMarkets(1.8, 1.2),
+    signals: null,
     generated_at: '2026-03-10T03:00:00Z',
     engine_version: '1.3',
   };
@@ -66,6 +86,8 @@ function limitedModePayload() {
     predicted_result: null,
     expected_goals_home: 1.6,
     expected_goals_away: 1.1,
+    markets: makeMarkets(1.6, 1.1),
+    signals: null,
     generated_at: '2026-03-10T03:00:00Z',
     engine_version: '1.3',
   };
@@ -171,8 +193,8 @@ describe('UI2: LIMITED_MODE — degradation notice + permitted fields only', () 
     render(<PredictionExperimentalSection {...makeProps()} />);
 
     await waitFor(() => {
-      // Label is exact "xG" (only the row label span)
-      expect(screen.getByText('xG')).toBeInTheDocument();
+      // Label is now "Goles esperados" inside MarketsPanel
+      expect(screen.getByText('Goles esperados')).toBeInTheDocument();
     });
     // Values appear somewhere in the document
     expect(document.body.textContent).toContain('1.60');
@@ -210,18 +232,16 @@ describe('UI2: LIMITED_MODE — degradation notice + permitted fields only', () 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('UI3: FULL_MODE — probabilities visible, no degradation notice', () => {
-  it('shows 1X2 probabilities in FULL_MODE', async () => {
+  it('shows market sections in FULL_MODE', async () => {
     vi.stubGlobal('fetch', mockFetchOk(fullModePayload()));
 
     render(<PredictionExperimentalSection {...makeProps()} />);
 
     await waitFor(() => {
-      expect(screen.getByText('1X2')).toBeInTheDocument();
+      // MarketsPanel renders with O/U section (1X2 is intentionally omitted — shown in PronosticoCard radar)
+      expect(screen.getByText('Over / Under 2.5')).toBeInTheDocument();
     });
-    // Probabilities appear somewhere in the document
-    expect(document.body.textContent).toContain('45%');
-    expect(document.body.textContent).toContain('27%');
-    expect(document.body.textContent).toContain('28%');
+    expect(screen.getByText('Anotan ambos equipos')).toBeInTheDocument();
   });
 
   it('shows expected goals in FULL_MODE', async () => {
@@ -230,22 +250,23 @@ describe('UI3: FULL_MODE — probabilities visible, no degradation notice', () =
     render(<PredictionExperimentalSection {...makeProps()} />);
 
     await waitFor(() => {
-      expect(screen.getByText('xG')).toBeInTheDocument();
+      // xG section is now labeled "Goles esperados" inside MarketsPanel
+      expect(screen.getByText('Goles esperados')).toBeInTheDocument();
     });
     expect(document.body.textContent).toContain('1.80');
     expect(document.body.textContent).toContain('1.20');
   });
 
-  it('shows predicted result label using team name for HOME win', async () => {
+  it('does NOT show "Resultado esperado" row (removed — shown in card header)', async () => {
     vi.stubGlobal('fetch', mockFetchOk(fullModePayload()));
 
     render(<PredictionExperimentalSection {...makeProps()} />);
 
     await waitFor(() => {
-      expect(screen.getByText('Resultado esperado')).toBeInTheDocument();
-      // predicted_result = 'HOME' → should resolve to homeTeamName
-      expect(screen.getByText(HOME)).toBeInTheDocument();
+      expect(screen.getByText('Over / Under 2.5')).toBeInTheDocument();
     });
+
+    expect(screen.queryByText(/resultado esperado/i)).toBeNull();
   });
 
   it('does NOT show degradation notice in FULL_MODE', async () => {
@@ -254,7 +275,7 @@ describe('UI3: FULL_MODE — probabilities visible, no degradation notice', () =
     render(<PredictionExperimentalSection {...makeProps()} />);
 
     await waitFor(() => {
-      expect(screen.getByText('1X2')).toBeInTheDocument();
+      expect(screen.getByText('Over / Under 2.5')).toBeInTheDocument();
     });
 
     expect(screen.queryByText(/modo limitado/i)).toBeNull();

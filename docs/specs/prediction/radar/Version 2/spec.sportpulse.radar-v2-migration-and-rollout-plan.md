@@ -10,7 +10,7 @@ slug: radar-v2-migration-and-rollout-plan
 owner: team
 created_at: 2026-03-16
 updated_at: 2026-03-16
-canonical_path: docs/specs/spec.sportpulse.radar-v2-migration-and-rollout-plan.md
+canonical_path: docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-migration-and-rollout-plan.md
 ---
 
 # Radar SportPulse — Migration and Rollout Plan v2

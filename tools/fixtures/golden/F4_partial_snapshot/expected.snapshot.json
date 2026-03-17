@@ -149,7 +149,7 @@
         "matchId": "match:football-data:30",
         "kickoffUtc": "2026-03-05T20:00:00Z",
         "opponentTeamId": "team:football-data:200",
-        "opponentName": "Newly Promoted FC",
+        "opponentName": "Newly Promoted",
         "opponentRecentForm": [],
         "opponentRecentFormCrests": [],
         "opponentGoalStats": {
@@ -205,7 +205,7 @@
     },
     {
       "teamId": "team:football-data:200",
-      "teamName": "Newly Promoted FC",
+      "teamName": "Newly Promoted",
       "recentForm": [],
       "recentFormCrests": [],
       "goalStats": {
@@ -377,6 +377,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -415,6 +416,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -457,6 +459,7 @@
       "away": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -491,6 +494,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -533,6 +537,7 @@
       "away": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -565,6 +570,7 @@
       "home": {
         "teamId": "team:football-data:86",
         "name": "Real Madrid",
+        "shortName": "Real Madrid",
         "formChip": {
           "icon": "🔥",
           "label": "Picante",
@@ -574,7 +580,8 @@
       },
       "away": {
         "teamId": "team:football-data:200",
-        "name": "Newly Promoted FC",
+        "name": "Newly Promoted",
+        "shortName": "Newly Promoted",
         "formChip": {
           "icon": "⚠️",
           "label": "Sin datos",

@@ -71,6 +71,7 @@ const DOMESTIC_LEAGUE_PROFILE: CompetitionProfile = {
  * All four active SportPulse competitions are standard domestic leagues.
  */
 const KNOWN_PROFILES: Record<string, CompetitionProfile> = {
+  // Legacy IDs
   'comp:football-data:PD':  DOMESTIC_LEAGUE_PROFILE,
   'comp:football-data:PL':  DOMESTIC_LEAGUE_PROFILE,
   'comp:football-data:BL1': DOMESTIC_LEAGUE_PROFILE,
@@ -79,6 +80,51 @@ const KNOWN_PROFILES: Record<string, CompetitionProfile> = {
   'comp:football-data:DED': DOMESTIC_LEAGUE_PROFILE,
   'comp:football-data:PPL': DOMESTIC_LEAGUE_PROFILE,
   'comp:thesportsdb:4432':  DOMESTIC_LEAGUE_PROFILE,
+  'comp:sportsdb-ar:4406':  DOMESTIC_LEAGUE_PROFILE,
+  'comp:openligadb:bl1':    DOMESTIC_LEAGUE_PROFILE,
+  // API-Football canonical IDs (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:140':   DOMESTIC_LEAGUE_PROFILE,  // LaLiga
+  'comp:apifootball:39':    DOMESTIC_LEAGUE_PROFILE,  // Premier League
+  'comp:apifootball:78':    DOMESTIC_LEAGUE_PROFILE,  // Bundesliga
+  'comp:apifootball:268':   DOMESTIC_LEAGUE_PROFILE,  // Liga Uruguaya
+  'comp:apifootball:128':   DOMESTIC_LEAGUE_PROFILE,  // Liga Argentina
+  // International tournaments (AF_CANONICAL_ENABLED=true)
+  'comp:apifootball:13': {
+    competition_profile_version: '1.0',
+    team_domain:        'CLUB',
+    competition_family: 'INTERNATIONAL_CLUB',
+    stage_type:         'GROUP_STAGE',
+    format_type:        'GROUP_CLASSIC',
+    leg_type:           'SINGLE',
+    neutral_venue:      false,
+    group_ranking_rules: {
+      points_win: 3, points_draw: 1, points_loss: 0,
+      rank_by: ['POINTS', 'GOAL_DIFFERENCE', 'GOALS_FOR', 'HEAD_TO_HEAD_POINTS', 'DRAW_LOT'],
+    },
+    qualification_rules: { allow_cross_group_third_ranking: false },
+    tie_break_rules: {
+      use_head_to_head: true, use_goal_difference: true,
+      use_goals_for: true, use_fair_play: false, final_fallback: 'DRAW_LOT',
+    },
+  } as CompetitionProfile,
+  'comp:apifootball:1': {
+    competition_profile_version: '1.0',
+    team_domain:        'NATIONAL_TEAM',
+    competition_family: 'NATIONAL_TEAM_TOURNAMENT',
+    stage_type:         'GROUP_STAGE',
+    format_type:        'GROUP_CLASSIC',
+    leg_type:           'SINGLE',
+    neutral_venue:      true,
+    group_ranking_rules: {
+      points_win: 3, points_draw: 1, points_loss: 0,
+      rank_by: ['POINTS', 'GOAL_DIFFERENCE', 'GOALS_FOR', 'HEAD_TO_HEAD_POINTS', 'DRAW_LOT'],
+    },
+    qualification_rules: { allow_cross_group_third_ranking: false },
+    tie_break_rules: {
+      use_head_to_head: true, use_goal_difference: true,
+      use_goals_for: true, use_fair_play: true, final_fallback: 'DRAW_LOT',
+    },
+  } as CompetitionProfile,
 };
 
 // ── Internal helpers ───────────────────────────────────────────────────────

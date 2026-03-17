@@ -10,6 +10,7 @@ export function statusRoute(deps: AppDependencies): FastifyPluginAsync {
 
         // Intentar resolver cada competición conocida del dataSource
         const competitionIds = [
+          // Legacy IDs — kept for backward compatibility (AF_CANONICAL_ENABLED=false)
           'comp:thesportsdb:4432',
           'comp:football-data:PD',
           'comp:football-data:PL',
@@ -17,6 +18,12 @@ export function statusRoute(deps: AppDependencies): FastifyPluginAsync {
           'comp:football-data-wc:WC',
           'comp:football-data-ca:CA',
           'comp:football-data-cli:CLI',
+          // AF canonical IDs (AF_CANONICAL_ENABLED=true)
+          'comp:apifootball:140',  // LaLiga
+          'comp:apifootball:39',   // Premier League
+          'comp:apifootball:78',   // Bundesliga
+          'comp:apifootball:268',  // Uruguay Primera
+          'comp:apifootball:128',  // Argentina Liga Profesional
         ];
 
         for (const id of competitionIds) {

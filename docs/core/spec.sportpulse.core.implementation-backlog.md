@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-CORE-IMPLEMENTATION-BACKLOG
 title: "Implementation Backlog (SDD)"
 artifact_class: spec
 status: active
-version: 1.0.0
+version: 2.0.0
 project: sportpulse
 domain: core
 slug: implementation-backlog
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-16
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,8 +17,8 @@ canonical_path: docs/core/spec.sportpulse.core.implementation-backlog.md
 ---
 # SportPulse — Implementation Backlog (SDD)
 
-Version: 1.0  
-Status: Draft (execution-ready)  
+Version: 2.0
+Status: Active — Phases 0–9 complete; Phases 10–11 in execution
 Scope: Atomic implementation tickets with dependencies, outputs, tests, and version/fixture impact analysis for SportPulse MVP  
 Audience: Engineering, QA, Ops, AI-assisted development workflows
 
@@ -63,16 +63,18 @@ Each ticket includes:
 
 ## 3. Phases (high-level)
 
-Phase 0 — Repo scaffolding and boundary enforcement  
-Phase 1 — Canonical ingestion + normalization  
-Phase 2 — Signals  
-Phase 3 — Scoring policy execution  
-Phase 4 — Layout geometry  
-Phase 5 — Snapshot engine  
-Phase 6 — UI API  
-Phase 7 — Frontend UI  
-Phase 8 — Degraded states + fallback  
-Phase 9 — Golden fixtures + regression gates
+Phase 0 — Repo scaffolding and boundary enforcement ✅ DONE
+Phase 1 — Canonical ingestion + normalization ✅ DONE
+Phase 2 — Signals ✅ DONE
+Phase 3 — Scoring policy execution ✅ DONE
+Phase 4 — Layout geometry ✅ DONE
+Phase 5 — Snapshot engine ✅ DONE
+Phase 6 — UI API ✅ DONE
+Phase 7 — Frontend UI ✅ DONE
+Phase 8 — Degraded states + fallback ✅ DONE
+Phase 9 — Golden fixtures + regression gates ✅ DONE
+Phase 10 — Prediction UX surface + Track record ← ACTIVE
+Phase 11 — Pro tier freemium funnel ← PLANNED
 
 ---
 
@@ -559,17 +561,100 @@ Risks: false positives if gates not designed carefully.
 
 ## 5. MVP completion definition (execution)
 
-The MVP is considered complete when:
+**Phases 0–9 are complete (2026-03-16).**
 
-- Phase 1–7 deliverables exist and work end-to-end
-- Phase 8 degraded scenarios pass
-- Phase 9 golden fixtures pass
-- Minimum acceptance set in Acceptance Matrix is satisfied
+- Phase 1–7 deliverables: exist and work end-to-end ✅
+- Phase 8 degraded scenarios: pass ✅
+- Phase 9 golden fixtures: pass ✅
+- Minimum acceptance set (A-01 through J-02): satisfied ✅
 
-Anything else is improvement, not MVP completion.
+Phase 10 (Prediction UX + Track record) and Phase 11 (Pro tier) are the active commercial execution phases.
+
+---
+
+### Phase 10 — Prediction UX surface + Track record
+
+#### SP-1001 — Prediction detail surface in DetailPanel (free tier)
+Owner: FE
+Dependencies: UI API (SP-0601), Predictive Engine operational
+Refs: Constitution v3 §2, MVP Execution Scope v2 §5.6, spec.sportpulse.prediction.engine.md
+Deliverables:
+- 1X2 calibrated probabilities visible in DetailPanel for any match with FULL_MODE or LIMITED_MODE
+- Operating mode indicator ("Predicción disponible / limitada / no disponible")
+- Stub model explanation (which factors drove the prediction)
+- NOT_ELIGIBLE graceful state ("Datos insuficientes para predecir")
+Acceptance tests: K-01, K-02
+Golden fixtures: none (prediction fixtures are separate from snapshot fixtures)
+Version impact: `snapshotSchemaVersion` bump if prediction fields added to DashboardSnapshotDTO
+Risks: raw distribution accidentally mixed with calibrated probs; NOT_ELIGIBLE state not handled gracefully.
+
+---
+
+#### SP-1002 — Track record aggregate display (public)
+Owner: FE + BE
+Dependencies: SP-1001, track record accumulation operational
+Refs: Constitution v3 §2 (track record as moat), MVP Execution Scope v2 §5.7
+Deliverables:
+- Backend endpoint: `GET /api/ui/track-record?competitionId=X` → accuracy%, prediction count, last_evaluated_at
+- Frontend surface: static aggregate per competition visible in portal (competition info panel or dedicated section)
+- Only FULL_MODE evaluated predictions included in accuracy numerator
+- No user-filtering in MVP (aggregate only)
+Acceptance tests: K-03
+Golden fixtures: none
+Version impact: new endpoint; no existing version bump required
+Risks: display before minimum data threshold (gate: ≥200 evaluated predictions per liga before publishing accuracy — per Business Plan v3.0 §11.2; walk-forward historical data may be shown earlier with explicit "evaluación histórica, no historial operativo" disclosure); cherry-picking logic accidentally excludes unfavorable results.
+
+---
+
+#### SP-1003 — Pro depth paywall gate (scorelines, xG, derived markets)
+Owner: FE + BE
+Dependencies: SP-1001, auth/subscription infra decision
+Refs: MVP Execution Scope v2 §5.6 (Pro-only), Business Plan v3.0 §7
+Deliverables:
+- Depth fields (scoreline distribution, xG, O/U, BTTS) gated behind Pro check
+- Free user sees 1X2 + paywall CTA in depth section
+- Pro user sees full prediction detail
+- Paywall CTA links to Pro upgrade flow
+Acceptance tests: K-04
+Golden fixtures: none
+Version impact: none (gating is presentation logic; backend always returns full payload, frontend gates display)
+Risks: backend leaking Pro data to free tier; paywall CTA creating friction before user has seen value.
+
+---
+
+### Phase 11 — Pro tier freemium funnel
+
+#### SP-1101 — Subscription infrastructure (minimal viable)
+Owner: BE + Ops
+Dependencies: SP-1003
+Refs: Business Plan v3.0 §7, §11, §12
+Deliverables:
+- Stripe integration for Pro subscription ($5.20/mo gross)
+- User auth + subscription status check
+- JWT or session with Pro flag propagated to frontend
+- Admin view: active subscriber count
+Acceptance tests: K-05
+Golden fixtures: none
+Version impact: none
+Risks: ARPPU leakage (store fees not accounted in reporting); mobile payment flow bypassing web Stripe.
+
+---
+
+#### SP-1102 — Freemium conversion funnel (registration deferral)
+Owner: FE
+Dependencies: SP-1101
+Refs: Business Plan v3.0 §2.3, §7.3 (registration deferral principle)
+Deliverables:
+- Registration not required on first visit
+- Registration triggered when user tries to save, bookmark, or access Pro depth
+- Clear value prop shown before registration prompt
+Acceptance tests: K-06
+Golden fixtures: none
+Version impact: none
+Risks: registration prompt too early destroys conversion; too late loses the user entirely.
 
 ---
 
 ## 6. One-paragraph summary
 
-This backlog decomposes SportPulse MVP into a strict SDD task graph spanning repo scaffolding, canonical normalization, signal computation, scoring policy execution, deterministic layout, snapshot orchestration, UI API exposure, frontend rendering from backend geometry, degraded-state handling, and golden-fixture regression gates. Each ticket defines boundaries, outputs, acceptance tests, and fixture impact to prevent scope drift and protect deterministic, explainable product truth.
+This backlog decomposes SportPulse into a strict SDD task graph. Phases 0–9 (complete) cover repo scaffolding, canonical normalization, signal computation, scoring policy execution, deterministic layout, snapshot orchestration, UI API exposure, frontend rendering from backend geometry, degraded-state handling, and golden-fixture regression gates. Phases 10–11 (active) cover the commercial execution: prediction UX surface, track record accumulation and display, Pro depth paywall, and freemium conversion funnel. Each ticket defines boundaries, outputs, acceptance tests, and fixture impact to prevent scope drift and protect deterministic, explainable product truth.

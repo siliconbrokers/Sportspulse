@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-CORE-DOMAIN-GLOSSARY-AND-INVARIANTS
 title: "Domain Glossary and Invariants"
 artifact_class: spec
 status: active
-version: 1.0.0
+version: 2.0.0
 project: sportpulse
 domain: core
 slug: domain-glossary-and-invariants
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-16
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,8 +17,8 @@ canonical_path: docs/core/spec.sportpulse.core.domain-glossary-and-invariants.md
 ---
 # SportPulse — Domain Glossary and Invariants
 
-Version: 1.0  
-Status: Authoritative domain reference  
+Version: 2.0
+Status: Authoritative domain reference
 Scope: Canonical vocabulary, semantic rules, and non-negotiable invariants for SportPulse MVP  
 Audience: Product, Backend, Frontend, QA, Ops, AI-assisted development workflows
 
@@ -64,17 +64,23 @@ If any lower-level document uses a term in a contradictory way, this document wi
 
 ## 3. Domain boundary
 
-SportPulse is a **snapshot-first football attention dashboard**.
+SportPulse is a **snapshot-first football analytics platform** operating on two co-equal product pillars.
 
-The system operates on normalized football competition data and produces explainable dashboard artifacts.
+**Attention dashboard subdomain:** produces explainable attention snapshots from normalized competition data.
 
-This domain does **not** include, in MVP v1:
+**Prediction subdomain:** computes versioned probabilistic match outcome predictions with a verifiable track record.
 
-- betting semantics as core truth
-- prediction semantics as core truth
+Both subdomains share canonical entity definitions (Competition, Season, Team, Match). Their pipelines are architecturally separate and version-independent.
+
+In MVP v1, this domain does **not** include:
+
+- betting semantics as canonical truth (odds, lines, spreads)
 - bookmaker data as canonical truth
 - user-generated content as canonical truth
 - provider-native schemas as frontend truth
+- real-money exchange, prediction market, or wagering mechanics
+
+**Note on prediction semantics:** prediction probabilities and derived markets are first-class product domain objects. They are produced by the backend, versioned independently, and exposed through the internal API. They are not external bookmaker data and do not constitute betting guidance.
 
 ---
 
@@ -594,6 +600,51 @@ These are different concepts and must never be conflated.
 
 ---
 
+## 4.13 Prediction
+
+A **Prediction** is a versioned probabilistic forecast of a match outcome, produced by the backend Predictive Engine from canonical match and team data.
+
+A Prediction is not raw bookmaker data, not user input, and not a guarantee.
+
+### Prediction invariants
+- A prediction is anchored to a specific `matchId` and produced before `kickoffUtc`.
+- A prediction has explicit `operatingMode`: FULL_MODE, LIMITED_MODE, or NOT_ELIGIBLE.
+- Calibrated 1X2 probabilities and raw distribution must never be mixed in the same output field.
+- A prediction produced in NOT_ELIGIBLE mode results in `predictions: null` in the API contract.
+- Frontend must not derive prediction probabilities independently.
+
+---
+
+## 4.14 TrackRecord
+
+**TrackRecord** is the accumulated corpus of timestamped predictions produced before match kickoff, paired with actual outcomes, enabling public accuracy auditing.
+
+The track record is the product's core competitive moat. It cannot be fabricated retroactively.
+
+### TrackRecord invariants
+- Only pre-kickoff predictions with stored timestamps count toward the track record.
+- Track record entries must reference the prediction version and operating mode that produced them.
+- Accuracy metrics are derived from closed (post-kickoff) track record entries only.
+- Track record data is public and must not be filtered or cherry-picked for display.
+
+---
+
+## 4.15 OperatingMode
+
+**OperatingMode** is the validation outcome that determines the depth of prediction output available for a given match.
+
+Defined values:
+- `FULL_MODE`: all predictions and derived markets available
+- `LIMITED_MODE`: core 1X2 predictions available; certain derived markets unavailable
+- `NOT_ELIGIBLE`: insufficient data; no predictions produced
+
+### OperatingMode invariants
+- Operating mode is determined by the Validation layer; it is not a UI concern.
+- A match with `NOT_ELIGIBLE` mode must expose `predictions: null` in the API contract.
+- Operating mode transitions are governed by hard thresholds, not interpretation.
+
+---
+
 ## 13. AI-assisted development semantics
 
 ## 13.1 AI must treat these terms as fixed
@@ -686,4 +737,4 @@ This document is successful if:
 
 ## 17. One-paragraph summary
 
-SportPulse operates on canonical football entities and produces deterministic, explainable snapshots anchored by explicit identity, time, policy, and layout semantics. Teams and matches are stable domain objects; snapshots are coherent product artifacts; signals and scores are backend-owned truths; warnings and quality states are explicit; geometry is versioned and server-produced; missing is not zero; computed time is not logical time; and no frontend or AI workflow is allowed to improvise semantic truth outside these invariants.
+SportPulse operates on canonical football entities and produces two co-equal product artifacts: deterministic attention snapshots anchored by explicit scoring policy identity, layout algorithm identity, and logical build time; and versioned probabilistic match predictions anchored by Elo model version, calibration version, and pre-kickoff timestamp. Teams and matches are stable domain objects; snapshots and predictions are backend-owned truths; signals, scores, probabilities, and track record entries follow the same principles of determinism, explainability, and version discipline; missing is not zero; computed time is not logical time; and no frontend or AI workflow is allowed to improvise semantic truth outside these invariants.

@@ -17,6 +17,7 @@ import { DetailPanel } from '../DetailPanel.js';
 interface PronosticosViewProps {
   competitionId: string;
   matchday: number | null;
+  subTournamentKey?: string;
 }
 
 // ── Skeletons ─────────────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ function sortMatchCards(
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-export function PronosticosView({ competitionId, matchday }: PronosticosViewProps) {
+export function PronosticosView({ competitionId, matchday, subTournamentKey }: PronosticosViewProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
   const isTablet = breakpoint === 'tablet';
@@ -78,11 +79,13 @@ export function PronosticosView({ competitionId, matchday }: PronosticosViewProp
   const [focusMatchId, setFocusMatchId] = useState<string | null>(null);
   const { data: teamDetail } = useTeamDetail(competitionId, focusTeamId, matchday, 'America/Montevideo');
 
-  // Todos los partidos de la jornada
+  // Todos los partidos de la jornada (filtrado por sub-torneo si aplica)
   const { data: snapshot, loading: snapshotLoading } = useDashboardSnapshot(
     competitionId,
     matchday,
     'America/Montevideo',
+    undefined,
+    subTournamentKey,
   );
 
   // Datos editoriales de radar (predicciones, probabilidades) — opcional

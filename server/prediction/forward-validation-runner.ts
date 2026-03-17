@@ -25,6 +25,10 @@ import { buildMatchInput, type TeamMatchCounts } from './match-input-adapter.js'
 import { PredictionService } from './prediction-service.js';
 import { HistoricalStateService } from './historical-state-service.js';
 import {
+  getPreMatchTeamStateFromDataSource,
+  getPlayedGamesFromStandings,
+} from './af-data-source-historical.js';
+import {
   ForwardValidationStore,
   type ForwardValidationRecord,
   type ForwardVariant,
@@ -264,17 +268,31 @@ export class ForwardValidationRunner {
   private readonly predictionService: PredictionService;
   private readonly historicalStateService: HistoricalStateService;
   private readonly store: ForwardValidationStore;
+  /**
+   * Set of competition IDs (e.g. 'comp:apifootball:268') that should use the
+   * DataSource-derived historical state instead of the FD historical loader.
+   *
+   * Use this for:
+   *   - AF canonical competitions (all team IDs are 'team:apifootball:*')
+   *   - Competitions without a football-data.org code (URU, ARG)
+   *
+   * When a competition ID is in this set, `getPreMatchTeamStateFromDataSource`
+   * is called instead of `historicalStateService.getPreMatchTeamState`.
+   */
+  private readonly afCompetitionIds: ReadonlySet<string>;
 
   constructor(
     dataSource: DataSource,
     predictionService: PredictionService,
     historicalStateService: HistoricalStateService,
     store: ForwardValidationStore,
+    afCompetitionIds?: string[],
   ) {
     this.dataSource = dataSource;
     this.predictionService = predictionService;
     this.historicalStateService = historicalStateService;
     this.store = store;
+    this.afCompetitionIds = new Set(afCompetitionIds ?? []);
   }
 
   /**
@@ -316,8 +334,10 @@ export class ForwardValidationRunner {
           continue;
         }
 
-        // Pre-warm historical state cache for the competition
-        await this.historicalStateService.warmUp(competitionCode, seasonStartYear);
+        // Pre-warm historical state cache (FD-backed only — AF competitions skip)
+        if (!this.afCompetitionIds.has(competitionId)) {
+          await this.historicalStateService.warmUp(competitionCode, seasonStartYear);
+        }
 
         // Build minimal Competition + Season stubs for match-input-adapter
         const competition: Competition = {
@@ -417,18 +437,47 @@ export class ForwardValidationRunner {
 
           try {
             // ── 1. Get current-season Elo state ──────────────────────────
-            const teamState = await this.historicalStateService.getPreMatchTeamState(
-              competitionCode,
-              seasonStartYear,
-              match.homeTeamId,
-              match.awayTeamId,
-              match.startTimeUtc!,
-            );
+            // AF canonical competitions: derive history from the DataSource
+            // (team IDs are 'team:apifootball:*' — incompatible with FD loader).
+            // Legacy FD competitions: use HistoricalStateService (FD API + disk cache).
+            const isAfComp = this.afCompetitionIds.has(competitionId);
+
+            const teamState = isAfComp
+              ? getPreMatchTeamStateFromDataSource(
+                  this.dataSource,
+                  competitionId,
+                  match.homeTeamId,
+                  match.awayTeamId,
+                  match.startTimeUtc!,
+                )
+              : await this.historicalStateService.getPreMatchTeamState(
+                  competitionCode,
+                  seasonStartYear,
+                  match.homeTeamId,
+                  match.awayTeamId,
+                  match.startTimeUtc!,
+                );
 
             // ── 2. Build MatchInput ───────────────────────────────────────
+            // For AF competitions, supplement completedMatches365d with standings
+            // playedGames to ensure eligibility is correctly evaluated even when
+            // Elo history is sparse (early season).
+            const homeCount = isAfComp
+              ? Math.max(
+                  teamState.homeTeam.completedMatches365d,
+                  getPlayedGamesFromStandings(this.dataSource, competitionId, match.homeTeamId),
+                )
+              : teamState.homeTeam.completedMatches365d;
+            const awayCount = isAfComp
+              ? Math.max(
+                  teamState.awayTeam.completedMatches365d,
+                  getPlayedGamesFromStandings(this.dataSource, competitionId, match.awayTeamId),
+                )
+              : teamState.awayTeam.completedMatches365d;
+
             const matchCounts: { home: TeamMatchCounts; away: TeamMatchCounts } = {
-              home: { completed_365d: teamState.homeTeam.completedMatches365d },
-              away: { completed_365d: teamState.awayTeam.completedMatches365d },
+              home: { completed_365d: homeCount },
+              away: { completed_365d: awayCount },
             };
             const adapterResult = buildMatchInput(match, competition, season, matchCounts);
 

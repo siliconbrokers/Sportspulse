@@ -2,16 +2,16 @@
 artifact_id: SPEC-SPORTPULSE-PRODUCT-MVP-STRATEGIC-BRIEF
 title: "MVP Strategic Brief"
 artifact_class: spec
-status: active
+status: superseded
 version: 1.0.0
 project: sportpulse
 domain: product
 slug: mvp-strategic-brief
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-16
 supersedes: []
-superseded_by: []
+superseded_by: ["REPORT-SPORTPULSE-PRODUCT-BUSINESS-PLAN-2026-03"]
 related_artifacts: []
 canonical_path: docs/product/spec.sportpulse.product.mvp-strategic-brief.md
 ---
