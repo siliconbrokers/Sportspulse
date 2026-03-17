@@ -109,6 +109,48 @@ Cada vez que se crea un nuevo paquete en `packages/`, se deben hacer **obligator
 
 ---
 
+## Deployment Quality Guards — Reglas obligatorias
+
+Estos guards existen para evitar que cambios en dev lleguen a producción rotos silenciosamente.
+
+### Archivos clave (NO eliminar ni modificar sin entender el impacto)
+
+- `tsconfig.server.typecheck.json` — typecheck de `server/` en CI. Usa `module:ESNext` + `moduleResolution:Bundler` para coincidir con cómo tsx resuelve imports. Si se agrega un archivo nuevo a `server/`, se typecheck automáticamente.
+- `server/env-validator.ts` — falla el startup si vars requeridas no están seteadas. **Actualizar cuando se agrega una nueva var requerida al servidor.**
+- `scripts/smoke-test.ts` — test post-deploy que verifica portal-config, routing, dashboard por liga y news. Correr con `pnpm smoke-test` o `SMOKE_BASE_URL=https://... pnpm smoke-test`.
+- `.env.production.example` — referencia de todas las vars de entorno para Render. **Actualizar cuando se agrega una nueva var.**
+- `.github/workflows/smoke-test.yml` — workflow manual en GitHub Actions para smoke test contra producción.
+
+### Cuándo correr cada guard
+
+| Situación | Guard obligatorio |
+|-----------|-------------------|
+| Agregar una var de entorno requerida al servidor | Actualizar `server/env-validator.ts` + `.env.production.example` |
+| Agregar un archivo nuevo a `server/` | `pnpm tsc --noEmit --project tsconfig.server.typecheck.json` debe pasar |
+| Después de un deploy a producción | `pnpm smoke-test` con `SMOKE_BASE_URL` de Render |
+| Agregar una nueva liga/competition al portal | Verificar que `/api/ui/status` la muestre como `loaded: true` post-deploy |
+
+### Regla de typecheck para server/
+
+`pnpm -r build` compila solo `packages/*`. Los archivos en `server/` se ejecutan via `tsx` y **nunca son compilados por el build**. El único check de tipos para `server/` es:
+
+```bash
+pnpm tsc --noEmit --project tsconfig.server.typecheck.json
+```
+
+Este paso corre automáticamente en CI. Si falla, el deploy no llega a Render.
+
+### Startup sequence (orden de checks en producción)
+
+1. `validateEnv()` — falla si vars requeridas faltan
+2. Inicialización de data sources
+3. `assertRoutingParity()` — falla si competition IDs del portal no tienen ruta registrada
+4. Fastify arranca y acepta requests
+
+Si cualquiera de los pasos 1-3 falla, el container sale con código no-cero y Render marca el deploy como fallido.
+
+---
+
 ## Methodology: Spec-Driven Development (SDD)
 
 This project is governed entirely by **SDD (Spec-Driven Development)**. The specs are the source of truth. Code implements specs — never the reverse. Every document, architectural decision, implementation task, and test exists under this framework.
