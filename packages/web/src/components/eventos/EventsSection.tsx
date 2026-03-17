@@ -195,7 +195,11 @@ interface EventsSectionProps {
 }
 
 export function EventsSection({ activeTab, onTabChange, enabledCompetitionIds }: EventsSectionProps) {
-  const { data: feed, loading: loadingStream, error } = useEvents(true);
+  // Si hay 0 ligas habilitadas explícitamente, no hacer fetches
+  const enabledCount = enabledCompetitionIds?.length ?? null;
+  const fetchEnabled = enabledCount !== 0;
+
+  const { data: feed, loading: loadingStream, error } = useEvents(fetchEnabled);
   const { breakpoint } = useWindowWidth();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -227,10 +231,15 @@ export function EventsSection({ activeTab, onTabChange, enabledCompetitionIds }:
   }, []);
 
   useEffect(() => {
+    // Si hay 0 ligas habilitadas explícitamente, no iniciar ningún fetch
+    if (!fetchEnabled) {
+      setLoadingCanon(false);
+      return;
+    }
     fetchCanon();
     const id = setInterval(fetchCanon, 60_000);
     return () => clearInterval(id);
-  }, [fetchCanon]);
+  }, [fetchCanon, fetchEnabled]);
 
   const loading = loadingStream || loadingCanon;
 

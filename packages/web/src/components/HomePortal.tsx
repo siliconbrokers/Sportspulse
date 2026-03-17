@@ -16,8 +16,11 @@ export function HomePortal({ enabledCompetitionIds }: { enabledCompetitionIds?: 
     ? enabledCompetitionIds.map((id) => COMP_ID_TO_NEWS_KEY[id]).filter(Boolean)
     : undefined;
 
-  const { data: newsFeed, loading: newsLoading } = useNews(true);
-  const { data: videoFeed, loading: videoLoading } = useVideos(true);
+  // Si hay 0 ligas habilitadas explícitamente, no hacer fetches de news/videos
+  const feedFetchEnabled = enabledCompetitionIds == null || enabledCompetitionIds.length > 0;
+
+  const { data: newsFeed, loading: newsLoading } = useNews(feedFetchEnabled);
+  const { data: videoFeed, loading: videoLoading } = useVideos(feedFetchEnabled);
 
   return (
     <div

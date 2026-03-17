@@ -10,6 +10,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getFullConfig, updateConfig } from './portal-config-store.js';
+import type { SnapshotStore } from '@sportpulse/snapshot';
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET ?? '';
 
@@ -20,7 +21,7 @@ function validateAuth(authHeader: string | undefined): boolean {
   return token === ADMIN_SECRET;
 }
 
-export function registerAdminRoutes(app: FastifyInstance): void {
+export function registerAdminRoutes(app: FastifyInstance, snapshotStore: SnapshotStore): void {
   // POST /api/admin/auth — valida token, devuelve 200 o 401
   app.post('/api/admin/auth', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { token?: string } | null;
@@ -54,7 +55,26 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     if (!patch || (patch.competitions === undefined && patch.features === undefined)) {
       return reply.status(400).send({ error: 'Empty patch' });
     }
+
+    // Capture which competition IDs are currently enabled before the update
+    const prevEnabled = new Set(
+      getFullConfig().competitions.filter((c) => c.enabled).map((c) => c.id),
+    );
+
     updateConfig(patch, 'admin');
+
+    // Invalidate snapshot entries for competitions that were just disabled
+    if (patch.competitions) {
+      const newlyDisabled = patch.competitions
+        .filter(({ id, enabled }) => !enabled && prevEnabled.has(id))
+        .map(({ id }) => id);
+
+      if (newlyDisabled.length > 0) {
+        console.log(`[AdminRouter] Invalidating snapshot cache for disabled competitions: ${newlyDisabled.join(', ')}`);
+        snapshotStore.invalidateAll();
+      }
+    }
+
     return reply.send({ ok: true, config: getFullConfig() });
   });
 }

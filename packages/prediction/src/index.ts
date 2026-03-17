@@ -143,6 +143,9 @@ export type {
   ConfirmedLineupRecord,
   AbsenceType,
   PlayerPosition,
+  // §Cal Phase 5 calibration types
+  CalibrationPoint,
+  CalibrationTable,
 } from './engine/v3/index.js';
 
 // ── Response Builder (Phase 4 — §21) ──────────────────────────────────────

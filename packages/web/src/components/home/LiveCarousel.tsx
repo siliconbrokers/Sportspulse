@@ -542,6 +542,9 @@ export function LiveCarousel({ isMobile, enabledCompetitionIds }: LiveCarouselPr
   const [focusEventId, setFocusEventId] = useState<string | null>(null);
   const scrollRef               = useRef<HTMLDivElement>(null);
 
+  // Número de ligas habilitadas — si es 0 no hay nada que mostrar, skip fetch
+  const enabledCount = enabledCompetitionIds?.length ?? null;
+
   // Mapa id → UpcomingMatchDTO para recuperar competitionId/teamId al hacer click
   const upcomingMap = new Map(upcoming.map((m) => [`canonical:${m.id}`, m]));
 
@@ -564,10 +567,15 @@ export function LiveCarousel({ isMobile, enabledCompetitionIds }: LiveCarouselPr
   }, []);
 
   useEffect(() => {
+    // Si hay 0 ligas habilitadas explícitamente, no iniciar ningún fetch
+    if (enabledCount === 0) {
+      setLoading(false);
+      return;
+    }
     fetchFeed();
     const id = setInterval(fetchFeed, 60_000);
     return () => clearInterval(id);
-  }, [fetchFeed]);
+  }, [fetchFeed, enabledCount]);
 
   // Scroll de flechas
   const scroll = useCallback((dir: 'left' | 'right') => {

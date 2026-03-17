@@ -14,9 +14,13 @@ import {
   LAMBDA_MAX,
 } from './constants.js';
 
-/** Clamp para el multiplicador de home advantage derivado de baselines. */
+/** Clamp para el multiplicador de home advantage derivado de baselines.
+ * Reducido de 1.5 a 1.3: calibración isotónica sobre 977 matches 2024-25 muestra que
+ * el modelo sobreestima p_home en ~8pp y p_draw en ~6pp, mientras subestima p_away en ~7pp.
+ * El cap anterior (1.5) permitía ratios demasiado agresivos para ligas como PL (~1.42).
+ */
 const HOME_ADV_MIN = 1.0;
-const HOME_ADV_MAX = 1.5;
+const HOME_ADV_MAX = 1.3;
 import type { LeagueBaselines } from './types.js';
 
 export interface V3LambdaInputs {

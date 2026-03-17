@@ -6,7 +6,7 @@
  * Función pura. Sin IO. Determinista.
  */
 
-import { TOO_CLOSE_THRESHOLD } from './constants.js';
+import { TOO_CLOSE_THRESHOLD, DRAW_FLOOR, DRAW_MARGIN } from './constants.js';
 
 export interface PredictedResultOutput {
   predicted_result: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | null;
@@ -47,8 +47,31 @@ export function computePredictedResult(
   const secondProb = probs[1].value;
   const margin = maxProb - secondProb;
 
+  // ── TOO_CLOSE: modelo sin señal → abstener ────────────────────────────
+  // Tiene precedencia sobre el DRAW floor: si el partido es genuinamente
+  // indeciso (diferencia < umbral), no forzar una predicción.
+  if (margin < TOO_CLOSE_THRESHOLD) {
+    return { predicted_result: null, favorite_margin: margin };
+  }
+
+  // ── DRAW floor rule ────────────────────────────────────────────────────
+  // Solo corre cuando el argmax ya es decisivo (TOO_CLOSE ya descartado).
+  // Captura partidos donde el argmax elegiría HOME/AWAY pero p_draw está
+  // suficientemente elevada y el líder no la supera por mucho.
+  // Compensa el sesgo estructural del modelo Poisson + home advantage que
+  // siempre infla p_home por encima de p_draw.
+  if (probDraw >= DRAW_FLOOR) {
+    const maxOther = Math.max(probHome, probAway);
+    if (maxOther - probDraw <= DRAW_MARGIN) {
+      return {
+        predicted_result: 'DRAW',
+        favorite_margin: maxOther - probDraw,
+      };
+    }
+  }
+
   return {
-    predicted_result: margin < TOO_CLOSE_THRESHOLD ? null : probs[0].key,
+    predicted_result: probs[0].key,
     favorite_margin: margin,
   };
 }

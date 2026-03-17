@@ -46,3 +46,10 @@ export {
 } from './version-metadata.js';
 
 export type { CalibrationVersionMetadata, DecisionPolicyConfig } from './version-metadata.js';
+
+// ── §Cal Phase 5: V3 isotonic calibration interface ───────────────────────
+export {
+  applyIsoCalibration,
+  interpolateCalibration,
+  fitIsotonicRegression,
+} from './iso-calibrator.js';

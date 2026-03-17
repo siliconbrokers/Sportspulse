@@ -1,0 +1,2150 @@
+{
+  "version": 1,
+  "competitionCode": "DED",
+  "year": 2024,
+  "fetchedAt": "2026-03-13T03:25:38.627Z",
+  "matches": [
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2024-08-09T18:00:00Z",
+      "homeGoals": 4,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2024-08-10T14:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2024-08-10T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2024-08-10T18:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2024-08-10T19:00:00Z",
+      "homeGoals": 5,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2024-08-11T10:15:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2024-08-11T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2024-08-11T12:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2024-08-11T14:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2024-08-16T18:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2024-08-17T14:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2024-08-17T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2024-08-17T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2024-08-17T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2024-08-18T10:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2024-08-18T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 5
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2024-08-18T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2024-08-18T14:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2024-08-24T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2024-08-24T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 7
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2024-08-24T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2024-08-25T10:15:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2024-08-25T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2024-08-25T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2024-08-25T14:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2024-08-30T18:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2024-08-31T14:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2024-08-31T16:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2024-08-31T18:00:00Z",
+      "homeGoals": 4,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2024-08-31T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2024-09-01T10:15:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2024-09-01T12:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2024-09-01T14:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2024-09-14T14:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2024-09-14T14:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2024-09-14T16:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2024-09-14T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2024-09-14T19:00:00Z",
+      "homeGoals": 9,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2024-09-15T10:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2024-09-15T12:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2024-09-15T14:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2024-09-17T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2024-09-18T18:00:00Z",
+      "homeGoals": 5,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2024-09-20T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2024-09-21T14:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2024-09-21T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2024-09-21T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2024-09-21T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2024-09-22T10:15:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2024-09-22T12:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 5
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2024-09-22T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2024-09-22T14:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2024-09-27T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2024-09-28T14:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2024-09-28T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2024-09-28T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2024-09-29T10:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2024-09-29T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2024-09-29T12:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2024-09-29T14:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2024-09-29T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2024-10-04T18:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2024-10-05T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2024-10-05T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2024-10-05T19:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2024-10-06T10:15:00Z",
+      "homeGoals": 4,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2024-10-06T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2024-10-06T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2024-10-06T14:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2024-10-06T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2024-10-19T14:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2024-10-19T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2024-10-19T18:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2024-10-19T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2024-10-19T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 5
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2024-10-20T10:15:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2024-10-20T12:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2024-10-20T12:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 4
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2024-10-20T14:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2024-10-25T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2024-10-26T14:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2024-10-26T16:45:00Z",
+      "homeGoals": 6,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2024-10-26T18:00:00Z",
+      "homeGoals": 4,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2024-10-26T19:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2024-10-27T11:15:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2024-10-27T13:30:00Z",
+      "homeGoals": 5,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2024-10-27T15:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2024-10-27T19:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2024-10-30T17:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2024-11-02T15:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2024-11-02T17:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2024-11-02T17:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2024-11-02T20:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2024-11-02T20:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2024-11-03T11:15:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2024-11-03T13:30:00Z",
+      "homeGoals": 6,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2024-11-03T13:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 4
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2024-11-03T15:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2024-11-08T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2024-11-09T15:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2024-11-09T17:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2024-11-09T19:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2024-11-09T20:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2024-11-10T11:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 4
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2024-11-10T13:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2024-11-10T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2024-11-10T15:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2024-11-23T15:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2024-11-23T17:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2024-11-23T17:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2024-11-23T20:00:00Z",
+      "homeGoals": 5,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2024-11-23T20:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2024-11-24T11:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2024-11-24T13:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2024-11-24T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2024-11-24T15:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2024-11-29T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2024-11-30T15:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2024-11-30T17:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2024-11-30T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2024-11-30T20:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2024-12-01T11:15:00Z",
+      "homeGoals": 2,
+      "awayGoals": 5
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2024-12-01T13:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2024-12-01T13:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2024-12-01T15:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2024-12-04T19:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2024-12-06T19:00:00Z",
+      "homeGoals": 6,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2024-12-07T15:30:00Z",
+      "homeGoals": 5,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2024-12-07T17:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2024-12-07T19:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2024-12-07T20:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2024-12-08T11:15:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2024-12-08T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2024-12-08T13:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2024-12-08T15:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2024-12-13T19:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2024-12-14T17:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2024-12-14T19:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2024-12-14T20:00:00Z",
+      "homeGoals": 5,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2024-12-15T11:15:00Z",
+      "homeGoals": 3,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2024-12-15T13:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2024-12-15T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2024-12-15T15:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2024-12-15T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2024-12-20T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2024-12-21T15:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2024-12-21T17:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2024-12-21T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2024-12-22T11:15:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2024-12-22T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 5
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2024-12-22T13:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2024-12-22T15:45:00Z",
+      "homeGoals": 4,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2025-01-10T19:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2025-01-11T15:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2025-01-11T17:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2025-01-11T19:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2025-01-11T20:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2025-01-12T11:15:00Z",
+      "homeGoals": 6,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2025-01-12T13:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2025-01-12T13:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2025-01-12T15:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 4
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2025-01-18T15:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2025-01-18T17:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2025-01-18T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2025-01-18T20:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2025-01-19T11:15:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2025-01-19T13:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2025-01-19T13:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2025-01-19T15:45:00Z",
+      "homeGoals": 4,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2025-01-19T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2025-01-24T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2025-01-25T17:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2025-01-25T20:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2025-01-26T11:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 4
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2025-01-26T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2025-01-26T15:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2025-01-28T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2025-01-31T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2025-02-01T17:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2025-02-01T19:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2025-02-01T20:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2025-02-02T11:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 4
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2025-02-02T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2025-02-02T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2025-02-02T15:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2025-02-02T19:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2025-02-08T15:30:00Z",
+      "homeGoals": 4,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2025-02-08T17:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2025-02-08T19:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2025-02-08T20:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2025-02-09T11:15:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2025-02-09T13:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2025-02-09T13:30:00Z",
+      "homeGoals": 5,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2025-02-09T15:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2025-02-09T15:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2025-02-14T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2025-02-15T15:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2025-02-15T17:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2025-02-15T20:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2025-02-16T11:15:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2025-02-16T13:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2025-02-16T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2025-02-16T15:45:00Z",
+      "homeGoals": 4,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2025-02-22T19:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2025-02-23T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2025-02-23T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2025-02-23T15:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2025-02-28T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2025-03-01T15:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2025-03-01T17:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2025-03-01T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2025-03-01T20:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2025-03-02T11:15:00Z",
+      "homeGoals": 3,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2025-03-02T13:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2025-03-02T13:30:00Z",
+      "homeGoals": 4,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2025-03-02T15:45:00Z",
+      "homeGoals": 4,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2025-03-07T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2025-03-08T15:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2025-03-08T19:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2025-03-09T11:15:00Z",
+      "homeGoals": 2,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2025-03-09T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2025-03-09T13:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2025-03-09T15:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2025-03-14T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2025-03-15T15:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2025-03-15T17:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2025-03-15T19:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2025-03-15T20:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2025-03-16T11:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2025-03-16T13:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2025-03-16T13:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 6
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2025-03-16T15:45:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2025-03-29T15:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2025-03-29T17:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2025-03-29T17:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2025-03-29T20:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2025-03-29T20:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2025-03-30T10:15:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2025-03-30T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2025-03-30T12:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2025-03-30T14:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2025-04-01T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2025-04-02T18:00:00Z",
+      "homeGoals": 4,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2025-04-04T18:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2025-04-05T14:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2025-04-05T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2025-04-05T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2025-04-05T19:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2025-04-06T10:15:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2025-04-06T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2025-04-06T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2025-04-06T14:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2025-04-11T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2025-04-12T14:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2025-04-12T16:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2025-04-12T18:00:00Z",
+      "homeGoals": 5,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2025-04-12T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2025-04-13T10:15:00Z",
+      "homeGoals": 3,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2025-04-13T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2025-04-13T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2025-04-13T14:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2025-04-19T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2025-04-20T10:15:00Z",
+      "homeGoals": 4,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2025-04-23T18:00:00Z",
+      "homeGoals": 4,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2025-04-24T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2025-04-24T19:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2025-04-25T16:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 4
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2025-04-25T19:00:00Z",
+      "homeGoals": 4,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2025-04-27T10:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2025-04-27T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2025-04-27T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2025-04-27T14:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2025-05-03T14:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2025-05-03T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 4
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2025-05-03T18:00:00Z",
+      "homeGoals": 6,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2025-05-03T19:00:00Z",
+      "homeGoals": 4,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2025-05-04T10:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2025-05-04T12:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2025-05-04T12:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2025-05-09T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2025-05-10T14:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2025-05-10T16:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2025-05-10T19:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2025-05-11T10:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2025-05-11T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2025-05-11T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2025-05-11T14:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2025-05-11T14:45:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1911",
+      "awayTeamId": "team:football-data:1920",
+      "utcDate": "2025-05-14T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:677",
+      "awayTeamId": "team:football-data:678",
+      "utcDate": "2025-05-14T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:676",
+      "awayTeamId": "team:football-data:6806",
+      "utcDate": "2025-05-14T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:675",
+      "awayTeamId": "team:football-data:683",
+      "utcDate": "2025-05-14T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:718",
+      "awayTeamId": "team:football-data:673",
+      "utcDate": "2025-05-14T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:1915",
+      "awayTeamId": "team:football-data:681",
+      "utcDate": "2025-05-14T18:00:00Z",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:674",
+      "awayTeamId": "team:football-data:671",
+      "utcDate": "2025-05-14T18:00:00Z",
+      "homeGoals": 4,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:666",
+      "awayTeamId": "team:football-data:682",
+      "utcDate": "2025-05-14T18:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:672",
+      "awayTeamId": "team:football-data:684",
+      "utcDate": "2025-05-14T18:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:678",
+      "awayTeamId": "team:football-data:666",
+      "utcDate": "2025-05-18T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:682",
+      "awayTeamId": "team:football-data:1911",
+      "utcDate": "2025-05-18T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:1920",
+      "awayTeamId": "team:football-data:676",
+      "utcDate": "2025-05-18T12:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:671",
+      "awayTeamId": "team:football-data:1915",
+      "utcDate": "2025-05-18T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:football-data:681",
+      "awayTeamId": "team:football-data:672",
+      "utcDate": "2025-05-18T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:football-data:684",
+      "awayTeamId": "team:football-data:677",
+      "utcDate": "2025-05-18T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:683",
+      "awayTeamId": "team:football-data:718",
+      "utcDate": "2025-05-18T12:30:00Z",
+      "homeGoals": 5,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:football-data:673",
+      "awayTeamId": "team:football-data:675",
+      "utcDate": "2025-05-18T12:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:football-data:6806",
+      "awayTeamId": "team:football-data:674",
+      "utcDate": "2025-05-18T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    }
+  ]
+}

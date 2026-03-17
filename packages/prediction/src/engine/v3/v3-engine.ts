@@ -31,7 +31,7 @@ import { computeRecencyDeltas } from './recency.js';
 import { computeV3Lambdas } from './lambda.js';
 import { computePoissonMatrix } from './poisson-matrix.js';
 import { computeEligibility } from './eligibility.js';
-import { THRESHOLD_NOT_ELIGIBLE, THRESHOLD_ELIGIBLE, DC_RHO, LAMBDA_MIN, LAMBDA_MAX, XG_PARTIAL_COVERAGE_THRESHOLD } from './constants.js';
+import { THRESHOLD_NOT_ELIGIBLE, THRESHOLD_ELIGIBLE, DC_RHO, LAMBDA_MIN, LAMBDA_MAX, XG_PARTIAL_COVERAGE_THRESHOLD, DRAW_LEAGUE_AVG_RATE } from './constants.js';
 import { estimateDcRho } from './dc-rho-estimator.js';
 import { computeConfidence } from './confidence.js';
 import { computePredictedResult } from './predicted-result.js';
@@ -43,6 +43,8 @@ import { computeGoalForm } from './goal-form.js';
 import { augmentMatchesWithXg, computeXgCoverage } from './xg-augment.js';
 import { computeAbsenceMultiplier } from './absence-adjustment.js';
 import { blendWithMarketOdds } from './market-blend.js';
+import { applyIsoCalibration } from '../../calibration/iso-calibrator.js';
+import { applyDrawAffinity } from './draw-affinity.js';
 
 // ── Output NOT_ELIGIBLE ────────────────────────────────────────────────────
 
@@ -149,6 +151,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     injuries,
     confirmedLineups,
     marketOdds,
+    calibrationTable,
   } = input;
 
   // ── §anti-lookahead ────────────────────────────────────────────────────
@@ -377,9 +380,13 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   );
 
   // ── §12 DC_RHO estimation + §13 Poisson Matrix ────────────────────────
-  // Estimar ρ desde datos históricos (currentFiltered). Si hay < 20 partidos,
-  // se usa la constante DC_RHO como fallback (ver dc-rho-estimator.ts).
-  const estimatedRho = estimateDcRho(currentFiltered, baselines);
+  // Estimar ρ desde datos históricos. Cuando hay < 20 partidos en la temporada
+  // actual (inicio de temporada), combinar con prevSeasonMatches para una
+  // estimación más estable del patrón de scores bajos de la liga.
+  const matchesForRho = currentFiltered.length < 20
+    ? [...currentFiltered, ...prevSeasonMatches]
+    : currentFiltered;
+  const estimatedRho = estimateDcRho(matchesForRho, baselines);
   const dcRhoEstimated = estimatedRho !== DC_RHO;
 
   const poissonResult = computePoissonMatrix(
@@ -392,13 +399,92 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     warnings.push('TAIL_MASS_EXCEEDED');
   }
 
+  // ── §DRAW-AFFINITY: boost p_draw cuando los equipos están equilibrados ────
+  // El modelo Poisson subestima empates cuando λh > λa (home advantage separa
+  // las distribuciones). Señal combinada:
+  //   1. Balance de lambdas (cuán parejos son los equipos)
+  //   2. Bajo marcador esperado (avg_λ bajo → 0-0 y 1-1 dominan)
+  //   3. Propensidad histórica: qué tan seguido empata cada equipo en su rol
+  // El boost se aplica ANTES del market blend para que las odds del mercado
+  // vean la probabilidad de empate ya corregida.
+
+  // Computar tasa de empate de cada equipo en su rol (home/away) desde la temporada actual.
+  // Computar tasa de empate de cada equipo en su rol (home/away).
+  // Bayesian smoothing contra la media de liga: evita que el factor colapse
+  // a 0 en early season cuando un equipo no ha empatado aún.
+  //   smoothed = (draws + SMOOTH × avgRate) / (games + SMOOTH)
+  const DRAW_PROPENSITY_SMOOTH = 6;
+
+  const homeGamesInRole = currentFiltered.filter((m) => m.homeTeamId === homeTeamId);
+  const awayGamesInRole = currentFiltered.filter((m) => m.awayTeamId === awayTeamId);
+
+  const homeDrawsInRole = homeGamesInRole.filter((m) => m.homeGoals === m.awayGoals).length;
+  const awayDrawsInRole = awayGamesInRole.filter((m) => m.homeGoals === m.awayGoals).length;
+
+  const homeDrawRate =
+    (homeDrawsInRole + DRAW_PROPENSITY_SMOOTH * DRAW_LEAGUE_AVG_RATE) /
+    (homeGamesInRole.length + DRAW_PROPENSITY_SMOOTH);
+
+  const awayDrawRate =
+    (awayDrawsInRole + DRAW_PROPENSITY_SMOOTH * DRAW_LEAGUE_AVG_RATE) /
+    (awayGamesInRole.length + DRAW_PROPENSITY_SMOOTH);
+
+  // Señal adicional: proximidad en la tabla (puntos/partido similares → más empates).
+  // Cuando ambos equipos tienen ppg cercano, el partido es entre equipos equilibrados
+  // en rendimiento real (no solo en fuerzas teóricas). Señal independiente del lambda balance.
+  function computePpg(teamId: string): number {
+    const games = currentFiltered.filter(
+      (m) => m.homeTeamId === teamId || m.awayTeamId === teamId,
+    );
+    if (games.length === 0) return 1.0;
+    let pts = 0;
+    for (const m of games) {
+      const isHome = m.homeTeamId === teamId;
+      const scored = isHome ? m.homeGoals : m.awayGoals;
+      const conceded = isHome ? m.awayGoals : m.homeGoals;
+      if (scored > conceded) pts += 3;
+      else if (scored === conceded) pts += 1;
+    }
+    return pts / games.length;
+  }
+  const ppgHome = computePpg(homeTeamId);
+  const ppgAway = computePpg(awayTeamId);
+  // Proximity ∈ (0, 1]: 1 = misma ppg, decrece con diferencia
+  const tableProximity = 1 / (1 + Math.abs(ppgHome - ppgAway));
+
+  // Señal adicional: tasa de empate H2H para este cruce específico.
+  // Algunos emparejamientos tienen historial sistemático de empates.
+  // Usa prevSeasonMatches + currentFiltered (ambas direcciones del partido).
+  const h2hMatches = [...prevSeasonMatches, ...currentFiltered].filter(
+    (m) =>
+      (m.homeTeamId === homeTeamId && m.awayTeamId === awayTeamId) ||
+      (m.homeTeamId === awayTeamId && m.awayTeamId === homeTeamId),
+  );
+  const h2hDrawRate =
+    h2hMatches.length >= 2
+      ? h2hMatches.filter((m) => m.homeGoals === m.awayGoals).length /
+        h2hMatches.length
+      : undefined;
+
+  const drawAffinityResult = applyDrawAffinity(
+    poissonResult.prob_home_win,
+    poissonResult.prob_draw,
+    poissonResult.prob_away_win,
+    lambdaHomeFinal,
+    lambdaAwayFinal,
+    homeDrawRate,
+    awayDrawRate,
+    tableProximity,
+    h2hDrawRate,
+  );
+
   // ── §T3-04: Market blend ───────────────────────────────────────────────
   // Mezcla probabilidades 1X2 del modelo con odds del mercado (si están disponibles).
   // Los mercados derivados (O/U, BTTS, scorelines) siguen usando la matriz Poisson original.
   const blendResult = blendWithMarketOdds(
-    poissonResult.prob_home_win,
-    poissonResult.prob_draw,
-    poissonResult.prob_away_win,
+    drawAffinityResult.prob_home,
+    drawAffinityResult.prob_draw,
+    drawAffinityResult.prob_away,
     marketOdds,
   );
 
@@ -407,16 +493,38 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   }
 
   // Probabilidades finales 1X2 (blended si aplica, o Poisson puro)
-  const finalProbHome = blendResult.prob_home;
-  const finalProbDraw  = blendResult.prob_draw;
-  const finalProbAway  = blendResult.prob_away;
+  // These are `let` so the calibration step (§Cal) can reassign them.
+  let finalProbHome = blendResult.prob_home;
+  let finalProbDraw  = blendResult.prob_draw;
+  let finalProbAway  = blendResult.prob_away;
+
+  // ── §Cal Isotonic Calibration (Phase 5) ───────────────────────────────────
+  // Applies per-class calibration + renormalization (§16.3) if a table is
+  // provided. Backward-compatible: if calibrationTable is absent, no-op.
+  if (calibrationTable != null && calibrationTable.home.length > 0) {
+    const calResult = applyIsoCalibration(
+      finalProbHome,
+      finalProbDraw,
+      finalProbAway,
+      calibrationTable,
+    );
+    if (calResult.calibrated) {
+      finalProbHome = calResult.p_home;
+      finalProbDraw = calResult.p_draw;
+      finalProbAway = calResult.p_away;
+    }
+  }
 
   // ── §15 Confidence ─────────────────────────────────────────────────────
+  // Compute preliminary favorite_margin from final 1X2 probs for confidence downgrade.
+  const sortedProbs = [finalProbHome, finalProbDraw, finalProbAway].sort((a, b) => b - a);
+  const prelimMargin = sortedProbs[0] - sortedProbs[1];
   const confidence = computeConfidence(
     homeStats.games,
     awayStats.games,
     homePriorResult.prior_quality,
     awayPriorResult.prior_quality,
+    prelimMargin,
   );
 
   // ── §18 Predicted Result ───────────────────────────────────────────────

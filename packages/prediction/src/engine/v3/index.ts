@@ -42,6 +42,9 @@ export type {
   LineupPlayer,
   ConfirmedLineupRecord,
   MarketOddsRecord,
+  // §Cal Phase 5
+  CalibrationPoint,
+  CalibrationTable,
 } from './types.js';
 
 // Constantes

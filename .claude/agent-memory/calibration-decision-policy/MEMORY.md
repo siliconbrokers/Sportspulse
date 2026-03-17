@@ -75,6 +75,51 @@
 - When plugging in a real trained CalibrationRegistry, pass `'trained'` to `buildCurrentVersionMetadata()`
 - Architecture allows swapping calibrators without structural changes — only the mode flag changes
 
+## Confidence Margin Downgrade (2026-03-17)
+- `MARGIN_FOR_HIGH_CONFIDENCE = 0.12` in `constants.ts`
+- `computeConfidence` has optional 5th param `favoriteMargin?` — if HIGH but margin < 0.12, degrades to MEDIUM
+- `v3-engine.ts §15`: `prelimMargin = sortedProbs[0] - sortedProbs[1]` from final 1X2 probs, passed to `computeConfidence`
+- Backward-compatible: callers without `favoriteMargin` still return HIGH unchanged
+- `decision_policy_version` NOT bumped — confidence is metadata label, not policy-gated output
+
+## §Cal Phase 5 — V3 Isotonic Calibration (2026-03-17)
+
+### New types (engine/v3/types.ts)
+- `CalibrationPoint { rawProb, calProb }` — piecewise-linear interpolation node
+- `CalibrationTable { home, draw, away, nCalibrationMatches, fittedAt }` — disk-persisted table
+- `V3EngineInput.calibrationTable?: CalibrationTable` — optional, backward-compatible
+
+### New module (calibration/iso-calibrator.ts)
+- `fitIsotonicRegression(pairs)` — PAVA, returns CalibrationPoint[]
+- `interpolateCalibration(rawProb, points)` — piecewise-linear, clamps
+- `applyIsoCalibration(p_home, p_draw, p_away, table)` — OvR + renorm §16.3
+
+### v3-engine.ts wiring
+- `finalProbHome/Draw/Away` changed from `const` to `let`
+- Calibration step inserted after market-blend, before §15 confidence
+- Import: `import { applyIsoCalibration } from '../../calibration/iso-calibrator.js'`
+
+### tools/gen-calibration.ts
+- Walk-forward on 2024-25 (prev-season.json), prevSeason = 2023.json historical
+- Saves table to `cache/calibration/v3-iso-calibration.json`
+- Run: `npx tsx --tsconfig tsconfig.server.json tools/gen-calibration.ts`
+
+### Calibration empirical results (2026-03-17)
+- Calibration set: 977 matches (PD=349, PL=350, BL1=278)
+- DRAW table: only 10 points — max raw=0.374 → cal=0.284
+- **DRAW recall with calibration: 0%** — calibration WORSENS draw recall
+- Root cause: model's raw p_draw averaging 0.281 is already above empirical rate (~26%)
+  After renorm, calibrated p_draw loses to p_home because HOME table pushes up
+  at high raw values. Calibration is honest — fixing DRAW recall requires
+  structural changes to the model (lambda bias, threshold lowering), NOT calibration.
+- Global accuracy unchanged: 52.4% → 52.4% (no improvement, no regression)
+- **Recommendation**: use calibration table cautiously in production; may reduce DRAW recall to 0
+
+### Production integration path
+- v3-shadow-runner.ts would load `cache/calibration/v3-iso-calibration.json`
+  and pass as `calibrationTable` to `runV3Engine` — NOT YET WIRED in production
+- The table is available but not auto-loaded; activation is explicit
+
 ## Build Verification
 - `pnpm --filter @sportpulse/prediction build` — compile check
-- `pnpm --filter @sportpulse/prediction test` — 880 tests pass (as of FIX #64/#65)
+- `pnpm --filter @sportpulse/prediction test` — 1158/1159 pass (1 pre-existing unrelated failure: match-validator catalog size)

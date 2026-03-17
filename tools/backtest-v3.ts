@@ -38,11 +38,45 @@ interface LeagueConfig {
 
 const CACHE_BASE = path.join(process.cwd(), 'cache', 'football-data');
 
-const LEAGUES: LeagueConfig[] = [
-  { name: 'LaLiga (PD)',         dir: path.join(CACHE_BASE, 'PD',  '2025-26'), expectedSeasonGames: 38 },
-  { name: 'Premier League (PL)', dir: path.join(CACHE_BASE, 'PL',  '2025-26'), expectedSeasonGames: 38 },
-  { name: 'Bundesliga (BL1)',    dir: path.join(CACHE_BASE, 'BL1', '2025-26'), expectedSeasonGames: 34 },
+interface LeagueConfigFull extends LeagueConfig {
+  prevSeasonFile: string;
+}
+
+const LEAGUES: LeagueConfigFull[] = [
+  { name: 'LaLiga (PD)',         dir: path.join(CACHE_BASE, 'PD',  '2025-26'), expectedSeasonGames: 38, prevSeasonFile: path.join(CACHE_BASE, 'PD',  '2024-25', 'prev-season.json') },
+  { name: 'Premier League (PL)', dir: path.join(CACHE_BASE, 'PL',  '2025-26'), expectedSeasonGames: 38, prevSeasonFile: path.join(CACHE_BASE, 'PL',  '2024-25', 'prev-season.json') },
+  { name: 'Bundesliga (BL1)',    dir: path.join(CACHE_BASE, 'BL1', '2025-26'), expectedSeasonGames: 34, prevSeasonFile: path.join(CACHE_BASE, 'BL1', '2024-25', 'prev-season.json') },
 ];
+
+function loadPrevSeason(file: string): V3MatchRecord[] {
+  if (!fs.existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    return raw?.matches ?? [];
+  } catch { return []; }
+}
+
+/** Carga datos del cache histórico (formato FinishedMatchRecord, compatible con V3MatchRecord). */
+function loadHistoricalCache(code: string, year: number): V3MatchRecord[] {
+  const file = path.join(process.cwd(), 'cache', 'historical', 'football-data', code, `${year}.json`);
+  if (!fs.existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    const matches: V3MatchRecord[] = raw?.matches ?? [];
+    return matches;
+  } catch { return []; }
+}
+
+/** Combina 2023-24 y 2024-25 como prevSeason — replica comportamiento de producción. */
+function buildPrevSeasonMatches(code: string, prevSeasonFile: string): V3MatchRecord[] {
+  const fromFetch = loadPrevSeason(prevSeasonFile);       // 2024-25 (fetched via API)
+  const from2024  = loadHistoricalCache(code, 2024);      // 2024-25 del cache histórico
+  const from2023  = loadHistoricalCache(code, 2023);      // 2023-24 del cache histórico
+  // Preferir datos del cache histórico (formato canónico de producción);
+  // si no hay, usar los fetched
+  const prev2425 = from2024.length > 0 ? from2024 : fromFetch;
+  return [...from2023, ...prev2425];
+}
 
 // ── Carga de archivos de cache ──────────────────────────────────────────────
 
@@ -104,8 +138,10 @@ interface MatchEval {
 
 // ── Backtest por liga ───────────────────────────────────────────────────────
 
-function backtestLeague(league: LeagueConfig): MatchEval[] {
+function backtestLeague(league: LeagueConfigFull): MatchEval[] {
   const allMatchdays = loadMatchdayFiles(league.dir);
+  const code = path.basename(path.dirname(league.dir)); // 'PD', 'PL', 'BL1'
+  const prevSeasonMatches = buildPrevSeasonMatches(code, league.prevSeasonFile);
   if (allMatchdays.size === 0) return [];
 
   const sortedMatchdays = [...allMatchdays.keys()].sort((a, b) => a - b);
@@ -137,7 +173,7 @@ function backtestLeague(league: LeagueConfig): MatchEval[] {
         kickoffUtc: match.startTimeUtc,
         buildNowUtc: match.startTimeUtc,
         currentSeasonMatches: trainingRecords,
-        prevSeasonMatches: [],
+        prevSeasonMatches: prevSeasonMatches,
         expectedSeasonGames: league.expectedSeasonGames,
       };
 
@@ -283,7 +319,8 @@ console.log('Motor: runV3Engine — NO prediction-builder legacy\n');
 const allEvals: MatchEval[] = [];
 
 for (const league of LEAGUES) {
-  process.stdout.write(`Procesando ${league.name}... `);
+  const prevExists = fs.existsSync(league.prevSeasonFile) || fs.existsSync(path.join(process.cwd(), 'cache', 'historical', 'football-data', path.basename(path.dirname(path.dirname(league.prevSeasonFile))), '2024.json'));
+  process.stdout.write(`Procesando ${league.name}${prevExists ? ' [+2yr prev]' : ''}... `);
   const evals = backtestLeague(league);
   allEvals.push(...evals);
   console.log(`${evals.length} partidos cargados`);

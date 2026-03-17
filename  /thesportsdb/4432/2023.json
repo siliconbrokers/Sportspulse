@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "leagueId": "4432",
+  "year": 2023,
+  "fetchedAt": "2026-03-17T02:46:11.082Z",
+  "matches": [
+    {
+      "homeTeamId": "team:thesportsdb:138817",
+      "awayTeamId": "team:thesportsdb:135373",
+      "utcDate": "2023-02-03T22:30:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135370",
+      "awayTeamId": "team:thesportsdb:136051",
+      "utcDate": "2023-02-04T12:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135369",
+      "awayTeamId": "team:thesportsdb:135363",
+      "utcDate": "2023-02-04T20:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:thesportsdb:145845",
+      "awayTeamId": "team:thesportsdb:135377",
+      "utcDate": "2023-02-05T12:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:thesportsdb:138818",
+      "awayTeamId": "team:thesportsdb:135365",
+      "utcDate": "2023-02-05T21:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:136053",
+      "awayTeamId": "team:thesportsdb:138816",
+      "utcDate": "2023-02-05T22:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135364",
+      "awayTeamId": "team:thesportsdb:136052",
+      "utcDate": "2023-02-06T00:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135366",
+      "awayTeamId": "team:thesportsdb:135367",
+      "utcDate": "2023-02-07T00:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135364",
+      "awayTeamId": "team:thesportsdb:138817",
+      "utcDate": "2023-02-10T23:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:thesportsdb:138816",
+      "awayTeamId": "team:thesportsdb:135370",
+      "utcDate": "2023-02-10T22:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135373",
+      "awayTeamId": "team:thesportsdb:136053",
+      "utcDate": "2023-02-11T20:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135367",
+      "awayTeamId": "team:thesportsdb:138818",
+      "utcDate": "2023-02-11T12:45:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:thesportsdb:136051",
+      "awayTeamId": "team:thesportsdb:135363",
+      "utcDate": "2023-02-12T12:45:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135365",
+      "awayTeamId": "team:thesportsdb:136052",
+      "utcDate": "2023-02-12T20:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135377",
+      "awayTeamId": "team:thesportsdb:135366",
+      "utcDate": "2023-02-13T21:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    }
+  ]
+}

@@ -102,6 +102,11 @@ async function main() {
   console.log(`Fetching competitions from football-data.org: ${FD_COMPETITION_CODES.join(', ')}...`);
   for (let i = 0; i < FD_COMPETITION_CODES.length; i++) {
     const code = FD_COMPETITION_CODES[i];
+    const competitionId = `comp:football-data:${code}`;
+    if (!isCompetitionEnabled(competitionId)) {
+      console.log(`[FDSource] ${code} deshabilitado — startup fetch omitido`);
+      continue;
+    }
     try {
       await fdSource.fetchCompetition(code);
     } catch (err) {
@@ -269,7 +274,7 @@ async function main() {
   // Live score overlay: API-Football v3 — refresh cada 2 min durante partidos,
   // 15 min en idle. Score en fuente = 15s (vs ~5 min de football-data.org free tier).
   const AF_LIVE_KEY = process.env.APIFOOTBALL_KEY ?? '';
-  const liveOverlay = new ApifootballLiveOverlay(AF_LIVE_KEY);
+  const liveOverlay = new ApifootballLiveOverlay(AF_LIVE_KEY, AF_COMP_IDS);
   liveOverlay.start();
 
   // Wraps routingDataSource: getMatches() parchea scores en vivo desde el overlay.
@@ -329,8 +334,9 @@ async function main() {
   };
   const newsService = new NewsService(standingsProvider);
 
+  const snapshotStore = new InMemorySnapshotStore();
   const snapshotService = new SnapshotService({
-    store: new InMemorySnapshotStore(),
+    store: snapshotStore,
     defaultPolicy: MVP_POLICY,
     defaultContainer: DEFAULT_CONTAINER,
   });
@@ -626,7 +632,7 @@ async function main() {
   }
 
   const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getEnrichedPortalConfig, competitionIds: COMPETITION_REGISTRY.map(e => e.id).filter(id => isCompetitionEnabled(id)), getBudgetStats: getAfBudgetStats });
-  registerAdminRoutes(app);
+  registerAdminRoutes(app, snapshotStore);
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
   // Refresh interval adapts to match state. Only polls when data can change.

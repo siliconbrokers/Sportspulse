@@ -501,14 +501,16 @@ describe('V3 Constants — valores del spec §19', () => {
     expect(v).toBe(5);
   });
 
-  it('K_SHRINK = 3', async () => {
+  it('K_SHRINK = 4', async () => {
+    // Optimizado de 3→4 (backtest 2025-26 walk-forward: +1.3pp accuracy total)
     const { K_SHRINK } = await import('../src/engine/v3/constants.js');
-    expect(K_SHRINK).toBe(3);
+    expect(K_SHRINK).toBe(4);
   });
 
-  it('PRIOR_EQUIV_GAMES = 8', async () => {
+  it('PRIOR_EQUIV_GAMES = 12', async () => {
+    // Optimizado de 8→12 (más peso a temporada anterior mejora LaLiga +3pp y BL1 +2pp)
     const { PRIOR_EQUIV_GAMES } = await import('../src/engine/v3/constants.js');
-    expect(PRIOR_EQUIV_GAMES).toBe(8);
+    expect(PRIOR_EQUIV_GAMES).toBe(12);
   });
 
   it('HOME_ADVANTAGE_MULT = 1.12', () => {
@@ -519,9 +521,10 @@ describe('V3 Constants — valores del spec §19', () => {
     expect(DC_RHO).toBe(-0.13);
   });
 
-  it('BETA_RECENT = 0.45', async () => {
+  it('BETA_RECENT = 0.15', async () => {
+    // Optimizado de 0.45→0.15 (reducir peso de recency mejora accuracy +1.3pp, reduces noise)
     const { BETA_RECENT } = await import('../src/engine/v3/constants.js');
-    expect(BETA_RECENT).toBe(0.45);
+    expect(BETA_RECENT).toBe(0.15);
   });
 });
 
@@ -567,6 +570,26 @@ describe('V3 Engine — Integración', () => {
 
   it('computeConfidence con 7-11 y LEAGUE_BASELINE → LOW', () => {
     expect(computeConfidence(8, 9, 'LEAGUE_BASELINE', 'LEAGUE_BASELINE')).toBe('LOW');
+  });
+
+  it('computeConfidence: >= 20 juegos sin favoriteMargin → HIGH (backward-compat)', () => {
+    // Parámetro opcional ausente: no debe cambiar comportamiento previo
+    expect(computeConfidence(20, 22, 'PREV_SEASON', 'PREV_SEASON')).toBe('HIGH');
+  });
+
+  it('computeConfidence: >= 20 juegos con favoriteMargin < 0.12 → MEDIUM (margin downgrade)', () => {
+    // Partido equilibrado: margen 0.10 < MARGIN_FOR_HIGH_CONFIDENCE → HIGH se degrada a MEDIUM
+    expect(computeConfidence(20, 22, 'PREV_SEASON', 'PREV_SEASON', 0.10)).toBe('MEDIUM');
+  });
+
+  it('computeConfidence: >= 20 juegos con favoriteMargin >= 0.12 → HIGH', () => {
+    // Margen suficiente: favorito claro → HIGH se mantiene
+    expect(computeConfidence(20, 22, 'PREV_SEASON', 'PREV_SEASON', 0.15)).toBe('HIGH');
+  });
+
+  it('computeConfidence: 12-19 juegos con PREV_SEASON y favoriteMargin < 0.12 → MEDIUM', () => {
+    // HIGH candidate (12-19 con PREV_SEASON) pero margen equilibrado → degrada a MEDIUM
+    expect(computeConfidence(14, 16, 'PREV_SEASON', 'PREV_SEASON', 0.08)).toBe('MEDIUM');
   });
 
   it('pre_match_text no es null cuando ELIGIBLE', () => {

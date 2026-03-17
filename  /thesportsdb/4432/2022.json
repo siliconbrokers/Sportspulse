@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "leagueId": "4432",
+  "year": 2022,
+  "fetchedAt": "2026-03-11T15:47:05.489Z",
+  "matches": [
+    {
+      "homeTeamId": "team:thesportsdb:138818",
+      "awayTeamId": "team:thesportsdb:138817",
+      "utcDate": "2022-02-05T12:30:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135367",
+      "awayTeamId": "team:thesportsdb:135369",
+      "utcDate": "2022-02-05T20:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135366",
+      "awayTeamId": "team:thesportsdb:136052",
+      "utcDate": "2022-02-05T22:30:00Z",
+      "homeGoals": 0,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:thesportsdb:141805",
+      "awayTeamId": "team:thesportsdb:135372",
+      "utcDate": "2022-02-06T12:30:00Z",
+      "homeGoals": 3,
+      "awayGoals": 5
+    },
+    {
+      "homeTeamId": "team:thesportsdb:136051",
+      "awayTeamId": "team:thesportsdb:136053",
+      "utcDate": "2022-02-06T20:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135364",
+      "awayTeamId": "team:thesportsdb:138816",
+      "utcDate": "2022-02-06T23:00:00Z",
+      "homeGoals": 2,
+      "awayGoals": 3
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135373",
+      "awayTeamId": "team:thesportsdb:135377",
+      "utcDate": "2022-02-07T20:00:00Z",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:141374",
+      "awayTeamId": "team:thesportsdb:135365",
+      "utcDate": "2022-02-08T23:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:138818",
+      "awayTeamId": "team:thesportsdb:135367",
+      "utcDate": "2022-02-11T23:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 2
+    },
+    {
+      "homeTeamId": "team:thesportsdb:136053",
+      "awayTeamId": "team:thesportsdb:135373",
+      "utcDate": "2022-02-12T20:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135372",
+      "awayTeamId": "team:thesportsdb:135364",
+      "utcDate": "2022-02-12T23:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 4
+    },
+    {
+      "homeTeamId": "team:thesportsdb:136052",
+      "awayTeamId": "team:thesportsdb:141805",
+      "utcDate": "2022-02-13T12:30:00Z",
+      "homeGoals": 4,
+      "awayGoals": 0
+    },
+    {
+      "homeTeamId": "team:thesportsdb:136051",
+      "awayTeamId": "team:thesportsdb:141374",
+      "utcDate": "2022-02-13T20:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135369",
+      "awayTeamId": "team:thesportsdb:135366",
+      "utcDate": "2022-02-13T23:00:00Z",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "homeTeamId": "team:thesportsdb:135377",
+      "awayTeamId": "team:thesportsdb:138817",
+      "utcDate": "2022-02-14T22:15:00Z",
+      "homeGoals": 1,
+      "awayGoals": 0
+    }
+  ]
+}

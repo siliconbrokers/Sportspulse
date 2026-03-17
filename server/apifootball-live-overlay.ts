@@ -12,6 +12,7 @@
  * Un único call a /fixtures?live=all trae TODOS los partidos en vivo de todas las ligas.
  */
 import { isQuotaExhausted, isLiveBrakeActive, consumeRequest, markQuotaExhausted, getBudgetStats } from './af-budget.js';
+import { isCompetitionEnabled } from './portal-config-store.js';
 
 const BASE_URL = 'https://v3.football.api-sports.io';
 
@@ -110,7 +111,10 @@ export class ApifootballLiveOverlay {
   private hasLive = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly trackedCompetitionIds: string[] = [],
+  ) {}
 
   start(): void {
     if (!this.apiKey) {
@@ -165,6 +169,19 @@ export class ApifootballLiveOverlay {
   // ── Private ──────────────────────────────────────────────────────────────────
 
   private async poll(): Promise<void> {
+    // Skip poll entirely if all tracked competitions are disabled in portal config
+    if (
+      this.trackedCompetitionIds.length > 0 &&
+      !this.trackedCompetitionIds.some((id) => isCompetitionEnabled(id))
+    ) {
+      console.log('[LiveOverlay] Todas las competencias AF deshabilitadas — poll omitido');
+      this.cache   = new Map();
+      this.rawList = [];
+      this.hasLive = false;
+      this.timer = setTimeout(() => void this.poll(), POLL_IDLE_MS);
+      return;
+    }
+
     let nextInterval: number;
 
     if (isQuotaExhausted()) {
