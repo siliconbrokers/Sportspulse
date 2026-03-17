@@ -272,6 +272,38 @@ async function main() {
   // Todos los demás métodos (standings, matchday, teams…) delegan sin cambios.
   const dataSource = new LiveOverlayDataSource(routingDataSource, liveOverlay);
 
+  // ── Startup parity check ───────────────────────────────────────────────────
+  // Validates that every enabled competition in portal-config has a registered
+  // route in the RoutingDataSource. Fails fast if there's a mismatch — better
+  // a visible crash than silent 404s for all users.
+  (function assertRoutingParity(): void {
+    const portalCfg = getFullConfig();
+    const enabledIds = portalCfg.competitions
+      .filter((c) => c.enabled)
+      .map((c) => c.id);
+
+    const unroutable = enabledIds.filter((id) => {
+      try {
+        return routingDataSource.getSeasonId(id) === undefined;
+      } catch {
+        return true;
+      }
+    });
+
+    if (unroutable.length === 0) {
+      console.log(`[StartupCheck] Routing parity OK — all ${enabledIds.length} competition(s) routable`);
+      return;
+    }
+
+    console.error('[StartupCheck] ROUTING PARITY FAILURE — the following competition IDs are enabled in portal-config but have no registered route:');
+    for (const id of unroutable) {
+      console.error(`  x ${id}`);
+    }
+    console.error('[StartupCheck] Remediation: ensure the data source for these IDs is initialized and registered in RoutingDataSource.');
+    console.error('[StartupCheck] Common cause: AF_CANONICAL_ENABLED is off but portal-config uses comp:apifootball:* IDs.');
+    throw new Error(`[StartupCheck] ${unroutable.length} competition(s) unroutable — aborting startup to prevent silent 404s`);
+  })();
+
   // News service — demand-pull, cached per league (30-60 min TTL). Uses RSS feeds (no API key required).
 
   // Video service — YouTube Data API v3, cached 45 min
