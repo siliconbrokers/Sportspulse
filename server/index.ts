@@ -238,6 +238,13 @@ async function main() {
       afCanonicalSource = new ApiFootballCanonicalSource(AF_KEY, new CrestCache());
       AF_COMP_IDS = Object.keys(AF_COMPETITION_CONFIGS);
 
+      // Preload disk cache into memory BEFORE the first API fetch cycle.
+      // This ensures that even if the API-Football quota is exhausted, the server
+      // can still serve stale-but-valid data from matchday JSON files on disk.
+      // preloadAllCompetitions() is a read-only operation — it never calls the API.
+      await afCanonicalSource.preloadAllCompetitions();
+      console.log('[AfCanonical] disk preload complete — starting API refresh cycle');
+
       // Fetch all AF competitions sequentially (small delays to avoid quota bursts)
       for (let i = 0; i < AF_COMP_IDS.length; i++) {
         const compId = AF_COMP_IDS[i];

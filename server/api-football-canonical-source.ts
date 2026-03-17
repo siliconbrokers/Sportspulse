@@ -912,4 +912,74 @@ export class ApiFootballCanonicalSource implements DataSource {
     //   2. break on first miss treating non-contiguous matchday files as end-of-season
     return loadAllMatchdaysForSeason(AF_PROVIDER_KEY, leagueId, season);
   }
+
+  /**
+   * Preloads all known competitions from disk into the in-memory cache.
+   *
+   * Called once at server startup BEFORE the first fetchCompetition() cycle.
+   * This ensures that if the API-Football quota is exhausted on startup,
+   * the server still serves stale-but-valid data from disk rather than
+   * returning empty responses.
+   *
+   * Data loaded here is treated as a cold-start baseline:
+   * - fullSeasonFetched is set to true when matches exist on disk, so the
+   *   subsequent fetchCompetition() takes the cheaper window-fetch path
+   *   rather than burning a quota request on a redundant full-season fetch.
+   * - TTLs are NOT enforced here — freshness is the responsibility of
+   *   fetchCompetition(), which runs immediately after preload.
+   */
+  async preloadAllCompetitions(): Promise<void> {
+    const nowMs = Date.now();
+
+    for (const [compId, cfg] of Object.entries(AF_COMPETITION_CONFIGS)) {
+      const { leagueId, seasonKind } = cfg;
+      const seasonYear    = resolveSeasonYear(seasonKind);
+      const season        = seasonLabel(seasonKind, seasonYear);
+      const resolvedSeasonId = afSeasonId(leagueId, seasonYear);
+
+      // Skip if already populated in memory (e.g. constructor pre-seeded it)
+      if (this.cache.has(compId)) continue;
+
+      // ── Teams from disk ───────────────────────────────────────────────────
+      const diskTeams = loadTeamsCache(AF_PROVIDER_KEY, String(leagueId)) ?? [];
+
+      // ── Matches from disk (no TTL check — stale data beats empty data) ───
+      const diskMatches = loadAllMatchdaysForSeason(AF_PROVIDER_KEY, String(leagueId), season);
+
+      // ── Standings from disk ───────────────────────────────────────────────
+      const diskStandings = loadStandingsCache(AF_PROVIDER_KEY, String(leagueId)) ?? [];
+
+      if (diskTeams.length === 0 && diskMatches.length === 0) {
+        // No disk data at all — leave cache empty, fetchCompetition() will handle
+        continue;
+      }
+
+      const currentMatchday = this.deriveCurrentMatchday(diskMatches);
+
+      this.cache.set(compId, {
+        teams:                  diskTeams,
+        matches:                diskMatches,
+        standings:              diskStandings,
+        standingsFinishedCount: diskStandings.length > 0
+          ? diskMatches.filter((m) => m.status === 'FINISHED').length
+          : -1,
+        seasonId:        resolvedSeasonId,
+        seasonYear,
+        season,
+        currentMatchday,
+        fetchedAt:       0,          // marks as stale so fetchCompetition() re-fetches
+        compInfoFetchedAt: 0,
+        teamsFetchedAt:  diskTeams.length > 0 ? nowMs : 0,
+        // fullSeasonFetched=true: tells fetchCompetition() to take the cheaper
+        // incremental window path instead of burning quota on a full-season fetch
+        fullSeasonFetched: diskMatches.length > 0,
+      });
+
+      console.log(
+        `[AfCanonical] preload league=${leagueId} season=${season}: ` +
+        `${diskTeams.length} teams, ${diskMatches.length} matches, ` +
+        `${diskStandings.length} standings rows`,
+      );
+    }
+  }
 }
