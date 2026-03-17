@@ -158,7 +158,10 @@ interface AfEvent {
 // ── Main class ─────────────────────────────────────────────────────────────────
 
 export class ApiFootballIncidentSource {
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly homeTeamIdResolver?: (matchId: string) => number | null,
+  ) {}
 
   async getIncidents(matchCore: MatchCoreInput): Promise<IncidentEvent[]> {
     if (isAfQuotaExhausted()) return [];
@@ -174,7 +177,7 @@ export class ApiFootballIncidentSource {
       // Skip the 3-step search chain — use a single /fixtures/{id} call instead.
       const afMatch = /^match:apifootball:(\d+)$/.exec(matchCore.matchId);
       if (afMatch) {
-        entry = await this.resolveViaFixtureId(parseInt(afMatch[1], 10));
+        entry = await this.resolveViaFixtureId(parseInt(afMatch[1], 10), matchCore.matchId);
       } else {
         entry = await this.resolveFixture(matchCore, config);
       }
@@ -190,8 +193,19 @@ export class ApiFootballIncidentSource {
     return this.fetchEvents(entry.fixtureId, entry.homeTeamId);
   }
 
-  /** Resolves homeTeamId for a known fixtureId via /fixtures/{id} — used for AF canonical matches. */
-  private async resolveViaFixtureId(fixtureId: number): Promise<FixtureEntry | null> {
+  /** Resolves homeTeamId for a known fixtureId — used for AF canonical matches.
+   *  Uses the local resolver (in-memory cache) when available to avoid an API call.
+   *  Falls back to /fixtures?id= if the resolver returns null (match not yet cached). */
+  private async resolveViaFixtureId(fixtureId: number, matchId: string): Promise<FixtureEntry | null> {
+    // Use local resolver to avoid an API call when team data is already cached
+    if (this.homeTeamIdResolver) {
+      const homeTeamId = this.homeTeamIdResolver(matchId);
+      if (homeTeamId !== null) {
+        console.log(`[AfIncidents] homeTeamId resolved locally for fixture ${fixtureId} → ${homeTeamId}`);
+        return { fixtureId, homeTeamId };
+      }
+    }
+    // Fallback: API call (legacy mode or match not yet in cache)
     try {
       const data = await this.apiGet<{ response: AfFixtureItem[] }>(`/fixtures?id=${fixtureId}`);
       const f = data.response?.[0];

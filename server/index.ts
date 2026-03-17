@@ -487,7 +487,13 @@ async function main() {
   }
 
   // IncidentService: API-Football as primary, matchEventsService as goals-only fallback.
-  const incidentService = new IncidentService(AF_KEY_FOR_INCIDENTS, matchEventsService);
+  // Pass homeTeamIdResolver to avoid a redundant /fixtures?id= call when AF canonical source
+  // already has the match in memory (saves 1 API-Football quota unit per first DetailPanel open).
+  const incidentService = new IncidentService(
+    AF_KEY_FOR_INCIDENTS,
+    matchEventsService,
+    afCanonicalSource ? (matchId: string) => afCanonicalSource.getHomeAfTeamId(matchId) : undefined,
+  );
 
   // ── UpcomingService — partidos de hoy / próximas 24h desde fuentes canónicas ──
   const PORTAL_TZ = 'America/Montevideo';
@@ -782,8 +788,8 @@ async function main() {
       // Tier intervals (ms)
       const TIER_LIVE_FAST  =  2 * 60_000;   // 2 min — partido en vivo ahora
       const TIER_IMMINENT   =  5 * 60_000;   // 5 min — kickoff en < 30 min
-      const TIER_ACTIVE_DAY = 15 * 60_000;   // 15 min — partido hoy
-      const TIER_IDLE       =  2 * 3600_000; // 2h — sin partido hoy
+      const TIER_ACTIVE_DAY = 60 * 60_000;   // 1h — cache disk cubre 6h de todos modos
+      const TIER_IDLE       =  6 * 3600_000; // 6h — alineado con TTL SCHEDULED del disk cache
 
       const todayUtc = new Date(nowMs).toISOString().slice(0, 10); // YYYY-MM-DD UTC
 

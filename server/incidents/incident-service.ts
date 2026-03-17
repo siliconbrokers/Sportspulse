@@ -97,8 +97,9 @@ export class IncidentService {
   constructor(
     apiFootballKey: string,
     private readonly goalsFallback?: IGoalsFallback,
+    homeTeamIdResolver?: (matchId: string) => number | null,
   ) {
-    this.source = new ApiFootballIncidentSource(apiFootballKey);
+    this.source = new ApiFootballIncidentSource(apiFootballKey, homeTeamIdResolver);
   }
 
   /**

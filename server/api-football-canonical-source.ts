@@ -502,25 +502,51 @@ export class ApiFootballCanonicalSource implements DataSource {
       const pastDate   = new Date(nowMs - WINDOW_PAST_DAYS * 86400_000).toISOString().slice(0, 10);
       const futureDate = new Date(nowMs + WINDOW_FUTURE_DAYS * 86400_000).toISOString().slice(0, 10);
 
-      try {
-        const rawWindow = await this.apiGet<AfFixture>(
-          `/fixtures?league=${leagueId}&season=${seasonYear}&from=${pastDate}&to=${futureDate}`,
-        );
-        if (rawWindow.length > 0) {
-          const windowMatches = this.mapFixtures(rawWindow, resolvedSeasonId, teamLookup, hasSubTournaments);
-          // Merge: update existing entries, add new ones
-          const matchMap = new Map(matches.map((m) => [m.matchId, m]));
-          for (const wm of windowMatches) {
-            matchMap.set(wm.matchId, wm);
-          }
-          matches = [...matchMap.values()];
+      // Check if all matchdays in the window are cache-fresh — skip API call if so.
+      // TTLs: SCHEDULED=6h, FINISHED=1y, LIVE=60s — checkMatchdayCache applies them.
+      // Only skip if there are matchdays to check AND all are fresh.
+      const windowMatchdays = [...new Set(
+        matches
+          .filter((m) => {
+            const d = m.startTimeUtc?.slice(0, 10) ?? '';
+            return d >= pastDate && d <= futureDate;
+          })
+          .map((m) => m.matchday ?? 0)
+          .filter((md) => md > 0),
+      )];
 
-          // Persist updated matchdays
-          await this.persistMatchesByMatchday(windowMatches, String(leagueId), season);
-          console.log(`[AfCanonical] window fetch league=${leagueId}: ${windowMatches.length} updated`);
+      const allWindowFresh =
+        windowMatchdays.length > 0 &&
+        windowMatchdays.every((md) =>
+          checkMatchdayCache(AF_PROVIDER_KEY, String(leagueId), season, md).hit,
+        );
+
+      if (allWindowFresh) {
+        console.log(
+          `[AfCanonical] window fetch SKIP league=${leagueId}: ` +
+          `${windowMatchdays.length} matchdays cache-fresh`,
+        );
+      } else {
+        try {
+          const rawWindow = await this.apiGet<AfFixture>(
+            `/fixtures?league=${leagueId}&season=${seasonYear}&from=${pastDate}&to=${futureDate}`,
+          );
+          if (rawWindow.length > 0) {
+            const windowMatches = this.mapFixtures(rawWindow, resolvedSeasonId, teamLookup, hasSubTournaments);
+            // Merge: update existing entries, add new ones
+            const matchMap = new Map(matches.map((m) => [m.matchId, m]));
+            for (const wm of windowMatches) {
+              matchMap.set(wm.matchId, wm);
+            }
+            matches = [...matchMap.values()];
+
+            // Persist updated matchdays
+            await this.persistMatchesByMatchday(windowMatches, String(leagueId), season);
+            console.log(`[AfCanonical] window fetch league=${leagueId}: ${windowMatches.length} updated`);
+          }
+        } catch (err) {
+          console.warn(`[AfCanonical] window fetch failed league=${leagueId}:`, err);
         }
-      } catch (err) {
-        console.warn(`[AfCanonical] window fetch failed league=${leagueId}:`, err);
       }
     }
 
@@ -846,6 +872,24 @@ export class ApiFootballCanonicalSource implements DataSource {
         // Non-fatal — memory cache is still up to date
       }
     }
+  }
+
+  /**
+   * Returns the numeric API-Football home team ID for a given canonical matchId.
+   * Used by IncidentSource to skip the /fixtures?id= API call.
+   * matchId format: match:apifootball:{fixtureId}
+   * homeTeamId format: team:apifootball:{numericId}
+   */
+  getHomeAfTeamId(matchId: string): number | null {
+    for (const entry of this.cache.values()) {
+      const match = entry.matches.find((m) => m.matchId === matchId);
+      if (match) {
+        const numericStr = match.homeTeamId.split(':').pop() ?? '';
+        const numeric = parseInt(numericStr, 10);
+        return isNaN(numeric) ? null : numeric;
+      }
+    }
+    return null;
   }
 
   /** Loads matches from disk cache for all matchdays in a season. */
