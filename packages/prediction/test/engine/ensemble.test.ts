@@ -42,16 +42,16 @@ function sumWeights(w: EnsembleWeights) {
 // ── ENSEMBLE_WEIGHTS_DEFAULT constant ────────────────────────────────────
 
 describe('ENSEMBLE_WEIGHTS_DEFAULT', () => {
-  it('SP-V4-21-C01: w_poisson = 0.70', () => {
-    expect(ENSEMBLE_WEIGHTS_DEFAULT.w_poisson).toBe(0.70);
+  it('SP-V4-21-C01: w_poisson = 0.80 (updated SP-V4-11+V4-22: sweep walk-forward 2026-03-17)', () => {
+    expect(ENSEMBLE_WEIGHTS_DEFAULT.w_poisson).toBe(0.80);
   });
 
-  it('SP-V4-21-C02: w_market = 0.15', () => {
-    expect(ENSEMBLE_WEIGHTS_DEFAULT.w_market).toBe(0.15);
+  it('SP-V4-21-C02: w_market = 0.20 (updated SP-V4-11: 100% odds coverage PD/PL/BL1, +0.0166 composite)', () => {
+    expect(ENSEMBLE_WEIGHTS_DEFAULT.w_market).toBe(0.20);
   });
 
-  it('SP-V4-21-C03: w_logistic = 0.15', () => {
-    expect(ENSEMBLE_WEIGHTS_DEFAULT.w_logistic).toBe(0.15);
+  it('SP-V4-21-C03: w_logistic = 0.00 (SP-V4-22: no additive gain over Poisson+Market at min-window=80)', () => {
+    expect(ENSEMBLE_WEIGHTS_DEFAULT.w_logistic).toBe(0.00);
   });
 
   it('SP-V4-21-C04: weights sum to 1.0', () => {

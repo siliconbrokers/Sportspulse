@@ -87,6 +87,21 @@ export interface V3EngineInput {
   calibrationTable?: CalibrationTable;
 
   /**
+   * §SP-V4-23: Logistic model coefficients for ensemble integration.
+   * When provided and ENSEMBLE_ENABLED=true, overrides DEFAULT_LOGISTIC_COEFFICIENTS.
+   * Loaded from cache/logistic-coefficients.json by the shadow runner.
+   * If undefined and ENSEMBLE_ENABLED=true, DEFAULT_LOGISTIC_COEFFICIENTS are used.
+   */
+  logisticCoefficients?: import('./logistic-model.js').LogisticCoefficients;
+
+  /**
+   * §SP-V4-23: Override ensemble weights for this engine run.
+   * When provided and ENSEMBLE_ENABLED=true, overrides ENSEMBLE_WEIGHTS_DEFAULT.
+   * If undefined, ENSEMBLE_WEIGHTS_DEFAULT from constants.ts is used.
+   */
+  ensembleWeights?: import('./ensemble.js').EnsembleWeights;
+
+  /**
    * Internal: override specific hyperparameters for walk-forward sweep experiments.
    * NOT for production use — only used by tools/sweep-hyperparams.ts.
    * All fields optional; unset values fall back to constants.ts.
@@ -100,6 +115,10 @@ export interface V3EngineInput {
     DRAW_LOW_SCORING_BETA?: number;
     /** §SP-V4-05: override SOS_SENSITIVITY for sweep experiments. */
     SOS_SENSITIVITY?: number;
+    /** §SP-V4-23: override ENSEMBLE_ENABLED feature flag for testing. */
+    ENSEMBLE_ENABLED?: boolean;
+    /** §SP-V4-11: override MARKET_WEIGHT for market-blend weight sweep experiments. */
+    MARKET_WEIGHT?: number;
   };
 
   /**
@@ -346,7 +365,7 @@ export type V3Warning =
  */
 export interface V3PredictionOutput {
   engine_id: 'v3_unified';
-  engine_version: '4.2';
+  engine_version: '4.3';
 
   // Elegibilidad y confianza
   eligibility: EligibilityStatus;
@@ -506,6 +525,21 @@ export interface V3Explanation {
   market_prob_home: number | null;
   market_prob_draw: number | null;
   market_prob_away: number | null;
+
+  // ── §SP-V4-23: Ensemble (§SP-V4-21 combinator) ───────────────────────────
+  /**
+   * Effective weights used in the ensemble blend.
+   * Present only when ENSEMBLE_ENABLED=true for this run.
+   * undefined when ensemble was not active (default, ENSEMBLE_ENABLED=false).
+   */
+  ensemble_weights_used?: { w_poisson: number; w_market: number; w_logistic: number };
+  /**
+   * Logistic model output probabilities before blending into the ensemble.
+   * Present only when ENSEMBLE_ENABLED=true for this run.
+   * Useful for debugging: shows the raw logistic signal before weighting.
+   * undefined when ensemble was not active.
+   */
+  logistic_probs_raw?: { home: number; draw: number; away: number };
 }
 
 // ── Goal Form Stats (§T2-03) ────────────────────────────────────────────────

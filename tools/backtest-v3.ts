@@ -7,17 +7,87 @@
  * Metodología: para cada jornada N, usa partidos de jornadas 1..N-1 como
  * training data (sin data leakage), testea sobre partidos FINISHED de jornada N.
  *
- * Uso: npx tsx --tsconfig tsconfig.server.json tools/backtest-v3.ts
+ * Flags:
+ *   --ensemble              Activar ENSEMBLE_ENABLED=true durante el backtest.
+ *                           Carga coeficientes logísticos desde cache/logistic-coefficients.json.
+ *                           Las tablas de calibración se cargan desde archivos -ensemble.json.
+ *   --market-weight <val>   Override de MARKET_WEIGHT (0.0..0.30) para sweep SP-V4-11.
+ *                           Si se omite, usa el valor de constants.ts (actualmente 0.15).
+ *
+ * Uso: npx tsx --tsconfig tsconfig.server.json tools/backtest-v3.ts [--ensemble] [--market-weight 0.20]
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { runV3Engine } from '../packages/prediction/src/engine/v3/v3-engine.js';
 import type { V3MatchRecord, V3EngineInput } from '../packages/prediction/src/engine/v3/types.js';
+import type { LogisticCoefficients } from '../packages/prediction/src/engine/v3/logistic-model.js';
 import {
   computeProbabilityMetrics,
   type PredictionRecord,
 } from '../packages/prediction/src/metrics/calibration-metrics.js';
+import type { CalibrationTable } from '../packages/prediction/src/engine/v3/types.js';
+import { buildOddsIndex, lookupOdds, type OddsIndex } from './odds-lookup.js';
+
+// ── CLI flags ─────────────────────────────────────────────────────────────────
+
+const USE_ENSEMBLE = process.argv.includes('--ensemble');
+
+/**
+ * §SP-V4-11: optional MARKET_WEIGHT override for sweep experiments.
+ * Usage: --market-weight 0.20
+ * When not provided (NaN), engine uses MARKET_WEIGHT from constants.ts (currently 0.15).
+ */
+const MARKET_WEIGHT_OVERRIDE: number | undefined = (() => {
+  const idx = process.argv.indexOf('--market-weight');
+  if (idx !== -1 && process.argv[idx + 1]) {
+    const val = parseFloat(process.argv[idx + 1]);
+    return isNaN(val) ? undefined : val;
+  }
+  return undefined;
+})();
+
+/** Carga coeficientes logísticos desde cache/logistic-coefficients.json. */
+function loadLogisticCoefficients(): LogisticCoefficients | undefined {
+  const file = path.join(process.cwd(), 'cache', 'logistic-coefficients.json');
+  if (!fs.existsSync(file)) {
+    console.warn('[WARN] cache/logistic-coefficients.json no encontrado — usando DEFAULT_LOGISTIC_COEFFICIENTS');
+    return undefined;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf-8')) as LogisticCoefficients;
+  } catch (err) {
+    console.warn('[WARN] Error leyendo logistic-coefficients.json:', err);
+    return undefined;
+  }
+}
+
+/** Carga una tabla de calibración isotónica desde disco. */
+function loadCalibrationTable(filePath: string): CalibrationTable | undefined {
+  if (!fs.existsSync(filePath)) return undefined;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as CalibrationTable;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Devuelve la tabla de calibración apropiada para una liga y modo ensemble. */
+function getCalibrationTable(leagueCode: string): CalibrationTable | undefined {
+  const calDir = path.join(process.cwd(), 'cache', 'calibration');
+  const suffix = USE_ENSEMBLE ? '-ensemble' : '';
+  // Estrategia MIXTA: PD=per-liga, PL=global, BL1=global (igual que gen-calibration)
+  const MIXED_STRATEGY: Record<string, 'perLg' | 'global'> = { PD: 'perLg', PL: 'global', BL1: 'global' };
+  const strategy = MIXED_STRATEGY[leagueCode] ?? 'global';
+  if (strategy === 'perLg') {
+    const perLgFile = path.join(calDir, `v3-iso-calibration-${leagueCode}${suffix}.json`);
+    const tbl = loadCalibrationTable(perLgFile);
+    if (tbl) return tbl;
+  }
+  // Fallback a global
+  const globalFile = path.join(calDir, `v3-iso-calibration${suffix}.json`);
+  return loadCalibrationTable(globalFile);
+}
 
 // ── Tipos de cache ──────────────────────────────────────────────────────────
 
@@ -173,10 +243,15 @@ function toPredictionRecords(evals: MatchEval[]): PredictionRecord[] {
 
 // ── Backtest por liga ───────────────────────────────────────────────────────
 
-function backtestLeague(league: LeagueConfigFull): MatchEval[] {
+function backtestLeague(
+  league: LeagueConfigFull,
+  oddsIndex: OddsIndex,
+  logisticCoefficients?: LogisticCoefficients,
+): MatchEval[] {
   const allMatchdays = loadMatchdayFiles(league.dir);
   const code = path.basename(path.dirname(league.dir)); // 'PD', 'PL', 'BL1'
   const prevSeasonMatches = buildPrevSeasonMatches(code, league.prevSeasonFile);
+  const calibrationTable = USE_ENSEMBLE ? getCalibrationTable(code) : undefined;
   if (allMatchdays.size === 0) return [];
 
   const sortedMatchdays = [...allMatchdays.keys()].sort((a, b) => a - b);
@@ -202,6 +277,12 @@ function backtestLeague(league: LeagueConfigFull): MatchEval[] {
       const actual = actualOutcome(match);
       if (!actual) continue;
 
+      // Look up pre-match market odds (score-based — valid for FINISHED matches)
+      const oddsHit = lookupOdds(oddsIndex, code, match.startTimeUtc, match.scoreHome!, match.scoreAway!);
+      const marketOdds = oddsHit
+        ? { probHome: oddsHit.impliedProbHome, probDraw: oddsHit.impliedProbDraw, probAway: oddsHit.impliedProbAway, capturedAtUtc: match.startTimeUtc }
+        : undefined;
+
       const input: V3EngineInput = {
         homeTeamId: match.homeTeamId,
         awayTeamId: match.awayTeamId,
@@ -210,6 +291,16 @@ function backtestLeague(league: LeagueConfigFull): MatchEval[] {
         currentSeasonMatches: trainingRecords,
         prevSeasonMatches: prevSeasonMatches,
         expectedSeasonGames: league.expectedSeasonGames,
+        leagueCode: code,
+        marketOdds,
+        ...(calibrationTable ? { calibrationTable } : {}),
+        // §SP-V4-11: inject MARKET_WEIGHT override when provided
+        // §SP-V4-23: inject ENSEMBLE_ENABLED when --ensemble flag is set
+        _overrideConstants: {
+          ...(USE_ENSEMBLE ? { ENSEMBLE_ENABLED: true } : {}),
+          ...(MARKET_WEIGHT_OVERRIDE !== undefined ? { MARKET_WEIGHT: MARKET_WEIGHT_OVERRIDE } : {}),
+        },
+        ...(USE_ENSEMBLE ? { logisticCoefficients } : {}),
       };
 
       let predicted: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | 'TOO_CLOSE' | null = null;
@@ -357,16 +448,44 @@ function printLeagueReport(name: string, evals: MatchEval[]): void {
 
 // ── Main ────────────────────────────────────────────────────────────────────
 
-console.log('\n🔬 SportsPulse — Backtest del motor PE v1.3 (runV3Engine)\n');
-console.log('Metodología: walk-forward por jornada, sin data leakage');
-console.log('Motor: runV3Engine — NO prediction-builder legacy\n');
+const modeLabel = USE_ENSEMBLE
+  ? 'ENSEMBLE activo (w_poisson=0.95, w_logistic=0.05) + calibración post-ensemble'
+  : 'Poisson puro (ENSEMBLE_ENABLED=false)';
+const mwLabel = MARKET_WEIGHT_OVERRIDE !== undefined
+  ? ` | MARKET_WEIGHT=${MARKET_WEIGHT_OVERRIDE} (override §SP-V4-11)`
+  : ' | MARKET_WEIGHT=0.20 (constants.ts, optimizado §SP-V4-11)';
+console.log(`\nSportsPulse — Backtest del motor PE v1.3 (runV3Engine)\n`);
+console.log(`Metodología: walk-forward por jornada, sin data leakage`);
+console.log(`Motor: runV3Engine — ${modeLabel}${mwLabel}\n`);
+
+// Cargar coeficientes logísticos si --ensemble
+let logisticCoefficients: LogisticCoefficients | undefined;
+if (USE_ENSEMBLE) {
+  logisticCoefficients = loadLogisticCoefficients();
+  const trainedOn = (logisticCoefficients as { trained_on_matches?: number } | undefined)?.trained_on_matches ?? '?';
+  console.log(`[ENSEMBLE] Coeficientes logísticos: trained_on_matches=${trainedOn}`);
+  // Verify calibration tables exist
+  const calDir = path.join(process.cwd(), 'cache', 'calibration');
+  const ensembleGlobalFile = path.join(calDir, 'v3-iso-calibration-ensemble.json');
+  if (!fs.existsSync(ensembleGlobalFile)) {
+    console.warn('[WARN] Tabla de calibración ensemble no encontrada:', ensembleGlobalFile);
+    console.warn('[WARN] Ejecuta primero: pnpm tsx tools/gen-calibration.ts --ensemble');
+    console.warn('[WARN] Continuando SIN calibración (solo ensemble)...\n');
+  } else {
+    console.log(`[ENSEMBLE] Calibración: v3-iso-calibration-ensemble.json (estrategia MIXTA)\n`);
+  }
+}
+
+// Cargar índice de odds (football-data.co.uk) para market features
+const oddsIndex = buildOddsIndex(['PD', 'PL', 'BL1']);
+console.log(`[ODDS] Índice cargado: ${oddsIndex.size} registros\n`);
 
 const allEvals: MatchEval[] = [];
 
 for (const league of LEAGUES) {
   const prevExists = fs.existsSync(league.prevSeasonFile) || fs.existsSync(path.join(process.cwd(), 'cache', 'historical', 'football-data', path.basename(path.dirname(path.dirname(league.prevSeasonFile))), '2024.json'));
   process.stdout.write(`Procesando ${league.name}${prevExists ? ' [+2yr prev]' : ''}... `);
-  const evals = backtestLeague(league);
+  const evals = backtestLeague(league, oddsIndex, logisticCoefficients);
   allEvals.push(...evals);
   console.log(`${evals.length} partidos cargados`);
   printLeagueReport(league.name, evals);

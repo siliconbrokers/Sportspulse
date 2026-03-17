@@ -61,6 +61,12 @@ export interface LogisticFeatureVector {
   total_goals_expected: number;
   /** λh / (λh + λa) ∈ [0,1] — dominancia ofensiva del local. */
   home_dominance: number;
+  /** Implied prob home win del mercado (Pinnacle/Bet365, normalizada). 1/3 cuando no disponible. */
+  market_imp_home: number;
+  /** Implied prob empate del mercado. 1/3 cuando no disponible. */
+  market_imp_draw: number;
+  /** Implied prob away win del mercado. 1/3 cuando no disponible. */
+  market_imp_away: number;
 }
 
 /** Lista ordenada de keys del feature vector — usada para iterar sobre pesos. */
@@ -81,6 +87,9 @@ export const LOGISTIC_FEATURE_KEYS: ReadonlyArray<keyof LogisticFeatureVector> =
   'league_bl1',
   'total_goals_expected',
   'home_dominance',
+  'market_imp_home',
+  'market_imp_draw',
+  'market_imp_away',
 ] as const;
 
 /**
@@ -164,6 +173,12 @@ export function extractLogisticFeatures(params: {
   absenceScoreAway: number;
   xgCoverage: number;
   leagueCode?: string;
+  /** Implied prob home win del mercado (normalizada). Defaults a 1/3. */
+  marketImpHome?: number;
+  /** Implied prob draw del mercado (normalizada). Defaults a 1/3. */
+  marketImpDraw?: number;
+  /** Implied prob away win del mercado (normalizada). Defaults a 1/3. */
+  marketImpAway?: number;
 }): LogisticFeatureVector {
   const {
     lambdaHome,
@@ -176,6 +191,9 @@ export function extractLogisticFeatures(params: {
     absenceScoreAway,
     xgCoverage,
     leagueCode,
+    marketImpHome,
+    marketImpDraw,
+    marketImpAway,
   } = params;
 
   // §SP-V4-20: balance_ratio = min(λh,λa) / max(λh,λa)
@@ -223,6 +241,9 @@ export function extractLogisticFeatures(params: {
     league_bl1,
     total_goals_expected,
     home_dominance,
+    market_imp_home: marketImpHome ?? (1 / 3),
+    market_imp_draw: marketImpDraw ?? (1 / 3),
+    market_imp_away: marketImpAway ?? (1 / 3),
   };
 }
 

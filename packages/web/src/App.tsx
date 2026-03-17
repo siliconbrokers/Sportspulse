@@ -22,6 +22,7 @@ import { EventsSection } from './components/eventos/EventsSection.js';
 import { PredictionsLabPage } from './labs/PredictionsLabPage.js';
 import { EvaluationLabPage } from './labs/EvaluationLabPage.js';
 import { HistoricalEvaluationLabPage } from './labs/HistoricalEvaluationLabPage.js';
+import { TrainingLabPage } from './labs/TrainingLabPage.js';
 import { getCompMeta } from './utils/competition-meta.js';
 import { SubTournamentSelector } from './components/SubTournamentSelector.js';
 import { usePortalConfig } from './hooks/use-portal-config.js';
@@ -66,6 +67,7 @@ export function AppRoot() {
     const path = window.location.pathname;
     if (path.startsWith('/labs/evaluacion-historica')) return <HistoricalEvaluationLabPage />;
     if (path.startsWith('/labs/evaluacion')) return <EvaluationLabPage />;
+    if (path.startsWith('/labs/entrenamiento')) return <TrainingLabPage />;
     return <PredictionsLabPage />;
   }
   return <BootGate />;

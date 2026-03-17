@@ -12,14 +12,39 @@
  *
  * PASO 4: Backtest 2025-26 SIN y CON calibración → medir delta accuracy
  *
- * Uso: npx tsx --tsconfig tsconfig.server.json tools/gen-calibration.ts
+ * Flags:
+ *   --ensemble   Activar ENSEMBLE_ENABLED=true durante generación de tuplas.
+ *                Carga coeficientes logísticos desde cache/logistic-coefficients.json.
+ *                Las tablas se guardan con sufijo -ensemble.json.
+ *
+ * Uso: npx tsx --tsconfig tsconfig.server.json tools/gen-calibration.ts [--ensemble]
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { runV3Engine } from '../packages/prediction/src/engine/v3/v3-engine.js';
 import type { V3MatchRecord, V3EngineInput, CalibrationTable, CalibrationPoint } from '../packages/prediction/src/engine/v3/types.js';
+import type { LogisticCoefficients } from '../packages/prediction/src/engine/v3/logistic-model.js';
 import { fitIsotonicRegression, applyIsoCalibration } from '../packages/prediction/src/calibration/iso-calibrator.js';
+
+// ── CLI flags ─────────────────────────────────────────────────────────────────
+
+const USE_ENSEMBLE = process.argv.includes('--ensemble');
+
+/** Carga coeficientes logísticos desde cache/logistic-coefficients.json. */
+function loadLogisticCoefficients(): LogisticCoefficients | undefined {
+  const file = path.join(process.cwd(), 'cache', 'logistic-coefficients.json');
+  if (!fs.existsSync(file)) {
+    console.warn('  [WARN] cache/logistic-coefficients.json no encontrado — usando DEFAULT_LOGISTIC_COEFFICIENTS');
+    return undefined;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf-8')) as LogisticCoefficients;
+  } catch (err) {
+    console.warn('  [WARN] Error leyendo logistic-coefficients.json:', err);
+    return undefined;
+  }
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,10 +84,12 @@ interface BacktestEval {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const CACHE_BASE  = path.join(process.cwd(), 'cache', 'football-data');
-const HIST_BASE   = path.join(process.cwd(), 'cache', 'historical', 'football-data');
-const CAL_OUT_DIR = path.join(process.cwd(), 'cache', 'calibration');
-const CAL_OUT_FILE = path.join(CAL_OUT_DIR, 'v3-iso-calibration.json');
+const CACHE_BASE   = path.join(process.cwd(), 'cache', 'football-data');
+const HIST_BASE    = path.join(process.cwd(), 'cache', 'historical', 'football-data');
+const CAL_OUT_DIR  = path.join(process.cwd(), 'cache', 'calibration');
+// With --ensemble flag: save to separate files so baseline tables are preserved.
+const CAL_SUFFIX   = USE_ENSEMBLE ? '-ensemble' : '';
+const CAL_OUT_FILE = path.join(CAL_OUT_DIR, `v3-iso-calibration${CAL_SUFFIX}.json`);
 
 interface LeagueConfig {
   name: string;
@@ -127,6 +154,11 @@ function actualOutcome(scoreHome: number, scoreAway: number): 'HOME_WIN' | 'DRAW
 
 // ── PASO 1: Walk-forward sobre temporada histórica ────────────────────────────
 
+interface EnsembleOverride {
+  enabled: boolean;
+  logisticCoefficients?: LogisticCoefficients;
+}
+
 /**
  * Genera tuplas de calibración walk-forward sobre una temporada completa.
  *
@@ -137,12 +169,14 @@ function actualOutcome(scoreHome: number, scoreAway: number): 'HOME_WIN' | 'DRAW
  * @param prevSeasonMatches  Temporada anterior (puede ser vacío si no hay datos)
  * @param league  Config de la liga
  * @param seasonLabel  Label para logging (ej: "2023-24")
+ * @param ensembleOverride  Si se debe activar ENSEMBLE_ENABLED y con qué coeficientes
  */
 function generateCalibrationTuplesForSeason(
   seasonMatches: V3MatchRecord[],
   prevSeasonMatches: V3MatchRecord[],
   league: LeagueConfig,
   seasonLabel: string,
+  ensembleOverride?: EnsembleOverride,
 ): CalibrationTuple[] {
   if (seasonMatches.length === 0) {
     console.log(`    [WARN] Sin datos para ${league.code} ${seasonLabel}`);
@@ -178,6 +212,12 @@ function generateCalibrationTuplesForSeason(
       // Calibration tuples must use pre-DrawAffinity probabilities so the
       // calibration is trained on the same space it is applied to at inference.
       _skipDrawAffinity: true,
+      ...(ensembleOverride?.enabled === true
+        ? {
+            _overrideConstants: { ENSEMBLE_ENABLED: true },
+            logisticCoefficients: ensembleOverride.logisticCoefficients,
+          }
+        : {}),
     };
 
     try {
@@ -238,6 +278,7 @@ function fitCalibrationTable(tuples: CalibrationTuple[], fittedAt: string): Cali
 function backtestLeague2526(
   league: LeagueConfig,
   calibrationTable?: CalibrationTable,
+  ensembleOverride?: EnsembleOverride,
 ): BacktestEval[] {
   const seasonDir = path.join(CACHE_BASE, league.code, '2025-26');
   const allMatchdays = loadMatchdayFiles(seasonDir);
@@ -281,6 +322,12 @@ function backtestLeague2526(
         expectedSeasonGames: league.expectedSeasonGames,
         calibrationTable,
         leagueCode: league.code,
+        ...(ensembleOverride?.enabled === true
+          ? {
+              _overrideConstants: { ENSEMBLE_ENABLED: true },
+              logisticCoefficients: ensembleOverride.logisticCoefficients,
+            }
+          : {}),
       };
 
       let predicted: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | 'TOO_CLOSE' | null = null;
@@ -374,8 +421,19 @@ function printCompactReport(label: string, r: AccuracyReport): void {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('\nSportPulse — Calibración Isotónica PE v3 (2 temporadas)\n');
+  const modeLabel = USE_ENSEMBLE ? 'ENSEMBLE activo (w_poisson=0.95, w_logistic=0.05)' : 'Poisson puro (ENSEMBLE_ENABLED=false)';
+  console.log(`\nSportPulse — Calibración Isotónica PE v3 (2 temporadas) — ${modeLabel}\n`);
   console.log('='.repeat(68));
+
+  // Preparar ensemble override si aplica
+  let ensembleOverride: EnsembleOverride | undefined;
+  if (USE_ENSEMBLE) {
+    const coefficients = loadLogisticCoefficients();
+    ensembleOverride = { enabled: true, logisticCoefficients: coefficients };
+    const trainedOn = (coefficients as { trained_on_matches?: number })?.trained_on_matches ?? '?';
+    console.log(`  [ENSEMBLE] Coeficientes logísticos cargados (trained_on_matches=${trainedOn})`);
+    console.log(`  [ENSEMBLE] Tablas se guardarán con sufijo '-ensemble'\n`);
+  }
 
   // ── PASO 1: Walk-forward 2 temporadas ────────────────────────────────────
   console.log('\nPASO 1: Generando tuplas de calibración (walk-forward)...\n');
@@ -388,7 +446,7 @@ async function main() {
     // Temporada 2023-24: sin prevSeason (no hay 2022-23 cacheado)
     const season2324 = loadHistorical(league.code, 2023);
     const tuples2324 = generateCalibrationTuplesForSeason(
-      season2324, [], league, '2023-24',
+      season2324, [], league, '2023-24', ensembleOverride,
     );
     console.log(`    2023-24 (sin prevSeason): ${tuples2324.length} tuplas`);
 
@@ -396,7 +454,7 @@ async function main() {
     const season2425 = loadHistorical(league.code, 2024);
     const prevSeason2425 = loadHistorical(league.code, 2023);
     const tuples2425 = generateCalibrationTuplesForSeason(
-      season2425, prevSeason2425, league, '2024-25',
+      season2425, prevSeason2425, league, '2024-25', ensembleOverride,
     );
     console.log(`    2024-25 (prevSeason=2023-24): ${tuples2425.length} tuplas`);
 
@@ -482,7 +540,7 @@ async function main() {
 
   // Per-league
   for (const [code, lgTable] of perLeagueTables) {
-    const lgFile = path.join(CAL_OUT_DIR, `v3-iso-calibration-${code}.json`);
+    const lgFile = path.join(CAL_OUT_DIR, `v3-iso-calibration-${code}${CAL_SUFFIX}.json`);
     fs.writeFileSync(lgFile, JSON.stringify(lgTable, null, 2));
     console.log(`  [${code}]    ${lgFile} (${(fs.statSync(lgFile).size / 1024).toFixed(1)} KB)`);
   }
@@ -499,10 +557,10 @@ async function main() {
 
   for (const league of LEAGUES) {
     process.stdout.write(`  ${league.name.padEnd(25)} ... `);
-    const evalsRaw      = backtestLeague2526(league, undefined);
-    const evalsGlobal   = backtestLeague2526(league, table);
+    const evalsRaw      = backtestLeague2526(league, undefined, ensembleOverride);
+    const evalsGlobal   = backtestLeague2526(league, table, ensembleOverride);
     const lgTable       = perLeagueTables.get(league.code);
-    const evalsPerLeague = backtestLeague2526(league, lgTable);
+    const evalsPerLeague = backtestLeague2526(league, lgTable, ensembleOverride);
 
     allEvalsRaw.push(...evalsRaw);
     allEvalsGlobal.push(...evalsGlobal);

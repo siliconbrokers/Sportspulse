@@ -26,6 +26,7 @@ import * as path from 'node:path';
 import type { DataSource } from '@sportpulse/snapshot';
 import { runV3Engine } from '@sportpulse/prediction';
 import type { V3MatchRecord, CalibrationTable } from '@sportpulse/prediction';
+import type { LogisticCoefficients } from '@sportpulse/prediction';
 import { EventStatus } from '@sportpulse/canonical';
 import type { PredictionStore } from './prediction-store.js';
 import { buildSnapshot } from './prediction-store.js';
@@ -38,6 +39,43 @@ import type { InjurySource } from './injury-source.js';
 import { normTeamName } from './injury-source.js';
 import type { XgSource } from './xg-source.js';
 import type { LineupSource } from './lineup-source.js';
+
+// ── Logistic coefficients (loaded once, refreshed when file changes) ──────────
+//
+// §SP-V4-23: Loaded from cache/logistic-coefficients.json.
+// If the file does not exist (model not yet trained), undefined is used and the
+// engine falls back to DEFAULT_LOGISTIC_COEFFICIENTS (uniform prior).
+// Only relevant when ENSEMBLE_ENABLED=true in the engine input.
+
+const LOGISTIC_COEF_PATH = path.join(process.cwd(), 'cache', 'logistic-coefficients.json');
+const LOGISTIC_COEF_TTL_MS = 60 * 60_000; // 1h — retrain is infrequent
+
+interface LogisticCoefEntry {
+  coefficients: LogisticCoefficients;
+  loadedAt: number;
+}
+
+let _logisticCoefEntry: LogisticCoefEntry | undefined;
+
+function loadLogisticCoefficients(): LogisticCoefficients | undefined {
+  const now = Date.now();
+  if (_logisticCoefEntry && now - _logisticCoefEntry.loadedAt < LOGISTIC_COEF_TTL_MS) {
+    return _logisticCoefEntry.coefficients;
+  }
+  try {
+    if (!fs.existsSync(LOGISTIC_COEF_PATH)) return undefined;
+    const raw = fs.readFileSync(LOGISTIC_COEF_PATH, 'utf8');
+    const parsed = JSON.parse(raw) as LogisticCoefficients;
+    // Basic validation: must have all three class coefficient sets
+    if (!parsed.home || !parsed.draw || !parsed.away) return undefined;
+    _logisticCoefEntry = { coefficients: parsed, loadedAt: now };
+    console.log(`[Ensemble] Logistic coefficients loaded: trained_on=${parsed.trained_on_matches} matches, at=${parsed.trained_at}`);
+    return parsed;
+  } catch {
+    console.warn('[Ensemble] Failed to load logistic-coefficients.json — using DEFAULT_LOGISTIC_COEFFICIENTS');
+    return undefined;
+  }
+}
 
 // ── Calibration tables (loaded once, refreshed every 6h) ──────────────────────
 //
@@ -466,6 +504,9 @@ async function runMatchPredictions(
         marketOdds,
         calibrationTable: getCalTableForCompetition(competitionId),
         leagueCode: deriveLeagueCode(competitionId),
+        // §SP-V4-23: Pass logistic coefficients if trained model is available.
+        // When ENSEMBLE_ENABLED=false (default), the engine ignores this field entirely.
+        logisticCoefficients: loadLogisticCoefficients(),
       };
 
       const output = runV3Engine(input);

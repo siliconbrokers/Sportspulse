@@ -1,25 +1,23 @@
 # Predictive Engine Auditor — Persistent Memory
 
 ## Project: SportPulse Predictive Engine
-Spec: `/Users/andres/Documents/04_Flux/SportsPulse/docs/specs/SportPulse_Predictive_Engine_Spec_v1.3_Final.md`
-Implementation: `/Users/andres/Documents/04_Flux/SportsPulse/packages/prediction/`
+Spec: `/Users/andres/Documents/04_Flux/SportsPulse/docs/specs/prediction/spec.sportpulse.prediction.engine.md` (v1.3 Frozen)
+Implementation: `packages/prediction/` (V3 Unified Engine — engine_version '4.2' as of SP-V4-14)
 
-## Phase 8 Audit (third audit, closure) — Current Status: PARTIALLY_CONFORMANT
+## SP-V4 Fase 2 Audit — Current Status: PARTIALLY_CONFORMANT
 
-### All 4 second-audit findings: CLOSED
-- **F1** (stage_type invalid enum in tc-056-074, no-raw-calibrated-mixing, reconstruction): CLOSED. All 3 files cleaned.
-- **F2** (distribution: {...} as any in tc-056-074): CLOSED. Now uses `buildTestRawDistribution()`.
-- **F3** (PredictionResponseNotEligible.internals optional): CLOSED. Field is now `internals: null` (required).
-- **F4** (knockout-resolver: ROUND_ROBIN as any): CLOSED. No as any in that file.
+### Findings closed in Fase 1 / confirmed closed in Fase 2
+- **F3 [LOW]:** top_scorelines count=6→5. CLOSED in Fase 1. Still closed.
+- **F4 [HIGH]:** double_chance/DNB using raw probs. CLOSED in Fase 1 (derived-calibrated.ts). Still closed.
+- **Phase 8 `as any`:** `test/response-builder.test.ts:67` — CLOSED (line no longer exists). Memory note was stale.
 
-### One NEW finding discovered in Phase 8 audit (LOW)
-- `test/response-builder.test.ts` line 67: `stage_type: 'REGULAR_SEASON'`, `format_type: 'LEAGUE'`, `} as any` — same invalid-enum bypass pattern. This file was NOT tracked in Phase 6 or Phase 7 audits. It is the only remaining runtime `as any` in the test suite.
+### Open findings as of Fase 2 (2026-03-17)
+- **F1 [MEDIUM]:** SofaScore API not subscribed — xG quality gap. OPEN.
+- **F2 [MEDIUM]:** gen-calibration.ts does not use xG (training/inference gap). PARTIALLY_CLOSED — blocked by missing historical xG cache.
+- **F5 [MEDIUM NEW]:** spec §23.2 requires log_loss + Brier score in backtest report. Fase 2 backtest only reports acc/DR/DP. OPEN.
 
-### Remaining open item
-- **NOT_ELIGIBLE internals optionality**: CLOSED in Phase 8 — `PredictionResponseNotEligible.internals: null` (required, not optional). Confirmed at line 507 of `src/contracts/types/prediction-response.ts`.
-
-### `as any` in test/ — final state (Phase 8)
-Only runtime bypass: `test/response-builder.test.ts:67`. All other occurrences are JSDoc comments in `test/helpers/branded-factories.ts`.
+### Deferred items
+- **SP-V4-11:** MARKET_WEIGHT sweep — deferred, not testeable in backtest without historical odds.
 
 ## Architecture Notes (confirmed, as of Phase 7)
 - `packages/prediction/src/` — 37 source files, 34 test files, 880 tests passing
@@ -34,6 +32,23 @@ Only runtime bypass: `test/response-builder.test.ts:67`. All other occurrences a
 - `RawMatchDistribution` brand bypass in `tc-056-074` line 113: use `buildTestRawDistribution()` from `branded-factories.ts` instead.
 - `PredictiveStageType` enum does NOT include `REGULAR_SEASON` or `LEAGUE`. Valid values: `QUALIFYING`, `GROUP_STAGE`, `LEAGUE_PHASE`, `PLAYOFF`, `ROUND_OF_32`, `ROUND_OF_16`, `QUARTER_FINAL`, `SEMI_FINAL`, `THIRD_PLACE`, `FINAL`.
 - `FormatType` does NOT include `'LEAGUE'`. Valid values: `ROUND_ROBIN`, `GROUP_CLASSIC`, `LEAGUE_PHASE_SWISS_STYLE`, `KNOCKOUT_SINGLE_LEG`, `KNOCKOUT_TWO_LEG`.
+
+## V3 Engine Architecture Snapshot (engine_version '4.2' as of SP-V4-14)
+- Pipeline order: Poisson → MarketBlend → Calibration (isotonic) → DrawAffinity → PredictedResult
+- Training uses `_skipDrawAffinity=true` (gen-calibration.ts) to avoid training/inference mismatch
+- Calibration strategy: MIXED — PD=per-league table, PL=global, BL1=global
+- DC_RHO_PER_LEAGUE: PD=-0.25, PL=-0.19, BL1=-0.14 (sweep 2026-03-17)
+- SOS_SENSITIVITY=0.0 (optimal — rival_adjustment already normalizes by opponent quality)
+- leagueCode flows from v3-shadow-runner.ts via deriveLeagueCode()
+- 1187 tests / 1186 passed (1 pre-existing failure: match-validator catalog size F-005)
+- Calibration tables: `cache/calibration/v3-iso-calibration*.json` (TTL 6h in shadow runner)
+- POSITION_IMPACT: GK/DEF/MID/FWD positional factors in absence-adjustment (SP-V4-13)
+- MIN_IMPORTANCE_THRESHOLD=0.3: players with importance < 0.3 excluded from absence model (SP-V4-12)
+- MARKET_WEIGHT=0.15: blend weight for market odds (SP-V4-10, not optimized empirically yet)
+
+## Calibration Training/Inference Gap (recurring risk)
+- If gen-calibration.ts does not include new features (e.g. xG) when training, the calibration tables won't reflect runtime improvements. This caused acc plateau at 50.7% in SP-V4 Fase 1 despite xG augmentation being active in runtime.
+- Always verify gen-calibration.ts passes same features as production pipeline when auditing calibration cycles.
 
 ## Motor Predictivo V2 Audit (2026-03-11) — APROBABLE CON RIESGOS SERIOS
 Spec: `/Users/andres/Documents/04_Flux/SportsPulse/docs/specs/# Motor Predictivo V2.md`

@@ -32,7 +32,10 @@ import { computeRecencyDeltas } from './recency.js';
 import { computeV3Lambdas } from './lambda.js';
 import { computePoissonMatrix } from './poisson-matrix.js';
 import { computeEligibility } from './eligibility.js';
-import { THRESHOLD_NOT_ELIGIBLE, THRESHOLD_ELIGIBLE, DC_RHO, DC_RHO_PER_LEAGUE, LAMBDA_MIN, LAMBDA_MAX, XG_PARTIAL_COVERAGE_THRESHOLD, DRAW_LEAGUE_AVG_RATE, SOS_SENSITIVITY } from './constants.js';
+import { THRESHOLD_NOT_ELIGIBLE, THRESHOLD_ELIGIBLE, DC_RHO, DC_RHO_PER_LEAGUE, LAMBDA_MIN, LAMBDA_MAX, XG_PARTIAL_COVERAGE_THRESHOLD, DRAW_LEAGUE_AVG_RATE, SOS_SENSITIVITY, ENSEMBLE_ENABLED, ENSEMBLE_WEIGHTS_DEFAULT } from './constants.js';
+import { extractLogisticFeatures, predictLogistic, DEFAULT_LOGISTIC_COEFFICIENTS } from './logistic-model.js';
+import { combineEnsemble } from './ensemble.js';
+import type { EnsembleWeights } from './ensemble.js';
 import { estimateDcRho } from './dc-rho-estimator.js';
 import { computeConfidence } from './confidence.js';
 import { computePredictedResult } from './predicted-result.js';
@@ -55,7 +58,7 @@ function buildNotEligibleOutput(
 ): V3PredictionOutput {
   return {
     engine_id: 'v3_unified',
-    engine_version: '4.2',
+    engine_version: '4.3',
     eligibility: 'NOT_ELIGIBLE',
     confidence: 'INSUFFICIENT',
     prob_home_win: null,
@@ -164,6 +167,8 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   const dcRhoOverride           = _overrideConstants?.DC_RHO;
   // §SP-V4-05: SoS sensitivity — uses override if provided (sweep tools), else global constant
   const sosSensitivity          = _overrideConstants?.SOS_SENSITIVITY ?? SOS_SENSITIVITY;
+  // §SP-V4-11: market weight override — only defined when running sweep tools
+  const marketWeightOverride    = _overrideConstants?.MARKET_WEIGHT;
   const drawAffinityOverrides   = (_overrideConstants?.DRAW_AFFINITY_POWER != null ||
                                    _overrideConstants?.DRAW_LOW_SCORING_BETA != null)
     ? {
@@ -508,16 +513,79 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     poissonResult.prob_draw,
     poissonResult.prob_away_win,
     marketOdds,
+    marketWeightOverride,
   );
 
   if (blendResult.invalidOdds) {
     warnings.push('MARKET_ODDS_INVALID');
   }
 
-  // These are `let` so the calibration step (§Cal) can reassign them.
+  // These are `let` so ensemble / calibration steps can reassign them.
   let finalProbHome = blendResult.prob_home;
   let finalProbDraw  = blendResult.prob_draw;
   let finalProbAway  = blendResult.prob_away;
+
+  // ── §SP-V4-23: Ensemble block (Poisson + Market + Logistic) ───────────────
+  // Inserts AFTER market-blend and BEFORE isotonic calibration.
+  // When ENSEMBLE_ENABLED=false (default), this block is a no-op and output is
+  // bit-exact to V4.2 (T3-REG invariant preserved).
+  const ensembleEnabled = input._overrideConstants?.ENSEMBLE_ENABLED ?? ENSEMBLE_ENABLED;
+  let ensembleWeightsUsed: EnsembleWeights | undefined;
+  let logisticProbsRaw: { home: number; draw: number; away: number } | undefined;
+
+  if (ensembleEnabled) {
+    // Extract logistic features from pipeline intermediates (§SP-V4-20)
+    const coefficients = input.logisticCoefficients ?? DEFAULT_LOGISTIC_COEFFICIENTS;
+    const features = extractLogisticFeatures({
+      lambdaHome:       lambdaHomeFinal,
+      lambdaAway:       lambdaAwayFinal,
+      restDaysHome:     restDaysHome ?? 0,
+      restDaysAway:     restDaysAway ?? 0,
+      h2hMultHome:      h2hResult.mult_home,
+      h2hMultAway:      h2hResult.mult_away,
+      absenceScoreHome: absenceResult.mult_home,
+      absenceScoreAway: absenceResult.mult_away,
+      xgCoverage:       xgCoverage.totalMatches > 0
+        ? xgCoverage.coverageMatches / xgCoverage.totalMatches
+        : 0,
+      leagueCode,
+      // Market implied probs from marketOdds input (pre-match odds when available)
+      marketImpHome:    marketOdds?.probHome,
+      marketImpDraw:    marketOdds?.probDraw,
+      marketImpAway:    marketOdds?.probAway,
+    });
+
+    const logisticOutput = predictLogistic(features, coefficients);
+    logisticProbsRaw = {
+      home: logisticOutput.probHome,
+      draw: logisticOutput.probDraw,
+      away: logisticOutput.probAway,
+    };
+
+    // Resolve ensemble weights: input override > default (§SP-V4-21)
+    const weights = input.ensembleWeights ?? ENSEMBLE_WEIGHTS_DEFAULT;
+
+    // Market component: only pass it if market was actually used in the blend
+    // (if blend was not applied, market odds are not available — pass undefined)
+    const marketProbs = blendResult.applied
+      ? { probHome: blendResult.market_prob_home ?? finalProbHome, probDraw: blendResult.market_prob_draw ?? finalProbDraw, probAway: blendResult.market_prob_away ?? finalProbAway }
+      : undefined;
+
+    const ensembleResult = combineEnsemble(
+      {
+        poisson:  { probHome: finalProbHome, probDraw: finalProbDraw, probAway: finalProbAway },
+        market:   marketProbs,
+        logistic: logisticOutput,
+      },
+      weights,
+    );
+
+    finalProbHome = ensembleResult.probHome;
+    finalProbDraw  = ensembleResult.probDraw;
+    finalProbAway  = ensembleResult.probAway;
+    ensembleWeightsUsed = ensembleResult.weights_used;
+  }
+  // ── END §SP-V4-23: Ensemble block ─────────────────────────────────────────
 
   // ── §Cal Isotonic Calibration (Phase 5) ───────────────────────────────────
   // Corrige el sesgo sistemático del modelo (sobre-estimación HOME, sub-estimación AWAY).
@@ -631,7 +699,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   // ── Armar output ───────────────────────────────────────────────────────
   return {
     engine_id: 'v3_unified',
-    engine_version: '4.2',
+    engine_version: '4.3',
     eligibility,
     confidence,
     prob_home_win: finalProbHome,
@@ -700,6 +768,9 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
       market_prob_home: blendResult.market_prob_home,
       market_prob_draw: blendResult.market_prob_draw,
       market_prob_away: blendResult.market_prob_away,
+      // §SP-V4-23: Ensemble (present only when ensembleEnabled=true, undefined otherwise)
+      ensemble_weights_used: ensembleWeightsUsed,
+      logistic_probs_raw: logisticProbsRaw,
     },
     warnings,
   };

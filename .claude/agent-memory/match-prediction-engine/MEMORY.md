@@ -80,9 +80,19 @@
 
 T3 constants: `XG_PARTIAL_COVERAGE_THRESHOLD=0.5`, `ABSENCE_IMPACT_FACTOR=0.04`, `ABSENCE_MULT_MIN=0.85`, `LINEUP_MISSING_STARTER_IMPORTANCE=0.4`, `DOUBTFUL_WEIGHT=0.5`, `MARKET_WEIGHT=0.15`, `MARKET_WEIGHT_MAX=0.30`, `MARKET_ODDS_SUM_TOLERANCE=1e-4`
 
+**SP-V4-12/13 new constants:** `MIN_IMPORTANCE_THRESHOLD=0.3`, `POSITION_IMPACT: {GK: {atk:0.01, def:0.06}, DEF: {atk:0.01, def:0.035}, MID: {atk:0.03, def:0.02}, FWD: {atk:0.05, def:0.01}}`
+
 T3 pipeline order: anti-lookahead → [T3-01 xG augment] → baselines/stats → lambdas → rest → H2H → [T3-02/03 absence mult] → clamp → Poisson → [T3-04 market blend] → computeMarkets (original matrix)
 
+**SP-V4-13 absence cross-team application:**
+```
+lambda_home *= mult_home (home attack) * mult_defense_away (away defense absent)
+lambda_away *= mult_away (away attack) * mult_defense_home (home defense absent)
+```
+
 T3 retrocompatibilidad: all T3 fields undefined → bit-exact output to pre-T3 engine (T3-REG invariant)
+
+**SP-V4-12 injury-source.ts enrichment:** Player stats disk cache (30d TTL) at `cache/player-stats/{season}/{playerId}.json`. `importance = minutesPlayed / (games × 90)`. Players with `importance < 0.3` filtered out (squad depth). Fallback to static (GK=0.75, else=0.60) on API error. Position extracted from `player.type` field in injuries response.
 
 ## Key Design Decisions
 
@@ -91,12 +101,36 @@ T3 retrocompatibilidad: all T3 fields undefined → bit-exact output to pre-T3 e
 - Pool separation is via factory functions, not a global registry — callers manage pool lifecycle.
 - T3-04 market blend: ONLY affects top-level 1X2 and predicted_result. `computeMarkets` always uses the original Poisson matrix (not blended) to preserve O/U, BTTS, scoreline structural integrity.
 
+## V4 Fase 3 — SP-V4-20/21 (Logistic + Ensemble)
+
+| Module | File | Purpose |
+|--------|------|---------|
+| logistic-model | `engine/v3/logistic-model.ts` | `extractLogisticFeatures`, `predictLogistic`, `DEFAULT_LOGISTIC_COEFFICIENTS` |
+| ensemble | `engine/v3/ensemble.ts` | `combineEnsemble` — weighted avg of Poisson + Market + Logistic |
+| train-logistic | `tools/train-logistic.ts` | CLI: walk-forward data → gradient descent → `cache/logistic-coefficients.json` |
+
+V4-20/21 constants: `ENSEMBLE_WEIGHTS_DEFAULT={w_poisson:0.70, w_market:0.15, w_logistic:0.15}`
+
+`collectIntermediates=true` in V3EngineInput → populates `output._intermediates` (only for train-logistic.ts — never in production).
+
+**SP-V4-23 INTEGRATED** (2026-03-17). `ENSEMBLE_ENABLED=false` default → T3-REG invariant preserved. Activate via `_overrideConstants.ENSEMBLE_ENABLED=true`. engine_version bumped to '4.3'.
+
+First train run (2026-03-17): 718 examples (PD+PL+BL1), in-sample accuracy 51.5%. DRAW class bias (0 draws predicted) is a known imbalanced-class behavior — SP-V4-24 calibration will address.
+
 ## Test Coverage
 
-- **1155 tests total** in `packages/prediction/test/` (42 test files) — as of 2026-03-15
-- `test/engine/tier3-signals.test.ts` — 28 tests (MKT-T3-00 T3-01..T3-REG)
+- **1249 tests total** in `packages/prediction/test/` (45 test files) — as of 2026-03-17 session 5 (SP-V4-23)
+- `test/engine/logistic-model.test.ts` — 27 tests (SP-V4-20: features, softmax invariants, defaults)
+- `test/engine/ensemble.test.ts` — 28 tests (SP-V4-21: 3-component, missing market, missing logistic, only poisson, weight normalization)
+- `test/engine/tier3-signals.test.ts` — 39 tests (MKT-T3-00 T3-01..T3-REG + T3-POS-01..07 + T3-V4-12)
+- `test/engine/sos-recency.test.ts` — 11 tests (SP-V4-05 SoS weighted recency)
 - `test/engine/elo-rating.test.ts` — 19 tests (Phase 2a)
 - `test/engine/scoreline-matrix.test.ts` — 23 tests (Phase 2a)
 - `test/engine/raw-aggregator.test.ts` — 8 tests (Phase 2a)
 - `test/engine/derived-raw.test.ts` — 17 tests (Phase 2a)
-- All Phase 2b and 2c tests also pass (42 test files total)
+- All Phase 2b and 2c tests also pass (43 test files total)
+- 1 pre-existing failure: `match-validator.test.ts` F-005 (catalog size — unrelated to engine)
+
+## SoS Invariant (SP-V4-05)
+
+**rival_adjustment (§8) already captures SoS effect.** Adding SoS weighting on top of RA signals introduces double-counting: `attack_signal_i = goals / rival_defense_eff_i` — the signal is already amplified by rival strength. Extra weight = over-counting. Sweep confirms SOS_SENSITIVITY=0 is optimal across all tested values (0, 0.1, 0.15, 0.2, 0.3). `MatchSignalRA.rivalStrength` field kept as extension point for future research.

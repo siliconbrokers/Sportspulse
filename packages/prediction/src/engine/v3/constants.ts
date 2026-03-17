@@ -167,7 +167,7 @@ export const LINEUP_MISSING_STARTER_IMPORTANCE = 0.4;
 export const DOUBTFUL_WEIGHT = 0.5;
 
 /** Weight of market odds in the 1X2 blend — 0 = pure model, 1 = pure market (§T3-04). */
-export const MARKET_WEIGHT = 0.15;
+export const MARKET_WEIGHT = 0.2;
 
 // ── SP-V4-12: Importance threshold ────────────────────────────────────────────
 
@@ -214,6 +214,27 @@ export const MARKET_WEIGHT_MAX = 0.30;
 /** Tolerance for market odds sum validation (§T3-04). */
 export const MARKET_ODDS_SUM_TOLERANCE = 1e-4;
 
+// ── SP-V4-23: Ensemble feature flag ───────────────────────────────────────────
+
+/**
+ * Feature flag for ensemble integration (§SP-V4-23).
+ *
+ * When false (default): engine behaves identically to V4.2 — no logistic component,
+ * no ensemble blending. Output is bit-exact to pre-SP-V4-23.
+ *
+ * When true (via _overrideConstants.ENSEMBLE_ENABLED or explicit override):
+ *   - Logistic features are extracted from pipeline intermediates
+ *   - DEFAULT_LOGISTIC_COEFFICIENTS (or input.logisticCoefficients) are used
+ *   - combineEnsemble blends Poisson + Market + Logistic
+ *   - explanation gains ensemble_weights_used + logistic_probs_raw fields
+ *
+ * Activation path: set _overrideConstants.ENSEMBLE_ENABLED = true in engine input,
+ * or set ENSEMBLE_ENABLED = true here + rebuild for production activation.
+ *
+ * NOT activated by default — logistic model must be trained first (tools/train-logistic.ts).
+ */
+export const ENSEMBLE_ENABLED = false;
+
 // ── SP-V4-21: Ensemble weights ────────────────────────────────────────────────
 
 /**
@@ -223,15 +244,22 @@ export const MARKET_ODDS_SUM_TOLERANCE = 1e-4;
  * En SP-V4-23 (integración), el engine usará estos pesos cuando ENSEMBLE_ENABLED=true.
  * Optimización de pesos: SP-V4-22 (tools/sweep-ensemble-weights.ts).
  *
- * Valores iniciales:
- *   w_poisson  = 0.70 — modelo principal (mayor peso mientras logistic esté sin entrenar)
- *   w_market   = 0.15 — odds de mercado (solo si T3-04 disponible)
- *   w_logistic = 0.15 — modelo logístico (solo si ENSEMBLE_ENABLED=true y coefs entrenados)
+ * Valores optimizados SP-V4-11 + SP-V4-22 (sweep walk-forward 2026-03-17):
+ *   w_poisson  = 0.80 — modelo principal Poisson+DC
+ *   w_market   = 0.20 — odds de mercado (100% cobertura PD/PL/BL1, +0.0166 composite vs w=0)
+ *   w_logistic = 0.00 — logístico no mejora sobre Poisson+Market en el grid 1D
+ *                       (re-evaluar cuando se amplíe el training set del logístico)
+ *
+ * Nota: MARKET_WEIGHT (en blendWithMarketOdds) y w_market (en ENSEMBLE_WEIGHTS_DEFAULT)
+ * son dos mecanismos distintos:
+ *   - MARKET_WEIGHT: peso del mercado en el blend pre-ensemble (Poisson vs Market, en market-blend.ts)
+ *   - w_market: peso del mercado en el combineEnsemble post-blend (cuando ENSEMBLE_ENABLED=true)
+ * Cuando ENSEMBLE_ENABLED=false (default), solo MARKET_WEIGHT tiene efecto.
  */
 export const ENSEMBLE_WEIGHTS_DEFAULT = {
-  w_poisson:  0.70,
-  w_market:   0.15,
-  w_logistic: 0.15,
+  w_poisson:  0.80,
+  w_market:   0.20,  // odds históricas activas — 100% cobertura PD/PL/BL1, sweep SP-V4-11
+  w_logistic: 0.00,
 } as const;
 
 /**

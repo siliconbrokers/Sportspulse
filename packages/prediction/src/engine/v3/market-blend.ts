@@ -14,7 +14,7 @@
  */
 
 import type { MarketOddsRecord } from './types.js';
-import { MARKET_WEIGHT, MARKET_ODDS_SUM_TOLERANCE } from './constants.js';
+import { MARKET_WEIGHT, MARKET_WEIGHT_MAX, MARKET_ODDS_SUM_TOLERANCE } from './constants.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,17 +45,20 @@ export interface MarketBlendResult {
  * Cuando las odds no pasan la validación de suma → retorna modelo sin cambios,
  * applied = false, invalidOdds = true (el caller debe emitir warning MARKET_ODDS_INVALID).
  *
- * @param modelProbHome   Probabilidad de victoria local del modelo Poisson.
- * @param modelProbDraw   Probabilidad de empate del modelo Poisson.
- * @param modelProbAway   Probabilidad de victoria visitante del modelo Poisson.
- * @param marketOdds      Odds del mercado (de-vigged), opcional.
- * @returns               MarketBlendResult con probabilidades resultantes.
+ * @param modelProbHome      Probabilidad de victoria local del modelo Poisson.
+ * @param modelProbDraw      Probabilidad de empate del modelo Poisson.
+ * @param modelProbAway      Probabilidad de victoria visitante del modelo Poisson.
+ * @param marketOdds         Odds del mercado (de-vigged), opcional.
+ * @param marketWeightOverride Override de MARKET_WEIGHT para sweep experiments (§SP-V4-11).
+ *                             Si se omite, usa la constante MARKET_WEIGHT de constants.ts.
+ * @returns                  MarketBlendResult con probabilidades resultantes.
  */
 export function blendWithMarketOdds(
   modelProbHome: number,
   modelProbDraw: number,
   modelProbAway: number,
   marketOdds: MarketOddsRecord | undefined,
+  marketWeightOverride?: number,
 ): MarketBlendResult {
   // Caso: no hay odds → retornar modelo sin cambios
   if (marketOdds === undefined) {
@@ -94,8 +97,11 @@ export function blendWithMarketOdds(
     };
   }
 
-  // Mezcla: blended = (1 - MARKET_WEIGHT) * model + MARKET_WEIGHT * market
-  const w = MARKET_WEIGHT;
+  // Mezcla: blended = (1 - w) * model + w * market
+  // §SP-V4-11: marketWeightOverride permite sweep sin mutar constants.ts
+  const w = marketWeightOverride !== undefined
+    ? Math.min(Math.max(marketWeightOverride, 0), MARKET_WEIGHT_MAX)
+    : MARKET_WEIGHT;
   const blendedHome = (1 - w) * modelProbHome + w * marketOdds.probHome;
   const blendedDraw = (1 - w) * modelProbDraw + w * marketOdds.probDraw;
   const blendedAway = (1 - w) * modelProbAway + w * marketOdds.probAway;

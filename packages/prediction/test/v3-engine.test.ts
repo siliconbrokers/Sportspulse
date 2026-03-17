@@ -129,10 +129,10 @@ describe('V3 Engine — Determinismo', () => {
     expect(out.engine_id).toBe('v3_unified');
   });
 
-  it('engine_version es siempre 4.2', () => {
+  it('engine_version es siempre 4.3', () => {
     const input = makeInput(15, 15);
     const out = runV3Engine(input);
-    expect(out.engine_version).toBe('4.2');
+    expect(out.engine_version).toBe('4.3');
   });
 });
 
@@ -663,5 +663,99 @@ describe('V3 Engine — Integración', () => {
       // Las probabilidades deben diferir (distinto rho → distinta corrección DC)
       expect(outWithLeague.prob_home_win).not.toEqual(outWithoutLeague.prob_home_win);
     }
+  });
+});
+
+// ── SP-V4-23: Ensemble integration tests ───────────────────────────────────
+
+describe('V3 Engine — SP-V4-23 Ensemble (ENSEMBLE_ENABLED)', () => {
+  it('engine_version === 4.3', () => {
+    const input = makeInput(15, 15);
+    const out = runV3Engine(input);
+    expect(out.engine_version).toBe('4.3');
+  });
+
+  it('ENSEMBLE_ENABLED=false (default) — output idéntico en dos llamadas (regression guard)', () => {
+    // With ENSEMBLE_ENABLED=false the block is a strict no-op.
+    // Verify determinism is preserved post-SP-V4-23 (bit-exact equality).
+    const input = makeInput(15, 15);
+    const out1 = runV3Engine(input);
+    const out2 = runV3Engine(input);
+    expect(out1.prob_home_win).toBe(out2.prob_home_win);
+    expect(out1.prob_draw).toBe(out2.prob_draw);
+    expect(out1.prob_away_win).toBe(out2.prob_away_win);
+  });
+
+  it('ENSEMBLE_ENABLED=false (default) — explanation sin ensemble_weights_used ni logistic_probs_raw', () => {
+    const input = makeInput(15, 15);
+    const out = runV3Engine(input);
+    expect(out.explanation.ensemble_weights_used).toBeUndefined();
+    expect(out.explanation.logistic_probs_raw).toBeUndefined();
+  });
+
+  it('ENSEMBLE_ENABLED=true (override) — probs válidas: suman 1, todas non-negative', () => {
+    const input: V3EngineInput = {
+      ...makeInput(15, 15),
+      _overrideConstants: { ENSEMBLE_ENABLED: true },
+    };
+    const out = runV3Engine(input);
+    if (out.eligibility === 'NOT_ELIGIBLE') return; // guard
+    expect(out.prob_home_win).not.toBeNull();
+    expect(out.prob_draw).not.toBeNull();
+    expect(out.prob_away_win).not.toBeNull();
+    const sum = out.prob_home_win! + out.prob_draw! + out.prob_away_win!;
+    expect(Math.abs(sum - 1.0)).toBeLessThan(1e-9);
+    expect(out.prob_home_win!).toBeGreaterThanOrEqual(0);
+    expect(out.prob_draw!).toBeGreaterThanOrEqual(0);
+    expect(out.prob_away_win!).toBeGreaterThanOrEqual(0);
+  });
+
+  it('ENSEMBLE_ENABLED=true (override) — explanation contiene ensemble_weights_used y logistic_probs_raw', () => {
+    const input: V3EngineInput = {
+      ...makeInput(15, 15),
+      _overrideConstants: { ENSEMBLE_ENABLED: true },
+    };
+    const out = runV3Engine(input);
+    if (out.eligibility === 'NOT_ELIGIBLE') return; // guard
+    expect(out.explanation.ensemble_weights_used).toBeDefined();
+    expect(out.explanation.logistic_probs_raw).toBeDefined();
+  });
+
+  it('ENSEMBLE_ENABLED=true — ensemble_weights_used suman 1.0', () => {
+    const input: V3EngineInput = {
+      ...makeInput(15, 15),
+      _overrideConstants: { ENSEMBLE_ENABLED: true },
+    };
+    const out = runV3Engine(input);
+    if (out.eligibility === 'NOT_ELIGIBLE') return;
+    const w = out.explanation.ensemble_weights_used!;
+    const wSum = w.w_poisson + w.w_market + w.w_logistic;
+    expect(Math.abs(wSum - 1.0)).toBeLessThan(1e-9);
+  });
+
+  it('ENSEMBLE_ENABLED=true — logistic_probs_raw suman 1.0', () => {
+    const input: V3EngineInput = {
+      ...makeInput(15, 15),
+      _overrideConstants: { ENSEMBLE_ENABLED: true },
+    };
+    const out = runV3Engine(input);
+    if (out.eligibility === 'NOT_ELIGIBLE') return;
+    const lp = out.explanation.logistic_probs_raw!;
+    const lpSum = lp.home + lp.draw + lp.away;
+    expect(Math.abs(lpSum - 1.0)).toBeLessThan(1e-9);
+  });
+
+  it('ENSEMBLE_ENABLED=true con DEFAULT_LOGISTIC_COEFFICIENTS — logistic_probs_raw son uniformes (~0.333)', () => {
+    // DEFAULT_LOGISTIC_COEFFICIENTS has all-zero weights → softmax(0,0,0) = 1/3 each
+    const input: V3EngineInput = {
+      ...makeInput(15, 15),
+      _overrideConstants: { ENSEMBLE_ENABLED: true },
+    };
+    const out = runV3Engine(input);
+    if (out.eligibility === 'NOT_ELIGIBLE') return;
+    const lp = out.explanation.logistic_probs_raw!;
+    expect(lp.home).toBeCloseTo(1 / 3, 5);
+    expect(lp.draw).toBeCloseTo(1 / 3, 5);
+    expect(lp.away).toBeCloseTo(1 / 3, 5);
   });
 });

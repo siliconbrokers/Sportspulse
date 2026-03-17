@@ -125,3 +125,23 @@ export type { AbsenceMultiplierResult } from './absence-adjustment.js';
 export { computeAbsenceMultiplier } from './absence-adjustment.js';
 export type { MarketBlendResult } from './market-blend.js';
 export { blendWithMarketOdds } from './market-blend.js';
+// SP-V4-20/21/23: Logistic model + Ensemble
+export {
+  extractLogisticFeatures,
+  predictLogistic,
+  DEFAULT_LOGISTIC_COEFFICIENTS,
+  LOGISTIC_FEATURE_KEYS,
+} from './logistic-model.js';
+export type {
+  LogisticFeatureVector,
+  LogisticCoefficients,
+} from './logistic-model.js';
+export { combineEnsemble } from './ensemble.js';
+export type {
+  Prob1X2,
+  EnsembleInput,
+  EnsembleWeights,
+  EnsembleResult,
+} from './ensemble.js';
+// SP-V4-23: Ensemble feature flag + default weights (from constants)
+export { ENSEMBLE_ENABLED, ENSEMBLE_WEIGHTS_DEFAULT } from './constants.js';

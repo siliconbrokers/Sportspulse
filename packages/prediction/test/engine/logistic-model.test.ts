@@ -124,7 +124,7 @@ describe('extractLogisticFeatures', () => {
     expect(fv.balance_ratio).toBeLessThan(0.01);
   });
 
-  it('SP-V4-20-F11: all 16 feature keys present in output', () => {
+  it('SP-V4-20-F11: all 19 feature keys present in output', () => {
     const fv = extractLogisticFeatures(makeBaseParams());
     for (const key of LOGISTIC_FEATURE_KEYS) {
       expect(fv[key]).toBeDefined();
@@ -136,13 +136,32 @@ describe('extractLogisticFeatures', () => {
     const fv = extractLogisticFeatures({ ...makeBaseParams(), xgCoverage: 0.35 });
     expect(fv.xg_coverage).toBe(0.35);
   });
+
+  it('SP-V4-20-F13: market_imp_* defaults to 1/3 when not provided', () => {
+    const fv = extractLogisticFeatures(makeBaseParams());
+    expect(fv.market_imp_home).toBeCloseTo(1 / 3, 10);
+    expect(fv.market_imp_draw).toBeCloseTo(1 / 3, 10);
+    expect(fv.market_imp_away).toBeCloseTo(1 / 3, 10);
+  });
+
+  it('SP-V4-20-F14: market_imp_* passed through when provided', () => {
+    const fv = extractLogisticFeatures({
+      ...makeBaseParams(),
+      marketImpHome: 0.55,
+      marketImpDraw: 0.25,
+      marketImpAway: 0.20,
+    });
+    expect(fv.market_imp_home).toBe(0.55);
+    expect(fv.market_imp_draw).toBe(0.25);
+    expect(fv.market_imp_away).toBe(0.20);
+  });
 });
 
 // ── LOGISTIC_FEATURE_KEYS ──────────────────────────────────────────────────
 
 describe('LOGISTIC_FEATURE_KEYS', () => {
-  it('SP-V4-20-K01: contains exactly 16 keys matching LogisticFeatureVector fields', () => {
-    expect(LOGISTIC_FEATURE_KEYS).toHaveLength(16);
+  it('SP-V4-20-K01: contains exactly 19 keys matching LogisticFeatureVector fields', () => {
+    expect(LOGISTIC_FEATURE_KEYS).toHaveLength(19);
   });
 
   it('SP-V4-20-K02: no duplicate keys', () => {

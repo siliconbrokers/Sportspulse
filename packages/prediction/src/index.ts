@@ -148,6 +148,9 @@ export type {
   CalibrationTable,
   // §SP-V4-10 market blend
   MarketOddsRecord,
+  // §SP-V4-20/21/23: Logistic + Ensemble types for shadow runner
+  LogisticCoefficients,
+  EnsembleWeights,
 } from './engine/v3/index.js';
 
 // ── Response Builder (Phase 4 — §21) ──────────────────────────────────────
