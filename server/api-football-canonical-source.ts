@@ -51,6 +51,7 @@ import {
   loadCompInfoCache,
   cleanupOrphanedTmpFiles,
   pruneOldSeasons,
+  loadAllMatchdaysForSeason,
 } from './matchday-cache.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -839,13 +840,11 @@ export class ApiFootballCanonicalSource implements DataSource {
     teamLookup:        Map<number, string>,
     hasSubTournaments: boolean | undefined,
   ): Promise<Match[]> {
-    // We don't know how many matchdays there are — try up to 50
-    const all: Match[] = [];
-    for (let md = 1; md <= 50; md++) {
-      const cached = checkMatchdayCache(AF_PROVIDER_KEY, leagueId, season, md);
-      if (!cached.hit) break; // No more matchdays
-      all.push(...cached.matches);
-    }
-    return all;
+    // loadAllMatchdaysForSeason reads every matchday-NN.json in the season directory
+    // without applying TTL checks — freshness is handled by the subsequent window fetch merge.
+    // This avoids two bugs in the previous manual loop:
+    //   1. checkMatchdayCache() returning hit:false on stale/invalid files (valid data lost)
+    //   2. break on first miss treating non-contiguous matchday files as end-of-season
+    return loadAllMatchdaysForSeason(AF_PROVIDER_KEY, leagueId, season);
   }
 }
