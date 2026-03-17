@@ -19,8 +19,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const HARD_LIMIT  = 600;
-const BRAKE_LIVE  = 500;  // LiveOverlay empieza a throttlear aquí
+const HARD_LIMIT  = 7500;
+const BRAKE_LIVE  = 6500;  // LiveOverlay empieza a throttlear aquí
 
 const BUDGET_FILE = path.join(process.cwd(), 'cache', 'af-budget.json');
 
@@ -116,7 +116,7 @@ export function consumeRequest(): void {
   resetIfNewDay();
   _requestsToday++;
   // Log at thresholds for visibility
-  if (_requestsToday === 100 || _requestsToday === 200 || _requestsToday === 400 || _requestsToday === BRAKE_LIVE) {
+  if (_requestsToday === 1000 || _requestsToday === 3000 || _requestsToday === 5000 || _requestsToday === BRAKE_LIVE) {
     console.warn(`[AfBudget] ${_requestsToday}/${HARD_LIMIT} requests hoy (brake: ${_requestsToday >= BRAKE_LIVE})`);
   }
   persistToDisk();
