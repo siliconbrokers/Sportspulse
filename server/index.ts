@@ -732,8 +732,9 @@ async function main() {
       return Math.min(delay, 12 * HR_MS); // cap at 12 h in case of data anomaly
     }
 
-    // 5. No future matches in dataset — re-check once per day for fixture updates
-    return 24 * HR_MS;
+    // 5. No future matches in dataset — re-check hourly so the server recovers
+    //    quickly after a quota reset or cold start with empty disk cache.
+    return 1 * HR_MS;
   }
 
   function getAllMatchSnapshots(): MatchSnapshot[] {
