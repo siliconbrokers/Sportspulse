@@ -77,10 +77,20 @@ function persistToDisk(): void {
     _requestsToday       = saved.requestsToday;
     _quotaExhaustedUntil = saved.quotaExhaustedUntil;
     _dayUtc              = saved.date;
+
+    // Si requestsToday=0 pero quotaExhaustedUntil está en el futuro,
+    // es un flag stale de un proceso anterior que murió sin usar cuota real.
+    // Limpiar para no bloquear llamadas legítimas.
+    if (_requestsToday === 0 && _quotaExhaustedUntil > Date.now()) {
+      console.warn('[AfBudget] Flag quotaExhaustedUntil stale detectado (requestsToday=0) — limpiando');
+      _quotaExhaustedUntil = 0;
+    }
+
     console.log(
       `[AfBudget] Restaurado desde disco: ${_requestsToday}/${HARD_LIMIT} requests hoy (${_dayUtc})` +
       (_quotaExhaustedUntil > Date.now() ? ' — CUOTA AGOTADA' : ''),
     );
+    persistToDisk();
   }
 })();
 

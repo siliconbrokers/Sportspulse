@@ -678,10 +678,15 @@ export class ApiFootballCanonicalSource implements DataSource {
     }
     const body = (await res.json()) as AfResponse<T>;
 
-    // Detect quota exhaustion from API response body
+    // Detect quota exhaustion — only for actual quota limit errors (errors.requests)
+    // Other API errors (auth, params, etc.) should NOT mark quota as exhausted
     if (body.errors && Object.keys(body.errors).length > 0) {
-      markAfQuotaExhausted();
-      throw new Error(`[AfCanonical] Quota error for ${url}: ${JSON.stringify(body.errors)}`);
+      const errorsObj = body.errors as Record<string, unknown>;
+      if (errorsObj['requests']) {
+        markAfQuotaExhausted();
+        throw new Error(`[AfCanonical] Quota limit for ${url}: ${JSON.stringify(body.errors)}`);
+      }
+      throw new Error(`[AfCanonical] API error for ${url}: ${JSON.stringify(body.errors)}`);
     }
 
     consumeAfRequest();
