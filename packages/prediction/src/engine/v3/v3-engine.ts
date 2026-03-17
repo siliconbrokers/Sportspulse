@@ -32,13 +32,13 @@ import { computeRecencyDeltas } from './recency.js';
 import { computeV3Lambdas } from './lambda.js';
 import { computePoissonMatrix } from './poisson-matrix.js';
 import { computeEligibility } from './eligibility.js';
-import { THRESHOLD_NOT_ELIGIBLE, THRESHOLD_ELIGIBLE, DC_RHO, DC_RHO_PER_LEAGUE, LAMBDA_MIN, LAMBDA_MAX, XG_PARTIAL_COVERAGE_THRESHOLD, DRAW_LEAGUE_AVG_RATE, SOS_SENSITIVITY, ENSEMBLE_ENABLED, ENSEMBLE_WEIGHTS_DEFAULT } from './constants.js';
+import { THRESHOLD_NOT_ELIGIBLE, THRESHOLD_ELIGIBLE, DC_RHO, DC_RHO_PER_LEAGUE, LAMBDA_MIN, LAMBDA_MAX, XG_PARTIAL_COVERAGE_THRESHOLD, DRAW_LEAGUE_AVG_RATE, SOS_SENSITIVITY, ENSEMBLE_ENABLED, ENSEMBLE_WEIGHTS_DEFAULT, DRAW_AFFINITY_ENABLED } from './constants.js';
 import { extractLogisticFeatures, predictLogistic, DEFAULT_LOGISTIC_COEFFICIENTS } from './logistic-model.js';
 import { combineEnsemble } from './ensemble.js';
 import type { EnsembleWeights } from './ensemble.js';
 import { estimateDcRho } from './dc-rho-estimator.js';
 import { computeConfidence } from './confidence.js';
-import { computePredictedResult } from './predicted-result.js';
+import { computePredictedResult, type PredictedResultOverrides } from './predicted-result.js';
 import { renderProbText } from './pre-match-text.js';
 import { computeMarkets } from './markets.js';
 import { daysToLastMatch, restMultiplier } from './rest-adjustment.js';
@@ -58,7 +58,7 @@ function buildNotEligibleOutput(
 ): V3PredictionOutput {
   return {
     engine_id: 'v3_unified',
-    engine_version: '4.3',
+    engine_version: '4.4',
     eligibility: 'NOT_ELIGIBLE',
     confidence: 'INSUFFICIENT',
     prob_home_win: null,
@@ -170,10 +170,23 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   // §SP-V4-11: market weight override — only defined when running sweep tools
   const marketWeightOverride    = _overrideConstants?.MARKET_WEIGHT;
   const drawAffinityOverrides   = (_overrideConstants?.DRAW_AFFINITY_POWER != null ||
-                                   _overrideConstants?.DRAW_LOW_SCORING_BETA != null)
+                                   _overrideConstants?.DRAW_LOW_SCORING_BETA != null ||
+                                   _overrideConstants?.DRAW_AFFINITY_ALPHA != null)
     ? {
         DRAW_AFFINITY_POWER:    _overrideConstants?.DRAW_AFFINITY_POWER,
         DRAW_LOW_SCORING_BETA:  _overrideConstants?.DRAW_LOW_SCORING_BETA,
+        DRAW_AFFINITY_ALPHA:    _overrideConstants?.DRAW_AFFINITY_ALPHA,
+      }
+    : undefined;
+  const predictedResultOverrides = (_overrideConstants?.DRAW_FLOOR != null ||
+                                    _overrideConstants?.DRAW_MARGIN != null ||
+                                    _overrideConstants?.TOO_CLOSE_THRESHOLD != null ||
+                                    _overrideConstants?.DRAW_FLOOR_ENABLED != null)
+    ? {
+        DRAW_FLOOR:           _overrideConstants?.DRAW_FLOOR,
+        DRAW_MARGIN:          _overrideConstants?.DRAW_MARGIN,
+        TOO_CLOSE_THRESHOLD:  _overrideConstants?.TOO_CLOSE_THRESHOLD,
+        DRAW_FLOOR_ENABLED:   _overrideConstants?.DRAW_FLOOR_ENABLED,
       }
     : undefined;
 
@@ -612,7 +625,10 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   // Skipped when _skipDrawAffinity=true (used by gen-calibration.ts to generate
   // tuples from pre-affinity probs, so calibration is trained on the same
   // probability space it is applied to at inference time).
-  if (!input._skipDrawAffinity) {
+  // fix #3: DRAW_AFFINITY_ENABLED=false desactiva el bloque completo para evaluar
+  // si la calibración isotónica sola corrige el sesgo sin sobrecompensación.
+  const drawAffinityEnabled = input._overrideConstants?.DRAW_AFFINITY_ENABLED ?? DRAW_AFFINITY_ENABLED;
+  if (drawAffinityEnabled && !input._skipDrawAffinity) {
     const drawAffinityResult = applyDrawAffinity(
       finalProbHome,
       finalProbDraw,
@@ -649,6 +665,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     finalProbHome,
     finalProbDraw,
     finalProbAway,
+    predictedResultOverrides,
   );
 
   // ── Pre-match text ─────────────────────────────────────────────────────
@@ -699,7 +716,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   // ── Armar output ───────────────────────────────────────────────────────
   return {
     engine_id: 'v3_unified',
-    engine_version: '4.3',
+    engine_version: '4.4',
     eligibility,
     confidence,
     prob_home_win: finalProbHome,

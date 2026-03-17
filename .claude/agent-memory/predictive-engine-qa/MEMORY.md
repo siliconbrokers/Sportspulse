@@ -17,7 +17,9 @@ All QA test files are in `packages/prediction/test/`.
 | `test/suite/reconstruction.test.ts` | §25.4, §17.4 | 9 |
 | `test/metrics/coverage.test.ts` | §23.2, §24.1 | 19 |
 
-Total: 360 tests in invariant/suite/temporal/metrics. Grand total: 880 all passing (post FIX-ROUND2).
+| `test/engine/predicted-result.test.ts` | §18 DRAW_FLOOR rule | 4 |
+
+Total: 364 tests in invariant/suite/temporal/metrics/engine. Grand total: 1255 passing (post SP-DRAW-13). Pre-existing failure: F-005 match-validator catalog size.
 
 ## Test Helpers
 - `test/helpers/branded-factories.ts` — factory functions for branded types.
@@ -61,8 +63,10 @@ Total: 360 tests in invariant/suite/temporal/metrics. Grand total: 880 all passi
 - `as any` on distribution bypasses the branded type contract. Use the factory.
 - File `tc-056-074-calibration-response.test.ts` now imports `buildTestRawDistribution`.
 
-## Known Precision Pattern
+## Known Precision Patterns
 The scoreline sort uses epsilon-based tie-breaking (§16.11 deterministic by score string). In rare cases two consecutive scorelines differ by sub-epsilon amounts (3 ULPs). Tests must use `>= next - EPSILON_PROBABILITY` tolerance, not strict `>=`.
+
+DRAW_FLOOR boundary: `0.38 - 0.33 = 0.04999...` in IEEE 754 (not 0.05 exactly). If a DRAW_FLOOR test uses probabilities where `max - second` lands on the TOO_CLOSE_THRESHOLD boundary, the TOO_CLOSE gate fires spuriously. Always choose test inputs where the margin is clearly above the threshold (e.g. 0.07, not 0.05).
 
 ## Spec Sections with Potential Ambiguity
 - §19.1 says raw_1x2_probs must sum to 1 ± epsilon, but this only holds after renormalization (raw distribution has tail mass). Tests correctly verify on renormalized distributions only.

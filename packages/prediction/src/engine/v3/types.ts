@@ -119,6 +119,18 @@ export interface V3EngineInput {
     ENSEMBLE_ENABLED?: boolean;
     /** §SP-V4-11: override MARKET_WEIGHT for market-blend weight sweep experiments. */
     MARKET_WEIGHT?: number;
+    /** Override DRAW_AFFINITY_ALPHA (intensity of draw boost) for draw-affinity sweep experiments. */
+    DRAW_AFFINITY_ALPHA?: number;
+    /** Override DRAW_FLOOR (minimum p_draw to activate floor rule) for sweep experiments. */
+    DRAW_FLOOR?: number;
+    /** Override DRAW_MARGIN (max leader − p_draw to force DRAW) for sweep experiments. */
+    DRAW_MARGIN?: number;
+    /** Override TOO_CLOSE_THRESHOLD (min margin to emit a predicted_result) for sweep experiments. */
+    TOO_CLOSE_THRESHOLD?: number;
+    /** fix #3: override DRAW_AFFINITY_ENABLED feature flag. */
+    DRAW_AFFINITY_ENABLED?: boolean;
+    /** fix #3: override DRAW_FLOOR_ENABLED feature flag. */
+    DRAW_FLOOR_ENABLED?: boolean;
   };
 
   /**
@@ -365,7 +377,7 @@ export type V3Warning =
  */
 export interface V3PredictionOutput {
   engine_id: 'v3_unified';
-  engine_version: '4.3';
+  engine_version: '4.4';
 
   // Elegibilidad y confianza
   eligibility: EligibilityStatus;

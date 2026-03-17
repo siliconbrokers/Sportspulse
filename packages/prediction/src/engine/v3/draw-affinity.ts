@@ -61,6 +61,7 @@ export interface DrawAffinityResult {
 export interface DrawAffinityOverrides {
   DRAW_AFFINITY_POWER?: number;
   DRAW_LOW_SCORING_BETA?: number;
+  DRAW_AFFINITY_ALPHA?: number;
 }
 
 export function applyDrawAffinity(
@@ -149,7 +150,8 @@ export function applyDrawAffinity(
     h2hFactor;
 
   // Multiplicador final
-  const drawMult = 1.0 + DRAW_AFFINITY_ALPHA * drawSignal;
+  const effectiveAlpha = overrides?.DRAW_AFFINITY_ALPHA ?? DRAW_AFFINITY_ALPHA;
+  const drawMult = 1.0 + effectiveAlpha * drawSignal;
 
   // Cap: boostedDraw no puede superar el 99% de la probabilidad total (probDraw + probHome + probAway ≈ 1).
   // Sin este cap, con ALPHA alto y todos los señales al máximo, boostedDraw > 1 → homeAdj/awayAdj negativos.

@@ -134,7 +134,7 @@
 
 ## Build Verification
 - `pnpm --filter @sportpulse/prediction build` — compile check
-- `pnpm --filter @sportpulse/prediction test` — 1171/1172 pass (1 pre-existing unrelated failure: match-validator catalog size)
+- `pnpm --filter @sportpulse/prediction test` — 1251/1252 pass (1 pre-existing failure: match-validator catalog size, test F-005)
 
 ## Current V4.3 Constants State (2026-03-17 sesión 8 — SP-V4-11 + SP-V4-22)
 | Constant | Value | Source |
@@ -145,11 +145,13 @@
 | DC_RHO | -0.15 | global fallback |
 | DC_RHO_PER_LEAGUE | PD=-0.25, PL=-0.19, BL1=-0.14 | per-liga sweep SP-V4-03 |
 | SOS_SENSITIVITY | 0.0 | SoS sweep SP-V4-05 |
-| DRAW_AFFINITY_ALPHA | 0.50 | alpha tuning |
+| DRAW_AFFINITY_ALPHA | 0.40 | sweep-draw-affinity.ts 2026-03-17 (0.50→0.40) |
 | DRAW_AFFINITY_POWER | 2.0 | draw_affinity sweep |
 | DRAW_LOW_SCORING_BETA | 1.00 | draw_affinity sweep |
-| DRAW_FLOOR | 0.27 | floor sweep |
-| DRAW_MARGIN | 0.12 | margin sweep |
+| DRAW_FLOOR | 0.27 | unchanged |
+| DRAW_MARGIN | 0.05 | sweep-draw-affinity.ts 2026-03-17 (0.12→0.05) |
+| **DRAW_AFFINITY_ENABLED** | **false** | **fix #3 2026-03-17: DA desactivado** |
+| **DRAW_FLOOR_ENABLED** | **false** | **fix #3 2026-03-17: floor rule co-desactivada** |
 | **MARKET_WEIGHT** | **0.20** | **SP-V4-11 sweep: +0.0082 composite vs 0.15** |
 | ENSEMBLE_WEIGHTS_DEFAULT.w_poisson | 0.80 | SP-V4-22 3-source corrected |
 | ENSEMBLE_WEIGHTS_DEFAULT.w_market | 0.20 | SP-V4-11: odds históricas activas |
@@ -170,6 +172,23 @@
 - `'4.2'` — SP-V4 Fase 2: MarketBlend + InjurySource minutos + POSITION_IMPACT + calibración post-Fase2 (2026-03-17)
 - `'4.3'` — SP-V4-11+V4-22: MARKET_WEIGHT=0.20, ENSEMBLE_WEIGHTS_DEFAULT 3-source corregido (2026-03-17)
 
+## fix #3 — DrawAffinity DESACTIVADO (2026-03-17, sesión 9 final)
+- `DRAW_AFFINITY_ENABLED = false` en constants.ts — bloque DA no se ejecuta
+- `DRAW_FLOOR_ENABLED = false` en constants.ts — regla DRAW floor co-desactivada
+- Ambos flags disponibles en `_overrideConstants` para sweep si se necesita reactivar
+- Calibración regenerada post-fix (tablas: global + PD + PL + BL1)
+- **Resultado backtest**: acc=54.8% (+3.0pp vs 51.8%), DRAW recall=0%, AWAY recall=~40% (+18pp)
+- Decisión: MANTENER desactivado. Criterio acc>51.8% cumplido con amplio margen.
+- Tradeoff aceptado: DRAW recall 0% (predecir DRAW desde Poisson puro tenía solo ~35% precision)
+- Artefacto: `docs/audits/PE-audit-2026-03-17.md` sección "fix #3"
+
+## Draw Affinity Bias Correction Sweep (2026-03-17, sesión 9 — sweep-draw-affinity.ts)
+- Problema: DRAW predicho 41.1% vs 26.7% real (+14.4pp sesgo). AWAY_WIN recall 19.6% (muy bajo).
+- Grid: ALPHA ∈ {0.00..0.50} × FLOOR ∈ {0.27..0.36} × MARGIN ∈ {0.05..0.12} = 96 combos, 806 muestras
+- Óptimo pre-fix #3: ALPHA=0.40/FLOOR=0.27/MARGIN=0.05 → acc=54.8%, DR=28.0%, AR=39.4%, pct_draw=20.4%
+- Backtest post-sweep pero pre-fix #3: acc=51.8%, DR=38.0%, pct_draw=28.6%
+- NOTA: fix #3 supera este resultado → DA desactivado por completo (ver fix #3 arriba)
+
 ## Calibration Tables (post-F2, 2026-03-17)
 - Regeneradas con: 1955 tuplas (PD=699, PL=699, BL1=557), pipeline Fase 2 + xG en backtest
 - Estrategia MIXTA: PD=per-liga, PL=global, BL1=global
@@ -184,3 +203,16 @@
 - `backtestLeague2526()` pasa `historicalXg` y `leagueCode` al engine — alineado con producción
 - xG 2025-26 cobertura: PD=100%, PL=~100%, BL1=~100%
 - No hay xG para 2023-24 ni 2024-25 (no se pueden enriquecer las tuplas de calibración)
+
+## TOO_CLOSE_THRESHOLD Sweep (2026-03-17, sesión 10 — sweep-too-close.ts)
+- Grid: threshold ∈ {0.05..0.30} (9 valores). 806 muestras (PD+PL+BL1 2025-26 walk-forward).
+- Resultado: threshold=0.05 (baseline) es ÓPTIMO. No hay threshold > 0.05 que mejore los 3 criterios simultáneamente.
+- Criterio de mejora: accuracy↑ AND coverage≥60% AND effective_accuracy(=acc×coverage)↑
+- Problema: subir threshold mejora acc condicional pero hunde coverage demasiado:
+  - threshold=0.08: acc=55.1%↑, pero coverage=69.2% (−11.9pp), eff_acc=38.2% (−6.2pp)
+  - threshold=0.10: coverage=63.6%, eff_acc=35.7%
+  - threshold=0.12+: coverage <60% — descalificado
+- Conclusión: TOO_CLOSE_THRESHOLD = 0.05 se mantiene sin cambios en constants.ts.
+- Override `_overrideConstants.TOO_CLOSE_THRESHOLD?: number` AGREGADO a types.ts y predicted-result.ts para futuros sweeps.
+- Tool: `tools/sweep-too-close.ts` — guarda en `cache/too-close-sweep.json`
+- Backtest final confirmado: acc=51.8%, coverage~81.1%, DRAW recall=38.0%, pct_draw=28.6%

@@ -277,16 +277,15 @@ export const MARGIN_FOR_HIGH_CONFIDENCE = 0.12;
  * Intensidad del boost de probabilidad de empate basado en balance de fuerzas.
  *
  * Con calibración isotónica activa (pipeline: Poisson→MarketBlend→Calibration→DrawAffinity),
- * ALPHA=0.50 es el óptimo vía backtest walk-forward 2025-26 (PD+PL+BL1, ~580 partidos).
- * Con K=3/PEG=16/β=0.20 + MARGIN=0.15: acc=49.0%, DRAW recall=51.3%, DRAW prec=32.1%
- *   Por liga (MIXTA): PD 51.0% / BL1 57.1% / PL 36.5% DRAW recall
+ * ALPHA=0.40 es el óptimo vía sweep-draw-affinity.ts 2026-03-17 (grid 6×4×4=96, PD+PL+BL1, 806 muestras).
+ * Criterio: accuracy>baseline AND draw_precision>baseline AND away_recall>baseline AND pct_draw∈[20%,35%].
+ * Resultado óptimo: acc=54.8%, DR=28.0%, DP=35.3%, AR=39.4%, pct_draw=20.4%, composite=0.4091.
  *
- * ALPHA>0.60 sobre-predice BL1 (55-62%) y colapsa PL (29-36%) → descartado.
- * Sin calibración el óptimo era 0.70; con calibración el punto óptimo baja a 0.50
- * porque la calibración ya corrige el sesgo HOME/AWAY, quedando menos trabajo
- * para la affinity (solo diferenciación por balance de fuerzas).
+ * ALPHA=0.50 (anterior): acc=50.3%, DR=53.3%, DP=34.0%, AR=21.2%, pct_draw=41.2%
+ * → sobrepredicción masiva de empates (41.2% predichos vs ~27% real).
+ * ALPHA=0.40 + MARGIN=0.05: reduce pct_draw a 20.4%, mejora accuracy +4.5pp, mejora AR +18pp.
  */
-export const DRAW_AFFINITY_ALPHA = 0.50;
+export const DRAW_AFFINITY_ALPHA = 0.40;
 
 /**
  * Exponente para el boost de draw affinity.
@@ -340,19 +339,52 @@ export const DRAW_LEAGUE_AVG_RATE = 0.25;
  * Si p_draw >= DRAW_FLOOR y max(p_home, p_away) - p_draw <= DRAW_MARGIN,
  * se predice DRAW aunque no sea el argmax estricto.
  *
- * Con calibración activa, p_draw post-affinity tiene p50≈0.311, p75≈0.371.
- * MARGIN es el constraint binding. FLOOR=0.27 es efectivamente no-restrictivo:
- * resultados con FLOOR=0.20–0.28 son idénticos con el mismo MARGIN.
+ * SP-DRAW-11 (2026-03-17): óptimo encontrado vía sweep SP-DRAW-01.
+ * FLOOR=0.26 (bajado de 0.27): efectivamente no-restrictivo en ambos valores;
+ * resultados con FLOOR=0.20–0.28 son idénticos con MARGIN=0.15 binding.
+ * Sweep: acc=54.9%, DR=28.2%, DP=35.7%, AR=45.1%, coverage=79.2%.
  */
-export const DRAW_FLOOR = 0.27;
+export const DRAW_FLOOR = 0.26;
 
 /**
  * Margen máximo entre el líder y p_draw para activar la regla de piso.
  * Si max(p_home, p_away) - p_draw <= DRAW_MARGIN → predecir DRAW.
- * Con calibración activa + K=3/PEG=16/β=0.20:
- *   MARGIN=0.12 → acc=49.8%, DRAW recall=46.8%, DRAW prec=32.7%
- *   MARGIN=0.15 fue testeado pero sacrifica -1.6pp accuracy y -2.1pp DRAW prec
- *   por +4.5pp DR — tradeoff desfavorable para la utopía.
- * MARGIN=0.12 retenido: mejor balance acc/DR/DP.
+ *
+ * SP-DRAW-11 (2026-03-17): óptimo encontrado vía sweep SP-DRAW-01.
+ * MARGIN=0.15 (subido de 0.05): activa la regla cuando el líder supera p_draw
+ * por hasta 15pp, ampliando la zona de captura de empates sin sobrepredecir.
+ * Resultado: acc=54.9%, AR=45.1% (+5.7pp vs MARGIN=0.05), DR=28.2%, coverage=79.2%.
  */
-export const DRAW_MARGIN = 0.12;
+export const DRAW_MARGIN = 0.15;
+
+/**
+ * Feature flag: activar/desactivar el bloque completo de DrawAffinity.
+ *
+ * fix #3 (2026-03-17): desactivado para evaluar si la calibración isotónica
+ * sola (sin boost manual de p_draw) logra mejor balance accuracy/DRAW recall.
+ * Hipótesis: el mercado logra 54.3% sin predecir DRAW como argmax — el DA
+ * sobrecompensa el sesgo Poisson que la calibración ya corrige.
+ *
+ * false  → DrawAffinity no se ejecuta (fix #3 experiment)
+ * true   → DrawAffinity se aplica (comportamiento pre-fix #3)
+ *
+ * Para reactivar: cambiar a true aquí + regenerar calibración (gen-calibration.ts).
+ * DRAW_FLOOR_ENABLED controla la regla complementaria en predicted-result.ts.
+ */
+export const DRAW_AFFINITY_ENABLED = false;
+
+/**
+ * Feature flag: activar/desactivar la regla DRAW_FLOOR en predicted-result.ts.
+ *
+ * SP-DRAW-11 (2026-03-17): activado según resultado sweep SP-DRAW-01.
+ * La regla opera sobre probabilidades post-calibración (sin DA boost).
+ * Con DRAW_FLOOR=0.26 y DRAW_MARGIN=0.15, la regla opera como corrección
+ * de decisión pura sobre las probs calibradas — sin re-entrenamiento.
+ * Solución A del plan SP-DRAW-V1 §7: regla de decisión pura post-calibración.
+ *
+ * Resultado sweep: acc=54.9%, DR=28.2%, DP=35.7%, AR=45.1%, coverage=79.2%.
+ *
+ * false → DRAW_FLOOR rule ignorada
+ * true  → DRAW_FLOOR rule activa (SP-DRAW-11)
+ */
+export const DRAW_FLOOR_ENABLED = true;

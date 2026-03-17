@@ -6,12 +6,20 @@
  * Función pura. Sin IO. Determinista.
  */
 
-import { TOO_CLOSE_THRESHOLD, DRAW_FLOOR, DRAW_MARGIN } from './constants.js';
+import { TOO_CLOSE_THRESHOLD, DRAW_FLOOR, DRAW_MARGIN, DRAW_FLOOR_ENABLED } from './constants.js';
 
 export interface PredictedResultOutput {
   predicted_result: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | null;
   /** |p_max − p_second| */
   favorite_margin: number;
+}
+
+export interface PredictedResultOverrides {
+  DRAW_FLOOR?: number;
+  DRAW_MARGIN?: number;
+  TOO_CLOSE_THRESHOLD?: number;
+  /** fix #3: override DRAW_FLOOR_ENABLED feature flag. */
+  DRAW_FLOOR_ENABLED?: boolean;
 }
 
 /**
@@ -28,11 +36,13 @@ export interface PredictedResultOutput {
  * @param probHome  Probabilidad de victoria local
  * @param probDraw  Probabilidad de empate
  * @param probAway  Probabilidad de victoria visitante
+ * @param overrides Optional overrides for DRAW_FLOOR and DRAW_MARGIN
  */
 export function computePredictedResult(
   probHome: number,
   probDraw: number,
   probAway: number,
+  overrides?: PredictedResultOverrides,
 ): PredictedResultOutput {
   const probs: Array<{ key: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN'; value: number }> = [
     { key: 'HOME_WIN', value: probHome },
@@ -47,10 +57,12 @@ export function computePredictedResult(
   const secondProb = probs[1].value;
   const margin = maxProb - secondProb;
 
+  const effectiveTooCloseThreshold = overrides?.TOO_CLOSE_THRESHOLD ?? TOO_CLOSE_THRESHOLD;
+
   // ── TOO_CLOSE: modelo sin señal → abstener ────────────────────────────
   // Tiene precedencia sobre el DRAW floor: si el partido es genuinamente
   // indeciso (diferencia < umbral), no forzar una predicción.
-  if (margin < TOO_CLOSE_THRESHOLD) {
+  if (margin < effectiveTooCloseThreshold) {
     return { predicted_result: null, favorite_margin: margin };
   }
 
@@ -60,13 +72,20 @@ export function computePredictedResult(
   // suficientemente elevada y el líder no la supera por mucho.
   // Compensa el sesgo estructural del modelo Poisson + home advantage que
   // siempre infla p_home por encima de p_draw.
-  if (probDraw >= DRAW_FLOOR) {
-    const maxOther = Math.max(probHome, probAway);
-    if (maxOther - probDraw <= DRAW_MARGIN) {
-      return {
-        predicted_result: 'DRAW',
-        favorite_margin: maxOther - probDraw,
-      };
+  // fix #3: co-desactivada con DrawAffinity. Sin boost previo de p_draw,
+  // la regla operaría sobre probs no boosteadas → puede forzar DRAWs erróneos.
+  const effectiveDrawFloorEnabled = overrides?.DRAW_FLOOR_ENABLED ?? DRAW_FLOOR_ENABLED;
+  if (effectiveDrawFloorEnabled) {
+    const effectiveDrawFloor = overrides?.DRAW_FLOOR ?? DRAW_FLOOR;
+    const effectiveDrawMargin = overrides?.DRAW_MARGIN ?? DRAW_MARGIN;
+    if (probDraw >= effectiveDrawFloor) {
+      const maxOther = Math.max(probHome, probAway);
+      if (maxOther - probDraw <= effectiveDrawMargin) {
+        return {
+          predicted_result: 'DRAW',
+          favorite_margin: maxOther - probDraw,
+        };
+      }
     }
   }
 

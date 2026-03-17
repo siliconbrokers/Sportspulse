@@ -251,7 +251,8 @@ function backtestLeague(
   const allMatchdays = loadMatchdayFiles(league.dir);
   const code = path.basename(path.dirname(league.dir)); // 'PD', 'PL', 'BL1'
   const prevSeasonMatches = buildPrevSeasonMatches(code, league.prevSeasonFile);
-  const calibrationTable = USE_ENSEMBLE ? getCalibrationTable(code) : undefined;
+  // Siempre cargar calibración (igual que producción). Con --ensemble, usa tablas -ensemble.
+  const calibrationTable = getCalibrationTable(code);
   if (allMatchdays.size === 0) return [];
 
   const sortedMatchdays = [...allMatchdays.keys()].sort((a, b) => a - b);
