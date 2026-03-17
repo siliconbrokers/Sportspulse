@@ -9,7 +9,7 @@ export function upcomingRoute(deps: AppDependencies): FastifyPluginAsync {
         if (!deps.upcomingService) {
           return reply.status(503).send({ error: 'Upcoming service not configured' });
         }
-        const matches = deps.upcomingService.getUpcoming(24);
+        const matches = deps.upcomingService.getUpcoming(96);
         reply.header('Cache-Control', 'public, max-age=60').send({ matches });
       });
     },

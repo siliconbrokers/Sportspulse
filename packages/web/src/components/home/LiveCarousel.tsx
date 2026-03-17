@@ -452,11 +452,23 @@ function LiveMatchCard({
             ? 'Pendiente de confirmación'
             : isSelected
             ? 'Ver detalle ↑'
-            : `${event.isTodayInPortalTz ? 'Hoy' : 'Mañana'} · Tocá para ver detalle`}
+            : `${dateLabel(event.startsAtPortalTz ?? null, event.isTodayInPortalTz)} · Tocá para ver detalle`}
         </div>
       )}
     </div>
   );
+}
+
+// ── dateLabel ─────────────────────────────────────────────────────────────────
+
+function dateLabel(startsAtPortalTz: string | null, isTodayInPortalTz: boolean): string {
+  if (isTodayInPortalTz) return 'Hoy';
+  if (!startsAtPortalTz) return 'Próximamente';
+  const now = new Date();
+  const matchDate = new Date(startsAtPortalTz);
+  const diffDays = Math.round((matchDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 1) return 'Mañana';
+  return `En ${diffDays} días`;
 }
 
 // ── SkeletonCard ──────────────────────────────────────────────────────────────
