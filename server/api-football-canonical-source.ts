@@ -947,7 +947,9 @@ export class ApiFootballCanonicalSource implements DataSource {
       const diskMatches = loadAllMatchdaysForSeason(AF_PROVIDER_KEY, String(leagueId), season);
 
       // ── Standings from disk ───────────────────────────────────────────────
-      const diskStandings = loadStandingsCache(AF_PROVIDER_KEY, String(leagueId)) ?? [];
+      // ignoreTtl=true: stale standings from disk are better than no standings at all.
+      // TTL enforcement happens during normal fetchCompetition() cycles.
+      const diskStandings = loadStandingsCache(AF_PROVIDER_KEY, String(leagueId), { ignoreTtl: true }) ?? [];
 
       if (diskTeams.length === 0 && diskMatches.length === 0) {
         // No disk data at all — leave cache empty, fetchCompetition() will handle

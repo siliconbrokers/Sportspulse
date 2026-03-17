@@ -337,12 +337,18 @@ export function persistStandingsCache(provider: string, competitionId: string, s
   }
 }
 
-export function loadStandingsCache(provider: string, competitionId: string): StandingEntry[] | null {
+export function loadStandingsCache(
+  provider: string,
+  competitionId: string,
+  options?: { ignoreTtl?: boolean },
+): StandingEntry[] | null {
   const filePath = standingsFilePath(provider, competitionId);
   try {
     const raw = JSON.parse(fs.readFileSync(filePath, 'utf8')) as { retrievedAt: string; standings: StandingEntry[] };
-    const ageS = (Date.now() - new Date(raw.retrievedAt).getTime()) / 1000;
-    if (ageS > STANDINGS_CACHE_TTL_S) return null; // stale
+    if (!options?.ignoreTtl) {
+      const ageS = (Date.now() - new Date(raw.retrievedAt).getTime()) / 1000;
+      if (ageS > STANDINGS_CACHE_TTL_S) return null; // stale
+    }
     // Structural validation — reject files with valid JSON but wrong shape
     if (!Array.isArray(raw.standings) || raw.standings.length === 0) return null;
     if (typeof (raw.standings[0] as unknown as Record<string, unknown>)['position'] !== 'number') return null;

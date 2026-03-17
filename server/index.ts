@@ -33,6 +33,7 @@ import { captureResults } from './prediction/result-capture.js';
 import { registerEvaluationRoute } from './prediction/evaluation-route.js';
 import { HistoricalBacktestStore } from './prediction/historical-backtest-store.js';
 import { registerHistoricalEvaluationRoute } from './prediction/historical-evaluation-route.js';
+import { registerTrainingRoute } from './prediction/training-route.js';
 import { ForwardValidationStore } from './prediction/forward-validation-store.js';
 import { ForwardValidationRunner } from './prediction/forward-validation-runner.js';
 import { ForwardValidationEvaluator } from './prediction/forward-validation-evaluator.js';
@@ -786,7 +787,11 @@ async function main() {
     if (AF_CANONICAL_ENABLED && afCanonicalSource) {
       // Skip entire AF refresh cycle when quota is exhausted — avoids 7 noisy error logs per cycle
       if (isAfQuotaExhausted()) {
-        console.log('[Scheduler] AF quota exhausted — refresh cycle skipped until midnight UTC');
+        console.log('[Scheduler] AF quota exhausted — serving from disk cache preload');
+        // Still invalidate snapshot so it rebuilds from disk-preloaded data (Bug fix: without
+        // this call the snapshot stayed empty even when preloadAllCompetitions() had populated
+        // afCanonicalSource.cache from disk).
+        snapshotService.invalidateAll();
         return;
       }
 
@@ -1130,6 +1135,9 @@ async function main() {
   // ── Historical evaluation endpoint (H5) ────────────────────────────────────
   const historicalBacktestStore = new HistoricalBacktestStore();
   registerHistoricalEvaluationRoute(app, historicalBacktestStore);
+
+  // ── Training lab endpoints (/labs/entrenamiento) ───────────────────────────
+  registerTrainingRoute(app);
 
   // ── GET /api/ui/stream-source ───────────────────────────────────────────────
   // Fetcha la página de canal en futbollibretv.su y devuelve las URLs del embed activo.
