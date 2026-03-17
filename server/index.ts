@@ -283,15 +283,25 @@ async function main() {
 
   // ── Startup parity check ───────────────────────────────────────────────────
   // Validates that every enabled competition in portal-config has a registered
-  // route in the RoutingDataSource. Fails fast if there's a mismatch — better
-  // a visible crash than silent 404s for all users.
+  // route in the RoutingDataSource.
+  //
+  // When AF_CANONICAL_ENABLED is false (no APIFOOTBALL_KEY), the portal-config
+  // catalog still contains comp:apifootball:* IDs (from COMPETITION_REGISTRY).
+  // Those IDs are intentionally not routable in non-AF mode — they degrade to
+  // empty data via the FD fallback. This is acceptable degraded behavior and
+  // must NOT crash the server. Only non-AF IDs that are unroutable indicate a
+  // real misconfiguration worth aborting.
   (function assertRoutingParity(): void {
     const portalCfg = getFullConfig();
     const enabledIds = portalCfg.competitions
       .filter((c) => c.enabled)
       .map((c) => c.id);
 
+    const afPrefix = `comp:${AF_PROVIDER_KEY}:`;
+
     const unroutable = enabledIds.filter((id) => {
+      // In non-AF mode: AF IDs are expected to be unroutable — skip them.
+      if (!AF_CANONICAL_ENABLED && id.startsWith(afPrefix)) return false;
       try {
         return routingDataSource.getSeasonId(id) === undefined;
       } catch {
@@ -299,8 +309,20 @@ async function main() {
       }
     });
 
+    const afDegraded = !AF_CANONICAL_ENABLED
+      ? enabledIds.filter((id) => id.startsWith(afPrefix))
+      : [];
+
+    if (afDegraded.length > 0) {
+      console.warn(
+        `[StartupCheck] AF mode disabled (APIFOOTBALL_KEY not set) — ` +
+        `${afDegraded.length} AF competition(s) will return empty data. ` +
+        `Set APIFOOTBALL_KEY in Render environment to enable full data.`,
+      );
+    }
+
     if (unroutable.length === 0) {
-      console.log(`[StartupCheck] Routing parity OK — all ${enabledIds.length} competition(s) routable`);
+      console.log(`[StartupCheck] Routing parity OK — all ${enabledIds.length - afDegraded.length} non-AF competition(s) routable`);
       return;
     }
 
@@ -309,7 +331,6 @@ async function main() {
       console.error(`  x ${id}`);
     }
     console.error('[StartupCheck] Remediation: ensure the data source for these IDs is initialized and registered in RoutingDataSource.');
-    console.error('[StartupCheck] Common cause: AF_CANONICAL_ENABLED is off but portal-config uses comp:apifootball:* IDs.');
     throw new Error(`[StartupCheck] ${unroutable.length} competition(s) unroutable — aborting startup to prevent silent 404s`);
   })();
 
