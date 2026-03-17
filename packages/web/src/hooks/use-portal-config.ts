@@ -87,6 +87,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
 };
 
 const RETRY_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 60_000;
 
 export function usePortalConfig(): {
   config: PortalConfig;
@@ -100,6 +101,7 @@ export function usePortalConfig(): {
 
   useEffect(() => {
     cancelledRef.current = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     async function tryFetch() {
       if (cancelledRef.current) return;
@@ -128,16 +130,17 @@ export function usePortalConfig(): {
 
     function scheduleRetry() {
       if (!cancelledRef.current) {
-        setTimeout(() => {
-          void tryFetch();
-        }, RETRY_INTERVAL_MS);
+        retryTimer = setTimeout(() => void tryFetch(), RETRY_INTERVAL_MS);
       }
     }
 
     void tryFetch();
+    const pollInterval = setInterval(() => void tryFetch(), POLL_INTERVAL_MS);
 
     return () => {
       cancelledRef.current = true;
+      clearInterval(pollInterval);
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, []);
 

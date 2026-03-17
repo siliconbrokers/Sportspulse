@@ -96,7 +96,7 @@ function readConfig(): PortalConfig {
 
 function writeConfig(config: PortalConfig): void {
   if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
-  const tmp = CONFIG_FILE + '.tmp';
+  const tmp = `${CONFIG_FILE}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(config, null, 2), 'utf8');
   fs.renameSync(tmp, CONFIG_FILE);
 }

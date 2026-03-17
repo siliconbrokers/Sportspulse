@@ -3,10 +3,24 @@ import { fetchRssLeague, RSS_CONFIG } from './rss-source.js';
 import { NewsCache } from './news-cache.js';
 import { getTop5Teams } from './priority-resolver.js';
 import { deduplicate } from './filter.js';
+import { isCompetitionEnabled } from '../portal-config-store.js';
 import type { LeagueKey, NewsHeadline, NewsLeagueBlock, NewsFeedDTO, StandingsProvider } from './types.js';
 
 // spec §13: límites por liga
 const LIMITS: Record<LeagueKey, number> = { URU: 10, AR: 8, LL: 5, EPL: 5, BUN: 5, WC: 8, CA: 6, CLI: 6 };
+
+// Maps LeagueKey → canonical competition ID for portal-config gate check.
+// URU uses the API-Football registry ID; other leagues pull from RSS_CONFIG.
+const LEAGUE_KEY_TO_COMPETITION_ID: Record<LeagueKey, string> = {
+  URU: 'comp:apifootball:268',
+  AR:  RSS_CONFIG.AR.competitionId,
+  LL:  RSS_CONFIG.LL.competitionId,
+  EPL: RSS_CONFIG.EPL.competitionId,
+  BUN: RSS_CONFIG.BUN.competitionId,
+  WC:  RSS_CONFIG.WC.competitionId,
+  CA:  RSS_CONFIG.CA.competitionId,
+  CLI: RSS_CONFIG.CLI.competitionId,
+};
 
 // spec §12: orden fijo entre ligas
 const LEAGUE_ORDER: LeagueKey[] = ['URU', 'AR', 'LL', 'EPL', 'BUN', 'WC', 'CA', 'CLI'];
@@ -49,6 +63,16 @@ export class NewsService {
   }
 
   private async getBlock(leagueKey: LeagueKey): Promise<NewsLeagueBlock> {
+    // Skip fetch for competitions disabled in portal config.
+    const competitionId = LEAGUE_KEY_TO_COMPETITION_ID[leagueKey];
+    if (!isCompetitionEnabled(competitionId)) {
+      return {
+        leagueKey,
+        competitionLabel: COMPETITION_LABELS[leagueKey],
+        headlines: [],
+      };
+    }
+
     const cached = this.cache.get(leagueKey);
     if (cached) {
       return {

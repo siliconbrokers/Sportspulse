@@ -110,6 +110,7 @@ export class ApifootballLiveOverlay {
 
   private hasLive = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private _started = false;
 
   constructor(
     private readonly apiKey: string,
@@ -117,6 +118,8 @@ export class ApifootballLiveOverlay {
   ) {}
 
   start(): void {
+    if (this._started) return;
+    this._started = true;
     if (!this.apiKey) {
       console.warn('[LiveOverlay] APIFOOTBALL_KEY no configurada — overlay desactivado');
       return;
@@ -167,6 +170,12 @@ export class ApifootballLiveOverlay {
   get liveCount(): number { return this.rawList.length; }
 
   // ── Private ──────────────────────────────────────────────────────────────────
+
+  private clearLiveData(): void {
+    this.cache   = new Map();
+    this.rawList = [];
+    this.hasLive = false;
+  }
 
   private async poll(): Promise<void> {
     // Skip poll entirely if all tracked competitions are disabled in portal config
@@ -226,7 +235,8 @@ export class ApifootballLiveOverlay {
         }
       } catch (err) {
         console.warn('[LiveOverlay] Error en poll:', err instanceof Error ? err.message : err);
-        this.hasLive = false;
+        // Clear stale live data so zombie scores do not persist across failed poll cycles.
+        this.clearLiveData();
       }
 
       nextInterval = this.hasLive ? POLL_LIVE_MS : POLL_IDLE_MS;

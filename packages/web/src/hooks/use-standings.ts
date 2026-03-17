@@ -43,37 +43,36 @@ export function useStandings(
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
 
     const paramObj: Record<string, string> = { competitionId };
     if (subTournamentKey) paramObj.subTournament = subTournamentKey;
     const params = new URLSearchParams(paramObj);
-    fetch(`/api/ui/standings?${params}`)
+
+    fetch(`/api/ui/standings?${params}`, { signal: controller.signal })
       .then(async (res) => {
-        if (cancelled) return;
         if (!res.ok) {
           const body = await res.json().catch(() => null);
           throw new Error(body?.error?.message || 'Failed to load standings');
         }
         return res.json();
       })
-      .then((json) => {
-        if (!cancelled && json) setData(json.standings);
+      .then((json: { standings: StandingEntry[] } | undefined) => {
+        if (json) setData(json.standings);
       })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Something went wrong');
-          setData(null);
-        }
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setError(err instanceof Error ? err.message : 'Something went wrong');
+        setData(null);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [competitionId, enabled, subTournamentKey]);
 

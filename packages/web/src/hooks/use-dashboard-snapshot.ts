@@ -24,6 +24,8 @@ export function useDashboardSnapshot(
   const [trigger, setTrigger] = useState(0);
   // Detectar transición LIVE → FINISHED para disparar refetch extra
   const prevHasLiveRef = useRef(false);
+  // Timer ID para el refetch extra post LIVE→FINISHED — limpiado en cleanup
+  const liveFinishedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refetch = useCallback(() => setTrigger((t) => t + 1), []);
 
@@ -62,7 +64,8 @@ export function useDashboardSnapshot(
         const nowHasLive = json.matchCards.some((m) => m.status === 'LIVE');
         // Transición LIVE → todo FINISHED: refetch extra en 10s para datos actualizados
         if (prevHasLiveRef.current && !nowHasLive) {
-          setTimeout(() => setTrigger((t) => t + 1), 10_000);
+          if (liveFinishedTimerRef.current) clearTimeout(liveFinishedTimerRef.current);
+          liveFinishedTimerRef.current = setTimeout(() => setTrigger((t) => t + 1), 10_000);
         }
         prevHasLiveRef.current = nowHasLive;
         setData(json);
@@ -78,7 +81,13 @@ export function useDashboardSnapshot(
         if (!controller.signal.aborted) setLoading(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (liveFinishedTimerRef.current) {
+        clearTimeout(liveFinishedTimerRef.current);
+        liveFinishedTimerRef.current = null;
+      }
+    };
   }, [competitionId, matchday, timezone, dateLocal, subTournamentKey, trigger]);
 
   // Auto-refresh adaptivo: 60s si hay partido LIVE o heurísticamente live, 2min si inminente, 1h si no

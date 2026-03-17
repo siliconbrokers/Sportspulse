@@ -113,6 +113,16 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
   const [subTournamentKey, setSubTournamentKey] = useState<string | undefined>(undefined);
 
   const currentComp = COMPETITIONS.find((c) => c.id === resolvedCompetitionId) ?? COMPETITIONS[0];
+
+  // Guard: no competitions enabled yet (portal-config still loading or all disabled)
+  if (!currentComp) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--sp-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--sp-text-40)', fontSize: 14 }}>Cargando competencias...</div>
+      </div>
+    );
+  }
+
   const isTournament = currentComp.isTournament;
 
   const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(resolvedCompetitionId, subTournamentKey);

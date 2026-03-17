@@ -367,9 +367,15 @@ async function main() {
   // In AF mode: map AF competition IDs → FD codes so V3 shadow can still query HistoricalStateService
   // (historical data is stored by FD code; team IDs differ but the runner falls back gracefully)
   if (AF_CANONICAL_ENABLED) {
-    fdCompetitionCodeMap.set('comp:apifootball:140', 'PD');
-    fdCompetitionCodeMap.set('comp:apifootball:39',  'PL');
-    fdCompetitionCodeMap.set('comp:apifootball:78',  'BL1');
+    // Derive AF→FD code mapping from COMPETITION_REGISTRY instead of hardcoding.
+    // Entries whose slug matches a known FD competition code are the only ones
+    // that have a direct football-data.org counterpart for historical state lookup.
+    const FD_CODE_SET = new Set(FD_COMPETITION_CODES);
+    for (const entry of COMPETITION_REGISTRY) {
+      if (FD_CODE_SET.has(entry.slug)) {
+        fdCompetitionCodeMap.set(entry.id, entry.slug);
+      }
+    }
   }
   function normTeamName(s: string) {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
