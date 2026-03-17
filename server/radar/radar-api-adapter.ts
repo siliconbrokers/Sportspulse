@@ -286,9 +286,10 @@ function computeTeamLambdas(
   }
 
   return {
-    attack:  wTotal > 0 ? wAttack  / wTotal : 0,
-    defense: wTotal > 0 ? wDefense / wTotal : 0,
+    attack:     wTotal > 0 ? wAttack  / wTotal : 0,
+    defense:    wTotal > 0 ? wDefense / wTotal : 0,
     games,
+    venueSplit: venue !== undefined,
   };
 }
 

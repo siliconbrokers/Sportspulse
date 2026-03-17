@@ -14,7 +14,7 @@
  * SP-PRED-V2 §7
  */
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { PredictionStore } from './prediction-store.js';
 import type { V2PredictionStore } from './v2-prediction-store.js';
 
@@ -111,7 +111,7 @@ export function registerCompareRoute(
   v2Store: V2PredictionStore,
   isPredictionsEnabled: () => boolean,
 ): void {
-  fastify.get('/api/ui/predictions/compare', async (request, reply) => {
+  fastify.get('/api/ui/predictions/compare', async (request: FastifyRequest, reply: FastifyReply) => {
     // Gate: features.predictions must be enabled
     if (!isPredictionsEnabled()) {
       return reply.status(403).send({ error: 'predictions feature not enabled' });

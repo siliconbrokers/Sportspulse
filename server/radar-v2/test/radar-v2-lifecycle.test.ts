@@ -18,6 +18,7 @@ function makeCard(overrides: Partial<RadarV2Card> = {}): RadarV2Card {
     ],
     preMatchText: 'El favorito viene concediendo goles.',
     verdict: null,
+    predictionContext: null,
     ...overrides,
   };
 }

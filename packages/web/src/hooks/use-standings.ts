@@ -18,6 +18,8 @@ export interface StandingEntry {
   groupId?: string;
   /** Badge semántico que viene de la API. Solo visual, no es motor de clasificación. */
   statusBadge?: string | null;
+  /** Forma reciente computada desde partidos reales (misma lógica que DetailPanel). */
+  recentForm?: string[];
 }
 
 interface UseStandingsResult {

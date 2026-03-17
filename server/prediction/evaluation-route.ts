@@ -10,7 +10,7 @@
  * OE-5 — PE Observation & Evaluation Plan v1.1
  */
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EvaluationStore } from './evaluation-store.js';
 import { computeMetrics } from './metrics-engine.js';
 
@@ -23,7 +23,7 @@ export function registerEvaluationRoute(
   app: FastifyInstance,
   evaluationStore: EvaluationStore,
 ): void {
-  app.get('/api/internal/evaluation', async (req, reply) => {
+  app.get('/api/internal/evaluation', async (req: FastifyRequest, reply: FastifyReply) => {
     reply.header('Cache-Control', 'no-store');
 
     if (!isEndpointEnabled()) {

@@ -1,3 +1,4 @@
+import { validateEnv } from './env-validator.js';
 import { buildApp } from '@sportpulse/api';
 import { resolveDisplayName } from '@sportpulse/canonical';
 import { FootballDataSource } from './football-data-source.js';
@@ -93,7 +94,9 @@ const DEFAULT_CONTAINER = {
 };
 
 async function main() {
-  const fdSource = new FootballDataSource(API_TOKEN);
+  validateEnv();
+
+  const fdSource = new FootballDataSource(API_TOKEN!);
 
   console.log(`Fetching competitions from football-data.org: ${FD_COMPETITION_CODES.join(', ')}...`);
   for (let i = 0; i < FD_COMPETITION_CODES.length; i++) {
@@ -161,7 +164,7 @@ async function main() {
   }
 
   // Football-data.org — Copa del Mundo 2026 (torneo con grupos + eliminatorias)
-  const wcSource = new FootballDataTournamentSource(API_TOKEN, WC_CONFIG);
+  const wcSource = new FootballDataTournamentSource(API_TOKEN!, WC_CONFIG);
   const WC_COMPETITION_ID = wcSource.competitionId; // 'comp:football-data-wc:WC'
   if (isCompetitionEnabled(WC_COMPETITION_ID)) {
     try {
@@ -177,7 +180,7 @@ async function main() {
   // Football-data.org — Copa Libertadores 2026 (grupos + eliminatorias CONMEBOL)
   // Delay mayor que WC para evitar 429: football-data free tier permite ~10 req/min.
   // WC fetch consume varias requests; 20s garantiza ventana suficiente antes de CLI.
-  const cliSource = new FootballDataTournamentSource(API_TOKEN, CLI_CONFIG);
+  const cliSource = new FootballDataTournamentSource(API_TOKEN!, CLI_CONFIG);
   const CLI_COMPETITION_ID = cliSource.competitionId; // 'comp:football-data-cli:CLI'
 
   // Score overlay: API-Football v3 provee scores correctos para Copa Libertadores.
@@ -621,7 +624,7 @@ async function main() {
     };
   }
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getEnrichedPortalConfig });
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getEnrichedPortalConfig, competitionIds: COMPETITION_REGISTRY.map(e => e.id).filter(id => isCompetitionEnabled(id)) });
   registerAdminRoutes(app);
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
@@ -833,14 +836,14 @@ async function main() {
       const v3NonFdDescriptors: NonFdCompDescriptor[] = [
         {
           competitionId: OLG_COMPETITION_ID,
-          provider: 'openligadb',
+          provider: 'openligadb' as const,
           providerLeagueId: OLG_LEAGUE,
           providerKey: OPENLIGADB_PROVIDER_KEY,
           expectedSeasonGames: 34,
         },
         {
           competitionId: UY_COMPETITION_ID,
-          provider: 'thesportsdb',
+          provider: 'thesportsdb' as const,
           providerLeagueId: UY_LEAGUE_ID,
           providerKey: SPORTSDB_PROVIDER_KEY,
           sdbApiKey: SPORTSDB_API_KEY,
@@ -848,7 +851,7 @@ async function main() {
         },
         {
           competitionId: AR_COMPETITION_ID,
-          provider: 'thesportsdb',
+          provider: 'thesportsdb' as const,
           providerLeagueId: AR_LEAGUE_ID,
           providerKey: AR_PROVIDER_KEY,
           sdbApiKey: SPORTSDB_API_KEY,

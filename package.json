@@ -21,7 +21,8 @@
     "backtest:v1:historical": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/run-backtest-historical.ts",
     "backtest:v3:historical": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/run-backtest-v3-historical.ts",
     "train:calibrator": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/train-global-calibrator.ts",
-    "validate:registry": "pnpm tsx scripts/validate-doc-registry.ts"
+    "validate:registry": "pnpm tsx scripts/validate-doc-registry.ts",
+    "smoke-test": "tsx scripts/smoke-test.ts"
   },
   "lint-staged": {
     "packages/*/src/**/*.ts": [

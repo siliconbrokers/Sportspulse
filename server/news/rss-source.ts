@@ -222,7 +222,7 @@ async function fetchOneFeed(
   const results: NewsHeadline[] = [];
 
   for (const raw of parsed.items) {
-    const item = raw as RssItem;
+    const item = raw as unknown as RssItem;
     const title = item.title?.trim() ?? '';
     const url = item.link?.trim() ?? '';
     if (!title || !url) continue;

@@ -176,16 +176,17 @@ export class ApiFootballCLIOverlay {
 
   // ── HTTP ──────────────────────────────────────────────────────────────────
 
-  private async apiGet<T extends { errors?: Record<string, string> }>(endpoint: string): Promise<T> {
+  private async apiGet<T extends object>(endpoint: string): Promise<T> {
     const res = await fetch(`${AF_BASE}${endpoint}`, {
       headers: { 'x-apisports-key': this.apiKey },
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) throw new Error(`CLIOverlay HTTP ${res.status}: ${endpoint}`);
     const data = await res.json() as T;
-    if (data?.errors?.requests) {
+    const dataAny = data as { errors?: { requests?: unknown } };
+    if (dataAny?.errors?.requests) {
       markAfQuotaExhausted();
-      throw new Error(`CLIOverlay quota: ${data.errors.requests}`);
+      throw new Error(`CLIOverlay quota: ${dataAny.errors.requests}`);
     }
     consumeAfRequest();
     return data;

@@ -167,7 +167,7 @@ export class ApiFootballIncidentSource {
     if (!config) return [];
 
     const map = await loadMap();
-    let entry = map[matchCore.matchId] ?? null;
+    let entry: FixtureEntry | null = map[matchCore.matchId] ?? null;
 
     if (!entry) {
       // AF canonical match IDs encode the fixture ID directly: match:apifootball:{fixtureId}
@@ -368,7 +368,7 @@ export class ApiFootballIncidentSource {
     return results;
   }
 
-  private async apiGet<T extends { errors?: Record<string, string> }>(endpoint: string): Promise<T> {
+  private async apiGet<T extends object>(endpoint: string): Promise<T> {
     if (isAfQuotaExhausted()) throw new Error('API-Football quota exhausted');
 
     const url = `${BASE_URL}${endpoint}`;
@@ -382,9 +382,10 @@ export class ApiFootballIncidentSource {
     if (!res.ok) throw new Error(`API-Football HTTP ${res.status}: ${endpoint}`);
 
     const data = await res.json() as T;
-    if (data?.errors?.requests) {
+    const dataAny = data as { errors?: { requests?: unknown } };
+    if (dataAny?.errors?.requests) {
       markAfQuotaExhausted();
-      throw new Error(`API-Football quota: ${data.errors.requests}`);
+      throw new Error(`API-Football quota: ${dataAny.errors.requests}`);
     }
     consumeAfRequest();
     return data;

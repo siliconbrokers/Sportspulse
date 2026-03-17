@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "paths": {
+      "@sportpulse/shared":     ["./packages/shared/src/index.ts"],
+      "@sportpulse/canonical":  ["./packages/canonical/src/index.ts"],
+      "@sportpulse/signals":    ["./packages/signals/src/index.ts"],
+      "@sportpulse/scoring":    ["./packages/scoring/src/index.ts"],
+      "@sportpulse/layout":     ["./packages/layout/src/index.ts"],
+      "@sportpulse/snapshot":   ["./packages/snapshot/src/index.ts"],
+      "@sportpulse/api":        ["./packages/api/src/index.ts"],
+      "@sportpulse/prediction": ["./packages/prediction/src/index.ts"],
+      "fastify":                ["./packages/api/node_modules/fastify/fastify.d.ts"],
+      "fastify/*":              ["./packages/api/node_modules/fastify/*"]
+    }
+  },
+  "include": ["server/**/*.ts"]
+}

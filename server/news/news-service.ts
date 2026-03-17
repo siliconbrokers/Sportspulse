@@ -68,10 +68,10 @@ export class NewsService {
         raw = await fetchRssLeague(leagueKey);
       }
 
-      const rssEntry = RSS_CONFIG[leagueKey];
+      const rssEntry = leagueKey !== 'URU' ? RSS_CONFIG[leagueKey] : undefined;
       const afCanonical = process.env.AF_CANONICAL_ENABLED === 'true';
       const competitionIdForStandings =
-        leagueKey === 'URU'
+        leagueKey === 'URU' || !rssEntry
           ? ''
           : (afCanonical && rssEntry.afCompetitionId) ? rssEntry.afCompetitionId : rssEntry.competitionId;
       const priorityTeams =

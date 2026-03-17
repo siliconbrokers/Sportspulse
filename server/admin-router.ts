@@ -8,7 +8,7 @@
  *   PUT  /api/admin/config     — actualiza config (requiere auth)
  */
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getFullConfig, updateConfig } from './portal-config-store.js';
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET ?? '';
@@ -22,7 +22,7 @@ function validateAuth(authHeader: string | undefined): boolean {
 
 export function registerAdminRoutes(app: FastifyInstance): void {
   // POST /api/admin/auth — valida token, devuelve 200 o 401
-  app.post('/api/admin/auth', async (request, reply) => {
+  app.post('/api/admin/auth', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { token?: string } | null;
     const token = body?.token ?? '';
     if (!ADMIN_SECRET) {
@@ -35,7 +35,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
   });
 
   // GET /api/admin/config — devuelve config completa
-  app.get('/api/admin/config', async (request, reply) => {
+  app.get('/api/admin/config', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!validateAuth(request.headers.authorization)) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
@@ -43,7 +43,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
   });
 
   // PUT /api/admin/config — actualiza config
-  app.put('/api/admin/config', async (request, reply) => {
+  app.put('/api/admin/config', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!validateAuth(request.headers.authorization)) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }

@@ -326,8 +326,7 @@ export class ForwardValidationRunner {
         const candidateMatches = allMatches.filter(
           (m) =>
             m.status !== 'FINISHED' &&
-            m.status !== 'IN_PLAY' &&
-            m.status !== 'PAUSED',
+            m.status !== 'IN_PROGRESS',
         );
 
         if (candidateMatches.length === 0) {

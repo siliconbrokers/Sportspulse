@@ -48,7 +48,11 @@ export type {
   StandingEntry,
   MatchGoalEventDTO,
   SubTournamentInfo,
+  TopScorerEntry,
 } from './data/data-source.js';
 
 // Derivation
 export { computeBestThirds } from './derivation/best-thirds.js';
+
+// Form computation (same logic used in team-tile-builder / DetailPanel)
+export { extractRecentForm } from './build/team-tile-builder.js';

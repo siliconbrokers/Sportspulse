@@ -18,6 +18,7 @@ function makeCard(overrides: Partial<RadarV2Card> = {}): RadarV2Card {
     ],
     preMatchText: 'Tiene peso dentro de la fecha.',
     verdict: null,
+    predictionContext: null,
     ...overrides,
   };
 }

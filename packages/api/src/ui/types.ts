@@ -27,7 +27,7 @@ export interface IVideoService {
   getVideoFeed(): Promise<{
     blocks: Array<{
       leagueKey: string;
-      highlight: {
+      highlights: Array<{
         id: string;
         leagueKey: string;
         title: string;
@@ -38,7 +38,7 @@ export interface IVideoService {
         channelTitle: string;
         publishedAtUtc: string;
         sourceName: string;
-      } | null;
+      }>;
       error?: string;
     }>;
     fetchedAtUtc: string;
@@ -187,14 +187,12 @@ export interface PortalConfigSnapshot {
     slug: string;
     displayName: string;
     enabled: boolean;
-    updatedAt: string;
-    updatedBy: string;
+    [key: string]: unknown;
   }>;
   features: {
     tv: boolean;
     predictions: boolean;
-    updatedAt: string;
-    updatedBy: string;
+    [key: string]: unknown;
   };
 }
 
@@ -211,4 +209,6 @@ export interface AppDependencies {
   upcomingService?: IUpcomingService;
   predictionService?: IPredictionService;
   getPortalConfig?: () => PortalConfigSnapshot;
+  /** IDs to check in status endpoint — from COMPETITION_REGISTRY filtered by isCompetitionEnabled */
+  competitionIds?: string[];
 }

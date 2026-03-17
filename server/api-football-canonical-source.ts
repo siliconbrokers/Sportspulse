@@ -105,6 +105,7 @@ interface AfStandingRow {
   goalsDiff:   number;
   form:        string | null;
   description: string | null;
+  group?:      string;
   all: {
     played: number; win: number; draw: number; lose: number;
     goals:  { for: number; against: number };

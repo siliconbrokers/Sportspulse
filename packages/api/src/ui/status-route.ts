@@ -9,21 +9,10 @@ export function statusRoute(deps: AppDependencies): FastifyPluginAsync {
         const competitions: Record<string, { loaded: boolean; seasonId?: string }> = {};
 
         // Intentar resolver cada competición conocida del dataSource
-        const competitionIds = [
-          // Legacy IDs — kept for backward compatibility (AF_CANONICAL_ENABLED=false)
-          'comp:thesportsdb:4432',
-          'comp:football-data:PD',
-          'comp:football-data:PL',
-          'comp:openligadb:bl1',
-          'comp:football-data-wc:WC',
-          'comp:football-data-ca:CA',
-          'comp:football-data-cli:CLI',
-          // AF canonical IDs (AF_CANONICAL_ENABLED=true)
-          'comp:apifootball:140',  // LaLiga
-          'comp:apifootball:39',   // Premier League
-          'comp:apifootball:78',   // Bundesliga
-          'comp:apifootball:268',  // Uruguay Primera
-          'comp:apifootball:128',  // Argentina Liga Profesional
+        const competitionIds = deps.competitionIds ?? [
+          // fallback legacy list if not passed
+          'comp:apifootball:140', 'comp:apifootball:39', 'comp:apifootball:78',
+          'comp:apifootball:268', 'comp:apifootball:128',
         ];
 
         for (const id of competitionIds) {
@@ -50,6 +39,14 @@ export function statusRoute(deps: AppDependencies): FastifyPluginAsync {
 
         reply.header('Cache-Control', 'no-cache').send({
           ok: true,
+          allLoaded: Object.values(competitions).every(c => c.loaded),
+          uptime: Math.floor(process.uptime()),
+          env: {
+            FOOTBALL_DATA_TOKEN: process.env['FOOTBALL_DATA_TOKEN'] ? 'set' : 'missing',
+            APIFOOTBALL_KEY:     process.env['APIFOOTBALL_KEY']     ? 'set' : 'missing',
+            YOUTUBE_API_KEY:     process.env['YOUTUBE_API_KEY']     ? 'set' : 'missing',
+            ADMIN_SECRET:        process.env['ADMIN_SECRET']        ? 'set' : 'missing',
+          },
           competitions,
           tournaments: tournamentStatus,
           ts: new Date().toISOString(),

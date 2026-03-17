@@ -21,6 +21,11 @@ export const LEAGUE_CONFIG: Record<
   Exclude<LeagueKey, 'URU'>,
   { competitionLabel: string; competitionId: string; query: string }
 > = {
+  AR: {
+    competitionLabel: 'Liga Profesional Argentina',
+    competitionId: 'comp:sportsdb-ar:4406',
+    query: 'Liga Profesional Argentina fútbol boca river racing independiente',
+  },
   WC: {
     competitionLabel: 'Mundial 2026',
     competitionId: 'comp:football-data-wc:WC',

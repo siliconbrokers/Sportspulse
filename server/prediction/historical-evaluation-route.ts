@@ -13,7 +13,7 @@
  * H5 — Internal Evaluation UI
  */
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { HistoricalBacktestStore } from './historical-backtest-store.js';
 import {
   computeHistoricalEvaluation,
@@ -28,7 +28,7 @@ export function registerHistoricalEvaluationRoute(
   app: FastifyInstance,
   store: HistoricalBacktestStore,
 ): void {
-  app.get('/api/internal/historical-evaluation', async (req, reply) => {
+  app.get('/api/internal/historical-evaluation', async (req: FastifyRequest, reply: FastifyReply) => {
     reply.header('Cache-Control', 'no-store');
 
     if (!isEndpointEnabled()) {

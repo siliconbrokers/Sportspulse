@@ -237,7 +237,7 @@ function extractFinishedFormMatches(
     .reverse(); // oldest first (left to right)
 }
 
-function extractRecentForm(
+export function extractRecentForm(
   teamId: string,
   matches: readonly Match[],
   buildNowUtc: string,

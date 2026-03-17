@@ -12,7 +12,7 @@
  * Returns 404 if the flag is off.
  */
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PredictionStore } from './prediction-store.js';
 
 // ── Response shape ─────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ function isEndpointEnabled(): boolean {
 // ── registerInspectionRoute ───────────────────────────────────────────────────
 
 export function registerInspectionRoute(app: FastifyInstance, store: PredictionStore): void {
-  app.get('/api/internal/predictions', async (req, reply) => {
+  app.get('/api/internal/predictions', async (req: FastifyRequest, reply: FastifyReply) => {
     // Gate: endpoint is off if no competition is in the internal view list
     if (!isEndpointEnabled()) {
       return reply.code(404).send({ error: 'Not available' });

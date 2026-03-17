@@ -10,7 +10,7 @@
  * Todos los demás métodos delegan sin cambios a la fuente interna.
  */
 
-import type { Team, Match } from '@sportpulse/canonical';
+import type { Team, Match, EventStatus } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry, MatchGoalEventDTO, SubTournamentInfo } from '@sportpulse/snapshot';
 import type { ApifootballLiveOverlay } from './apifootball-live-overlay.js';
 
@@ -80,7 +80,7 @@ export class LiveOverlayDataSource implements DataSource {
         ...m,
         scoreHome: live.home,
         scoreAway: live.away,
-        status:    toCanonicalStatus(live.statusShort, m.status),
+        status:    toCanonicalStatus(live.statusShort, m.status) as EventStatus,
       };
     });
   }

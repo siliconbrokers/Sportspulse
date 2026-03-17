@@ -11,7 +11,7 @@
  * Always responds with Cache-Control: no-store.
  */
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PredictionStore } from './prediction-store.js';
 import type { EvaluationStore } from './evaluation-store.js';
 import { isExperimentalEnabled } from './prediction-flags.js';
@@ -213,7 +213,7 @@ export function registerExperimentalPredictionRoute(
   store: PredictionStore,
   evaluationStore?: EvaluationStore,
 ): void {
-  app.get('/api/ui/predictions/experimental', async (req, reply) => {
+  app.get('/api/ui/predictions/experimental', async (req: FastifyRequest, reply: FastifyReply) => {
     reply.header('Cache-Control', 'no-store');
 
     const q = req.query as Record<string, string>;

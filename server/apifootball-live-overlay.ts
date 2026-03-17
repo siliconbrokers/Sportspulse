@@ -218,16 +218,17 @@ export class ApifootballLiveOverlay {
     this.timer = setTimeout(() => void this.poll(), nextInterval);
   }
 
-  private async apiFetch<T extends { errors?: Record<string, string> }>(endpoint: string): Promise<T> {
+  private async apiFetch<T extends object>(endpoint: string): Promise<T> {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       headers: { 'x-apisports-key': this.apiKey },
       signal:  AbortSignal.timeout(10_000),
     });
     if (!res.ok) throw new Error(`API-Football HTTP ${res.status}: ${endpoint}`);
     const data = await res.json() as T;
-    if (data?.errors?.requests) {
+    const dataAny = data as { errors?: { requests?: unknown } };
+    if (dataAny?.errors?.requests) {
       markQuotaExhausted();
-      throw new Error(`API-Football quota: ${data.errors.requests}`);
+      throw new Error(`API-Football quota: ${dataAny.errors.requests}`);
     }
     return data;
   }

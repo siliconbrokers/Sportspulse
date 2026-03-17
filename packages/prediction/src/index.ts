@@ -137,6 +137,12 @@ export type {
   RecencyDeltas,
   V3Warning,
   PoissonMatrixResult,
+  // T3 data source types — re-exported for server/ consumers
+  XgRecord,
+  InjuryRecord,
+  ConfirmedLineupRecord,
+  AbsenceType,
+  PlayerPosition,
 } from './engine/v3/index.js';
 
 // ── Response Builder (Phase 4 — §21) ──────────────────────────────────────

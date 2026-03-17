@@ -25,13 +25,14 @@ type Snapshot = {
   response_payload: unknown;
 };
 
-async function fetchSnapshots(params: { competitionId?: string; limit?: number }): Promise<{ snapshots: Snapshot[] }> {
+async function fetchSnapshots(params: { competitionId?: string; limit?: number }): Promise<Snapshot[]> {
   const url = new URL('/api/internal/predictions', window.location.origin);
   if (params.competitionId) url.searchParams.set('competitionId', params.competitionId);
   if (params.limit) url.searchParams.set('limit', String(params.limit));
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json() as Promise<{ snapshots: Snapshot[] }>;
+  const data = await res.json() as { items: Snapshot[]; count: number };
+  return data.items;
 }
 
 function formatDate(isoStr: string): string {
@@ -231,8 +232,8 @@ export function PredictionsLabPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchSnapshots({ limit: 20 });
-      setSnapshots(data.snapshots);
+      const items = await fetchSnapshots({ limit: 20 });
+      setSnapshots(items);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('HTTP 404')) {

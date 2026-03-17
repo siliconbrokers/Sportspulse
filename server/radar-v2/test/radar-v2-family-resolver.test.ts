@@ -18,7 +18,7 @@ function makeFamilyScore(overrides: Partial<FamilyScore>): FamilyScore {
   };
 }
 
-function makeV2Eval(overrides: Partial<V2EvaluatedMatch>): V2EvaluatedMatch {
+function makeV2Eval(overrides: Partial<V2EvaluatedMatch> = {}): V2EvaluatedMatch {
   return {
     matchId: 'match-1',
     v1Eval: {} as any,

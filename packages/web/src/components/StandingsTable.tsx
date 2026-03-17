@@ -70,67 +70,57 @@ function getZone(competitionId: string, position: number): Zone | null {
   ) ?? null;
 }
 
-// ─── Forma reciente — círculos 24px ───────────────────────────────────────────
-function FormCircle({ result, size = 24 }: { result: string; size?: number }) {
+// ─── Forma reciente — mismo esquema visual que DetailPanel ───────────────────
+const FORM_COLORS: Record<string, string> = {
+  W: '#22c55e',
+  D: '#6b7280',
+  L: '#ef4444',
+};
+const FORM_LABELS: Record<string, string> = { W: 'G', D: 'E', L: 'P' };
+const FORM_TITLES: Record<string, string> = { W: 'Victoria', D: 'Empate', L: 'Derrota' };
+
+function FormCircle({ result, size = 20 }: { result: string; size?: number }) {
   const key = result.trim().toUpperCase();
-  const fontSize = size <= 18 ? 8 : 10;
-  const base: React.CSSProperties = { width: size, height: size, fontSize, fontWeight: 700, flexShrink: 0, letterSpacing: 0 };
+  const color = FORM_COLORS[key];
+  if (!color) return null;
 
-  if (key === 'W') {
-    return (
-      <div
-        title="Victoria"
-        className="flex items-center justify-center rounded-full border border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
-        style={{ ...base, boxShadow: '0 0 8px rgba(16,185,129,0.35)' }}
-      >
-        G
-      </div>
-    );
-  }
-
-  if (key === 'D') {
-    return (
-      <div
-        title="Empate"
-        className="flex items-center justify-center rounded-full border border-white/10 bg-slate-500/20 text-slate-400"
-        style={base}
-      >
-        E
-      </div>
-    );
-  }
-
-  if (key === 'L') {
-    return (
-      <div
-        title="Derrota"
-        className="flex items-center justify-center rounded-full border border-rose-500/50 bg-rose-500/20 text-rose-400"
-        style={{ ...base, boxShadow: '0 0 8px rgba(239,68,68,0.3)' }}
-      >
-        P
-      </div>
-    );
-  }
-
-  return null;
+  return (
+    <div
+      title={FORM_TITLES[key]}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 4,
+        backgroundColor: color,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: size <= 18 ? 8 : 10,
+        fontWeight: 800,
+        color: '#fff',
+        flexShrink: 0,
+      }}
+    >
+      {FORM_LABELS[key]}
+    </div>
+  );
 }
 
-function FormBadges({ form, isMobile }: { form?: string | null; isMobile: boolean }) {
-  if (!form) {
+function FormBadges({ form, isMobile }: { form?: string[]; isMobile: boolean }) {
+  if (!form || form.length === 0) {
     return (
       <span style={{ color: 'var(--sp-text-20)', fontSize: 11 }}>—</span>
     );
   }
 
-  // Mobile: últimos 3 resultados con círculos de 18px para ahorrar espacio
-  // Desktop: últimos 5 resultados con círculos de 24px
-  const results = form.split(',').slice(isMobile ? -3 : -5);
-  const circleSize = isMobile ? 18 : 24;
+  // Mobile: últimos 3 resultados. Desktop: todos (ya vienen ordenados oldest→newest).
+  const results = isMobile ? form.slice(-3) : form;
+  const size = isMobile ? 18 : 20;
 
   return (
-    <div style={{ display: 'flex', gap: isMobile ? 2 : 4, justifyContent: 'center', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: isMobile ? 2 : 3, justifyContent: 'center', alignItems: 'center' }}>
       {results.map((r, i) => (
-        <FormCircle key={i} result={r} size={circleSize} />
+        <FormCircle key={i} result={r} size={size} />
       ))}
     </div>
   );
@@ -254,7 +244,7 @@ export function StandingsTable({
 }: StandingsTableProps) {
   const { breakpoint } = useWindowWidth();
   const isMobile = breakpoint === 'mobile';
-  const hasForm = standings.some((r) => !!r.form);
+  const hasForm = standings.some((r) => !!r.recentForm?.length);
   const showForm = hasForm; // visible en mobile (compacto 3 círculos) y desktop (5 círculos)
 
   return (
@@ -469,7 +459,7 @@ export function StandingsTable({
                   {/* FORMA */}
                   {showForm && (
                     <td style={{ ...cellStyle(isMobile), paddingLeft: isMobile ? 2 : 4, paddingRight: isMobile ? 2 : 4 }}>
-                      <FormBadges form={row.form} isMobile={isMobile} />
+                      <FormBadges form={row.recentForm} isMobile={isMobile} />
                     </td>
                   )}
 

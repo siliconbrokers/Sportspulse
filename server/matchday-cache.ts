@@ -345,7 +345,7 @@ export function loadStandingsCache(provider: string, competitionId: string): Sta
     if (ageS > STANDINGS_CACHE_TTL_S) return null; // stale
     // Structural validation — reject files with valid JSON but wrong shape
     if (!Array.isArray(raw.standings) || raw.standings.length === 0) return null;
-    if (typeof (raw.standings[0] as Record<string, unknown>)['position'] !== 'number') return null;
+    if (typeof (raw.standings[0] as unknown as Record<string, unknown>)['position'] !== 'number') return null;
     return raw.standings;
   } catch {
     return null;
@@ -372,7 +372,7 @@ export function loadTeamsCache(provider: string, competitionId: string): Team[] 
     if (ageS > TEAMS_CACHE_TTL_S) return null; // stale
     // Structural validation — reject files with valid JSON but wrong shape
     if (!Array.isArray(raw.teams)) return null;
-    if (raw.teams.length > 0 && typeof (raw.teams[0] as Record<string, unknown>)['teamId'] !== 'string') return null;
+    if (raw.teams.length > 0 && typeof (raw.teams[0] as unknown as Record<string, unknown>)['teamId'] !== 'string') return null;
     return raw.teams;
   } catch {
     return null;
