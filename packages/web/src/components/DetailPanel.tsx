@@ -612,7 +612,7 @@ function IncidentTimeline({
   if (events.length === 0) return null;
 
   const sorted = [...events].sort(
-    (a, b) => a.minute - b.minute || (a.minuteExtra ?? 0) - (b.minuteExtra ?? 0),
+    (a, b) => b.minute - a.minute || (b.minuteExtra ?? 0) - (a.minuteExtra ?? 0),
   );
 
   // Goals only for neon badge highlights
@@ -839,7 +839,7 @@ function FinishedBody({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {vm.events
               .slice()
-              .sort((a, b) => a.minute - b.minute || (a.extraMinute ?? 0) - (b.extraMinute ?? 0))
+              .sort((a, b) => b.minute - a.minute || (b.extraMinute ?? 0) - (a.extraMinute ?? 0))
               .map((ev) => (
                 <div
                   key={ev.id}
