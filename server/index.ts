@@ -205,9 +205,13 @@ async function main() {
   }
 
   // ── API-Football Canonical Migration (Track C) ─────────────────────────────
-  // When AF_CANONICAL_ENABLED=true, replace legacy league sources with ApiFootballCanonicalSource.
+  // AF canonical se activa automáticamente cuando APIFOOTBALL_KEY está disponible,
+  // salvo que se deshabilite explícitamente con AF_CANONICAL_ENABLED=false.
+  // Esto es necesario porque portal-config-store usa COMPETITION_REGISTRY (AF IDs)
+  // incondicionalmente — sin AF canonical, el routing no puede resolver esos IDs → 404.
   // WC and CLI tournament sources are always preserved.
-  const AF_CANONICAL_ENABLED = process.env.AF_CANONICAL_ENABLED === 'true';
+  const AF_CANONICAL_ENABLED = !!process.env.APIFOOTBALL_KEY &&
+    process.env.AF_CANONICAL_ENABLED !== 'false';
   const AF_KEY = process.env.APIFOOTBALL_KEY ?? '';
   let afCanonicalSource: ApiFootballCanonicalSource | null = null;
   let AF_COMP_IDS: string[] = [];
