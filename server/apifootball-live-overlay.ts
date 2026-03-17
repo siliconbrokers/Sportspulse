@@ -106,7 +106,7 @@ export class ApifootballLiveOverlay {
   /** Index primario: normKey → LiveScoreEntry */
   private cache: Map<string, LiveScoreEntry> = new Map();
   /** Lista raw para fallback de búsqueda por contains */
-  private rawList: Array<{ homeNorm: string; awayNorm: string; entry: LiveScoreEntry }> = [];
+  private rawList: Array<{ homeNorm: string; awayNorm: string; leagueId: number; entry: LiveScoreEntry }> = [];
 
   private hasLive = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -169,6 +169,13 @@ export class ApifootballLiveOverlay {
 
   get liveCount(): number { return this.rawList.length; }
 
+  /** Returns the set of AF league IDs that currently have a live match in the overlay. */
+  getLiveLeagueIds(): Set<number> {
+    const ids = new Set<number>();
+    for (const { leagueId } of this.rawList) ids.add(leagueId);
+    return ids;
+  }
+
   // ── Private ──────────────────────────────────────────────────────────────────
 
   private clearLiveData(): void {
@@ -219,7 +226,7 @@ export class ApifootballLiveOverlay {
           const homeNorm = normLiveName(f.teams.home.name);
           const awayNorm = normLiveName(f.teams.away.name);
           newCache.set(`${homeNorm}|${awayNorm}`, entry);
-          newRaw.push({ homeNorm, awayNorm, entry });
+          newRaw.push({ homeNorm, awayNorm, leagueId: f.league.id, entry });
         }
 
         this.cache   = newCache;

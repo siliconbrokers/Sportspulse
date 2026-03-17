@@ -21,6 +21,7 @@ import type {
   V3PredictionOutput,
   V3Warning,
   PriorQuality,
+  V3PipelineIntermediates,
 } from './types.js';
 import { computeLeagueBaselines } from './league-baseline.js';
 import { resolveTeamStats } from './team-stats.js';
@@ -154,6 +155,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     calibrationTable,
     leagueCode,
     _overrideConstants,
+    collectIntermediates,
   } = input;
 
   const kShrinkOverride         = _overrideConstants?.K_SHRINK;
@@ -607,6 +609,25 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     finalProbAway,
   );
 
+  // ── §SP-V4-20: Intermediates collection (only when collectIntermediates=true) ─
+  // NOT for production use — only used by tools/train-logistic.ts.
+  // xgCoverage fraction: coverageMatches / totalMatches (0 when no matches).
+  const intermediates: V3PipelineIntermediates | undefined = collectIntermediates
+    ? {
+        lambdaHome:        lambdaHomeFinal,
+        lambdaAway:        lambdaAwayFinal,
+        restDaysHome:      restDaysHome ?? 0,
+        restDaysAway:      restDaysAway ?? 0,
+        h2hMultHome:       h2hResult.mult_home,
+        h2hMultAway:       h2hResult.mult_away,
+        absenceScoreHome:  absenceResult.mult_home,
+        absenceScoreAway:  absenceResult.mult_away,
+        xgCoverage:        xgCoverage.totalMatches > 0
+          ? xgCoverage.coverageMatches / xgCoverage.totalMatches
+          : 0,
+      }
+    : undefined;
+
   // ── Armar output ───────────────────────────────────────────────────────
   return {
     engine_id: 'v3_unified',
@@ -622,6 +643,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     favorite_margin: predictedResultOutput.favorite_margin,
     pre_match_text: preMatchText,
     markets,
+    _intermediates: intermediates,
     explanation: {
       effective_attack_home: homePriorResult.effective_attack,
       effective_defense_home: homePriorResult.effective_defense,

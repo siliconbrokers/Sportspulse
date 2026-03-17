@@ -119,6 +119,19 @@ export interface V3EngineInput {
    * NOT for production use.
    */
   _skipDrawAffinity?: boolean;
+
+  /**
+   * §SP-V4-20: Internal flag to collect intermediate pipeline values for logistic training.
+   * When true, the engine populates V3PredictionOutput._intermediates with the
+   * intermediate variables needed by extractLogisticFeatures.
+   *
+   * This is ONLY used by tools/train-logistic.ts.
+   * In production the flag is always absent (undefined = false).
+   * Enabling this flag has no effect on the main output shape — it only
+   * adds the optional _intermediates field.
+   * NOT for production use.
+   */
+  collectIntermediates?: boolean;
 }
 
 // ── League Baselines (§4) ──────────────────────────────────────────────────
@@ -364,6 +377,39 @@ export interface V3PredictionOutput {
 
   // Warnings
   warnings: V3Warning[];
+
+  /**
+   * §SP-V4-20: Variables intermedias del pipeline para entrenamiento logístico.
+   * Solo se popula cuando input.collectIntermediates = true.
+   * Undefined en todos los demás casos — no afecta el output shape normal.
+   * NOT for production use.
+   */
+  _intermediates?: V3PipelineIntermediates;
+}
+
+/**
+ * Variables intermedias del pipeline necesarias para extractLogisticFeatures.
+ * Solo para uso en tools/train-logistic.ts. §SP-V4-20.
+ */
+export interface V3PipelineIntermediates {
+  /** Lambda home final (post-todos los ajustes del pipeline). */
+  lambdaHome: number;
+  /** Lambda away final (post-todos los ajustes del pipeline). */
+  lambdaAway: number;
+  /** Días desde último partido del equipo local (null si no hay datos). */
+  restDaysHome: number;
+  /** Días desde último partido del equipo visitante (null si no hay datos). */
+  restDaysAway: number;
+  /** Multiplicador H2H del equipo local (1.0 = neutral). */
+  h2hMultHome: number;
+  /** Multiplicador H2H del equipo visitante (1.0 = neutral). */
+  h2hMultAway: number;
+  /** Multiplicador de ausencia del equipo local (valor de AbsenceResult.mult_home). */
+  absenceScoreHome: number;
+  /** Multiplicador de ausencia del equipo visitante. */
+  absenceScoreAway: number;
+  /** Fracción [0,1] de partidos del historial con xG disponible. */
+  xgCoverage: number;
 }
 
 export interface V3Explanation {

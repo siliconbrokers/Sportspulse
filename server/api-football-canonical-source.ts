@@ -312,6 +312,11 @@ export class ApiFootballCanonicalSource implements DataSource {
     return this.getCached(compId)?.seasonId;
   }
 
+  /** Returns the matches currently held in the in-memory cache without making any API calls. */
+  getMatchesCached(compId: string): Match[] {
+    return this.getCached(compId)?.matches ?? [];
+  }
+
   getStandings(compId: string): StandingEntry[] {
     return this.getCached(compId)?.standings ?? [];
   }

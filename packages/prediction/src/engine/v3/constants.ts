@@ -214,6 +214,26 @@ export const MARKET_WEIGHT_MAX = 0.30;
 /** Tolerance for market odds sum validation (§T3-04). */
 export const MARKET_ODDS_SUM_TOLERANCE = 1e-4;
 
+// ── SP-V4-21: Ensemble weights ────────────────────────────────────────────────
+
+/**
+ * Pesos por defecto para el ensemble combinator (§SP-V4-21).
+ *
+ * Estos pesos definen la contribución relativa de cada componente al output final.
+ * En SP-V4-23 (integración), el engine usará estos pesos cuando ENSEMBLE_ENABLED=true.
+ * Optimización de pesos: SP-V4-22 (tools/sweep-ensemble-weights.ts).
+ *
+ * Valores iniciales:
+ *   w_poisson  = 0.70 — modelo principal (mayor peso mientras logistic esté sin entrenar)
+ *   w_market   = 0.15 — odds de mercado (solo si T3-04 disponible)
+ *   w_logistic = 0.15 — modelo logístico (solo si ENSEMBLE_ENABLED=true y coefs entrenados)
+ */
+export const ENSEMBLE_WEIGHTS_DEFAULT = {
+  w_poisson:  0.70,
+  w_market:   0.15,
+  w_logistic: 0.15,
+} as const;
+
 /**
  * Margen mínimo de favorite_margin para mantener confianza HIGH.
  * Si la diferencia entre la probabilidad ganadora y la segunda es < este umbral,

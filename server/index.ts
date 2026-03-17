@@ -752,6 +752,9 @@ async function main() {
   // non-deterministic state visible in the UI during live matches).
   let refreshInProgress = false;
 
+  /** Timestamp of last successful fetch per compId — used for tier-based scheduling. */
+  const compLastFetchedMs = new Map<string, number>();
+
   async function runRefresh(): Promise<void> {
     if (refreshInProgress) {
       console.warn('[Scheduler] Refresh already in progress — skipping cycle');
@@ -772,17 +775,73 @@ async function main() {
         console.log('[Scheduler] AF quota exhausted — refresh cycle skipped until midnight UTC');
         return;
       }
-      // AF mode: refresh all AF competitions sequentially
+
+      const nowMs = Date.now();
+      const liveLeagueIds = liveOverlay.getLiveLeagueIds();
+
+      // Tier intervals (ms)
+      const TIER_LIVE_FAST  =  2 * 60_000;   // 2 min — partido en vivo ahora
+      const TIER_IMMINENT   =  5 * 60_000;   // 5 min — kickoff en < 30 min
+      const TIER_ACTIVE_DAY = 15 * 60_000;   // 15 min — partido hoy
+      const TIER_IDLE       =  2 * 3600_000; // 2h — sin partido hoy
+
+      const todayUtc = new Date(nowMs).toISOString().slice(0, 10); // YYYY-MM-DD UTC
+
       const enabledAfIds = AF_COMP_IDS.filter((id) => isCompetitionEnabled(id));
-      for (let i = 0; i < enabledAfIds.length; i++) {
-        const compId = enabledAfIds[i];
+      const toFetch: string[] = [];
+
+      for (const compId of enabledAfIds) {
+        const regEntry = REGISTRY_BY_ID.get(compId);
+        const afLeagueId = regEntry?.leagueId ?? -1;
+
+        // Classify tier
+        let tierMs: number;
+        if (liveLeagueIds.has(afLeagueId)) {
+          tierMs = TIER_LIVE_FAST;
+        } else {
+          // Check in-memory cache for today's / imminent matches without API calls
+          const matches = afCanonicalSource.getMatchesCached(compId);
+
+          const hasImminent = matches.some((m) => {
+            if (m.status !== 'SCHEDULED') return false;
+            const kickoff = m.startTimeUtc ? new Date(m.startTimeUtc).getTime() : 0;
+            return kickoff > nowMs && kickoff - nowMs < 30 * 60_000;
+          });
+
+          const hasToday = matches.some((m) => {
+            if (!m.startTimeUtc) return false;
+            return m.startTimeUtc.slice(0, 10) === todayUtc;
+          });
+
+          if (hasImminent) tierMs = TIER_IMMINENT;
+          else if (hasToday) tierMs = TIER_ACTIVE_DAY;
+          else tierMs = TIER_IDLE;
+        }
+
+        const lastFetched = compLastFetchedMs.get(compId) ?? 0;
+        if (nowMs - lastFetched >= tierMs) {
+          toFetch.push(compId);
+        }
+      }
+
+      if (toFetch.length === 0) {
+        console.log('[Scheduler] No competitions due for refresh — all within tier intervals');
+        return;
+      }
+
+      console.log(`[Scheduler] Refreshing ${toFetch.length}/${enabledAfIds.length} competitions (tier-based)`);
+
+      let invalidated = false;
+      for (let i = 0; i < toFetch.length; i++) {
+        const compId = toFetch[i];
         try {
           await afCanonicalSource.fetchCompetition(compId);
-          snapshotService.invalidateAll();
+          compLastFetchedMs.set(compId, Date.now());
+          if (!invalidated) { snapshotService.invalidateAll(); invalidated = true; }
         } catch (err) {
           console.error(`[AfCanonical] Refresh failed for ${compId}:`, err);
         }
-        if (i < enabledAfIds.length - 1) {
+        if (i < toFetch.length - 1) {
           await new Promise<void>((r) => setTimeout(r, 1500));
         }
       }
