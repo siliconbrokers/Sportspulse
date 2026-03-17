@@ -31,7 +31,7 @@ import { computeRecencyDeltas } from './recency.js';
 import { computeV3Lambdas } from './lambda.js';
 import { computePoissonMatrix } from './poisson-matrix.js';
 import { computeEligibility } from './eligibility.js';
-import { THRESHOLD_NOT_ELIGIBLE, THRESHOLD_ELIGIBLE, DC_RHO, LAMBDA_MIN, LAMBDA_MAX, XG_PARTIAL_COVERAGE_THRESHOLD, DRAW_LEAGUE_AVG_RATE } from './constants.js';
+import { THRESHOLD_NOT_ELIGIBLE, THRESHOLD_ELIGIBLE, DC_RHO, DC_RHO_PER_LEAGUE, LAMBDA_MIN, LAMBDA_MAX, XG_PARTIAL_COVERAGE_THRESHOLD, DRAW_LEAGUE_AVG_RATE, SOS_SENSITIVITY } from './constants.js';
 import { estimateDcRho } from './dc-rho-estimator.js';
 import { computeConfidence } from './confidence.js';
 import { computePredictedResult } from './predicted-result.js';
@@ -54,7 +54,7 @@ function buildNotEligibleOutput(
 ): V3PredictionOutput {
   return {
     engine_id: 'v3_unified',
-    engine_version: '3.0',
+    engine_version: '4.2',
     eligibility: 'NOT_ELIGIBLE',
     confidence: 'INSUFFICIENT',
     prob_home_win: null,
@@ -152,7 +152,23 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     confirmedLineups,
     marketOdds,
     calibrationTable,
+    leagueCode,
+    _overrideConstants,
   } = input;
+
+  const kShrinkOverride         = _overrideConstants?.K_SHRINK;
+  const priorEquivGamesOverride = _overrideConstants?.PRIOR_EQUIV_GAMES;
+  const betaRecentOverride      = _overrideConstants?.BETA_RECENT;
+  const dcRhoOverride           = _overrideConstants?.DC_RHO;
+  // §SP-V4-05: SoS sensitivity — uses override if provided (sweep tools), else global constant
+  const sosSensitivity          = _overrideConstants?.SOS_SENSITIVITY ?? SOS_SENSITIVITY;
+  const drawAffinityOverrides   = (_overrideConstants?.DRAW_AFFINITY_POWER != null ||
+                                   _overrideConstants?.DRAW_LOW_SCORING_BETA != null)
+    ? {
+        DRAW_AFFINITY_POWER:    _overrideConstants?.DRAW_AFFINITY_POWER,
+        DRAW_LOW_SCORING_BETA:  _overrideConstants?.DRAW_LOW_SCORING_BETA,
+      }
+    : undefined;
 
   // ── §anti-lookahead ────────────────────────────────────────────────────
   // Filtrar por kickoffUtc (NO buildNowUtc) — el motor puede usarse con buildNowUtc
@@ -224,8 +240,8 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   }
 
   // ── §6 Shrinkage Bayesiano ─────────────────────────────────────────────
-  const homeShrunk = applyShrinkage(homeStats, baselines.league_goals_pg);
-  const awayShrunk = applyShrinkage(awayStats, baselines.league_goals_pg);
+  const homeShrunk = applyShrinkage(homeStats, baselines.league_goals_pg, kShrinkOverride);
+  const awayShrunk = applyShrinkage(awayStats, baselines.league_goals_pg, kShrinkOverride);
 
   // ── §7 Prior de temporada anterior ────────────────────────────────────
   const homePriorData = buildPrior(prevSeasonMatches, homeTeamId, baselines);
@@ -245,6 +261,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     homePriorData.prior_attack,
     homePriorData.prior_defense,
     homePriorData.prior_quality,
+    priorEquivGamesOverride,
   );
 
   const awayPriorResult = mixWithPrior(
@@ -254,6 +271,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     awayPriorData.prior_attack,
     awayPriorData.prior_defense,
     awayPriorData.prior_quality,
+    priorEquivGamesOverride,
   );
 
   // ── §8 Rival Adjustment ────────────────────────────────────────────────
@@ -306,17 +324,21 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   );
 
   // ── §9 Recency Deltas ──────────────────────────────────────────────────
+  // §SP-V4-05: sosSensitivity pesa partidos por calidad del rival.
+  // rivalStrength ya viene embebida en cada MatchSignalRA desde computeMatchSignalsRA.
   const homeRecency = computeRecencyDeltas(
     homeSignalsSorted,
     homeStats.games,
     homePriorResult.effective_attack,
     homePriorResult.effective_defense,
+    sosSensitivity,
   );
   const awayRecency = computeRecencyDeltas(
     awaySignalsSorted,
     awayStats.games,
     awayPriorResult.effective_attack,
     awayPriorResult.effective_defense,
+    sosSensitivity,
   );
 
   // ── §10 + §11 Effective Forces + Lambdas ──────────────────────────────
@@ -332,6 +354,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     venue_split_home: homeStats.venueSplit,
     venue_split_away: awayStats.venueSplit,
     baselines,
+    betaRecentOverride,
   });
 
   // ── §T2-01: Rest adjustment ────────────────────────────────────────────
@@ -364,18 +387,21 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   );
 
   // Lambdas finales: aplicar rest + H2H + absence multiplicadores, re-clipear
+  // §SP-V4-13: positional absence factors applied cross-team:
+  //   lambda_home *= mult_attack_home (home team attack) * mult_defense_away (away team defense)
+  //   lambda_away *= mult_attack_away (away team attack) * mult_defense_home (home team defense)
   const lambdaHomeFinal = Math.max(
     LAMBDA_MIN,
     Math.min(
       LAMBDA_MAX,
-      lambdaResult.lambda_home * restMultHome * h2hResult.mult_home * absenceResult.mult_home,
+      lambdaResult.lambda_home * restMultHome * h2hResult.mult_home * absenceResult.mult_home * absenceResult.mult_defense_away,
     ),
   );
   const lambdaAwayFinal = Math.max(
     LAMBDA_MIN,
     Math.min(
       LAMBDA_MAX,
-      lambdaResult.lambda_away * restMultAway * h2hResult.mult_away * absenceResult.mult_away,
+      lambdaResult.lambda_away * restMultAway * h2hResult.mult_away * absenceResult.mult_away * absenceResult.mult_defense_home,
     ),
   );
 
@@ -383,11 +409,15 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   // Estimar ρ desde datos históricos. Cuando hay < 20 partidos en la temporada
   // actual (inicio de temporada), combinar con prevSeasonMatches para una
   // estimación más estable del patrón de scores bajos de la liga.
-  const matchesForRho = currentFiltered.length < 20
-    ? [...currentFiltered, ...prevSeasonMatches]
-    : currentFiltered;
-  const estimatedRho = estimateDcRho(matchesForRho, baselines);
-  const dcRhoEstimated = estimatedRho !== DC_RHO;
+  // DC_RHO fijo (backtest evidence: -0.15 supera al estimador empírico en 0.035 score).
+  // Si se provee override (solo para sweep tools), usa ese valor.
+  // estimateDcRho se preserva como herramienta de investigación pero no se usa en producción.
+  // §SP-V4-03: Lookup per-liga cuando leagueCode está disponible; fallback a DC_RHO global.
+  const leagueRho = (leagueCode != null && DC_RHO_PER_LEAGUE[leagueCode] != null)
+    ? DC_RHO_PER_LEAGUE[leagueCode]!
+    : DC_RHO;
+  const estimatedRho = dcRhoOverride ?? leagueRho;
+  const dcRhoEstimated = false;
 
   const poissonResult = computePoissonMatrix(
     lambdaHomeFinal,
@@ -466,25 +496,15 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
         h2hMatches.length
       : undefined;
 
-  const drawAffinityResult = applyDrawAffinity(
+  // ── §T3-04: Market blend ───────────────────────────────────────────────
+  // Mezcla probabilidades 1X2 del modelo con odds del mercado (si están disponibles).
+  // Se aplica sobre probs Poisson puras (antes de calibración y draw affinity),
+  // ya que las cuotas de mercado son una señal externa pre-calibración.
+  // Los mercados derivados (O/U, BTTS, scorelines) siguen usando la matriz Poisson original.
+  const blendResult = blendWithMarketOdds(
     poissonResult.prob_home_win,
     poissonResult.prob_draw,
     poissonResult.prob_away_win,
-    lambdaHomeFinal,
-    lambdaAwayFinal,
-    homeDrawRate,
-    awayDrawRate,
-    tableProximity,
-    h2hDrawRate,
-  );
-
-  // ── §T3-04: Market blend ───────────────────────────────────────────────
-  // Mezcla probabilidades 1X2 del modelo con odds del mercado (si están disponibles).
-  // Los mercados derivados (O/U, BTTS, scorelines) siguen usando la matriz Poisson original.
-  const blendResult = blendWithMarketOdds(
-    drawAffinityResult.prob_home,
-    drawAffinityResult.prob_draw,
-    drawAffinityResult.prob_away,
     marketOdds,
   );
 
@@ -492,15 +512,16 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     warnings.push('MARKET_ODDS_INVALID');
   }
 
-  // Probabilidades finales 1X2 (blended si aplica, o Poisson puro)
   // These are `let` so the calibration step (§Cal) can reassign them.
   let finalProbHome = blendResult.prob_home;
   let finalProbDraw  = blendResult.prob_draw;
   let finalProbAway  = blendResult.prob_away;
 
   // ── §Cal Isotonic Calibration (Phase 5) ───────────────────────────────────
-  // Applies per-class calibration + renormalization (§16.3) if a table is
-  // provided. Backward-compatible: if calibrationTable is absent, no-op.
+  // Corrige el sesgo sistemático del modelo (sobre-estimación HOME, sub-estimación AWAY).
+  // Se aplica ANTES del draw affinity boost para que la calibración opere sobre
+  // el modelo puro y el draw affinity añada diferenciación en el espacio calibrado.
+  // Backward-compatible: if calibrationTable is absent, no-op.
   if (calibrationTable != null && calibrationTable.home.length > 0) {
     const calResult = applyIsoCalibration(
       finalProbHome,
@@ -513,6 +534,31 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
       finalProbDraw = calResult.p_draw;
       finalProbAway = calResult.p_away;
     }
+  }
+
+  // ── §DRAW-AFFINITY: Draw probability boost ────────────────────────────────
+  // Se aplica DESPUÉS de la calibración para añadir diferenciación de partido
+  // (balance de fuerzas, propensidad, H2H) en el espacio ya calibrado.
+  // Skipped when _skipDrawAffinity=true (used by gen-calibration.ts to generate
+  // tuples from pre-affinity probs, so calibration is trained on the same
+  // probability space it is applied to at inference time).
+  if (!input._skipDrawAffinity) {
+    const drawAffinityResult = applyDrawAffinity(
+      finalProbHome,
+      finalProbDraw,
+      finalProbAway,
+      lambdaHomeFinal,
+      lambdaAwayFinal,
+      homeDrawRate,
+      awayDrawRate,
+      tableProximity,
+      h2hDrawRate,
+      drawAffinityOverrides,
+    );
+
+    finalProbHome = drawAffinityResult.prob_home;
+    finalProbDraw = drawAffinityResult.prob_draw;
+    finalProbAway = drawAffinityResult.prob_away;
   }
 
   // ── §15 Confidence ─────────────────────────────────────────────────────
@@ -546,7 +592,9 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   );
 
   // ── §T1 Mercados derivados ─────────────────────────────────────────────
-  // Mercados usan la matriz Poisson original (estructuralmente más rica que 1X2 blended).
+  // O/U, BTTS y scorelines usan la matriz Poisson original (estructuralmente más rica).
+  // Per spec §16.3/§16.4: double_chance y DNB usan las probs calibradas finales
+  // (finalProbHome/Draw/Away — post-calibración y post-draw affinity).
   const markets = computeMarkets(
     poissonResult.matrix,
     poissonResult.prob_home_win,
@@ -554,12 +602,15 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     poissonResult.prob_away_win,
     lambdaHomeFinal,
     lambdaAwayFinal,
+    finalProbHome,
+    finalProbDraw,
+    finalProbAway,
   );
 
   // ── Armar output ───────────────────────────────────────────────────────
   return {
     engine_id: 'v3_unified',
-    engine_version: '3.0',
+    engine_version: '4.2',
     eligibility,
     confidence,
     prob_home_win: finalProbHome,

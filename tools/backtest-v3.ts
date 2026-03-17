@@ -14,6 +14,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { runV3Engine } from '../packages/prediction/src/engine/v3/v3-engine.js';
 import type { V3MatchRecord, V3EngineInput } from '../packages/prediction/src/engine/v3/types.js';
+import {
+  computeProbabilityMetrics,
+  type PredictionRecord,
+} from '../packages/prediction/src/metrics/calibration-metrics.js';
 
 // ── Tipos de cache ──────────────────────────────────────────────────────────
 
@@ -134,6 +138,37 @@ interface MatchEval {
   p_home: number | null;
   p_draw: number | null;
   p_away: number | null;
+}
+
+// ── Adaptar MatchEval → PredictionRecord para métricas de probabilidad ──────
+
+function toPredictionRecords(evals: MatchEval[]): PredictionRecord[] {
+  const records: PredictionRecord[] = [];
+  for (const e of evals) {
+    // Solo incluir registros con probabilidades disponibles
+    if (e.p_home === null || e.p_draw === null || e.p_away === null) continue;
+    if (e.predicted === null) continue;
+
+    // Mapear actual: HOME_WIN→HOME, AWAY_WIN→AWAY, DRAW→DRAW
+    const actual_outcome =
+      e.actual === 'HOME_WIN' ? 'HOME'
+      : e.actual === 'AWAY_WIN' ? 'AWAY'
+      : 'DRAW';
+
+    // Mapear predicted: HOME_WIN→HOME, AWAY_WIN→AWAY, DRAW→DRAW, TOO_CLOSE→TOO_CLOSE
+    const predicted_result =
+      e.predicted === 'HOME_WIN' ? 'HOME'
+      : e.predicted === 'AWAY_WIN' ? 'AWAY'
+      : e.predicted === 'DRAW' ? 'DRAW'
+      : 'TOO_CLOSE';  // TOO_CLOSE
+
+    records.push({
+      predicted_result,
+      actual_outcome,
+      calibrated_probs: { home: e.p_home, draw: e.p_draw, away: e.p_away },
+    });
+  }
+  return records;
 }
 
 // ── Backtest por liga ───────────────────────────────────────────────────────
@@ -308,6 +343,16 @@ function printLeagueReport(name: string, evals: MatchEval[]): void {
     console.log(`    p_draw ≥ 0.35      : ${over35} partidos`);
     console.log(`    (DRAW se predice cuando p_draw es la probabilidad máxima)`);
   }
+
+  // Métricas de probabilidad §23.2: log_loss, Brier score, RPS
+  const probRecords = toPredictionRecords(evals);
+  if (probRecords.length > 0) {
+    const pm = computeProbabilityMetrics(probRecords);
+    console.log(`\n  Métricas de probabilidad (§23.2) — n=${probRecords.length}:`);
+    console.log(`    log_loss           : ${pm.log_loss.toFixed(4)}  (lower is better)`);
+    console.log(`    brier_score        : ${pm.brier_score.toFixed(4)}  (lower is better)`);
+    console.log(`    rps                : ${pm.rps.toFixed(4)}  (lower is better; baseline≈0.222)`);
+  }
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
@@ -353,5 +398,15 @@ const totalPredDraw = totalEv.filter(e => e.predicted === 'DRAW').length;
 const totalHitDraw = totalEv.filter(e => e.predicted === 'DRAW' && e.actual === 'DRAW').length;
 console.log(`  DRAW recall        : ${totalHitDraw}/${totalDraw} = ${pct(totalHitDraw, totalDraw)}`);
 console.log(`  DRAW predichos     : ${totalPredDraw} / ${totalEv.length} = ${pct(totalPredDraw, totalEv.length)}`);
+
+// Métricas de probabilidad global §23.2
+const globalProbRecords = toPredictionRecords(allEvals);
+if (globalProbRecords.length > 0) {
+  const gpm = computeProbabilityMetrics(globalProbRecords);
+  console.log(`\n  Métricas de probabilidad global (§23.2) — n=${globalProbRecords.length}:`);
+  console.log(`    log_loss           : ${gpm.log_loss.toFixed(4)}  (lower is better)`);
+  console.log(`    brier_score        : ${gpm.brier_score.toFixed(4)}  (lower is better)`);
+  console.log(`    rps                : ${gpm.rps.toFixed(4)}  (lower is better; baseline≈0.222)`);
+}
 console.log('═'.repeat(72));
 console.log();

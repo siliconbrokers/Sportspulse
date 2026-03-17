@@ -286,10 +286,16 @@ describe('computeTopScorelines — invariantes', () => {
     }
   });
 
-  it('default n=5: retorna hasta 5 elementos', () => {
+  it('§16.11 — default n=5: retorna exactamente 5 o el total de celdas disponibles si < 5', () => {
     const top = computeTopScorelines(makeUniform2x2());
-    // Solo hay 4 celdas con prob > 0, el resto es 0
-    expect(top.length).toBeLessThanOrEqual(6);
+    // Uniform 2x2 has only 4 non-zero cells; the other 21 cells of the 5x5 matrix are 0.
+    // All 25 cells are returned but only first 5 (including zeros) — max is 5.
+    expect(top.length).toBeLessThanOrEqual(5);
+    // With a bigger matrix having ≥5 non-zero cells, exactly 5 must be returned
+    const bigM: number[][] = Array.from({ length: 4 }, () => Array(4).fill(0) as number[]);
+    bigM[0]![0] = 0.3; bigM[1]![0] = 0.2; bigM[0]![1] = 0.2; bigM[1]![1] = 0.15; bigM[2]![0] = 0.1; bigM[0]![2] = 0.05;
+    const top2 = computeTopScorelines(bigM);
+    expect(top2).toHaveLength(5);
   });
 });
 
@@ -309,9 +315,13 @@ describe('computeMarkets — wrapper', () => {
     expect(markets.top_scorelines).toBeDefined();
   });
 
-  it('top_scorelines tiene exactamente 6 elementos (o menos si la matriz es pequeña)', () => {
-    const markets = computeMarkets(makeDegenerate1_0(), 0.7, 0.2, 0.1, 1.3, 0.8);
-    expect(markets.top_scorelines.length).toBeLessThanOrEqual(6);
+  it('§16.11 — top_scorelines retorna exactamente 5 elementos (spec §16.11)', () => {
+    // Use a large matrix so there are definitely ≥5 non-zero cells
+    const m: number[][] = Array.from({ length: 6 }, () => Array(6).fill(0) as number[]);
+    m[0]![0] = 0.20; m[1]![0] = 0.18; m[0]![1] = 0.15; m[1]![1] = 0.12; m[2]![0] = 0.10;
+    m[0]![2] = 0.08; m[2]![1] = 0.05; // 7 non-zero cells
+    const markets = computeMarkets(m, 0.5, 0.25, 0.25, 1.3, 0.8);
+    expect(markets.top_scorelines).toHaveLength(5);
   });
 
   it('expected_goals.total = lambdaHome + lambdaAway', () => {
@@ -327,5 +337,49 @@ describe('computeMarkets — wrapper', () => {
   it('dnb.home + dnb.away = 1', () => {
     const markets = computeMarkets(makeUniform2x2(), 0.5, 0.25, 0.25, 1.2, 1.0);
     expect(markets.dnb.home + markets.dnb.away).toBeCloseTo(1, 10);
+  });
+
+  // ── §16.3/§16.4 — F4: calibrated probs used for double_chance and DNB ────────
+
+  it('§16.3 — double_chance usa probs calibradas cuando se proveen (no las raw Poisson)', () => {
+    const m = makeUniform2x2();
+    // Raw Poisson probs: home=0.40, draw=0.30, away=0.30
+    // Calibrated probs:  home=0.50, draw=0.25, away=0.25
+    const markets = computeMarkets(m, 0.40, 0.30, 0.30, 1.2, 1.1, 0.50, 0.25, 0.25);
+    // double_chance should use calibrated, not raw
+    expect(markets.double_chance.home_or_draw).toBeCloseTo(0.50 + 0.25, 10);
+    expect(markets.double_chance.draw_or_away).toBeCloseTo(0.25 + 0.25, 10);
+    expect(markets.double_chance.home_or_away).toBeCloseTo(0.50 + 0.25, 10);
+    // NOT equal to raw-based values (0.40+0.30=0.70, 0.30+0.30=0.60, etc.)
+    expect(markets.double_chance.home_or_draw).not.toBeCloseTo(0.40 + 0.30, 5);
+  });
+
+  it('§16.4 — DNB usa probs calibradas cuando se proveen (no las raw Poisson)', () => {
+    const m = makeUniform2x2();
+    // Raw: home=0.40, away=0.30; Calibrated: home=0.55, away=0.20
+    const markets = computeMarkets(m, 0.40, 0.30, 0.30, 1.2, 1.1, 0.55, 0.25, 0.20);
+    // DNB should use calibrated home=0.55 and away=0.20
+    const expectedDnbHome = 0.55 / (0.55 + 0.20);
+    expect(markets.dnb.home).toBeCloseTo(expectedDnbHome, 8);
+    expect(markets.dnb.home + markets.dnb.away).toBeCloseTo(1, 10);
+    // NOT equal to raw-based DNB (0.40/(0.40+0.30)=0.571...)
+    expect(markets.dnb.home).not.toBeCloseTo(0.40 / (0.40 + 0.30), 5);
+  });
+
+  it('§16.3/§16.4 — sin probs calibradas: fallback a raw Poisson (backward-compat)', () => {
+    const m = makeUniform2x2();
+    const markets = computeMarkets(m, 0.45, 0.30, 0.25, 1.2, 1.0);
+    // No calibrated probs passed → should use raw probs
+    expect(markets.double_chance.home_or_draw).toBeCloseTo(0.45 + 0.30, 10);
+    expect(markets.dnb.home).toBeCloseTo(0.45 / (0.45 + 0.25), 8);
+  });
+
+  it('§16.3 — O/U y BTTS no se ven afectados por las probs calibradas (usan matriz Poisson)', () => {
+    const m = makeUniform2x2();
+    const marketsRaw = computeMarkets(m, 0.40, 0.30, 0.30, 1.2, 1.1);
+    const marketsCal = computeMarkets(m, 0.40, 0.30, 0.30, 1.2, 1.1, 0.60, 0.20, 0.20);
+    // O/U and BTTS come from the matrix, unaffected by prob changes
+    expect(marketsRaw.over_under.over_0_5).toBeCloseTo(marketsCal.over_under.over_0_5, 10);
+    expect(marketsRaw.btts.yes).toBeCloseTo(marketsCal.btts.yes, 10);
   });
 });

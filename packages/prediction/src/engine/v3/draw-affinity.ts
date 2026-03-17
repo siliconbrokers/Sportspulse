@@ -58,6 +58,11 @@ export interface DrawAffinityResult {
  * @param tableProximity   Proximidad en la tabla: 1/(1+|ppg_H - ppg_A|) ∈ (0,1]
  * @param h2hDrawRate      Tasa de empate en el H2H específico de este cruce [0,1]
  */
+export interface DrawAffinityOverrides {
+  DRAW_AFFINITY_POWER?: number;
+  DRAW_LOW_SCORING_BETA?: number;
+}
+
 export function applyDrawAffinity(
   probHome: number,
   probDraw: number,
@@ -68,6 +73,7 @@ export function applyDrawAffinity(
   awayDrawRate?: number,
   tableProximity?: number,
   h2hDrawRate?: number,
+  overrides?: DrawAffinityOverrides,
 ): DrawAffinityResult {
   // Guardia: lambdas inválidas → no-op
   if (lambdaHome <= 0 || lambdaAway <= 0) {
@@ -84,7 +90,8 @@ export function applyDrawAffinity(
   const balance = Math.min(lambdaHome, lambdaAway) / Math.max(lambdaHome, lambdaAway);
 
   // Componente 1: balance de fuerzas (cuadrático → fuerte solo cuando muy equilibrados)
-  const balanceComponent = Math.pow(balance, DRAW_AFFINITY_POWER);
+  const effectivePower = overrides?.DRAW_AFFINITY_POWER ?? DRAW_AFFINITY_POWER;
+  const balanceComponent = Math.pow(balance, effectivePower);
 
   // Componente 2: bonus por bajo marcador esperado
   // Cuando avg_λ < THRESHOLD, los marcadores 0-0 y 1-1 dominan → empates más probables.
@@ -133,9 +140,10 @@ export function applyDrawAffinity(
   }
 
   // Señal combinada: balance × low-scoring × propensity × table × h2h
+  const effectiveLowScoringBeta = overrides?.DRAW_LOW_SCORING_BETA ?? DRAW_LOW_SCORING_BETA;
   const drawSignal =
     balanceComponent *
-    (1 + DRAW_LOW_SCORING_BETA * lowScoringFactor) *
+    (1 + effectiveLowScoringBeta * lowScoringFactor) *
     propensityFactor *
     tableProxFactor *
     h2hFactor;

@@ -85,6 +85,40 @@ export interface V3EngineInput {
    * Backward-compatible: if omitted, the engine behaves exactly as before.
    */
   calibrationTable?: CalibrationTable;
+
+  /**
+   * Internal: override specific hyperparameters for walk-forward sweep experiments.
+   * NOT for production use — only used by tools/sweep-hyperparams.ts.
+   * All fields optional; unset values fall back to constants.ts.
+   */
+  _overrideConstants?: {
+    K_SHRINK?: number;
+    PRIOR_EQUIV_GAMES?: number;
+    BETA_RECENT?: number;
+    DC_RHO?: number;
+    DRAW_AFFINITY_POWER?: number;
+    DRAW_LOW_SCORING_BETA?: number;
+    /** §SP-V4-05: override SOS_SENSITIVITY for sweep experiments. */
+    SOS_SENSITIVITY?: number;
+  };
+
+  /**
+   * Código de liga (ej: 'PD', 'PL', 'BL1').
+   * Cuando se provee, el motor busca en DC_RHO_PER_LEAGUE el rho óptimo para esa liga.
+   * Si la liga no tiene entrada o se omite, cae al DC_RHO global como fallback.
+   * Backward-compatible: omitir produce el comportamiento anterior.
+   */
+  leagueCode?: string;
+
+  /**
+   * Internal flag: skip DrawAffinity step.
+   * Used exclusively by gen-calibration.ts to generate calibration tuples
+   * from pre-affinity probabilities (Poisson + MarketBlend only).
+   * This ensures calibration is trained on the same probability space it is
+   * applied to at inference time (before DrawAffinity runs post-calibration).
+   * NOT for production use.
+   */
+  _skipDrawAffinity?: boolean;
 }
 
 // ── League Baselines (§4) ──────────────────────────────────────────────────
@@ -141,6 +175,13 @@ export interface MatchSignalRA {
   utcDate: string;
   attack_signal: number;
   defense_signal: number;
+  /**
+   * Fuerza relativa del rival en este partido.
+   * rival_strength = (opp_attack_eff + opp_defense_eff) / 2
+   * undefined cuando el rival no tiene suficientes datos (< RA_MIN_RIVAL_GAMES).
+   * Usado por computeRecencyDeltas para ponderar por SoS (§SP-V4-05).
+   */
+  rivalStrength?: number;
 }
 
 // ── Recency (§9) ───────────────────────────────────────────────────────────
@@ -200,6 +241,13 @@ export interface InjuryRecord {
    * The engine does not compute this -- it is an input.
    */
   importance: number;
+  /**
+   * Minutes played by this player in the current season (§SP-V4-12).
+   * When provided by injury-source.ts (fetched from player stats API),
+   * it is used to derive importance = minutesPlayed / (teamGamesPlayed * 90).
+   * Optional for backward compatibility — absence model works without it.
+   */
+  minutesPlayed?: number;
 }
 
 export interface LineupPlayer {
@@ -285,7 +333,7 @@ export type V3Warning =
  */
 export interface V3PredictionOutput {
   engine_id: 'v3_unified';
-  engine_version: '3.0';
+  engine_version: '4.2';
 
   // Elegibilidad y confianza
   eligibility: EligibilityStatus;

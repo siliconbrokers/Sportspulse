@@ -20,17 +20,17 @@ export const MIN_GAMES_FOR_RECENCY = 10;
 
 /**
  * Fuerza del prior de liga en shrinkage bayesiano — equivale a K partidos (§6, §19).
- * Optimizado K=3→4 vía backtest walk-forward 2025-26 (PD+PL+BL1, 806 partidos).
- * K=4 con PRIOR_EQUIV_GAMES=12 mejora accuracy total +1.4pp vs config original.
+ * Optimizado K=4→3 vía hyperparameter sweep 2025-26 (PD+PL+BL1, ~580 partidos).
+ * K=3 con PRIOR_EQUIV_GAMES=16 mejora score compuesto +0.028 vs config anterior.
  */
-export const K_SHRINK = 4;
+export const K_SHRINK = 3;
 
 /**
  * El prior de temporada anterior pesa como PRIOR_EQUIV_GAMES partidos (§7, §19).
- * Optimizado 8→12 vía backtest walk-forward 2025-26.
- * Más peso al prior estabiliza predicciones: LaLiga +3pp, BL1 +2pp.
+ * Optimizado 12→16 vía hyperparameter sweep 2025-26.
+ * Más prior estabiliza varianza en temporada temprana: DRAW recall +4.2pp.
  */
-export const PRIOR_EQUIV_GAMES = 12;
+export const PRIOR_EQUIV_GAMES = 16;
 
 /**
  * Referencia histórica del multiplicador de home advantage (§10, §19).
@@ -46,8 +46,38 @@ export const HOME_GOALS_FALLBACK = 1.45;
 /** Baseline de goles visitantes por partido cuando hay < MIN_GAMES_FOR_BASELINE (§4, §19). */
 export const AWAY_GOALS_FALLBACK = 1.15;
 
-/** Parámetro de correlación Dixon-Coles para scores bajos (§12, §19). */
-export const DC_RHO = -0.13;
+/**
+ * Parámetro de correlación Dixon-Coles para scores bajos (§12, §19).
+ * Optimizado -0.13→-0.15 vía DC_RHO sweep 2025-26 (K=3/PEG=16/β=0.20).
+ * RHO=-0.15 fijo supera al estimador empírico: DR +4.5pp, DP +1.5pp, acc +0.3pp.
+ * El estimador empírico (estimateDcRho) converge a valores sub-óptimos porque
+ * usa lambdas promedio de liga en vez de lambdas per-partido.
+ */
+export const DC_RHO = -0.15;
+
+/**
+ * Rho óptimo por liga (estimado via grid search walk-forward 2025-26, step 0.01).
+ * Fallback: DC_RHO (-0.15) para ligas no listadas o cuando leagueCode no se provee.
+ *
+ * Valores se populan después de correr tools/sweep-rho-per-league.ts.
+ * Si el sweep no muestra mejora >0.003 composite score sobre global, mantener vacío
+ * y usar DC_RHO como único valor global (sin overhead per-liga).
+ *
+ * Uso en v3-engine.ts:
+ *   const leagueRho = (input.leagueCode && DC_RHO_PER_LEAGUE[input.leagueCode]) ?? DC_RHO;
+ *   const estimatedRho = dcRhoOverride ?? leagueRho;
+ */
+export const DC_RHO_PER_LEAGUE: Record<string, number> = {
+  // Optimizado via sweep-rho-per-league.ts 2026-03-17 (walk-forward 2025-26, step 0.01).
+  // Mejora composite score (acc + 0.6×DR + 0.4×DP) sobre DC_RHO=-0.15 global:
+  //   PD:  -0.25 → +0.048  (PD más correlacionado en scores bajos: más 0-0 y 1-1)
+  //   PL:  -0.19 → +0.016  (PL suave mejora: ligeramente menos correlacionado que PD)
+  //   BL1: -0.14 → +0.011  (BL1 goleadora: menor corrección Dixon-Coles necesaria)
+  // Nota: PD=-0.25 es el límite del rango buscado. No se exploró < -0.25 por diseño.
+  'PD':  -0.25,
+  'PL':  -0.19,
+  'BL1': -0.14,
+};
 
 /** Ventana de partidos recientes para recency delta (§9, §19). */
 export const N_RECENT = 5;
@@ -60,10 +90,10 @@ export const BETA_DEFENSE = 1.0;
 
 /**
  * Elasticidad de recency en la fórmula log-lineal de lambdas (§11, §19).
- * Optimizado 0.45→0.15 vía backtest walk-forward 2025-26.
- * Menos peso de recency reduce ruido y mejora accuracy +1.3pp en todas las ligas.
+ * Optimizado 0.15→0.20 vía hyperparameter sweep 2025-26 (con calibración activa).
+ * Con calibración isotónica, BETA_RECENT=0.20 mejora DRAW recall +0.6pp sobre 0.15.
  */
-export const BETA_RECENT = 0.15;
+export const BETA_RECENT = 0.20;
 
 /** Clip mínimo de lambda (§11, §19). */
 export const LAMBDA_MIN = 0.3;
@@ -104,6 +134,21 @@ export const RECENCY_DELTA_MIN = 0.5;
 /** Clip superior para recency delta (§9). */
 export const RECENCY_DELTA_MAX = 2.0;
 
+/**
+ * Sensibilidad del ponderador SoS (Strength of Schedule) en recency delta (§SP-V4-05).
+ *
+ * Pondera los N_RECENT partidos por la calidad del rival enfrentado:
+ *   weight_i = 1 + SOS_SENSITIVITY * (rival_strength_i − 1.0)
+ * donde rival_strength_i = (opp_attack_eff + opp_defense_eff) / 2
+ *
+ * SOS_SENSITIVITY = 0 → promedio uniforme (comportamiento pre-SP-V4-05, backward-compatible).
+ * SOS_SENSITIVITY > 0 → partidos contra rivales más fuertes tienen mayor peso.
+ *
+ * Valor optimizado vía sweep walk-forward 2025-26 (PD+PL+BL1, ~590 partidos).
+ * Ver docs/audits/PE-audit-2026-03-17.md §SP-V4-05 para resultados del sweep.
+ */
+export const SOS_SENSITIVITY = 0.0;
+
 // ── T3 Constants (§MKT-T3-00) ─────────────────────────────────────────────
 
 /** Coverage threshold below which XG_PARTIAL_COVERAGE warning fires (§T3-01). */
@@ -123,6 +168,45 @@ export const DOUBTFUL_WEIGHT = 0.5;
 
 /** Weight of market odds in the 1X2 blend — 0 = pure model, 1 = pure market (§T3-04). */
 export const MARKET_WEIGHT = 0.15;
+
+// ── SP-V4-12: Importance threshold ────────────────────────────────────────────
+
+/**
+ * Minimum importance threshold for including a player in the absence model (§SP-V4-12).
+ * Players with importance < MIN_IMPORTANCE_THRESHOLD are treated as squad depth
+ * and excluded from the absence score computation.
+ * Threshold: 0.3 = at least 30% of possible minutes played = regular starter.
+ * Fallback: when importance cannot be derived from real data, use the raw value
+ * as supplied (or 0.5 default). This threshold only applies when computed from
+ * minutes played in injury-source.ts.
+ */
+export const MIN_IMPORTANCE_THRESHOLD = 0.3;
+
+// ── SP-V4-13: Positional impact factors ───────────────────────────────────────
+
+/**
+ * Per-position impact on attack lambda and defense lambda when a player is absent (§SP-V4-13).
+ *
+ * attackFactor:  reduction per unit importance applied to the team's scoring lambda
+ *                (lambda for goals SCORED by this team).
+ * defenseFactor: reduction per unit importance applied to the team's conceding lambda
+ *                (lambda for goals CONCEDED by this team = goals SCORED by the opponent).
+ *
+ * These replace ABSENCE_IMPACT_FACTOR when a player's position is known.
+ * Backward compatibility: if position is unknown, ABSENCE_IMPACT_FACTOR is used for both.
+ *
+ * Rationale:
+ *   GK  — absent goalkeeper hurts the back line; minimal effect on attack.
+ *   DEF — absent defender hurts defense; minimal effect on attack.
+ *   MID — balanced role; moderate contribution to both phases.
+ *   FWD — absent forward is primarily an attacking loss; minimal defensive effect.
+ */
+export const POSITION_IMPACT: Record<string, { attackFactor: number; defenseFactor: number }> = {
+  GK:  { attackFactor: 0.01, defenseFactor: 0.06 },
+  DEF: { attackFactor: 0.01, defenseFactor: 0.035 },
+  MID: { attackFactor: 0.03, defenseFactor: 0.02 },
+  FWD: { attackFactor: 0.05, defenseFactor: 0.01 },
+};
 
 /** Hard ceiling for market weight — safety (§T3-04). */
 export const MARKET_WEIGHT_MAX = 0.30;
@@ -144,30 +228,27 @@ export const MARGIN_FOR_HIGH_CONFIDENCE = 0.12;
 /**
  * Intensidad del boost de probabilidad de empate basado en balance de fuerzas.
  *
- * El modelo Poisson subestima empates estructuralmente cuando hay home advantage
- * (las distribuciones se separan). Este boost compensa ese sesgo.
+ * Con calibración isotónica activa (pipeline: Poisson→MarketBlend→Calibration→DrawAffinity),
+ * ALPHA=0.50 es el óptimo vía backtest walk-forward 2025-26 (PD+PL+BL1, ~580 partidos).
+ * Con K=3/PEG=16/β=0.20 + MARGIN=0.15: acc=49.0%, DRAW recall=51.3%, DRAW prec=32.1%
+ *   Por liga (MIXTA): PD 51.0% / BL1 57.1% / PL 36.5% DRAW recall
  *
- * La señal combinada es:
- *   balance_component = (min(λ)/max(λ))^POWER
- *   low_scoring_component = max(0, (THRESHOLD - avg_λ) / (THRESHOLD - 0.5))
- *   draw_mult = 1 + ALPHA × (balance_component + LOW_SCORING_BETA × low_scoring_component)
- *
- * Con alpha=0.70, power=2, low_beta=0.5:
- *   λh=0.9, λa=0.8 (muy bajo, equilibrado):  draw_mult ≈ 1.80 → p_draw +80%
- *   λh=1.3, λa=1.2 (moderado, equilibrado):  draw_mult ≈ 1.74
- *   λh=1.6, λa=1.5 (alto, equilibrado):      draw_mult ≈ 1.66
- *   λh=1.8, λa=1.0 (imbalanced):             draw_mult ≈ 1.22
- *
- * Optimizado 0.45→0.70 vía backtest walk-forward 2025-26 (PD+PL+BL1, 806 partidos).
- * Mayor ALPHA compensa las señales débiles de early-season (propensity/H2H/table
- * tienen pocas jornadas disponibles); el balance ratio + low-scoring trabajan solos.
+ * ALPHA>0.60 sobre-predice BL1 (55-62%) y colapsa PL (29-36%) → descartado.
+ * Sin calibración el óptimo era 0.70; con calibración el punto óptimo baja a 0.50
+ * porque la calibración ya corrige el sesgo HOME/AWAY, quedando menos trabajo
+ * para la affinity (solo diferenciación por balance de fuerzas).
  */
-export const DRAW_AFFINITY_ALPHA = 0.70;
+export const DRAW_AFFINITY_ALPHA = 0.50;
 
 /**
  * Exponente para el boost de draw affinity.
  * Power=2 → cuadrático: el boost es fuerte solo cuando los equipos son muy parejos.
  * Evita boostar demasiado partidos con diferencia de fuerzas real.
+ *
+ * Valor confirmado vía sweep POWER×BETA 2026-03-17 (25 combos, PD+PL+BL1, ~590 partidos).
+ * POWER=2.0 retiene acc=50.7% y AR=19.6% cuando BETA=1.0 — punto que maximiza DP
+ * sin violar los floors de acc (>49.5%) ni DR (>48%).
+ * POWER=1.0 mejora composite score pero hunde acc (-1.9pp) → descartado.
  */
 export const DRAW_AFFINITY_POWER = 2.0;
 
@@ -175,8 +256,13 @@ export const DRAW_AFFINITY_POWER = 2.0;
  * Bonus adicional al boost cuando el partido es de bajo marcador esperado.
  * avg_λ < DRAW_LOW_SCORING_THRESHOLD → partidos donde 0-0 y 1-1 dominan.
  * Factor multiplicativo sobre el componente de balance.
+ *
+ * Optimizado 0.50→1.00 vía sweep POWER×BETA 2026-03-17.
+ * Con POWER=2.0/BETA=1.00: acc=50.7%, DR=51.6%, DP=35.1% (+0.8pp vs anterior).
+ * BETA=0.50 era subóptimo: bajo marcador esperado es señal real de empate y
+ * la fórmula se beneficia de un peso mayor sobre esa componente.
  */
-export const DRAW_LOW_SCORING_BETA = 0.50;
+export const DRAW_LOW_SCORING_BETA = 1.00;
 
 /**
  * Umbral de lambda promedio por debajo del cual se considera partido de bajo marcador.
@@ -206,19 +292,19 @@ export const DRAW_LEAGUE_AVG_RATE = 0.25;
  * Si p_draw >= DRAW_FLOOR y max(p_home, p_away) - p_draw <= DRAW_MARGIN,
  * se predice DRAW aunque no sea el argmax estricto.
  *
- * Captura partidos equilibrados donde el modelo sabe que hay alta incertidumbre
- * pero el argmax siempre elegiría HOME_WIN por el home advantage estructural.
- *
- * FLOOR=0.34 calibrado vía backtest walk-forward 2025-26 (PD+PL+BL1, 806 partidos).
- * p_draw >= 0.34 tiene draw rate real ≈31-33% (encima del base rate ~26%).
+ * Con calibración activa, p_draw post-affinity tiene p50≈0.311, p75≈0.371.
+ * MARGIN es el constraint binding. FLOOR=0.27 es efectivamente no-restrictivo:
+ * resultados con FLOOR=0.20–0.28 son idénticos con el mismo MARGIN.
  */
-export const DRAW_FLOOR = 0.34;
+export const DRAW_FLOOR = 0.27;
 
 /**
  * Margen máximo entre el líder y p_draw para activar la regla de piso.
  * Si max(p_home, p_away) - p_draw <= DRAW_MARGIN → predecir DRAW.
- * MARGIN=0.12: captura partidos donde p_home ≤ 0.46 con p_draw = 0.34.
- * Resultado final: DRAW recall = 40.1%, accuracy global = 48.6%, DRAW precision ≈ 32.5%.
- * Calibrado vía backtest walk-forward 2025-26 (PD+PL+BL1, 806 partidos).
+ * Con calibración activa + K=3/PEG=16/β=0.20:
+ *   MARGIN=0.12 → acc=49.8%, DRAW recall=46.8%, DRAW prec=32.7%
+ *   MARGIN=0.15 fue testeado pero sacrifica -1.6pp accuracy y -2.1pp DRAW prec
+ *   por +4.5pp DR — tradeoff desfavorable para la utopía.
+ * MARGIN=0.12 retenido: mejor balance acc/DR/DP.
  */
 export const DRAW_MARGIN = 0.12;

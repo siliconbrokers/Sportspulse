@@ -146,6 +146,8 @@ export type {
   // §Cal Phase 5 calibration types
   CalibrationPoint,
   CalibrationTable,
+  // §SP-V4-10 market blend
+  MarketOddsRecord,
 } from './engine/v3/index.js';
 
 // ── Response Builder (Phase 4 — §21) ──────────────────────────────────────

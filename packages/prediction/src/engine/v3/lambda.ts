@@ -35,6 +35,7 @@ export interface V3LambdaInputs {
   venue_split_home: boolean;
   venue_split_away: boolean;
   baselines: LeagueBaselines;
+  betaRecentOverride?: number;
 }
 
 export interface V3LambdaResult {
@@ -72,7 +73,9 @@ export function computeV3Lambdas(inputs: V3LambdaInputs): V3LambdaResult {
     venue_split_home,
     venue_split_away,
     baselines,
+    betaRecentOverride,
   } = inputs;
+  const betaRecent = betaRecentOverride ?? BETA_RECENT;
 
   // §10: Home advantage — solo cuando venue split no disponible para alguno.
   // El multiplicador se deriva del ratio real de la liga (league_home/league_away)
@@ -111,15 +114,15 @@ export function computeV3Lambdas(inputs: V3LambdaInputs): V3LambdaResult {
     league_home_goals_pg *
     Math.pow(safeDiv(eff_attack_home, league_goals_pg), BETA_ATTACK) *
     Math.pow(safeDiv(eff_defense_away, league_goals_pg), BETA_DEFENSE) *
-    Math.pow(delta_attack_home, BETA_RECENT) *
-    Math.pow(delta_defense_away, BETA_RECENT);
+    Math.pow(delta_attack_home, betaRecent) *
+    Math.pow(delta_defense_away, betaRecent);
 
   const rawLambdaAway =
     league_away_goals_pg *
     Math.pow(safeDiv(eff_attack_away, league_goals_pg), BETA_ATTACK) *
     Math.pow(safeDiv(eff_defense_home, league_goals_pg), BETA_DEFENSE) *
-    Math.pow(delta_attack_away, BETA_RECENT) *
-    Math.pow(delta_defense_home, BETA_RECENT);
+    Math.pow(delta_attack_away, betaRecent) *
+    Math.pow(delta_defense_home, betaRecent);
 
   // §11: Clip de seguridad
   const lambda_home = Math.max(LAMBDA_MIN, Math.min(LAMBDA_MAX, rawLambdaHome));

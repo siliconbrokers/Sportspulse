@@ -55,10 +55,17 @@ export function computeMatchSignalsRA(
       ? oppEff.attack_eff
       : 1.0;
 
+    // §SP-V4-05: rival_strength para SoS-weighted recency.
+    // Solo disponible cuando el rival tiene suficientes datos para effective rates.
+    const rivalStrength = rivalAdjustmentAvailable
+      ? (oppEff.attack_eff + oppEff.defense_eff) / 2
+      : undefined;
+
     signals.push({
       utcDate: m.utcDate,
       attack_signal: scored / rival_defense_baseline,
       defense_signal: conceded / rival_attack_baseline,
+      rivalStrength,
     });
   }
 

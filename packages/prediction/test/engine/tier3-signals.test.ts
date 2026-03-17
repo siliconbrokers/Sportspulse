@@ -55,6 +55,7 @@ import {
   DOUBTFUL_WEIGHT,
   MARKET_WEIGHT,
   MARKET_ODDS_SUM_TOLERANCE,
+  POSITION_IMPACT,
 } from '../../src/engine/v3/constants.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -247,7 +248,7 @@ describe('T3-01: augmentMatchesWithXg', () => {
 // ── T3-02: absence-adjustment (injuries) ──────────────────────────────────────
 
 describe('T3-02: computeAbsenceMultiplier — injuries', () => {
-  it('T3-02a: 3 injuries → correct weighted score + mult', () => {
+  it('T3-02a: 3 injuries → correct weighted score + mult (§SP-V4-13 positional)', () => {
     const injuries: InjuryRecord[] = [
       { teamId: HOME, playerName: 'Player A', position: 'FWD', absenceType: 'INJURY', importance: 0.8 },
       { teamId: HOME, playerName: 'Player B', position: 'MID', absenceType: 'SUSPENSION', importance: 0.6 },
@@ -256,10 +257,18 @@ describe('T3-02: computeAbsenceMultiplier — injuries', () => {
 
     const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
 
-    // absence_score_home = 0.8*1.0 + 0.6*1.0 + 0.4*1.0 = 1.8
+    // absence_score_home (unified) = 0.8*1.0 + 0.6*1.0 + 0.4*1.0 = 1.8
     expect(result.absence_score_home).toBeCloseTo(1.8, 6);
-    // mult_home = max(ABSENCE_MULT_MIN, 1 - 1.8 * ABSENCE_IMPACT_FACTOR)
-    const expectedMult = Math.max(ABSENCE_MULT_MIN, 1 - 1.8 * ABSENCE_IMPACT_FACTOR);
+
+    // §SP-V4-13: attackScore uses positional factors
+    // FWD: 0.8 * 1.0 * POSITION_IMPACT.FWD.attackFactor / ABSENCE_IMPACT_FACTOR
+    // MID: 0.6 * 1.0 * POSITION_IMPACT.MID.attackFactor / ABSENCE_IMPACT_FACTOR
+    // DEF: 0.4 * 1.0 * POSITION_IMPACT.DEF.attackFactor / ABSENCE_IMPACT_FACTOR
+    const attackScore =
+      0.8 * POSITION_IMPACT['FWD']!.attackFactor / ABSENCE_IMPACT_FACTOR +
+      0.6 * POSITION_IMPACT['MID']!.attackFactor / ABSENCE_IMPACT_FACTOR +
+      0.4 * POSITION_IMPACT['DEF']!.attackFactor / ABSENCE_IMPACT_FACTOR;
+    const expectedMult = Math.max(ABSENCE_MULT_MIN, 1 - attackScore * ABSENCE_IMPACT_FACTOR);
     expect(result.mult_home).toBeCloseTo(expectedMult, 6);
     expect(result.mult_home).toBeLessThan(1.0);
     expect(result.mult_away).toBe(1.0);
@@ -268,16 +277,19 @@ describe('T3-02: computeAbsenceMultiplier — injuries', () => {
     expect(result.applied).toBe(true);
   });
 
-  it('T3-02b: DOUBTFUL → 50% weight aplicado', () => {
+  it('T3-02b: DOUBTFUL → 50% weight aplicado (§SP-V4-13 positional)', () => {
     const injuries: InjuryRecord[] = [
       { teamId: AWAY, playerName: 'Player D', position: 'FWD', absenceType: 'DOUBTFUL', importance: 1.0 },
     ];
 
     const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
 
-    // absence_score_away = 1.0 * DOUBTFUL_WEIGHT = 0.5
+    // absence_score_away (unified) = 1.0 * DOUBTFUL_WEIGHT = 0.5
     expect(result.absence_score_away).toBeCloseTo(1.0 * DOUBTFUL_WEIGHT, 6);
-    const expectedMult = Math.max(ABSENCE_MULT_MIN, 1 - DOUBTFUL_WEIGHT * ABSENCE_IMPACT_FACTOR);
+
+    // §SP-V4-13: attackScore uses DOUBTFUL_WEIGHT and FWD position
+    const attackScore = (1.0 * DOUBTFUL_WEIGHT) * POSITION_IMPACT['FWD']!.attackFactor / ABSENCE_IMPACT_FACTOR;
+    const expectedMult = Math.max(ABSENCE_MULT_MIN, 1 - attackScore * ABSENCE_IMPACT_FACTOR);
     expect(result.mult_away).toBeCloseTo(expectedMult, 6);
     expect(result.mult_home).toBe(1.0);
     expect(result.applied).toBe(true);
@@ -311,6 +323,109 @@ describe('T3-02: computeAbsenceMultiplier — injuries', () => {
     expect(result.absence_score_away).toBe(0);
     expect(result.absence_count_home).toBe(0);
     expect(result.absence_count_away).toBe(0);
+  });
+});
+
+// ── T3-POS: §SP-V4-13 Positional factors ──────────────────────────────────────
+
+describe('T3-POS: §SP-V4-13 positional absence factors', () => {
+  it('T3-POS-01: GK absence penalizes defense more than attack', () => {
+    const injuries: InjuryRecord[] = [
+      { teamId: HOME, playerName: 'GK Player', position: 'GK', absenceType: 'INJURY', importance: 1.0 },
+    ];
+    const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
+
+    // GK: attackFactor=0.01 (very small), defenseFactor=0.06 (large)
+    // mult_home (attack) should be close to 1.0 (small penalty)
+    // mult_defense_home should be significantly below 1.0
+    expect(result.mult_home).toBeGreaterThan(result.mult_defense_home);
+    // Verify actual values match formula:
+    // attackScore = 1.0 * 0.01 / 0.04 = 0.25 → mult_home = 1 - 0.25*0.04 = 0.99
+    expect(result.mult_home).toBeCloseTo(1 - (POSITION_IMPACT['GK']!.attackFactor / ABSENCE_IMPACT_FACTOR) * ABSENCE_IMPACT_FACTOR, 9);
+    // defenseScore = 1.0 * 0.06 / 0.04 = 1.5 → mult_defense_home = 1 - 1.5*0.04 = 0.94
+    expect(result.mult_defense_home).toBeCloseTo(1 - (POSITION_IMPACT['GK']!.defenseFactor / ABSENCE_IMPACT_FACTOR) * ABSENCE_IMPACT_FACTOR, 9);
+  });
+
+  it('T3-POS-02: FWD absence penalizes attack more than defense', () => {
+    const injuries: InjuryRecord[] = [
+      { teamId: AWAY, playerName: 'FWD Player', position: 'FWD', absenceType: 'INJURY', importance: 1.0 },
+    ];
+    const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
+
+    // FWD: attackFactor=0.05 (large), defenseFactor=0.01 (small)
+    // mult_away (attack) should be significantly below 1.0
+    // mult_defense_away should be close to 1.0
+    expect(result.mult_away).toBeLessThan(result.mult_defense_away);
+    // attackScore = 1.0 * 0.05 / 0.04 = 1.25 → mult_away = 1 - 1.25*0.04 = 0.95
+    expect(result.mult_away).toBeCloseTo(1 - (POSITION_IMPACT['FWD']!.attackFactor / ABSENCE_IMPACT_FACTOR) * ABSENCE_IMPACT_FACTOR, 9);
+    // defenseScore = 1.0 * 0.01 / 0.04 = 0.25 → mult_defense_away = 1 - 0.25*0.04 = 0.99
+    expect(result.mult_defense_away).toBeCloseTo(1 - (POSITION_IMPACT['FWD']!.defenseFactor / ABSENCE_IMPACT_FACTOR) * ABSENCE_IMPACT_FACTOR, 9);
+  });
+
+  it('T3-POS-03: DEF absence has more defense impact than attack', () => {
+    const injuries: InjuryRecord[] = [
+      { teamId: HOME, playerName: 'DEF Player', position: 'DEF', absenceType: 'INJURY', importance: 1.0 },
+    ];
+    const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
+
+    // DEF: attackFactor=0.01, defenseFactor=0.035
+    expect(result.mult_home).toBeGreaterThan(result.mult_defense_home);
+    expect(result.mult_defense_home).toBeCloseTo(1 - (POSITION_IMPACT['DEF']!.defenseFactor / ABSENCE_IMPACT_FACTOR) * ABSENCE_IMPACT_FACTOR, 9);
+  });
+
+  it('T3-POS-04: MID absence is balanced (both attack and defense)', () => {
+    const injuries: InjuryRecord[] = [
+      { teamId: HOME, playerName: 'MID Player', position: 'MID', absenceType: 'INJURY', importance: 1.0 },
+    ];
+    const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
+
+    // MID: attackFactor=0.03, defenseFactor=0.02 — attack slightly higher
+    expect(result.mult_home).toBeLessThan(result.mult_defense_home);
+    expect(result.mult_home).toBeCloseTo(1 - (POSITION_IMPACT['MID']!.attackFactor / ABSENCE_IMPACT_FACTOR) * ABSENCE_IMPACT_FACTOR, 9);
+    expect(result.mult_defense_home).toBeCloseTo(1 - (POSITION_IMPACT['MID']!.defenseFactor / ABSENCE_IMPACT_FACTOR) * ABSENCE_IMPACT_FACTOR, 9);
+  });
+
+  it('T3-POS-05: cross-team application — GK home absence increases lambda_away', () => {
+    // GK absent from home team → home defense weakens → more goals FOR away team
+    // In engine: lambda_away *= mult_away * mult_defense_home
+    // mult_defense_home should be < 1 when home has GK absent
+    const injuries: InjuryRecord[] = [
+      { teamId: HOME, playerName: 'GK', position: 'GK', absenceType: 'INJURY', importance: 1.0 },
+    ];
+    const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
+
+    // mult_defense_home < 1 → away's score amplified
+    expect(result.mult_defense_home).toBeLessThan(1.0);
+    // mult_home (home attack) barely reduced
+    expect(result.mult_home).toBeGreaterThan(result.mult_defense_home);
+    // away attack unchanged
+    expect(result.mult_away).toBe(1.0);
+    expect(result.mult_defense_away).toBe(1.0);
+  });
+
+  it('T3-POS-06: FWD away absence → away attack penalty only (not home defense)', () => {
+    const injuries: InjuryRecord[] = [
+      { teamId: AWAY, playerName: 'Striker', position: 'FWD', absenceType: 'INJURY', importance: 1.0 },
+    ];
+    const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
+
+    // mult_away (away attack) should be penalized
+    expect(result.mult_away).toBeLessThan(1.0);
+    // mult_defense_away (away defense) should barely change
+    expect(result.mult_defense_away).toBeGreaterThan(result.mult_away);
+    // home side unaffected
+    expect(result.mult_home).toBe(1.0);
+    expect(result.mult_defense_home).toBe(1.0);
+  });
+
+  it('T3-POS-07: no data → all multipliers = 1.0, applied = false', () => {
+    const result = computeAbsenceMultiplier(HOME, AWAY, undefined, undefined);
+
+    expect(result.mult_home).toBe(1.0);
+    expect(result.mult_away).toBe(1.0);
+    expect(result.mult_defense_home).toBe(1.0);
+    expect(result.mult_defense_away).toBe(1.0);
+    expect(result.applied).toBe(false);
   });
 });
 
@@ -653,5 +768,54 @@ describe('T3-WARN: warning codes T3', () => {
     expect(result.warnings).not.toContain('XG_PARTIAL_COVERAGE');
     expect(result.warnings).not.toContain('MARKET_ODDS_INVALID');
     expect(result.warnings).not.toContain('ABSENCE_DATA_STALE');
+  });
+});
+
+// ── T3-V4-12: Importance threshold (§SP-V4-12) ────────────────────────────────
+
+describe('T3-V4-12: importance threshold in absence model', () => {
+  it('Player with importance >= MIN_IMPORTANCE_THRESHOLD is included', () => {
+    // MIN_IMPORTANCE_THRESHOLD = 0.3; importance=0.5 → should be included
+    const injuries: InjuryRecord[] = [
+      { teamId: HOME, playerName: 'Regular Starter', position: 'MID', absenceType: 'INJURY', importance: 0.5 },
+    ];
+    const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
+
+    // Player counted
+    expect(result.absence_count_home).toBe(1);
+    expect(result.absence_score_home).toBeGreaterThan(0);
+    expect(result.applied).toBe(true);
+  });
+
+  it('Player with importance below threshold still affects absence score (threshold is server-side filter)', () => {
+    // The engine itself has no threshold — the MIN_IMPORTANCE_THRESHOLD is applied
+    // in injury-source.ts before records reach the engine.
+    // A player with importance=0.1 passed to the engine WILL be counted.
+    const injuries: InjuryRecord[] = [
+      { teamId: HOME, playerName: 'Squad Player', position: 'MID', absenceType: 'INJURY', importance: 0.1 },
+    ];
+    const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
+
+    // Engine is pure — it uses what it's given (threshold enforced upstream)
+    expect(result.absence_count_home).toBe(1);
+    expect(result.absence_score_home).toBeCloseTo(0.1, 6);
+  });
+
+  it('Empty injuries array → no effect regardless of threshold', () => {
+    const result = computeAbsenceMultiplier(HOME, AWAY, [], undefined);
+    expect(result.applied).toBe(false);
+    expect(result.absence_count_home).toBe(0);
+  });
+
+  it('minutesPlayed field is passthrough (informational only in engine)', () => {
+    const injuries: InjuryRecord[] = [
+      { teamId: HOME, playerName: 'Player', position: 'FWD', absenceType: 'INJURY', importance: 0.8, minutesPlayed: 1800 },
+    ];
+    const result = computeAbsenceMultiplier(HOME, AWAY, injuries, undefined);
+
+    // minutesPlayed doesn't change engine behavior — importance is what matters
+    const attackScore = 0.8 * POSITION_IMPACT['FWD']!.attackFactor / ABSENCE_IMPACT_FACTOR;
+    const expectedMult = Math.max(ABSENCE_MULT_MIN, 1 - attackScore * ABSENCE_IMPACT_FACTOR);
+    expect(result.mult_home).toBeCloseTo(expectedMult, 6);
   });
 });

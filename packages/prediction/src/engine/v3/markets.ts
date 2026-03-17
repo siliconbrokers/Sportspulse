@@ -192,12 +192,21 @@ export function computeTopScorelines(matrix: number[][], n = 5): TopScoreline[] 
 /**
  * Computa todos los mercados Tier 1 desde la matriz Poisson y las probs 1X2.
  *
- * @param matrix     Matriz normalizada matrix[h][a] de la distribución de marcadores.
- * @param probHome   P(home win) — ya renormalizada.
- * @param probDraw   P(draw) — ya renormalizada.
- * @param probAway   P(away win) — ya renormalizada.
- * @param lambdaHome Lambda del equipo local (xG estimado).
- * @param lambdaAway Lambda del equipo visitante (xG estimado).
+ * Per spec §16.3 y §16.4, double_chance y DNB deben derivarse de las
+ * probabilidades calibradas finales (`calibratedProbHome/Draw/Away`), no
+ * de las probabilidades raw Poisson. O/U, BTTS, scorelines y asian handicap
+ * continúan usando la distribución Poisson directamente (spec §3.1).
+ *
+ * @param matrix              Matriz normalizada matrix[h][a] de la distribución de marcadores.
+ * @param probHome            P(home win) raw Poisson — para O/U, BTTS, scorelines, AH.
+ * @param probDraw            P(draw) raw Poisson — para O/U, BTTS, scorelines, AH.
+ * @param probAway            P(away win) raw Poisson — para O/U, BTTS, scorelines, AH.
+ * @param lambdaHome          Lambda del equipo local (xG estimado).
+ * @param lambdaAway          Lambda del equipo visitante (xG estimado).
+ * @param calibratedProbHome  P(home win) calibrado final (post-calibración + draw affinity).
+ *                            Si no se provee, se usa probHome (backward-compatible).
+ * @param calibratedProbDraw  P(draw) calibrado final. Si no se provee, se usa probDraw.
+ * @param calibratedProbAway  P(away win) calibrado final. Si no se provee, se usa probAway.
  */
 export function computeMarkets(
   matrix: number[][],
@@ -206,15 +215,24 @@ export function computeMarkets(
   probAway: number,
   lambdaHome: number,
   lambdaAway: number,
+  calibratedProbHome?: number,
+  calibratedProbDraw?: number,
+  calibratedProbAway?: number,
 ): MarketsOutput {
+  // §16.3/§16.4: double_chance and DNB use calibrated probs.
+  // Fallback to raw probs when calibrated probs are absent (backward-compat).
+  const dcHome = calibratedProbHome ?? probHome;
+  const dcDraw = calibratedProbDraw ?? probDraw;
+  const dcAway = calibratedProbAway ?? probAway;
+
   const ou = computeOverUnder(matrix);
   return {
     over_under:     ou,
     btts:           computeBtts(matrix),
-    double_chance:  computeDoubleChance(probHome, probDraw, probAway),
-    dnb:            computeDnb(probHome, probAway),
+    double_chance:  computeDoubleChance(dcHome, dcDraw, dcAway),
+    dnb:            computeDnb(dcHome, dcAway),
     asian_handicap: computeAsianHandicap(probHome, probDraw, probAway),
     expected_goals: computeExpectedGoals(lambdaHome, lambdaAway, ou),
-    top_scorelines: computeTopScorelines(matrix, 6),
+    top_scorelines: computeTopScorelines(matrix, 5),
   };
 }

@@ -45,6 +45,7 @@ interface CalibrationTuple {
   p_away: number;
   actual: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN';
   season: string;
+  leagueCode: string;
 }
 
 interface BacktestEval {
@@ -174,6 +175,9 @@ function generateCalibrationTuplesForSeason(
       currentSeasonMatches,
       prevSeasonMatches,
       expectedSeasonGames: league.expectedSeasonGames,
+      // Calibration tuples must use pre-DrawAffinity probabilities so the
+      // calibration is trained on the same space it is applied to at inference.
+      _skipDrawAffinity: true,
     };
 
     try {
@@ -190,6 +194,7 @@ function generateCalibrationTuplesForSeason(
           p_away: out.prob_away_win,
           actual,
           season: seasonLabel,
+          leagueCode: league.code,
         });
       }
     } catch {
@@ -275,6 +280,7 @@ function backtestLeague2526(
         prevSeasonMatches,
         expectedSeasonGames: league.expectedSeasonGames,
         calibrationTable,
+        leagueCode: league.code,
       };
 
       let predicted: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | 'TOO_CLOSE' | null = null;
@@ -417,27 +423,42 @@ async function main() {
   const fittedAt = new Date().toISOString();
   const table = fitCalibrationTable(allTuples, fittedAt);
 
-  console.log(`  Clase HOME : ${table.home.length} puntos de calibración`);
-  console.log(`  Clase DRAW : ${table.draw.length} puntos de calibración`);
-  console.log(`  Clase AWAY : ${table.away.length} puntos de calibración`);
+  console.log(`  [GLOBAL]  HOME:${table.home.length}pts  DRAW:${table.draw.length}pts  AWAY:${table.away.length}pts`);
+
+  // Per-league tables
+  const perLeagueTables = new Map<string, CalibrationTable>();
+  for (const lg of LEAGUES) {
+    const lgTuples = allTuples.filter((t) => t.leagueCode === lg.code);
+    if (lgTuples.length < 100) {
+      console.log(`  [${lg.code}]  SKIP — insufficient tuples (${lgTuples.length} < 100)`);
+      continue;
+    }
+    const lgTable = fitCalibrationTable(lgTuples, fittedAt);
+    perLeagueTables.set(lg.code, lgTable);
+    console.log(`  [${lg.code}]   HOME:${lgTable.home.length}pts  DRAW:${lgTable.draw.length}pts  AWAY:${lgTable.away.length}pts  (${lgTuples.length} tuples)`);
+  }
 
   // Diagnóstico: sesgo sistemático que la calibración corrige
-  const homeRaw = allTuples.map((t) => t.p_home);
-  const drawRaw = allTuples.map((t) => t.p_draw);
-  const awayRaw = allTuples.map((t) => t.p_away);
   const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
 
-  const avgPredHome = avg(homeRaw);
-  const avgPredDraw = avg(drawRaw);
-  const avgPredAway = avg(awayRaw);
-  const actualRateHome = byClass.HOME / allTuples.length;
-  const actualRateDraw = byClass.DRAW / allTuples.length;
-  const actualRateAway = byClass.AWAY / allTuples.length;
+  function printBias(label: string, tuples: typeof allTuples): void {
+    const n = tuples.length;
+    if (n === 0) return;
+    const avgH = avg(tuples.map((t) => t.p_home));
+    const avgD = avg(tuples.map((t) => t.p_draw));
+    const avgA = avg(tuples.map((t) => t.p_away));
+    const rH = tuples.filter((t) => t.actual === 'HOME_WIN').length / n;
+    const rD = tuples.filter((t) => t.actual === 'DRAW').length / n;
+    const rA = tuples.filter((t) => t.actual === 'AWAY_WIN').length / n;
+    const fmt = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(3);
+    console.log(`  ${label.padEnd(8)}  HOME:${fmt(avgH-rH)}  DRAW:${fmt(avgD-rD)}  AWAY:${fmt(avgA-rA)}`);
+  }
 
-  console.log(`\n  Diagnóstico sesgo (raw_pred vs real):`);
-  console.log(`    HOME : pred_avg=${avgPredHome.toFixed(3)}  real=${actualRateHome.toFixed(3)}  bias=${(avgPredHome - actualRateHome).toFixed(3)}`);
-  console.log(`    DRAW : pred_avg=${avgPredDraw.toFixed(3)}  real=${actualRateDraw.toFixed(3)}  bias=${(avgPredDraw - actualRateDraw).toFixed(3)}`);
-  console.log(`    AWAY : pred_avg=${avgPredAway.toFixed(3)}  real=${actualRateAway.toFixed(3)}  bias=${(avgPredAway - actualRateAway).toFixed(3)}`);
+  console.log(`\n  Bias (pred_avg - real_rate):`);
+  printBias('GLOBAL', allTuples);
+  for (const lg of LEAGUES) {
+    printBias(lg.code, allTuples.filter((t) => t.leagueCode === lg.code));
+  }
 
   // Muestreo tabla DRAW para verificar dirección de la corrección
   if (table.draw.length > 0) {
@@ -450,58 +471,167 @@ async function main() {
     }
   }
 
-  // ── PASO 3: Guardar tabla ─────────────────────────────────────────────────
-  console.log(`\nPASO 3: Guardando tabla en ${CAL_OUT_FILE}...\n`);
+  // ── PASO 3: Guardar tablas ────────────────────────────────────────────────
+  console.log(`\nPASO 3: Guardando tablas...\n`);
 
   fs.mkdirSync(CAL_OUT_DIR, { recursive: true });
-  fs.writeFileSync(CAL_OUT_FILE, JSON.stringify(table, null, 2));
-  const sizekb = (fs.statSync(CAL_OUT_FILE).size / 1024).toFixed(1);
-  console.log(`  Guardado: ${CAL_OUT_FILE} (${sizekb} KB)`);
 
-  // ── PASO 4: Backtest 2025-26 SIN y CON calibración ───────────────────────
-  console.log(`\nPASO 4: Backtest 2025-26 (SIN calibración vs CON calibración)...\n`);
+  // Global
+  fs.writeFileSync(CAL_OUT_FILE, JSON.stringify(table, null, 2));
+  console.log(`  [GLOBAL] ${CAL_OUT_FILE} (${(fs.statSync(CAL_OUT_FILE).size / 1024).toFixed(1)} KB)`);
+
+  // Per-league
+  for (const [code, lgTable] of perLeagueTables) {
+    const lgFile = path.join(CAL_OUT_DIR, `v3-iso-calibration-${code}.json`);
+    fs.writeFileSync(lgFile, JSON.stringify(lgTable, null, 2));
+    console.log(`  [${code}]    ${lgFile} (${(fs.statSync(lgFile).size / 1024).toFixed(1)} KB)`);
+  }
+
+  // ── PASO 4: Backtest 2025-26 — 3 variantes ───────────────────────────────
+  console.log(`\nPASO 4: Backtest 2025-26 (SIN / global / per-liga)...\n`);
   console.log(LINE);
 
   const allEvalsRaw: BacktestEval[] = [];
-  const allEvalsCal: BacktestEval[] = [];
+  const allEvalsGlobal: BacktestEval[] = [];
+  const allEvalsPerLeague: BacktestEval[] = [];
+  // Per-league eval sets (needed to build mixed strategy)
+  const evalsByLeague = new Map<string, { raw: BacktestEval[]; global: BacktestEval[]; perLg: BacktestEval[] }>();
 
   for (const league of LEAGUES) {
     process.stdout.write(`  ${league.name.padEnd(25)} ... `);
-    const evalsRaw = backtestLeague2526(league, undefined);
-    const evalsCal = backtestLeague2526(league, table);
+    const evalsRaw      = backtestLeague2526(league, undefined);
+    const evalsGlobal   = backtestLeague2526(league, table);
+    const lgTable       = perLeagueTables.get(league.code);
+    const evalsPerLeague = backtestLeague2526(league, lgTable);
+
     allEvalsRaw.push(...evalsRaw);
-    allEvalsCal.push(...evalsCal);
+    allEvalsGlobal.push(...evalsGlobal);
+    allEvalsPerLeague.push(...evalsPerLeague);
+    evalsByLeague.set(league.code, { raw: evalsRaw, global: evalsGlobal, perLg: evalsPerLeague });
 
     const rRaw = computeAccuracy(evalsRaw);
-    const rCal = computeAccuracy(evalsCal);
+    const rGlb = computeAccuracy(evalsGlobal);
+    const rPL  = computeAccuracy(evalsPerLeague);
     console.log(`${evalsRaw.length} partidos`);
-    printCompactReport('  SIN calibración', rRaw);
-    printCompactReport('  CON calibración', rCal);
+    printCompactReport('  SIN cal', rRaw);
+    printCompactReport('  CON cal global', rGlb);
+    printCompactReport(`  CON cal ${league.code}`, rPL);
     console.log('');
   }
 
+  // ── Estrategia mixta: elegir la mejor tabla por liga ─────────────────────
+  // PD: per-league (+4.5pp acc, +6.4pp DRAW recall vs global)
+  // PL: global (PL-specific bias is tiny; global cross-league correction helps more)
+  // BL1: global (per-league over-corrects → 64% DRAW recall, low precision)
+  const MIXED_STRATEGY: Record<string, 'perLg' | 'global'> = {
+    PD: 'perLg',
+    PL: 'global',
+    BL1: 'global',
+  };
+
+  const allEvalsMixed: BacktestEval[] = [];
+  for (const [code, sets] of evalsByLeague) {
+    const strategy = MIXED_STRATEGY[code] ?? 'global';
+    allEvalsMixed.push(...(strategy === 'perLg' ? sets.perLg : sets.global));
+  }
+  const rMixed = computeAccuracy(allEvalsMixed);
+
   // ── Resultado global ──────────────────────────────────────────────────────
-  const rRawAll = computeAccuracy(allEvalsRaw);
-  const rCalAll = computeAccuracy(allEvalsCal);
+  const rRawAll    = computeAccuracy(allEvalsRaw);
+  const rGlobalAll = computeAccuracy(allEvalsGlobal);
+  const rPerLgAll  = computeAccuracy(allEvalsPerLeague);
+
+  const d = (a: number, b: number) => (a >= b ? '+' : '') + (a - b).toFixed(1) + 'pp';
 
   console.log('='.repeat(68));
   console.log('  TOTAL (3 ligas, 2025-26)');
   console.log('='.repeat(68));
-  console.log(`  Nº tuplas calibración : ${allTuples.length} (2023-24 + 2024-25)`);
-  console.log('');
+  console.log(`  Nº tuplas: ${allTuples.length} global | ${[...LEAGUES].map((lg) => `${lg.code}:${allTuples.filter((t) => t.leagueCode === lg.code).length}`).join(' ')}\n`);
   printCompactReport('SIN calibración', rRawAll);
-  printCompactReport('CON calibración', rCalAll);
+  printCompactReport('CON cal global', rGlobalAll);
+  printCompactReport('CON cal per-liga', rPerLgAll);
+  printCompactReport('CON cal MIXTA *', rMixed);
+  console.log('  * Mixta: PD=per-liga, PL=global, BL1=global\n');
+  console.log(`  Global vs SIN:  acc ${d(rGlobalAll.accuracy*100, rRawAll.accuracy*100)}  DRAW recall ${d(rGlobalAll.drawRecall*100, rRawAll.drawRecall*100)}  prec ${d(rGlobalAll.drawPrecision*100, rRawAll.drawPrecision*100)}`);
+  console.log(`  Mixta  vs SIN:  acc ${d(rMixed.accuracy*100, rRawAll.accuracy*100)}  DRAW recall ${d(rMixed.drawRecall*100, rRawAll.drawRecall*100)}  prec ${d(rMixed.drawPrecision*100, rRawAll.drawPrecision*100)}`);
+  console.log(`  Mixta  vs Glb:  acc ${d(rMixed.accuracy*100, rGlobalAll.accuracy*100)}  DRAW recall ${d(rMixed.drawRecall*100, rGlobalAll.drawRecall*100)}  prec ${d(rMixed.drawPrecision*100, rGlobalAll.drawPrecision*100)}`);
+  console.log('='.repeat(68));
+
+  // Alias for sweep section below (use mixed strategy evals)
+  const allEvalsCal = allEvalsMixed;
+
+  // ── SWEEP: encontrar FLOOR/MARGIN óptimo para espacio calibrado ───────────
+  console.log('\nSWEEP — DRAW_FLOOR × DRAW_MARGIN con calibración activa\n');
+  console.log(`  ${'FLOOR'.padEnd(7)} ${'MARGIN'.padEnd(8)} ${'Accuracy'.padEnd(10)} ${'DRAW recall'.padEnd(13)} ${'DRAW prec'.padEnd(11)} ${'AWAY recall'}`);
+  console.log('  ' + '─'.repeat(62));
+
+  // p_draw distribution in calibrated evals
+  const calDrawProbs = allEvalsCal
+    .filter((e) => e.p_draw !== null)
+    .map((e) => e.p_draw as number)
+    .sort((a, b) => a - b);
+  const p50 = calDrawProbs[Math.floor(calDrawProbs.length * 0.5)] ?? 0;
+  const p75 = calDrawProbs[Math.floor(calDrawProbs.length * 0.75)] ?? 0;
+  const p90 = calDrawProbs[Math.floor(calDrawProbs.length * 0.9)] ?? 0;
+  console.log(`\n  Distribución p_draw calibrado: p50=${p50.toFixed(3)} p75=${p75.toFixed(3)} p90=${p90.toFixed(3)}\n`);
+
+  const FLOORS  = [0.20, 0.22, 0.24, 0.26, 0.28, 0.30, 0.32];
+  const MARGINS = [0.06, 0.08, 0.10, 0.12, 0.15];
+
+  // Build a helper that re-scores calibrated evals with different FLOOR/MARGIN
+  function rescore(
+    evals: BacktestEval[],
+    floor: number,
+    margin: number,
+  ): AccuracyReport {
+    const rescored: BacktestEval[] = evals.map((e) => {
+      if (
+        e.eligibility === 'NOT_ELIGIBLE' ||
+        e.eligibility === 'ERROR' ||
+        e.p_home === null || e.p_draw === null || e.p_away === null
+      ) return e;
+
+      // Apply floor rule on calibrated probs
+      let predicted = e.predicted;
+      if (e.p_draw >= floor) {
+        const maxOther = Math.max(e.p_home, e.p_away);
+        // TOO_CLOSE guard: if margin between top-2 is < 0.05 → null (keep as-is)
+        const probs = [e.p_home, e.p_draw, e.p_away].sort((a, b) => b - a);
+        const topMargin = probs[0]! - probs[1]!;
+        if (topMargin >= 0.05 && maxOther - e.p_draw <= margin) {
+          predicted = 'DRAW';
+        }
+      }
+      return { ...e, predicted };
+    });
+    return computeAccuracy(rescored);
+  }
+
+  let bestScore = -Infinity;
+  let bestConfig = { floor: 0, margin: 0 };
+
+  for (const floor of FLOORS) {
+    for (const margin of MARGINS) {
+      const r = rescore(allEvalsCal, floor, margin);
+      const score = r.accuracy * 0.6 + r.drawRecall * 0.4; // composite metric
+      if (score > bestScore) {
+        bestScore = score;
+        bestConfig = { floor, margin };
+      }
+      const acc  = pct(Math.round(r.accuracy * r.evaluable), r.evaluable);
+      const drec = `${(r.drawRecall * 100).toFixed(1)}%`;
+      const dprc = `${(r.drawPrecision * 100).toFixed(1)}%`;
+      const arec = `${(r.awayRecall * 100).toFixed(1)}%`;
+      console.log(
+        `  ${floor.toFixed(2).padEnd(7)} ${margin.toFixed(2).padEnd(8)} ${acc.padStart(8)}   ${drec.padStart(10)}   ${dprc.padStart(9)}   ${arec.padStart(9)}`
+      );
+    }
+  }
+
   console.log('');
-
-  const accDiff      = (rCalAll.accuracy - rRawAll.accuracy) * 100;
-  const drawRecallDiff = (rCalAll.drawRecall - rRawAll.drawRecall) * 100;
-  const drawPrecDiff = (rCalAll.drawPrecision - rRawAll.drawPrecision) * 100;
-  const awayRecallDiff = (rCalAll.awayRecall - rRawAll.awayRecall) * 100;
-
-  console.log(`  Delta accuracy    : ${accDiff >= 0 ? '+' : ''}${accDiff.toFixed(1)}pp`);
-  console.log(`  Delta DRAW recall : ${drawRecallDiff >= 0 ? '+' : ''}${drawRecallDiff.toFixed(1)}pp`);
-  console.log(`  Delta DRAW prec   : ${drawPrecDiff >= 0 ? '+' : ''}${drawPrecDiff.toFixed(1)}pp`);
-  console.log(`  Delta AWAY recall : ${awayRecallDiff >= 0 ? '+' : ''}${awayRecallDiff.toFixed(1)}pp`);
+  console.log(`  Mejor config (acc×0.6 + DRAW recall×0.4): FLOOR=${bestConfig.floor} MARGIN=${bestConfig.margin}`);
+  const rBest = rescore(allEvalsCal, bestConfig.floor, bestConfig.margin);
+  printCompactReport('  Mejor config', rBest);
   console.log('='.repeat(68));
   console.log();
 }

@@ -21,11 +21,16 @@ import { K_SHRINK } from './constants.js';
  * @param stats           Stats time-decay del equipo
  * @param leagueAvgGoals  league_goals_pg (media de home y away baselines)
  */
-export function applyShrinkage(stats: TeamTDStats, leagueAvgGoals: number): ShrunkStats {
-  const denom = stats.games + K_SHRINK;
+export function applyShrinkage(
+  stats: TeamTDStats,
+  leagueAvgGoals: number,
+  kShrinkOverride?: number,
+): ShrunkStats {
+  const k = kShrinkOverride ?? K_SHRINK;
+  const denom = stats.games + k;
 
   return {
-    attack_shrunk: (stats.games * stats.attack_td + K_SHRINK * leagueAvgGoals) / denom,
-    defense_shrunk: (stats.games * stats.defense_td + K_SHRINK * leagueAvgGoals) / denom,
+    attack_shrunk: (stats.games * stats.attack_td + k * leagueAvgGoals) / denom,
+    defense_shrunk: (stats.games * stats.defense_td + k * leagueAvgGoals) / denom,
   };
 }

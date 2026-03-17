@@ -146,8 +146,10 @@ export function mixWithPrior(
   prior_attack: number,
   prior_defense: number,
   prior_quality: PriorQuality,
+  priorEquivGamesOverride?: number,
 ): PriorResult {
-  const alpha = currentGames / (currentGames + PRIOR_EQUIV_GAMES);
+  const priorEquivGames = priorEquivGamesOverride ?? PRIOR_EQUIV_GAMES;
+  const alpha = currentGames / (currentGames + priorEquivGames);
 
   return {
     effective_attack: alpha * attack_shrunk + (1 - alpha) * prior_attack,

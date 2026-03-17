@@ -5,7 +5,8 @@
  * Params:   league={leagueId}&season={season}&date={YYYY-MM-DD}
  *
  * Budget: usa af-budget.ts para coordinar con los demás consumidores de APIFOOTBALL_KEY.
- * Cache: en memoria por (leagueId, season, date) — TTL 6 horas. Nunca en disco.
+ * Cache (injuries): en memoria por (leagueId, season, date) — TTL 6 horas. También en disco (12h).
+ * Cache (player stats): en disco por (playerId, season) — TTL 30 días (§SP-V4-12).
  * Fault isolation: cualquier error retorna [] silenciosamente.
  *
  * MKT-T3-01
@@ -19,6 +20,10 @@ import {
   markQuotaExhausted,
 } from '../af-budget.js';
 import type { InjuryRecord, AbsenceType, PlayerPosition } from '@sportpulse/prediction';
+
+// SP-V4-12: Same value as packages/prediction/src/engine/v3/constants.ts MIN_IMPORTANCE_THRESHOLD
+// Players with importance < 0.3 are squad depth and excluded from the absence model.
+const MIN_IMPORTANCE_THRESHOLD = 0.3;
 
 // ── League ID mapping ─────────────────────────────────────────────────────────
 
@@ -42,6 +47,10 @@ const AF_LEAGUE_IDS: Record<string, number> = {
 const MEM_CACHE_TTL_MS  = 6 * 60 * 60 * 1000;  // 6 hours — in-memory
 const DISK_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours — disk (injuries don't change intra-day)
 const CACHE_DIR = path.join(process.cwd(), 'cache', 'injuries');
+
+// §SP-V4-12: Player stats cache — 30 days (stats stable during season)
+const PLAYER_STATS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PLAYER_STATS_CACHE_DIR = path.join(process.cwd(), 'cache', 'player-stats');
 
 interface CacheEntry {
   records: InjuryRecord[];
@@ -133,18 +142,35 @@ function mapAbsenceType(type: string, reason: string): AbsenceType {
   return 'INJURY';
 }
 
-function mapPosition(reason: string): { position: PlayerPosition; importance: number } {
+/**
+ * Maps API-Football player position string to PlayerPosition enum.
+ * API-Football positions: "Goalkeeper", "Defender", "Midfielder", "Attacker".
+ * Fallback: 'MID' when position is unknown or absent.
+ */
+function mapPositionFromApi(apiPosition: string | undefined): PlayerPosition {
+  if (!apiPosition) return 'MID';
+  const p = apiPosition.toLowerCase();
+  if (p.startsWith('g')) return 'GK';
+  if (p.startsWith('d')) return 'DEF';
+  if (p.startsWith('a') || p.startsWith('f')) return 'FWD';
+  return 'MID';
+}
+
+/**
+ * Legacy position mapping from reason text (fallback when API doesn't provide position).
+ */
+function mapPositionFromReason(reason: string): PlayerPosition {
   const r = reason.toLowerCase();
   if (r.includes('goalkeeper') || r.includes(' gk') || r.startsWith('gk')) {
-    return { position: 'GK', importance: 0.75 };
+    return 'GK';
   }
-  return { position: 'MID', importance: 0.6 };
+  return 'MID';
 }
 
 // ── Raw API response types ────────────────────────────────────────────────────
 
 interface AfInjuryEntry {
-  player: { id: number; name: string };
+  player: { id: number; name: string; type?: string };
   team: { id: number; name: string };
   reason: string;
   type: string;
@@ -153,6 +179,136 @@ interface AfInjuryEntry {
 interface AfInjuryResponse {
   errors?: Record<string, string>;
   response?: AfInjuryEntry[];
+}
+
+// ── Player stats API types (§SP-V4-12) ────────────────────────────────────────
+
+interface AfPlayerStatEntry {
+  games?: {
+    minutes?: number | null;
+    appearences?: number | null;
+  };
+}
+
+interface AfPlayerStatsResponse {
+  errors?: Record<string, string>;
+  response?: Array<{
+    statistics?: AfPlayerStatEntry[];
+  }>;
+}
+
+interface PlayerStatsDiskDoc {
+  version: 1;
+  playerId: number;
+  season: number;
+  leagueId: number;
+  savedAt: string;
+  minutesPlayed: number | null;
+  gamesPlayed: number | null;
+}
+
+// ── Player stats cache functions (§SP-V4-12) ──────────────────────────────────
+
+function playerStatsCachePath(playerId: number, season: number): string {
+  return path.join(PLAYER_STATS_CACHE_DIR, String(season), `${playerId}.json`);
+}
+
+function readPlayerStatsCache(playerId: number, season: number): PlayerStatsDiskDoc | null {
+  const p = playerStatsCachePath(playerId, season);
+  try {
+    const raw = fs.readFileSync(p, 'utf-8');
+    const doc = JSON.parse(raw) as PlayerStatsDiskDoc;
+    if (doc.version !== 1 || doc.playerId !== playerId || doc.season !== season) return null;
+    if (Date.now() - new Date(doc.savedAt).getTime() > PLAYER_STATS_CACHE_TTL_MS) return null;
+    return doc;
+  } catch {
+    return null;
+  }
+}
+
+function writePlayerStatsCache(playerId: number, season: number, leagueId: number, minutesPlayed: number | null, gamesPlayed: number | null): void {
+  const p = playerStatsCachePath(playerId, season);
+  const tmp = `${p}.tmp`;
+  const doc: PlayerStatsDiskDoc = {
+    version: 1,
+    playerId,
+    season,
+    leagueId,
+    savedAt: new Date().toISOString(),
+    minutesPlayed,
+    gamesPlayed,
+  };
+  try {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(tmp, JSON.stringify(doc), 'utf-8');
+    fs.renameSync(tmp, p);
+  } catch { /* non-fatal */ }
+}
+
+/**
+ * Fetch player stats from API-Football to derive minutes played.
+ * Uses disk cache with 30-day TTL.
+ * Returns null on any error (fault isolation).
+ * §SP-V4-12
+ */
+async function fetchPlayerMinutes(
+  playerId: number,
+  season: number,
+  leagueId: number,
+  apiKey: string,
+): Promise<{ minutesPlayed: number | null; gamesPlayed: number | null }> {
+  // Check disk cache first
+  const cached = readPlayerStatsCache(playerId, season);
+  if (cached !== null) {
+    return { minutesPlayed: cached.minutesPlayed, gamesPlayed: cached.gamesPlayed };
+  }
+
+  // Budget check before API call
+  if (isQuotaExhausted()) {
+    return { minutesPlayed: null, gamesPlayed: null };
+  }
+
+  const url = `https://v3.football.api-sports.io/players?id=${playerId}&season=${season}&league=${leagueId}`;
+  try {
+    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+    consumeRequest();
+    if (!res.ok) {
+      writePlayerStatsCache(playerId, season, leagueId, null, null);
+      return { minutesPlayed: null, gamesPlayed: null };
+    }
+    const data = await res.json() as AfPlayerStatsResponse;
+
+    if (data.errors && Object.keys(data.errors).length > 0) {
+      const errVals = Object.values(data.errors);
+      if (errVals.some((v) => typeof v === 'string' && v.toLowerCase().includes('limit'))) {
+        markQuotaExhausted();
+      }
+      writePlayerStatsCache(playerId, season, leagueId, null, null);
+      return { minutesPlayed: null, gamesPlayed: null };
+    }
+
+    const stats = data.response?.[0]?.statistics?.[0];
+    const minutesPlayed = stats?.games?.minutes ?? null;
+    const gamesPlayed = stats?.games?.appearences ?? null;
+    writePlayerStatsCache(playerId, season, leagueId, minutesPlayed, gamesPlayed);
+    return { minutesPlayed, gamesPlayed };
+  } catch {
+    writePlayerStatsCache(playerId, season, leagueId, null, null);
+    return { minutesPlayed: null, gamesPlayed: null };
+  }
+}
+
+/**
+ * Derives importance from minutes played.
+ * importance = minutesPlayed / (teamGamesPlayed * 90)
+ * Returns null if inputs are insufficient.
+ * §SP-V4-12
+ */
+function deriveImportanceFromMinutes(minutesPlayed: number | null, gamesPlayed: number | null): number | null {
+  if (minutesPlayed === null || gamesPlayed === null || gamesPlayed <= 0) return null;
+  const maxMinutes = gamesPlayed * 90;
+  if (maxMinutes <= 0) return null;
+  return Math.min(1.0, minutesPlayed / maxMinutes);
 }
 
 // ── Main fetch function ───────────────────────────────────────────────────────
@@ -234,7 +390,36 @@ async function fetchInjuriesForDate(
 
     const reason = entry.reason ?? '';
     const absenceType = mapAbsenceType(entry.type ?? '', reason);
-    const { position, importance } = mapPosition(reason);
+
+    // §SP-V4-13: get position from API response if available, else fall back to reason text
+    const apiPosition = entry.player?.type;  // API-Football: player.type = "Goalkeeper", "Defender", etc.
+    const position: PlayerPosition = apiPosition
+      ? mapPositionFromApi(apiPosition)
+      : mapPositionFromReason(reason);
+
+    // §SP-V4-12: Fetch player stats to derive importance from real minutes played
+    let importance: number;
+    let minutesPlayed: number | undefined;
+
+    const playerId = entry.player?.id;
+    if (playerId && apiKey) {
+      const statsResult = await fetchPlayerMinutes(playerId, season, leagueId, apiKey);
+      const derivedImportance = deriveImportanceFromMinutes(statsResult.minutesPlayed, statsResult.gamesPlayed);
+      if (derivedImportance !== null) {
+        // Skip players below the importance threshold (squad depth)
+        if (derivedImportance < MIN_IMPORTANCE_THRESHOLD) {
+          continue;
+        }
+        importance = derivedImportance;
+        minutesPlayed = statsResult.minutesPlayed ?? undefined;
+      } else {
+        // Fallback to position-based static importance
+        importance = position === 'GK' ? 0.75 : 0.6;
+      }
+    } else {
+      // No player ID or no API key — use static fallback
+      importance = position === 'GK' ? 0.75 : 0.6;
+    }
 
     records.push({
       teamId,
@@ -242,6 +427,7 @@ async function fetchInjuriesForDate(
       position,
       absenceType,
       importance,
+      minutesPlayed,
     });
   }
 

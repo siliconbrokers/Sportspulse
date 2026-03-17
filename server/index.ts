@@ -47,7 +47,7 @@ import { XgSource } from './prediction/xg-source.js';
 import { LineupSource } from './prediction/lineup-source.js';
 import { runAfShadowValidation } from './prediction/af-shadow-runner.js';
 import { ApiFootballCanonicalSource, AF_COMPETITION_CONFIGS, AF_PROVIDER_KEY } from './api-football-canonical-source.js';
-import { getBudgetStats as getAfBudgetStats } from './af-budget.js';
+import { getBudgetStats as getAfBudgetStats, isQuotaExhausted as isAfQuotaExhausted } from './af-budget.js';
 import { COMPETITION_REGISTRY, REGISTRY_BY_ID } from './competition-registry.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig, isFeatureEnabled } from './portal-config-store.js';
@@ -97,8 +97,13 @@ const DEFAULT_CONTAINER = {
 async function main() {
   validateEnv();
 
+  // Detect AF canonical mode early so we can skip legacy startup fetches.
+  const AF_CANONICAL_ENABLED = !!process.env.APIFOOTBALL_KEY &&
+    process.env.AF_CANONICAL_ENABLED !== 'false';
+
   const fdSource = new FootballDataSource(API_TOKEN!);
 
+  if (!AF_CANONICAL_ENABLED) {
   console.log(`Fetching competitions from football-data.org: ${FD_COMPETITION_CODES.join(', ')}...`);
   for (let i = 0; i < FD_COMPETITION_CODES.length; i++) {
     const code = FD_COMPETITION_CODES[i];
@@ -117,6 +122,7 @@ async function main() {
       await new Promise((r) => setTimeout(r, 7000));
     }
   }
+  } // end if (!AF_CANONICAL_ENABLED) — FD startup fetch
 
   // Liga Uruguaya: Apertura (Feb-Jun, H1) + Clausura (Aug-Nov, H2)
   const UY_SUB_TOURNAMENTS: SubTournamentDef[] = [
@@ -130,13 +136,13 @@ async function main() {
     'https://www.thesportsdb.com/api/v1/json', SPORTSDB_PROVIDER_KEY,
     UY_SUB_TOURNAMENTS,
   );
-  if (isCompetitionEnabled(UY_COMPETITION_ID)) {
+  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(UY_COMPETITION_ID)) {
     try {
       await sportsDbSource.fetchSeason();
     } catch (err) {
       console.error(`Failed to fetch Liga Uruguaya from TheSportsDB:`, err);
     }
-  } else {
+  } else if (!AF_CANONICAL_ENABLED) {
     console.log('[PortalConfig] Liga Uruguaya deshabilitada — startup fetch omitido');
   }
 
@@ -146,39 +152,41 @@ async function main() {
     SPORTSDB_API_KEY, AR_LEAGUE_ID, AR_LEAGUE_NAME,
     'https://www.thesportsdb.com/api/v1/json', AR_PROVIDER_KEY,
   );
-  if (isCompetitionEnabled(AR_COMPETITION_ID)) {
+  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(AR_COMPETITION_ID)) {
     try {
       await new Promise<void>((r) => setTimeout(r, 5000));
       await sportsDbArSource.fetchSeason();
     } catch (err) {
       console.error(`Failed to fetch Liga Argentina from TheSportsDB:`, err);
     }
-  } else {
+  } else if (!AF_CANONICAL_ENABLED) {
     console.log('[PortalConfig] Liga Argentina deshabilitada — startup fetch omitido');
   }
 
   // OpenLigaDB — Bundesliga (no auth required)
   const openLigaDbSource = new OpenLigaDBSource(OLG_LEAGUE, '1. Bundesliga');
-  if (isCompetitionEnabled(OLG_COMPETITION_ID)) {
+  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(OLG_COMPETITION_ID)) {
     try {
       await openLigaDbSource.fetchSeason();
     } catch (err) {
       console.error('Failed to fetch Bundesliga from OpenLigaDB:', err);
     }
-  } else {
+  } else if (!AF_CANONICAL_ENABLED) {
     console.log('[PortalConfig] Bundesliga deshabilitada — startup fetch omitido');
   }
 
   // Football-data.org — Copa del Mundo 2026 (torneo con grupos + eliminatorias)
   const wcSource = new FootballDataTournamentSource(API_TOKEN!, WC_CONFIG);
   const WC_COMPETITION_ID = wcSource.competitionId; // 'comp:football-data-wc:WC'
-  if (isCompetitionEnabled(WC_COMPETITION_ID)) {
+  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(WC_COMPETITION_ID)) {
     try {
       await new Promise<void>((r) => setTimeout(r, 7000));
       await wcSource.fetchTournament();
     } catch (err) {
       console.error('Failed to fetch Copa del Mundo 2026 from football-data.org:', err);
     }
+  } else if (AF_CANONICAL_ENABLED) {
+    console.log('[AF mode] WC data served from API-Football (comp:apifootball:1) — skipping FD fetch');
   } else {
     console.log('[PortalConfig] Copa del Mundo deshabilitada — startup fetch omitido');
   }
@@ -200,7 +208,7 @@ async function main() {
     console.warn('[Startup] APIFOOTBALL_KEY no configurada — scores CLI desde football-data.org (puede ser incorrecto)');
   }
 
-  if (isCompetitionEnabled(CLI_COMPETITION_ID)) {
+  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(CLI_COMPETITION_ID)) {
     try {
       await new Promise<void>((r) => setTimeout(r, 20000));
       await cliSource.fetchTournament();
@@ -209,18 +217,15 @@ async function main() {
       console.error(`[Startup] ERROR cargando Copa Libertadores: ${cliErr}`);
       console.error('[Startup] Verificá que FOOTBALL_DATA_TOKEN tenga acceso a CLI. Visitá /api/ui/status para diagnóstico.');
     }
+  } else if (AF_CANONICAL_ENABLED) {
+    console.log('[AF mode] CLI data served from API-Football (comp:apifootball:13) — skipping FD fetch');
   } else {
     console.log('[PortalConfig] Copa Libertadores deshabilitada — startup fetch omitido');
   }
 
   // ── API-Football Canonical Migration (Track C) ─────────────────────────────
-  // AF canonical se activa automáticamente cuando APIFOOTBALL_KEY está disponible,
-  // salvo que se deshabilite explícitamente con AF_CANONICAL_ENABLED=false.
-  // Esto es necesario porque portal-config-store usa COMPETITION_REGISTRY (AF IDs)
-  // incondicionalmente — sin AF canonical, el routing no puede resolver esos IDs → 404.
-  // WC and CLI tournament sources are always preserved.
-  const AF_CANONICAL_ENABLED = !!process.env.APIFOOTBALL_KEY &&
-    process.env.AF_CANONICAL_ENABLED !== 'false';
+  // AF_CANONICAL_ENABLED is defined early in main() to guard legacy startup fetches.
+  // Here we just set up the AF canonical source and competition IDs.
   const AF_KEY = process.env.APIFOOTBALL_KEY ?? '';
   let afCanonicalSource: ApiFootballCanonicalSource | null = null;
   let AF_COMP_IDS: string[] = [];
@@ -230,7 +235,7 @@ async function main() {
       console.warn('[AfCanonical] AF_CANONICAL_ENABLED=true but APIFOOTBALL_KEY not set — falling back to legacy sources');
     } else {
       console.log('[AfCanonical] AF_CANONICAL_ENABLED=true — using API-Football as primary source for leagues');
-      afCanonicalSource = new ApiFootballCanonicalSource(AF_KEY);
+      afCanonicalSource = new ApiFootballCanonicalSource(AF_KEY, new CrestCache());
       AF_COMP_IDS = Object.keys(AF_COMPETITION_CONFIGS);
 
       // Fetch all AF competitions sequentially (small delays to avoid quota bursts)
@@ -762,6 +767,11 @@ async function main() {
 
   async function runRefreshInner(): Promise<void> {
     if (AF_CANONICAL_ENABLED && afCanonicalSource) {
+      // Skip entire AF refresh cycle when quota is exhausted — avoids 7 noisy error logs per cycle
+      if (isAfQuotaExhausted()) {
+        console.log('[Scheduler] AF quota exhausted — refresh cycle skipped until midnight UTC');
+        return;
+      }
       // AF mode: refresh all AF competitions sequentially
       const enabledAfIds = AF_COMP_IDS.filter((id) => isCompetitionEnabled(id));
       for (let i = 0; i < enabledAfIds.length; i++) {
@@ -818,7 +828,7 @@ async function main() {
         }
       }
     }
-    if (isCompetitionEnabled(WC_COMPETITION_ID)) {
+    if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(WC_COMPETITION_ID)) {
       await new Promise<void>((r) => setTimeout(r, 7000));
       try {
         await wcSource.fetchTournament();
@@ -827,7 +837,7 @@ async function main() {
         console.error('Refresh failed for Copa del Mundo 2026:', err);
       }
     }
-    if (isCompetitionEnabled(CLI_COMPETITION_ID)) {
+    if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(CLI_COMPETITION_ID)) {
       await new Promise<void>((r) => setTimeout(r, 7000));
       try {
         await cliSource.fetchTournament();
@@ -845,24 +855,12 @@ async function main() {
     const shadowSeasonYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
 
     if (AF_CANONICAL_ENABLED && afCanonicalSource) {
-      // AF mode: todas las competencias usan API-Football como fuente única.
-      // currentSeasonMatches viene del DataSource (team:apifootball:* IDs).
-      // prevSeasonMatches viene de loadAfHistoricalMatches (mismos IDs, consistente).
-      // V2 shadow omitido: IDs de teams incompatibles con AF.
-      const AF_V3_COMPS: NonFdCompDescriptor[] = COMPETITION_REGISTRY
-        .filter((e) => !e.isTournament) // torneos no tienen motor predictivo aún
-        .map((e) => ({
-          competitionId:       e.id,
-          provider:            'apifootball' as const,
-          providerLeagueId:    String(e.leagueId),
-          providerKey:         AF_PROVIDER_KEY,
-          afApiKey:            AF_KEY,
-          expectedSeasonGames: e.expectedSeasonGames,
-        }))
-        .filter((d) => isCompetitionEnabled(d.competitionId) && isV3ShadowEnabled(d.competitionId));
-      if (AF_V3_COMPS.length > 0) {
-        void runV3Shadow(dataSource, [], AF_V3_COMPS, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, shadowSeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource);
-      }
+      // V3 shadow runner desactivado en AF mode.
+      // HistoricalStateService carga datos de football-data.org con FD team IDs (fd_xxx),
+      // pero en AF mode el datasource usa AF team IDs (af_xxx) — mismatch total.
+      // Resultado: 9 requests inútiles a FD + Elo history nunca se aplica (0 matches).
+      // TODO: adaptar HistoricalLoader para cargar desde AF API con AF team IDs.
+      console.log('[AF mode] V3 shadow runner desactivado (HistoricalStateService usa FD IDs incompatibles con AF)');
     } else {
       // Legacy mode: V2 + V3 shadow for FD and non-FD competitions
       void runV2Shadow(dataSource, FD_COMP_IDS, historicalStateServiceFV, v2PredictionStore, fdCompetitionCodeMap, shadowSeasonYear);
@@ -897,22 +895,20 @@ async function main() {
       }
     }
 
-    // AF vs FD historical shadow validation — feature-flagged, fault-isolated
-    // Activa con: SHADOW_AF_VALIDATION_ENABLED=true
-    if (process.env.SHADOW_AF_VALIDATION_ENABLED === 'true') {
+    // AF vs FD historical shadow validation — desactivado en AF mode.
+    // En AF mode no tiene sentido comparar AF vs FD — toda la data ya viene de AF.
+    // En legacy mode sigue activo si SHADOW_AF_VALIDATION_ENABLED=true.
+    if (!AF_CANONICAL_ENABLED && process.env.SHADOW_AF_VALIDATION_ENABLED === 'true') {
       const afShadowKey = process.env.APIFOOTBALL_KEY ?? '';
-      // In AF mode, use AF comp IDs instead of FD comp IDs
-      const shadowCompIds = AF_CANONICAL_ENABLED
-        ? COMPETITION_REGISTRY.filter((e) => !e.isTournament && e.seasonKind === 'european').map((e) => e.id)
-        : FD_COMP_IDS;
-      void runAfShadowValidation(dataSource, shadowCompIds, historicalStateServiceFV, shadowSeasonYear, afShadowKey);
+      void runAfShadowValidation(dataSource, FD_COMP_IDS, historicalStateServiceFV, shadowSeasonYear, afShadowKey);
     }
 
     // OE-3: capture ground truth for completed matches
     captureResults(dataSource, evaluationStore, ALL_COMP_IDS);
 
     // Forward validation — feature-flagged, fault-isolated
-    const fvEnabled = process.env.FORWARD_VALIDATION_ENABLED === 'true';
+    // Desactivado en AF mode: usa HistoricalStateService que carga FD team IDs — incompatible con AF.
+    const fvEnabled = !AF_CANONICAL_ENABLED && process.env.FORWARD_VALIDATION_ENABLED === 'true';
     if (fvEnabled) {
       // In AF mode: use AF competition IDs; in legacy mode: build from FD codes
       const fvCompetitions = AF_CANONICAL_ENABLED && afCanonicalSource

@@ -21,9 +21,11 @@
  * SP-PRED-V3 §18 (shadow phase)
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { DataSource } from '@sportpulse/snapshot';
 import { runV3Engine } from '@sportpulse/prediction';
-import type { V3MatchRecord } from '@sportpulse/prediction';
+import type { V3MatchRecord, CalibrationTable } from '@sportpulse/prediction';
 import { EventStatus } from '@sportpulse/canonical';
 import type { PredictionStore } from './prediction-store.js';
 import { buildSnapshot } from './prediction-store.js';
@@ -36,6 +38,61 @@ import type { InjurySource } from './injury-source.js';
 import { normTeamName } from './injury-source.js';
 import type { XgSource } from './xg-source.js';
 import type { LineupSource } from './lineup-source.js';
+
+// ── Calibration tables (loaded once, refreshed every 6h) ──────────────────────
+//
+// Mixed strategy (validated via walk-forward backtest 2025-26, 806 matches):
+//   PD  → per-league table (PD has large HOME bias +0.096; per-liga: +4.5pp acc, +6.4pp DRAW recall)
+//   PL  → global table     (PL bias is tiny +0.017; global "accidentally" helps via cross-league correction)
+//   BL1 → global table     (per-BL1 table over-corrects: 64% DRAW recall, 53% draw prediction rate)
+//   Others → global fallback
+//
+// Result: acc=50.6%, DRAW recall=43.2%, DRAW prec=34.2% (+1.6pp / +2.0pp / +2.8pp vs global-only)
+
+const CAL_DIR = path.join(process.cwd(), 'cache', 'calibration');
+const CAL_GLOBAL_PATH = path.join(CAL_DIR, 'v3-iso-calibration.json');
+const CAL_TABLE_TTL_MS = 6 * 60 * 60_000; // 6h — generated offline, changes rarely
+
+// competitionId → league code for per-league tables
+// Only codes listed here use a per-league table; others fall back to global.
+const PER_LEAGUE_TABLE_CODES: Record<string, string> = {
+  'comp:football-data:PD': 'PD',
+  'comp:apifootball:140':  'PD',
+};
+
+interface CalTableEntry {
+  table: CalibrationTable;
+  loadedAt: number;
+}
+
+const _calTables = new Map<string, CalTableEntry>(); // key: file path
+
+function loadCalTableFromFile(filePath: string): CalibrationTable | undefined {
+  try {
+    if (!fs.existsSync(filePath)) return undefined;
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(raw) as CalibrationTable;
+    if (!parsed.home?.length || !parsed.draw?.length || !parsed.away?.length) return undefined;
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+function getCalTableForCompetition(competitionId: string): CalibrationTable | undefined {
+  const now = Date.now();
+  const leagueCode = PER_LEAGUE_TABLE_CODES[competitionId];
+  const filePath = leagueCode
+    ? path.join(CAL_DIR, `v3-iso-calibration-${leagueCode}.json`)
+    : CAL_GLOBAL_PATH;
+
+  const cached = _calTables.get(filePath);
+  if (cached && now - cached.loadedAt < CAL_TABLE_TTL_MS) return cached.table;
+
+  const table = loadCalTableFromFile(filePath) ?? loadCalTableFromFile(CAL_GLOBAL_PATH);
+  if (table) _calTables.set(filePath, { table, loadedAt: now });
+  return table;
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -98,6 +155,18 @@ function setPrevInMem(provider: string, leagueId: string, year: number, records:
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Derives the leagueCode string from a competitionId for per-liga DC_RHO lookup.
+ * Returns undefined for unknown competitions → engine falls back to DC_RHO global.
+ */
+function deriveLeagueCode(competitionId: string): string | undefined {
+  if (competitionId === 'comp:football-data:PD' || competitionId === 'PD') return 'PD';
+  if (competitionId === 'comp:football-data:PL' || competitionId === 'PL') return 'PL';
+  if (competitionId === 'comp:openligadb:bl1'   || competitionId === 'BL1') return 'BL1';
+  if (competitionId === 'comp:thesportsdb:4432')  return 'URU';
+  return undefined;
+}
 
 function seasonBoundaryIso(seasonStartYear: number): string {
   return new Date(Date.UTC(seasonStartYear, 6, 1)).toISOString();
@@ -355,6 +424,34 @@ async function runMatchPredictions(
         }
       }
 
+      // SP-V4-10: Fetch market odds before engine run so market-blend step activates.
+      // OddsService has a 30-min in-memory cache per sport key, so repeated calls within
+      // the same competition batch are free. Fault-isolated: if fetch fails, engine runs
+      // with marketOdds=undefined (pure model, no blend).
+      let marketOdds: import('@sportpulse/prediction').MarketOddsRecord | undefined;
+      if (oddsService && match.startTimeUtc) {
+        const homeTeamName = teamNameMap.get(match.homeTeamId) ?? match.homeTeamId;
+        const awayTeamName = teamNameMap.get(match.awayTeamId) ?? match.awayTeamId;
+        try {
+          const fetched = await oddsService.getOddsForMatch(
+            competitionId,
+            match.startTimeUtc,
+            homeTeamName,
+            awayTeamName,
+          );
+          if (fetched) {
+            marketOdds = {
+              probHome: fetched.probHome,
+              probDraw: fetched.probDraw,
+              probAway: fetched.probAway,
+              capturedAtUtc: fetched.capturedAtUtc,
+            };
+          }
+        } catch {
+          marketOdds = undefined; // fault isolation
+        }
+      }
+
       const input = {
         homeTeamId: match.homeTeamId,
         awayTeamId: match.awayTeamId,
@@ -366,6 +463,9 @@ async function runMatchPredictions(
         injuries,
         historicalXg,
         confirmedLineups,
+        marketOdds,
+        calibrationTable: getCalTableForCompetition(competitionId),
+        leagueCode: deriveLeagueCode(competitionId),
       };
 
       const output = runV3Engine(input);
@@ -378,14 +478,15 @@ async function runMatchPredictions(
         evaluationStore.freezeSnapshot(competitionId, matchRef, snapshot);
 
         // MKT-T3-02: Attach market odds fire-and-forget — never propagates errors
+        // Uses the same OddsService call (cached 30min) to avoid duplicate API requests.
         if (oddsService && output.prob_home_win != null && output.prob_draw != null && output.prob_away_win != null) {
-          const homeTeamName = teamNameMap.get(match.homeTeamId) ?? match.homeTeamId;
-          const awayTeamName = teamNameMap.get(match.awayTeamId) ?? match.awayTeamId;
+          const evalHomeTeamName = teamNameMap.get(match.homeTeamId) ?? match.homeTeamId;
+          const evalAwayTeamName = teamNameMap.get(match.awayTeamId) ?? match.awayTeamId;
           void oddsService.getOddsForMatch(
             competitionId,
             match.startTimeUtc!,
-            homeTeamName,
-            awayTeamName,
+            evalHomeTeamName,
+            evalAwayTeamName,
           ).then((odds) => {
             if (odds) {
               evaluationStore.attachMarketOdds(

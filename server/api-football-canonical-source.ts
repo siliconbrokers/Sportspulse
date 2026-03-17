@@ -53,6 +53,7 @@ import {
   pruneOldSeasons,
   loadAllMatchdaysForSeason,
 } from './matchday-cache.js';
+import { CrestCache } from './crest-cache.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -242,13 +243,15 @@ interface CachedData {
 
 export class ApiFootballCanonicalSource implements DataSource {
   private readonly apiKey: string;
+  private readonly crestCache: CrestCache | null;
   private cache = new Map<string, CachedData>();
   private readonly goalsCache = new Map<string, MatchGoalEventDTO[]>();
   private readonly scorersCache = new Map<string, { data: TopScorerEntry[]; fetchedAt: number }>();
   private static readonly SCORERS_TTL_MS = 60 * 60_000; // 1 hour
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, crestCache?: CrestCache) {
     this.apiKey = apiKey;
+    this.crestCache = crestCache ?? null;
   }
 
   // ── DataSource interface ───────────────────────────────────────────────────
@@ -454,6 +457,14 @@ export class ApiFootballCanonicalSource implements DataSource {
       }
     } else {
       console.log(`[AfCanonical] teams SKIP league=${leagueId}: in-memory TTL`);
+    }
+
+    // Warm up crest cache for newly loaded teams (fire-and-forget)
+    if (!teamsInMemoryFresh && teams.length > 0 && this.crestCache) {
+      void this.crestCache.warmup(
+        teams.map((t) => ({ providerTeamId: t.providerTeamId, crestUrl: t.crestUrl })),
+        AF_PROVIDER_KEY,
+      );
     }
 
     // Build team lookup: AF team ID → canonical team ID (for fixture mapping)

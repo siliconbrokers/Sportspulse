@@ -33,6 +33,7 @@ import {
   LAMBDA_MAX,
   TOO_CLOSE_THRESHOLD,
   DC_RHO,
+  DC_RHO_PER_LEAGUE,
 } from '../src/engine/v3/index.js';
 import type { V3MatchRecord, V3EngineInput } from '../src/engine/v3/index.js';
 
@@ -128,10 +129,10 @@ describe('V3 Engine — Determinismo', () => {
     expect(out.engine_id).toBe('v3_unified');
   });
 
-  it('engine_version es siempre 3.0', () => {
+  it('engine_version es siempre 4.2', () => {
     const input = makeInput(15, 15);
     const out = runV3Engine(input);
-    expect(out.engine_version).toBe('3.0');
+    expect(out.engine_version).toBe('4.2');
   });
 });
 
@@ -501,30 +502,31 @@ describe('V3 Constants — valores del spec §19', () => {
     expect(v).toBe(5);
   });
 
-  it('K_SHRINK = 4', async () => {
-    // Optimizado de 3→4 (backtest 2025-26 walk-forward: +1.3pp accuracy total)
+  it('K_SHRINK = 3', async () => {
+    // Optimizado 4→3 vía hyperparameter sweep 2025-26 (con calibración activa)
     const { K_SHRINK } = await import('../src/engine/v3/constants.js');
-    expect(K_SHRINK).toBe(4);
+    expect(K_SHRINK).toBe(3);
   });
 
-  it('PRIOR_EQUIV_GAMES = 12', async () => {
-    // Optimizado de 8→12 (más peso a temporada anterior mejora LaLiga +3pp y BL1 +2pp)
+  it('PRIOR_EQUIV_GAMES = 16', async () => {
+    // Optimizado 12→16 vía hyperparameter sweep 2025-26 (DRAW recall +4.2pp)
     const { PRIOR_EQUIV_GAMES } = await import('../src/engine/v3/constants.js');
-    expect(PRIOR_EQUIV_GAMES).toBe(12);
+    expect(PRIOR_EQUIV_GAMES).toBe(16);
   });
 
   it('HOME_ADVANTAGE_MULT = 1.12', () => {
     expect(HOME_ADVANTAGE_MULT).toBe(1.12);
   });
 
-  it('DC_RHO = -0.13', () => {
-    expect(DC_RHO).toBe(-0.13);
+  it('DC_RHO = -0.15', () => {
+    // Optimizado -0.13→-0.15 (DC_RHO sweep 2025-26: supera estimador empírico en DR +4.5pp)
+    expect(DC_RHO).toBe(-0.15);
   });
 
-  it('BETA_RECENT = 0.15', async () => {
-    // Optimizado de 0.45→0.15 (reducir peso de recency mejora accuracy +1.3pp, reduces noise)
+  it('BETA_RECENT = 0.20', async () => {
+    // Optimizado 0.45→0.15→0.20 (con calibración activa, 0.20 mejora DRAW recall +0.6pp sobre 0.15)
     const { BETA_RECENT } = await import('../src/engine/v3/constants.js');
-    expect(BETA_RECENT).toBe(0.15);
+    expect(BETA_RECENT).toBe(0.20);
   });
 });
 
@@ -613,6 +615,53 @@ describe('V3 Engine — Integración', () => {
     const out = runV3Engine(input);
     if (out.eligibility !== 'NOT_ELIGIBLE') {
       expect(out.explanation.dc_correction_applied).toBe(true);
+    }
+  });
+
+  // ── §SP-V4-03: DC_RHO_PER_LEAGUE tests ────────────────────────────────────
+
+  it('DC_RHO_PER_LEAGUE existe y tiene las 3 ligas', () => {
+    // Spec: SP-V4-03 — DC_RHO_PER_LEAGUE debe tener entradas para PD, PL y BL1
+    expect(DC_RHO_PER_LEAGUE).toBeDefined();
+    expect(typeof DC_RHO_PER_LEAGUE).toBe('object');
+    expect(typeof DC_RHO_PER_LEAGUE['PD']).toBe('number');
+    expect(typeof DC_RHO_PER_LEAGUE['PL']).toBe('number');
+    expect(typeof DC_RHO_PER_LEAGUE['BL1']).toBe('number');
+    // Valores deben estar en el rango razonable para Dixon-Coles
+    for (const code of ['PD', 'PL', 'BL1'] as const) {
+      expect(DC_RHO_PER_LEAGUE[code]).toBeGreaterThanOrEqual(-1.0);
+      expect(DC_RHO_PER_LEAGUE[code]).toBeLessThanOrEqual(0.0);
+    }
+  });
+
+  it('cuando leagueCode=PD y DC_RHO_PER_LEAGUE[PD] difiere de DC_RHO global, el engine usa el per-liga', () => {
+    // Spec: §SP-V4-03 — leagueCode propaga el rho correcto via explanation.dc_rho_used
+    // Condición: solo aplica si PD tiene un rho distinto del global (que es el caso actual)
+    const pdRho = DC_RHO_PER_LEAGUE['PD'];
+    if (pdRho === undefined || pdRho === DC_RHO) {
+      // Si no difieren, el test no puede distinguir — saltamos sin fallar
+      return;
+    }
+
+    const inputWithLeague = makeInput(15, 15);
+    (inputWithLeague as V3EngineInput).leagueCode = 'PD';
+
+    const inputWithoutLeague = makeInput(15, 15);
+    // Sin leagueCode: usa DC_RHO global
+
+    const outWithLeague    = runV3Engine(inputWithLeague);
+    const outWithoutLeague = runV3Engine(inputWithoutLeague);
+
+    if (
+      outWithLeague.eligibility !== 'NOT_ELIGIBLE' &&
+      outWithoutLeague.eligibility !== 'NOT_ELIGIBLE'
+    ) {
+      // dc_rho_used debe reflejar el valor per-liga cuando leagueCode='PD'
+      expect(outWithLeague.explanation.dc_rho_used).toBeCloseTo(pdRho, 10);
+      // Sin leagueCode usa DC_RHO global
+      expect(outWithoutLeague.explanation.dc_rho_used).toBeCloseTo(DC_RHO, 10);
+      // Las probabilidades deben diferir (distinto rho → distinta corrección DC)
+      expect(outWithLeague.prob_home_win).not.toEqual(outWithoutLeague.prob_home_win);
     }
   });
 });
