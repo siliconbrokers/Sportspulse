@@ -11,7 +11,7 @@ interface EnvVarSpec {
 
 const ENV_SPEC: EnvVarSpec[] = [
   { name: 'FOOTBALL_DATA_TOKEN', required: true,  description: 'football-data.org API token — league data source' },
-  { name: 'APIFOOTBALL_KEY',     required: true,  description: 'API-Football v3 key — canonical source + live overlay + incidents' },
+  { name: 'APIFOOTBALL_KEY',     required: false, description: 'API-Football v3 key — canonical source + live overlay + incidents (incidents/overlay disabled if missing)' },
   { name: 'PORT',                required: false, description: 'HTTP port (default: 3000)' },
   { name: 'COMPETITIONS',        required: false, description: 'Comma-separated league codes (default: PD)' },
   { name: 'SPORTSDB_API_KEY',    required: false, description: 'TheSportsDB key (default: 123 free tier)' },
