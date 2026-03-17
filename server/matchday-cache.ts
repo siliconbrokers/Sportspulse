@@ -448,6 +448,23 @@ export function hasMatchdayCacheForSeason(
 }
 
 /**
+ * Returns all season directory names available on disk for a given competition.
+ * Used by preloadAllCompetitions() to fall back to previous-season data when
+ * the current season directory is empty (e.g. season rollover during quota exhaustion).
+ */
+export function listAvailableSeasons(provider: string, competitionId: string): string[] {
+  const compDir = path.join(CACHE_BASE, provider, competitionId);
+  try {
+    return fs
+      .readdirSync(compDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Loads all matches from every matchday JSON file for a given season.
  * Used to reconstruct the in-memory match history after a server restart,
  * avoiding a full-season API fetch when files already exist on disk.

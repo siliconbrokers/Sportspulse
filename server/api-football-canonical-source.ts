@@ -40,6 +40,7 @@ import {
 } from './af-budget.js';
 import {
   checkMatchdayCache,
+  listAvailableSeasons,
   persistMatchdayCache,
   persistTeamsCache,
   loadTeamsCache,
@@ -415,9 +416,14 @@ export class ApiFootballCanonicalSource implements DataSource {
     const season     = seasonLabel(seasonKind, seasonYear);
     const resolvedSeasonId = afSeasonId(leagueId, seasonYear);
 
-    // Fix: remove orphaned .tmp + prune old seasons
+    // Fix: remove orphaned .tmp + prune old seasons.
+    // IMPORTANT: pruneOldSeasons is skipped when quota is exhausted to avoid destroying
+    // previous-season data before new data can be written. Without this guard, a season
+    // rollover during quota exhaustion leaves the disk permanently empty.
     cleanupOrphanedTmpFiles(AF_PROVIDER_KEY, String(leagueId), season);
-    pruneOldSeasons(AF_PROVIDER_KEY, String(leagueId), season);
+    if (!isAfQuotaExhausted()) {
+      pruneOldSeasons(AF_PROVIDER_KEY, String(leagueId), season);
+    }
 
     const logCtxBase = {
       provider: AF_PROVIDER_KEY,
@@ -944,7 +950,24 @@ export class ApiFootballCanonicalSource implements DataSource {
       const diskTeams = loadTeamsCache(AF_PROVIDER_KEY, String(leagueId)) ?? [];
 
       // ── Matches from disk (no TTL check — stale data beats empty data) ───
-      const diskMatches = loadAllMatchdaysForSeason(AF_PROVIDER_KEY, String(leagueId), season);
+      // Fallback: if current season dir is empty, try other available seasons on disk.
+      // This handles season-rollover during quota exhaustion: pruneOldSeasons is now
+      // skipped when quota is exhausted, so old season data survives for this fallback.
+      let diskMatches = loadAllMatchdaysForSeason(AF_PROVIDER_KEY, String(leagueId), season);
+      if (diskMatches.length === 0) {
+        const otherSeasons = listAvailableSeasons(AF_PROVIDER_KEY, String(leagueId))
+          .filter((s) => s !== season)
+          .sort()
+          .reverse(); // most recent first
+        for (const altSeason of otherSeasons) {
+          const altMatches = loadAllMatchdaysForSeason(AF_PROVIDER_KEY, String(leagueId), altSeason);
+          if (altMatches.length > 0) {
+            console.log(`[AfCanonical] preload league=${leagueId}: fallback a season ${altSeason} (${altMatches.length} matches)`);
+            diskMatches = altMatches;
+            break;
+          }
+        }
+      }
 
       // ── Standings from disk ───────────────────────────────────────────────
       // ignoreTtl=true: stale standings from disk are better than no standings at all.

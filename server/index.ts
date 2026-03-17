@@ -246,20 +246,28 @@ async function main() {
       await afCanonicalSource.preloadAllCompetitions();
       console.log('[AfCanonical] disk preload complete — starting API refresh cycle');
 
-      // Fetch all AF competitions sequentially (small delays to avoid quota bursts)
-      for (let i = 0; i < AF_COMP_IDS.length; i++) {
-        const compId = AF_COMP_IDS[i];
-        if (!isCompetitionEnabled(compId)) {
-          console.log(`[AfCanonical] ${compId} deshabilitado — startup fetch omitido`);
-          continue;
-        }
-        try {
-          await afCanonicalSource.fetchCompetition(compId);
-        } catch (err) {
-          console.error(`[AfCanonical] Error fetching ${compId}:`, err);
-        }
-        if (i < AF_COMP_IDS.length - 1) {
-          await new Promise((r) => setTimeout(r, 2000)); // 2s between fetches
+      // Fix: skip startup fetch entirely when quota is already exhausted.
+      // Without this, the startup loop tries the API, gets quota error on the FIRST
+      // call, marks quota exhausted, and the remaining 6 competitions log noisy errors.
+      // The scheduler will handle fetching when quota becomes available (hourly retry).
+      if (isAfQuotaExhausted()) {
+        console.log('[AfCanonical] Quota agotada al startup — omitiendo fetch inicial, usando preload del disco');
+      } else {
+        // Fetch all AF competitions sequentially (small delays to avoid quota bursts)
+        for (let i = 0; i < AF_COMP_IDS.length; i++) {
+          const compId = AF_COMP_IDS[i];
+          if (!isCompetitionEnabled(compId)) {
+            console.log(`[AfCanonical] ${compId} deshabilitado — startup fetch omitido`);
+            continue;
+          }
+          try {
+            await afCanonicalSource.fetchCompetition(compId);
+          } catch (err) {
+            console.error(`[AfCanonical] Error fetching ${compId}:`, err);
+          }
+          if (i < AF_COMP_IDS.length - 1) {
+            await new Promise((r) => setTimeout(r, 2000)); // 2s between fetches
+          }
         }
       }
     }
