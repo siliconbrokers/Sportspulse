@@ -158,6 +158,24 @@ export type {
   CalibratedOutputs,
 } from './response-builder.js';
 
+// ── NEXUS (PE v2) — Track 1+2 pipeline ───────────────────────────────────
+// Exported for shadow runner (server/prediction/nexus-shadow-runner.ts).
+// taxonomy spec S4: Track 2 converts Track 1 strengths to Poisson distribution.
+export { computeTrack1 } from './nexus/track1/track1-engine.js';
+export type { HistoricalMatch, Track1Output } from './nexus/track1/types.js';
+export {
+  computeTrack2,
+  computeTrack2FromInput,
+} from './nexus/track2/track2-engine.js';
+export type { Track2Input, Track2Output } from './nexus/track2/types.js';
+
+// ── NEXUS (PE v2) — Track 3 Tabular Discriminative ────────────────────────
+// Exported for shadow runner (server/prediction/nexus-shadow-runner.ts).
+// taxonomy spec S5: logistic regression context model.
+export { computeTrack3 } from './nexus/track3/track3-engine.js';
+export type { LogisticWeights } from './nexus/track3/logistic-model.js';
+export type { Track3Output } from './nexus/track3/types.js';
+
 // ── NEXUS (PE v2) — Meta-Ensemble and Scorecard Infrastructure ─────────────
 // Exports the NEXUS ensemble orchestrator + scorecard types for server/ consumers.
 // Shadow runner (server/prediction/nexus-shadow-runner.ts) imports from here.

@@ -15,6 +15,12 @@
 // Phase 0: Temporal Feature Store (NEXUS-0)
 export * from './feature-store/index.js';
 
+// Track 1: Structural/Ratings Model (taxonomy spec S3)
+export * from './track1/index.js';
+
+// Track 2: Goals Model — Bivariate Poisson + Dixon-Coles (taxonomy spec S4)
+export * from './track2/index.js';
+
 // Phase 0: Entity Identity and Resolution (master S6.2)
 export * from './entity-identity/index.js';
 

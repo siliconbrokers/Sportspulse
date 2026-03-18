@@ -36,6 +36,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DataSource } from '@sportpulse/snapshot';
+import type { NexusModelWeights } from './nexus-model-loader.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -147,20 +148,21 @@ async function runNexusPrediction(
   buildNowUtc: string,
   competitionId: string,
   dataSource: DataSource,
+  loadedWeights: NexusModelWeights | null,
 ): Promise<NexusShadowSnapshot | null> {
   // Lazy import to avoid loading NEXUS modules when shadow is disabled
   const {
     runNexusEnsemble,
     buildBootstrapCalibrationTable,
+    computeTrack1,
+    computeTrack2,
   } = await import('@sportpulse/prediction');
 
-  // ── Track 1+2: Derive team strength estimates from historical data ──────────
-  // In Phase 4, Track 1+2 uses the canonical match data from DataSource
-  // (same source as V3, per master spec S8.0 — canonical data is shared).
-  // The NEXUS-specific enhancements (player adjustment, dynamic HA) require
-  // the feature store which is populated incrementally via the AF API.
-  // Phase 4 uses the same Elo-based strength computation as Track 1 engine
-  // but without player adjustment (equivalent to V3's lambda computation).
+  // ── Track 1+2: Real NEXUS pipeline using canonical match data ──────────────
+  // taxonomy spec S4.2 (master S8.0): canonical match data is shared with V3.
+  // Track 1 replays match history to estimate Elo ratings and team strengths.
+  // Track 2 converts strengths to a Poisson/Dixon-Coles goals distribution.
+  // Phase 1B inputs (injuries, lineups) are not wired — injuryDataAvailable = false.
 
   const seasonId = dataSource.getSeasonId?.(competitionId);
   if (!seasonId) return null;
@@ -175,7 +177,8 @@ async function runNexusPrediction(
       m.scoreAway !== null,
   );
 
-  // Need at least 1 finished match for each team to compute meaningful strength
+  // Need at least 1 finished match for each team to compute meaningful strength.
+  // taxonomy spec S3.5: fewer than THRESHOLD_NOT_ELIGIBLE → NOT_ELIGIBLE.
   const homeHistory = finishedMatches.filter(
     (m) => m.homeTeamId === homeTeamId || m.awayTeamId === homeTeamId,
   );
@@ -187,21 +190,90 @@ async function runNexusPrediction(
     return null; // Insufficient history for either team
   }
 
-  // Derive simple strength estimates using Elo-like scoring
-  // This is a Phase 4 bootstrap until the full Track 1 engine is wired up
-  // with the NEXUS feature store. The output still goes through the full
-  // ensemble pipeline (calibration, weight redistribution, etc.).
-  const homeStrength = computeBootstrapStrength(homeTeamId, finishedMatches, buildNowUtc);
-  const awayStrength = computeBootstrapStrength(awayTeamId, finishedMatches, buildNowUtc);
+  // Map canonical match data to HistoricalMatch shape required by Track 1.
+  // isNeutralVenue defaults to false — canonical data doesn't expose this flag
+  // at the match list level. Overriding to false is safe (conservative).
+  const historicalMatches = finishedMatches.map((m) => ({
+    homeTeamId: m.homeTeamId,
+    awayTeamId: m.awayTeamId,
+    utcDate: m.startTimeUtc!,
+    homeGoals: m.scoreHome!,
+    awayGoals: m.scoreAway!,
+    isNeutralVenue: false, // canonical data does not provide neutral_venue flag
+  }));
 
-  // Convert strength estimates to 1X2 probabilities (Track 1+2 output)
-  const track12Probs = strengthToProbs(homeStrength, awayStrength);
+  // Extract league code from competitionId (e.g. "comp:football-data:PD" → "PD").
+  const leagueCode = extractLeagueCode(competitionId);
 
-  const track12 = { probs: track12Probs };
+  // Step 1: Track 1 — compute team strength estimates via Elo replay.
+  // taxonomy spec S3.1–S3.5.
+  const track1Output = computeTrack1(
+    homeTeamId,
+    awayTeamId,
+    historicalMatches,
+    false, // isNeutralVenue — standard venue for domestic league matches
+    leagueCode,
+    buildNowUtc,
+    // phase1bOptions omitted: Phase 1B (injuries, lineup) not wired in this phase
+  );
 
-  // Track 3: Not wired in Phase 4 (requires logistic model training data)
-  // Returns null → ensemble falls back to LIMITED_MODE per taxonomy spec S9.3
-  const track3 = null;
+  // Step 2: Track 2 — bivariate Poisson + Dixon-Coles goals model.
+  // taxonomy spec S4.1–S4.7.
+  const track2Output = computeTrack2(track1Output, leagueCode);
+
+  // Log SCORELINE_SUM_VIOLATION if pre-normalization sum was outside [0.999, 1.001].
+  // taxonomy spec S4.4: "must be logged as SCORELINE_SUM_VIOLATION."
+  if (track2Output._scorelineSumViolation) {
+    console.warn(
+      `[NexusShadow] SCORELINE_SUM_VIOLATION for ${matchId}: ` +
+      `lambdaHome=${track2Output.lambdaHome.toFixed(4)}, ` +
+      `lambdaAway=${track2Output.lambdaAway.toFixed(4)}`,
+    );
+  }
+
+  // Combined Track 1+2 output for the ensemble.
+  // taxonomy spec S7.2: "Track 1+2 is a single ensemble member."
+  const track12 = {
+    probs: {
+      home: track2Output.p_home,
+      draw: track2Output.p_draw,
+      away: track2Output.p_away,
+    },
+  };
+
+  // Track 3: Logistic context model (active when weights are loaded)
+  // taxonomy spec S5.1–S5.7: contextual features + logistic softmax.
+  // When weights are absent (loadedWeights?.track3Global is null),
+  // track3 = null and the ensemble falls back to Track 1+2 only per taxonomy spec S9.3.
+  let track3: { probs: { home: number; draw: number; away: number } } | null = null;
+  if (loadedWeights?.track3Global != null) {
+    try {
+      const { computeTrack3 } = await import('@sportpulse/prediction');
+
+      // Derive table position proxies — unavailable in shadow mode (no standings API)
+      // Position = 0 signals unavailable; competitiveImportance defaults to NEUTRAL.
+      const track3Output = computeTrack3(
+        homeTeamId,
+        awayTeamId,
+        buildNowUtc,
+        historicalMatches,  // already built above (anti-lookahead filtered inside computeTrack3)
+        track1Output.homeStrength.eloRating,
+        track1Output.awayStrength.eloRating,
+        0, // homePosition: unavailable in shadow mode
+        0, // awayPosition: unavailable in shadow mode
+        20, // totalTeams: conservative default for European leagues
+        0,  // matchday: unavailable; seasonPhase defaults to EARLY (neutral)
+        loadedWeights.track3Global,
+      );
+
+      track3 = { probs: track3Output.probs };
+    } catch (err: unknown) {
+      // Fault-isolated: Track 3 failure must never crash the shadow runner
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[NexusShadow] Track 3 failed for ${matchId}: ${msg}`);
+      track3 = null;
+    }
+  }
 
   // Track 4: Not wired in Phase 4 (requires live odds feed to be connected)
   const track4 = { status: 'DEACTIVATED' as const };
@@ -222,8 +294,7 @@ async function runNexusPrediction(
   // Data quality tier: MINIMAL in Phase 4 (no xG, injuries, or lineup data)
   const quality = 'MINIMAL' as const;
 
-  // Extract league code from competitionId
-  const leagueCode = extractLeagueCode(competitionId);
+  // leagueCode already extracted above (before Track 1 call)
 
   // Run the full NEXUS meta-ensemble
   const output = runNexusEnsemble(
@@ -369,10 +440,12 @@ function extractLeagueCode(competitionId: string): string {
  *
  * @param dataSource     DataSource with canonical match data.
  * @param competitionIds Competition IDs to process.
+ * @param loadedWeights  Optional pre-loaded NEXUS model weights. When null, Track 3 is deactivated.
  */
 export async function runNexusShadow(
   dataSource: DataSource,
   competitionIds: string[],
+  loadedWeights?: NexusModelWeights | null,
 ): Promise<void> {
   try {
     const buildNowUtc = new Date().toISOString();
@@ -418,6 +491,7 @@ export async function runNexusShadow(
             buildNowUtc,
             competitionId,
             dataSource,
+            loadedWeights ?? null,
           );
 
           if (snapshot === null) {
