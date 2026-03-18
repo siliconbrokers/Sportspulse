@@ -1175,6 +1175,8 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
             <PredictionExperimentalSection
               matchId={vm.matchId}
               competitionId={detail.header.competitionId}
+              homeTeamName={vm.homeTeam.name}
+              awayTeamName={vm.awayTeam.name}
             />
           )}
 

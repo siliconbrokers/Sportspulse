@@ -235,8 +235,8 @@ export function registerExperimentalPredictionRoute(
       return reply.code(404).send({ error: 'No prediction found' });
     }
 
-    // 4. Most recent snapshot
-    const snap = snapshots[0];
+    // 4. Prefer V3 snapshot (has markets data); fall back to most recent
+    const snap = snapshots.find((s) => s.engine_id === 'v3_unified') ?? snapshots[0];
 
     // 5. Parse response payload (gracefully)
     const responsePayload = safeParse(
