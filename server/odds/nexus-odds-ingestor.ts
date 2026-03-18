@@ -34,6 +34,8 @@
 
 import type { OddsRecord } from '../../packages/prediction/src/nexus/odds/types.js';
 import { appendOddsRecord } from '../../packages/prediction/src/nexus/odds/raw-odds-store.js';
+import type { AfOddsService } from './af-odds-service.js';
+import { isQuotaExhausted as isAfQuotaExhausted } from '@sportpulse/canonical';
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -93,18 +95,138 @@ export interface StopHandle {
 /**
  * Placeholder OddsDataSource used until a real provider is wired.
  * fetchSnapshot always returns null — no-op from the store's perspective.
- *
- * Replace this with a real provider implementation in NEXUS-OP-3-B.
  */
 export class NullOddsDataSource implements OddsDataSource {
   async fetchSnapshot(
     _fixture: IngestorFixture,
     _buildNowUtc: string,
   ): Promise<OddsRecord | null> {
-    // TODO: fetch from provider (NEXUS-OP-3-B)
     return null;
   }
 }
+
+// ── AF odds data source (production) ──────────────────────────────────────────
+
+/**
+ * Maximum API-Football requests per ingestor cycle. Caps budget consumption
+ * so the ingestor never drains the daily quota (100 req/day on free tier).
+ * Each cycle may run up to MAX_CALLS_PER_CYCLE fixtures.
+ *
+ * Rationale: the ingestor runs per-fixture, not per-cycle. MAX_CALLS_PER_CYCLE
+ * is enforced at the caller level (startNexusOddsIngestor) by limiting how many
+ * fixtures are enrolled at startup. Individual fetchSnapshot calls each check
+ * isAfQuotaExhausted() before touching the API.
+ */
+const MAX_CALLS_PER_CYCLE = 3;
+
+/**
+ * Production OddsDataSource backed by API-Football v3 (via AfOddsService).
+ *
+ * Design decisions:
+ *
+ * 1. Budget guard: isAfQuotaExhausted() is checked before every API call.
+ *    If the daily quota is exhausted, fetchSnapshot returns null (no-op).
+ *    This prevents the ingestor from pushing AF over the 100 req/day limit.
+ *
+ * 2. Fixture ID extraction: canonical matchIds use the format
+ *    "match:<provider>:<numericId>" (e.g., "match:apifootball:1023456").
+ *    The numeric suffix is the API-Football fixture ID.
+ *    For non-AF providers ("match:football-data:*" etc.) the ID cannot be
+ *    mapped to an AF fixture — fetchSnapshot returns null gracefully.
+ *
+ * 3. OddsRecord construction: AfOddsService returns de-vigged implied
+ *    probabilities (home + draw + away = 1.0 exactly). To store a valid
+ *    OddsRecord we convert back to decimal odds (1 / prob). The resulting
+ *    overround is exactly 1.0, which is within the OVERROUND_BOUNDS [1.00, 1.15]
+ *    guard in the canonical serving view. The store records them as
+ *    provider='market_avg' since AfOddsService averages across all bookmakers.
+ *
+ * 4. Snapshot timestamp: snapshot_utc uses capturedAtUtc from AfOddsService
+ *    (the moment AfOddsService fetched the odds from the API). retrieved_at_utc
+ *    is set to the current wall-clock time (ingestion timestamp).
+ */
+export class AfOddsDataSource implements OddsDataSource {
+  private readonly afOddsService: AfOddsService;
+
+  constructor(afOddsService: AfOddsService) {
+    this.afOddsService = afOddsService;
+  }
+
+  async fetchSnapshot(
+    fixture: IngestorFixture,
+    _buildNowUtc: string,
+  ): Promise<OddsRecord | null> {
+    // Budget guard: never call AF when daily quota is exhausted.
+    if (isAfQuotaExhausted()) {
+      return null;
+    }
+
+    // Extract AF fixture ID from canonical matchId.
+    // Format: "match:apifootball:<numericId>" or "match:football-data:<numericId>"
+    // Only "match:apifootball:*" can be mapped to an AF fixture ID.
+    const fixtureId = extractAfFixtureId(fixture.matchId);
+    if (fixtureId === null) {
+      // Non-AF provider — cannot look up odds by AF fixture ID.
+      return null;
+    }
+
+    // Fetch de-vigged implied odds from AfOddsService (budget-aware, cached).
+    const implied = await this.afOddsService.getOddsForFixture(fixtureId);
+    if (implied === null) {
+      // No odds available for this fixture (provider has no data).
+      return null;
+    }
+
+    // Validate probabilities: each must be positive to compute valid decimal odds.
+    if (implied.probHome <= 0 || implied.probDraw <= 0 || implied.probAway <= 0) {
+      console.warn(
+        `[AfOddsDataSource] Skipping fixture ${fixtureId}: non-positive probability ` +
+        `(H=${implied.probHome}, D=${implied.probDraw}, A=${implied.probAway})`,
+      );
+      return null;
+    }
+
+    // Convert de-vigged probabilities → decimal odds (1 / prob).
+    // Overround will be exactly 1.0 (within OVERROUND_BOUNDS [1.00, 1.15]).
+    const oddsHome = 1 / implied.probHome;
+    const oddsDraw = 1 / implied.probDraw;
+    const oddsAway = 1 / implied.probAway;
+
+    const now = new Date().toISOString();
+
+    const record: OddsRecord = {
+      match_id:         fixture.matchId,
+      provider:         'market_avg',   // AfOddsService averages across all bookmakers
+      market:           '1x2',
+      odds_home:        oddsHome,
+      odds_draw:        oddsDraw,
+      odds_away:        oddsAway,
+      snapshot_utc:     implied.capturedAtUtc,  // when AF captured these odds (effectiveAt)
+      retrieved_at_utc: now,                    // when the ingestor stored this record
+    };
+
+    return record;
+  }
+}
+
+// ── Helper: extract AF fixture ID from canonical matchId ──────────────────────
+
+/**
+ * Extract the numeric API-Football fixture ID from a canonical matchId string.
+ *
+ * Returns the ID as a number when matchId is in "match:apifootball:<id>" format.
+ * Returns null for all other formats (football-data, thesportsdb, etc.).
+ */
+function extractAfFixtureId(matchId: string): number | null {
+  const PREFIX = 'match:apifootball:';
+  if (!matchId.startsWith(PREFIX)) return null;
+  const raw = matchId.slice(PREFIX.length);
+  const id = parseInt(raw, 10);
+  if (!isFinite(id) || id <= 0) return null;
+  return id;
+}
+
+export { MAX_CALLS_PER_CYCLE };
 
 // ── Core helpers ───────────────────────────────────────────────────────────────
 

@@ -46,6 +46,7 @@ import type { NexusModelWeights } from './prediction/nexus-model-loader.js';
 import { runNexusStartupInit } from './prediction/nexus-startup-init.js';
 import { OddsService } from './odds/odds-service.js';
 import { AfOddsService } from './odds/af-odds-service.js';
+import { startNexusOddsIngestor, AfOddsDataSource } from './odds/nexus-odds-ingestor.js';
 import { InjurySource } from './prediction/injury-source.js';
 import { XgSource } from './prediction/xg-source.js';
 import { LineupSource } from './prediction/lineup-source.js';
@@ -1261,6 +1262,40 @@ async function main() {
   if (process.env.PREDICTION_NEXUS_SHADOW_ENABLED) {
     const nexusCacheDir = path.join(process.cwd(), 'cache');
     void runNexusStartupInit(nexusCacheDir);
+  }
+
+  // ── NEXUS Track 4 live odds ingestor ─────────────────────────────────────
+  // Opt-in: only runs when NEXUS_ODDS_INGEST_ENABLED=true.
+  // Fault-isolated: any error during startup is caught and logged — never
+  // propagates to the server process.
+  //
+  // Fixture selection strategy:
+  //   - Only pre-kickoff matches from upcomingService (next 48h window) enroll.
+  //   - AF mode only: canonical matchIds use "match:apifootball:*" format which
+  //     maps directly to AF fixture IDs. Legacy FD IDs return null from
+  //     AfOddsDataSource and are silently skipped.
+  //   - Limited to 3 fixtures at a time to protect the 100 req/day AF budget.
+  //     Each enrolled fixture polls every 5–30 min (NEAR/FAR cadence), so 3
+  //     fixtures consume at most ~150 req/day in the worst case (all NEAR, 5-min
+  //     cadence). In practice most fixtures are FAR (30-min cadence) → ~15 req/day.
+  try {
+    if ((process.env.NEXUS_ODDS_INGEST_ENABLED ?? '').toLowerCase() === 'true') {
+      const nexusCacheDir = path.join(process.cwd(), 'cache');
+      // Pull up to 48h of upcoming pre-kickoff matches.
+      const upcoming = upcomingService.getUpcoming(48);
+      const nowMs = Date.now();
+      const preKickoffFixtures = upcoming
+        .filter((m) => m.normalizedStatus === 'PROXIMO')
+        .filter((m) => m.kickoffUtc && new Date(m.kickoffUtc).getTime() > nowMs)
+        // Prioritize soonest kickoff (already sorted by kickoffUtc ASC from upcomingService).
+        .slice(0, 3)
+        .map((m) => ({ matchId: m.id, kickoffUtc: m.kickoffUtc }));
+
+      const oddsDataSource = new AfOddsDataSource(afOddsService);
+      startNexusOddsIngestor(preKickoffFixtures, oddsDataSource, nexusCacheDir);
+    }
+  } catch (err) {
+    console.error('[NexusOddsIngestor] Startup error (non-fatal):', err instanceof Error ? err.message : String(err));
   }
 }
 
