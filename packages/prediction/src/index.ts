@@ -118,9 +118,6 @@ export type {
   PreMatchTeamState,
 } from './engine/team-state-replay.js';
 
-// ── Motor Predictivo V2 ────────────────────────────────────────────────────
-export * from './engine/v2/index.js';
-
 // ── Motor Predictivo V3 (Unificado) ────────────────────────────────────────
 // Solo exports únicos de V3 — constantes y tipos con mismo nombre que V2 se omiten
 // para evitar ambigüedad. Acceder a V3 internals via import directo a packages/prediction/src/engine/v3/.

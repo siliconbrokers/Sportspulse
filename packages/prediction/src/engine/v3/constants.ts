@@ -201,8 +201,9 @@ export const LINEUP_MISSING_STARTER_IMPORTANCE = 0.4;
 /** Weight factor for DOUBTFUL players vs 1.0 for confirmed absent (§T3-02). */
 export const DOUBTFUL_WEIGHT = 0.5;
 
-/** Weight of market odds in the 1X2 blend — 0 = pure model, 1 = pure market (§T3-04). */
-export const MARKET_WEIGHT = 0.2;
+/** Weight of market odds in the 1X2 blend — 0 = pure model, 1 = pure market (§T3-04).
+ * SP-V4-35 sweep (2026-03-18): óptimo en 0.70 (acc=55.3%, DR=28.1% en walk-forward 806p). */
+export const MARKET_WEIGHT = 0.70;
 
 // ── SP-V4-12: Importance threshold ────────────────────────────────────────────
 
@@ -244,7 +245,7 @@ export const POSITION_IMPACT: Record<string, { attackFactor: number; defenseFact
 };
 
 /** Hard ceiling for market weight — safety (§T3-04). */
-export const MARKET_WEIGHT_MAX = 0.30;
+export const MARKET_WEIGHT_MAX = 0.75;
 
 /** Tolerance for market odds sum validation (§T3-04). */
 export const MARKET_ODDS_SUM_TOLERANCE = 1e-4;
@@ -293,8 +294,8 @@ export const ENSEMBLE_ENABLED = false;
  */
 export const ENSEMBLE_WEIGHTS_DEFAULT = {
   w_poisson:  0.80,
-  w_market:   0.20,  // odds históricas activas — 100% cobertura PD/PL/BL1, sweep SP-V4-11
-  w_logistic: 0.00,
+  w_market:   0.15,  // odds históricas activas — 100.0% cobertura
+  w_logistic: 0.05,
 } as const;
 
 /**
@@ -379,7 +380,7 @@ export const DRAW_LEAGUE_AVG_RATE = 0.25;
  * resultados con FLOOR=0.20–0.28 son idénticos con MARGIN=0.15 binding.
  * Sweep: acc=54.9%, DR=28.2%, DP=35.7%, AR=45.1%, coverage=79.2%.
  */
-export const DRAW_FLOOR = 0.26;
+export const DRAW_FLOOR = 0.20;
 
 /**
  * Margen máximo entre el líder y p_draw para activar la regla de piso.

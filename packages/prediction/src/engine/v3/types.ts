@@ -384,7 +384,7 @@ export type V3Warning =
  */
 export interface V3PredictionOutput {
   engine_id: 'v3_unified';
-  engine_version: '4.4';
+  engine_version: '4.5';
 
   // Elegibilidad y confianza
   eligibility: EligibilityStatus;

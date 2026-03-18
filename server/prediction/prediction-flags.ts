@@ -20,7 +20,6 @@ function parseCompetitionList(envVar: string | undefined): ReadonlySet<string> {
 const shadowEnabled = parseCompetitionList(process.env.PREDICTION_SHADOW_ENABLED);
 const internalViewEnabled = parseCompetitionList(process.env.PREDICTION_INTERNAL_VIEW_ENABLED);
 const experimentalEnabled = parseCompetitionList(process.env.PREDICTION_EXPERIMENTAL_ENABLED);
-const v2ShadowEnabled = parseCompetitionList(process.env.PREDICTION_V2_SHADOW_ENABLED);
 const v3ShadowEnabled = parseCompetitionList(process.env.PREDICTION_V3_SHADOW_ENABLED);
 
 /** Returns true if V1 shadow execution is enabled for this competition. */
@@ -36,17 +35,6 @@ export function isInternalViewEnabled(competitionId: string): boolean {
 /** Returns true if experimental UI is enabled for this competition. */
 export function isExperimentalEnabled(competitionId: string): boolean {
   return experimentalEnabled.has(competitionId);
-}
-
-/**
- * Returns true if V2 parallel-shadow execution is enabled for this competition.
- *
- * Controlled by env var PREDICTION_V2_SHADOW_ENABLED (comma-separated competition IDs).
- * V2 runs alongside V1; outputs stored in the unified PredictionStore with engine_id='v2_structural_attack_defense'.
- * SP-PRED-V2 §5.1
- */
-export function isV2ShadowEnabled(competitionId: string): boolean {
-  return v2ShadowEnabled.has(competitionId);
 }
 
 /**

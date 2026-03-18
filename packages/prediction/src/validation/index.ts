@@ -19,27 +19,3 @@ export type { CompetitionProfileValidationResult } from './competition-profile-v
 export { validateHistory } from './history-validator.js';
 export type { HistoryValidationResult, TeamHistoryEval } from './history-validator.js';
 
-// ── Walk-forward validation (§17) ────────────────────────────────────────────
-export { runWalkForward } from './walk-forward.js';
-export type { WFPrediction, Outcome, WalkForwardOptions } from './walk-forward.js';
-export {
-  NAIVE_LOG_LOSS,
-  NAIVE_BRIER,
-  computeLogLoss,
-  computeBrierScore,
-  computeAccuracy,
-  computeDrawRate,
-  computeGoalsComparison,
-  computeCalibration,
-  computePerClassCalibration,
-  computeOutcomeDistribution,
-  computeAllMetrics,
-} from './metrics.js';
-export type {
-  DrawRateResult,
-  GoalsResult,
-  WFCalibrationBucket,
-  PerClassCalibrationBuckets,
-  OutcomeDistribution,
-  MetricBundle,
-} from './metrics.js';

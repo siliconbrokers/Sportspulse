@@ -58,7 +58,7 @@ function buildNotEligibleOutput(
 ): V3PredictionOutput {
   return {
     engine_id: 'v3_unified',
-    engine_version: '4.4',
+    engine_version: '4.5',
     eligibility: 'NOT_ELIGIBLE',
     confidence: 'INSUFFICIENT',
     prob_home_win: null,
@@ -732,7 +732,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   // ── Armar output ───────────────────────────────────────────────────────
   return {
     engine_id: 'v3_unified',
-    engine_version: '4.4',
+    engine_version: '4.5',
     eligibility,
     confidence,
     prob_home_win: finalProbHome,

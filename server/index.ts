@@ -25,7 +25,6 @@ import { PredictionService } from './prediction/prediction-service.js';
 import { getBestCalibrationRegistry } from './prediction/global-calibrator-store.js';
 import { PredictionStore } from './prediction/prediction-store.js';
 import { runShadow } from './prediction/shadow-runner.js';
-import { registerCompareRoute } from './prediction/compare-route.js';
 import { registerInspectionRoute } from './prediction/inspection-route.js';
 import { registerExperimentalPredictionRoute } from './prediction/experimental-route.js';
 import { EvaluationStore } from './prediction/evaluation-store.js';
@@ -38,8 +37,6 @@ import { ForwardValidationStore } from './prediction/forward-validation-store.js
 import { ForwardValidationRunner } from './prediction/forward-validation-runner.js';
 import { ForwardValidationEvaluator } from './prediction/forward-validation-evaluator.js';
 import { HistoricalStateService } from './prediction/historical-state-service.js';
-import { runV2Shadow } from './prediction/v2-runner.js';
-import { V2PredictionStore } from './prediction/v2-prediction-store.js';
 import { runV3Shadow, type NonFdCompDescriptor } from './prediction/v3-shadow-runner.js';
 import { isV3ShadowEnabled } from './prediction/prediction-flags.js';
 import { OddsService } from './odds/odds-service.js';
@@ -635,7 +632,6 @@ async function main() {
   const radarV2Enabled = process.env.RADAR_V2_ENABLED === 'true';
   const radarV2Service = radarV2Enabled ? new RadarV2ApiAdapter(dataSource, predictionStore) : undefined;
   const evaluationStore = new EvaluationStore();
-  const v2PredictionStore = new V2PredictionStore();
 
   // H11 — Forward Validation pipeline (feature-flagged)
   const forwardValStore = new ForwardValidationStore();
@@ -957,8 +953,7 @@ async function main() {
         void runV3Shadow(dataSource, v3AfCompIds, [], historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, shadowSeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource, afOddsService);
       }
     } else {
-      // Legacy mode: V2 + V3 shadow for FD and non-FD competitions
-      void runV2Shadow(dataSource, FD_COMP_IDS, historicalStateServiceFV, v2PredictionStore, fdCompetitionCodeMap, shadowSeasonYear);
+      // Legacy mode: V3 shadow for FD and non-FD competitions
       const v3FdCompIds = FD_COMP_IDS.filter((id) => isCompetitionEnabled(id) && isV3ShadowEnabled(id));
       const v3NonFdDescriptors: NonFdCompDescriptor[] = [
         {
@@ -1138,14 +1133,6 @@ async function main() {
 
   // ── Experimental prediction endpoint (PE-78) ───────────────────────────────
   registerExperimentalPredictionRoute(app, predictionStore, evaluationStore);
-
-  // ── V1 vs V2 comparison endpoint (SP-PRED-V2 §7) ──────────────────────────
-  registerCompareRoute(
-    app,
-    predictionStore,
-    v2PredictionStore,
-    () => isFeatureEnabled('predictions'),
-  );
 
   // ── Evaluation endpoint (OE-5) ─────────────────────────────────────────────
   registerEvaluationRoute(app, evaluationStore);

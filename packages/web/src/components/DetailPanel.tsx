@@ -340,57 +340,9 @@ function PreMatchBody({
 }) {
   const nm = detail.nextMatch;
   const isHome = nm?.venue === 'HOME';
-  const hasProbs =
-    vm.prediction?.homeProbability != null &&
-    vm.prediction?.drawProbability != null &&
-    vm.prediction?.awayProbability != null;
 
   return (
     <>
-      {/* §7.1 — Prediction block */}
-      {vm.prediction && (() => {
-        const statusBadge = derivePredictionBadge(vm.prediction!.outcomeStatus, 'PRE_MATCH');
-
-        return (
-          <div
-            data-testid="match-estimate"
-            style={{
-              marginBottom: 12,
-              padding: '14px 16px',
-              backgroundColor: 'var(--sp-border-4)',
-              borderRadius: 12,
-              border: '1px solid var(--sp-border-8)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--sp-text-35)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Pronóstico
-              </div>
-              {statusBadge && (
-                <span style={{
-                  fontSize: 10, fontWeight: 700,
-                  padding: '3px 10px', borderRadius: 20,
-                  backgroundColor: `${statusBadge.color}18`,
-                  color: statusBadge.color,
-                  border: `1px solid ${statusBadge.color}40`,
-                }}>
-                  {statusBadge.label}
-                </span>
-              )}
-            </div>
-
-            {/* §7.1 — Probability bars (shared component — mismos colores que PronosticoCard y RadarCard) */}
-            {hasProbs && (
-              <ProbabilityBars
-                probHomeWin={vm.prediction!.homeProbability!}
-                probDraw={vm.prediction!.drawProbability!}
-                probAwayWin={vm.prediction!.awayProbability!}
-                label=""
-              />
-            )}
-          </div>
-        );
-      })()}
 
 
       {/* §7.2 — Form block */}
@@ -920,7 +872,7 @@ function FinishedBody({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <SectionLabel>Evaluación del pronóstico</SectionLabel>
+              <SectionLabel>Evaluación del pronóstico base</SectionLabel>
               {badge && (
                 <span style={{
                   fontSize: 10, fontWeight: 700,

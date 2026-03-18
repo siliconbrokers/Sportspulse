@@ -129,10 +129,10 @@ describe('V3 Engine — Determinismo', () => {
     expect(out.engine_id).toBe('v3_unified');
   });
 
-  it('engine_version es siempre 4.4', () => {
+  it('engine_version es siempre 4.5', () => {
     const input = makeInput(15, 15);
     const out = runV3Engine(input);
-    expect(out.engine_version).toBe('4.4');
+    expect(out.engine_version).toBe('4.5');
   });
 });
 
@@ -669,10 +669,10 @@ describe('V3 Engine — Integración', () => {
 // ── SP-V4-23: Ensemble integration tests ───────────────────────────────────
 
 describe('V3 Engine — SP-V4-23 Ensemble (ENSEMBLE_ENABLED)', () => {
-  it('engine_version === 4.4', () => {
+  it('engine_version === 4.5', () => {
     const input = makeInput(15, 15);
     const out = runV3Engine(input);
-    expect(out.engine_version).toBe('4.4');
+    expect(out.engine_version).toBe('4.5');
   });
 
   it('ENSEMBLE_ENABLED=false (default) — output idéntico en dos llamadas (regression guard)', () => {
