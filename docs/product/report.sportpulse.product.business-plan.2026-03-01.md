@@ -484,7 +484,7 @@ Algunos features Pro necesitan ser experimentados para crear deseo — una descr
 
 > Esta sección define principios y decisiones. El diseño visual y el copy requieren iteración de producto antes de implementar.
 
-**El problema central:** todos los competidores publican números imposibles (90–99% accuracy). Mostrar un 57% honesto sin contexto genera el efecto contrario: el usuario asume incompetencia. La página tiene que resolver este problema de percepción antes de cualquier otra cosa.
+**El problema central:** todos los competidores publican números imposibles (90–99% accuracy). Mostrar un 55% honesto sin contexto genera el efecto contrario: el usuario asume incompetencia. La página tiene que resolver este problema de percepción antes de cualquier otra cosa.
 
 **Principio 1 — La comparación es el producto, no el número:**
 
@@ -492,9 +492,10 @@ Algunos features Pro necesitan ser experimentados para crear deseo — una descr
 |------------|-------------|----------------|
 | Elegir al azar | ~38% | El piso. Predecir fútbol es difícil. |
 | Tipsters de Twitter | ~43% | Cobran por picks y aciertan menos que el azar. |
-| Casas de apuestas | ~53–54% | El techo de referencia público. |
-| SportsPulse general | ~57% | Por encima del mercado en promedio. |
-| SportsPulse alta confianza | ~62–65% | Claramente superior en el subconjunto donde el modelo es más seguro. |
+| Casas de apuestas (Pinnacle argmax) | ~54% | El techo de referencia público. |
+| SportsPulse V4.4 (walk-forward auditado) | ~55% | Por encima del mercado. Empates: único en el mercado. |
+| SportsPulse target aspiracional | ~57% | Objetivo de largo plazo sin fecha fija — no es un umbral de lanzamiento. |
+| SportsPulse alta confianza | ~62–65% | Subconjunto donde el modelo es más seguro (forward validation pendiente). |
 
 **Principio 2 — For dummies arriba, profundidad abajo:**
 
