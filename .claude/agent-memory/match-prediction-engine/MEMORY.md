@@ -119,18 +119,67 @@ First train run (2026-03-17): 718 examples (PD+PL+BL1), in-sample accuracy 51.5%
 
 **SP-DRAW-V1 re-train (2026-03-17):** 2673 examples (3 ligas × 3 seasons), 23 features. Draw-rate coefficients all < 0.04 (threshold 0.1). Ensemble backtest: acc −1.7pp (54.9→53.2%), DRAW recall −2.8pp. **SP-V4-33 CLOSED — no improvement. ENSEMBLE_ENABLED stays false.**
 
+## NEXUS Fase 1B — Track 1 Injury + Lineup (2026-03-18)
+
+| Module | File | Purpose |
+|--------|------|---------|
+| injury-impact | `nexus/track1/injury-impact.ts` | `computeInjuryImpact`, position weights, MISSING sentinel |
+| lineup-adjuster | `nexus/track1/lineup-adjuster.ts` | `computeLineupAdjustment`, GK baseline check, MISSING when no lineup |
+
+**CRITICAL spec corrections vs task prompt:**
+- `PositionGroup = 'GK' | 'DEF' | 'MID' | 'FWD'` — NOT 'ATK'. Prompt used 'ATK' which conflicts with entity-identity/types.ts line 101. Always use 'FWD'.
+- `BaselineSquad` fields are camelCase: `baselinePlayers`, `confirmedAbsences`, `confirmedLineup` (not snake_case).
+- `MAX_ABSENCE_ADJUSTMENT = 0.20` (taxonomy spec S3.2 Ext 2) — impact capped at 20%, not 1.0.
+- `DOUBT_WEIGHT = 0.5` already constant in entity-identity/types.ts — import from there.
+
+**Phase 1B constants:**
+- `DEFAULT_POSITION_IMPACT_WEIGHTS`: GK=0.18, DEF=0.12, MID=0.08, FWD=0.06
+- `MAX_ABSENCE_ADJUSTMENT = 0.20` (taxonomy spec S3.2 Ext 2)
+- `GK_MISSING_FROM_LINEUP_DELTA = -0.18` (lineup-adjuster.ts)
+
+**Integration:** `computeTrack1` accepts optional `phase1bOptions?: Phase1bOptions` (8th param). When absent: injury_data_available=false, MISSING sentinel. Backward-compatible — all Phase 1A tests still pass.
+
+## NEXUS Track 3 — Tabular Discriminative Model (2026-03-18)
+
+Spec: taxonomy spec S5.1–S5.7 (context features, logistic model, output contract)
+
+| Module | File | Purpose |
+|--------|------|---------|
+| types | `nexus/track3/types.ts` | Track3FeatureVector, Track3Output, Track3Confidence, SeasonPhase, CompetitiveImportance |
+| context-features | `nexus/track3/context-features.ts` | computeRestDays, computeMatchesLast4Weeks, computeFormGeneral, computeFormSplit, computeH2hFeatures, deriveCompetitiveImportance, deriveSeasonPhase, buildTrack3FeatureVector |
+| logistic-model | `nexus/track3/logistic-model.ts` | predictLogistic, DEFAULT_LOGISTIC_WEIGHTS, LogisticWeights, softmax3 |
+| track3-engine | `nexus/track3/track3-engine.ts` | computeTrack3, CONTEXT_MODEL_VERSION='1.0.0', FEATURE_SCHEMA_VERSION='1.0.0' |
+
+**Track 3 isolation invariant:** track3/ has zero imports from engine/v3/ (master S8.4, S8.5).
+
+**Anti-lookahead:** All feature functions filter `history` by `utcDate < buildNowUtc` (strict less-than, NEXUS-0 S3.2). The `filterByAsOf` helper is the single enforcement point.
+
+**MISSING handling in logistic model:** MISSING features contribute 0 to linear combination (explicit neutral imputation, not global mean). This is documented and allowed for logistic regression per taxonomy spec S5.4b.
+
+**H2H features:** Conditionally eligible (taxonomy spec S5.3.2). Computed and stored in feature vector but NOT included in DEFAULT_LOGISTIC_WEIGHTS until lift demonstrated.
+
+**Confidence thresholds:**
+- HIGH: >= 7 of 9 features present
+- MEDIUM: 4-6 present
+- LOW: < 4 present
+
+Note: with even 1 match per team, nearly all 9 features are available (formGeneral uses own prior). Zero history → LOW confidence (only eloDiff is non-zero).
+
 ## Test Coverage
 
-- **1261 tests total** in `packages/prediction/test/` (46 test files) — as of 2026-03-17 SP-DRAW-V1
-- `test/engine/logistic-model.test.ts` — 32 tests (SP-V4-20: features, softmax invariants, defaults + 5 SP-DRAW-V1 tests)
-- `test/engine/ensemble.test.ts` — 28 tests (SP-V4-21: 3-component, missing market, missing logistic, only poisson, weight normalization)
-- `test/engine/tier3-signals.test.ts` — 39 tests (MKT-T3-00 T3-01..T3-REG + T3-POS-01..07 + T3-V4-12)
-- `test/engine/sos-recency.test.ts` — 11 tests (SP-V4-05 SoS weighted recency)
+- **1371 tests total** in `packages/prediction/test/` (49 test files) — as of 2026-03-18 NEXUS Track 3
+- `test/nexus/track3.test.ts` — 36 tests (T3-01..T3-15: anti-lookahead, H2H, form split, prob invariants, confidence, isolation, rest days, schedule congestion)
+- `test/nexus/track1-1b.test.ts` — 27 tests (T1B-01..T1B-27: injury impact, lineup adjuster, integration)
+- `test/nexus/track1.test.ts` — 39 tests (Phase 1A — all still passing)
+- `test/engine/logistic-model.test.ts` — 32 tests (SP-V4-20)
+- `test/engine/ensemble.test.ts` — 28 tests (SP-V4-21)
+- `test/engine/tier3-signals.test.ts` — 39 tests (MKT-T3-00)
+- `test/engine/sos-recency.test.ts` — 11 tests (SP-V4-05)
 - `test/engine/elo-rating.test.ts` — 19 tests (Phase 2a)
 - `test/engine/scoreline-matrix.test.ts` — 23 tests (Phase 2a)
 - `test/engine/raw-aggregator.test.ts` — 8 tests (Phase 2a)
 - `test/engine/derived-raw.test.ts` — 17 tests (Phase 2a)
-- All Phase 2b and 2c tests also pass (43 test files total)
+- All Phase 2b and 2c tests also pass (48 test files total)
 - 1 pre-existing failure: `match-validator.test.ts` F-005 (catalog size — unrelated to engine)
 
 ## SoS Invariant (SP-V4-05)

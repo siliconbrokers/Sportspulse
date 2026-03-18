@@ -86,3 +86,40 @@ Full `pnpm build` — zero errors, all packages compile.
 `@sportpulse/prediction` depends on `@sportpulse/shared` and `@sportpulse/canonical`
 per package.json. However, Phase 1 contracts import NOTHING from either package —
 all types are self-contained primitives. This is intentional and correct.
+
+## NEXUS Odds Module (Task 3.4A — completed 2026-03-18)
+
+Files in `packages/prediction/src/nexus/odds/`:
+- `types.ts` — OddsProvider, ProviderRole, OddsMarket, OddsRecord, ImpliedProbs,
+  OddsConfidence, CanonicalOddsSnapshot, OddsQuality, PROVIDER_PRECEDENCE, OVERROUND_BOUNDS
+- `raw-odds-store.ts` — appendOddsRecord, loadOddsRecords, loadOddsRecordsForProvider
+- `canonical-serving-view.ts` — deVigProportional, computeOddsConfidence,
+  selectFeatureProvider, selectBenchmarkProvider, getCanonicalOddsSnapshot
+- `index.ts` — public barrel
+Tests: `packages/prediction/test/nexus/odds.test.ts` — 22 tests, all pass.
+
+### NEXUS Odds Design Decisions
+
+**OddsProvider** — spec S3.2 defines four values: `'pinnacle' | 'bet365' | 'market_max' | 'market_avg'`.
+The task prompt shorthand `'avg'` was NOT used — spec governs. All four precedence
+levels from S3.1 are represented.
+
+**OddsConfidence thresholds** — reuse FRESHNESS_THRESHOLDS_SECONDS from feature-store/types.ts:
+  - MARKET_ODDS_HIGH_CUTOFF   = 24h (< 24h → HIGH)
+  - MARKET_ODDS_MEDIUM_CUTOFF = 72h (24-72h → MEDIUM, > 72h → LOW)
+  - Infinity → DEACTIVATED
+
+**snapshot_utc vs kickoffUtc** — the canonical serving view computes snapshot_age_hours
+as (buildNowUtc - snapshot_utc). It does NOT have kickoffUtc. The inference layer
+maps this to kickoff-relative confidence when it has kickoffUtc available.
+
+**Benchmark = Pinnacle ONLY** (MSP S4.2) — enforced structurally:
+`selectBenchmarkProvider` only checks records where `provider === 'pinnacle'`.
+Returning null makes Track 4 DEACTIVATED, unrepresentable as wrong-source.
+
+**Append-only idempotency key** = (match_id, provider, snapshot_utc).
+File path: `{cacheDir}/odds-raw/{match_id}/{provider}/{snapshot_utc_safe}.json`
+`snapshot_utc_safe` replaces `:` with `-` for filesystem safety.
+
+**overround** field stores pre-normalization sum (e.g., 1.05 for 5% vig),
+NOT a percentage. Well-formedness bounds [1.00, 1.15] per MSP S4.1.
