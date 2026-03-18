@@ -39,6 +39,20 @@ function fmtNum(n: number): string {
 
 // ─── Single card ─────────────────────────────────────────────────────────────
 
+// ─── dataSource badge config ──────────────────────────────────────────────────
+
+const DATA_SOURCE_DOT: Record<string, string> = {
+  PROVIDER_REPORTED: '#22c55e',
+  LEDGER_OBSERVED: '#eab308',
+};
+
+const DATA_SOURCE_LABEL: Record<string, string> = {
+  PROVIDER_REPORTED: 'provider',
+  LEDGER_OBSERVED: 'ledger',
+};
+
+// ─── Single card ─────────────────────────────────────────────────────────────
+
 function ProviderCard({
   item,
   selected,
@@ -49,10 +63,22 @@ function ProviderCard({
   onSelect: () => void;
 }) {
   const color = LEVEL_COLOR[item.warningLevel] ?? '#22c55e';
+
+  // Use effectiveUsedUnits (provider-reported truth) when available; fall back to ledger observation.
+  const displayUsed = item.effectiveUsedUnits ?? item.usedUnitsObserved;
   const pct =
     item.dailyLimit && item.dailyLimit > 0
-      ? Math.min(100, (item.usedUnitsObserved / item.dailyLimit) * 100)
+      ? Math.min(100, (displayUsed / item.dailyLimit) * 100)
       : null;
+
+  // Remaining: prefer provider-reported value when available.
+  const hasProviderRemaining = item.providerReportedRemaining !== null;
+  const remainingValue = hasProviderRemaining
+    ? item.providerReportedRemaining
+    : item.estimatedRemaining;
+  const remainingLabel = hasProviderRemaining ? 'restantes (provider)' : 'restantes (est.)';
+
+  const dsKey = item.dataSource ?? null;
 
   return (
     <div
@@ -74,9 +100,28 @@ function ProviderCard({
     >
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--sp-text)' }}>
-          {item.displayName}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--sp-text)' }}>
+            {item.displayName}
+          </span>
+          {/* dataSource badge */}
+          {dsKey && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: DATA_SOURCE_DOT[dsKey] ?? 'var(--sp-text-40)',
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontSize: 10, color: 'var(--sp-text-40)' }}>
+                {DATA_SOURCE_LABEL[dsKey] ?? dsKey}
+              </span>
+            </span>
+          )}
+        </div>
         <span
           style={{
             fontSize: 10,
@@ -95,15 +140,23 @@ function ProviderCard({
       {/* Usage figures */}
       {item.dailyLimit !== null ? (
         <>
+          {/* Used / limit */}
           <div style={{ fontSize: 13, color: 'var(--sp-text-40)' }}>
             <span style={{ fontWeight: 600, color: 'var(--sp-text)' }}>
-              {fmtNum(item.usedUnitsObserved)}
+              {fmtNum(displayUsed)}
             </span>
             {' / '}
             {fmtNum(item.dailyLimit)}
+            {' usadas'}
             {pct !== null && (
               <span style={{ marginLeft: 6, color, fontWeight: 600 }}>
                 {pct.toFixed(0)}%
+              </span>
+            )}
+            {/* "(parcial)" hint when data comes from ledger only */}
+            {dsKey === 'LEDGER_OBSERVED' && (
+              <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--sp-text-40)' }}>
+                (parcial)
               </span>
             )}
           </div>
@@ -130,20 +183,18 @@ function ProviderCard({
             </div>
           )}
 
-          {/* Remaining */}
+          {/* Remaining — provider-reported preferred */}
           <div style={{ fontSize: 12, color: 'var(--sp-text-40)' }}>
-            Est. remaining:{' '}
             <span style={{ color: 'var(--sp-text)' }}>
-              {item.estimatedRemaining !== null ? fmtNum(item.estimatedRemaining) : '—'}
+              {remainingValue !== null ? fmtNum(remainingValue) : '—'}
             </span>
+            {' '}
+            {remainingLabel}
           </div>
 
-          {/* Provider reported */}
+          {/* Discrepancy badge (shown alongside provider-reported) */}
           <div style={{ fontSize: 12, color: 'var(--sp-text-40)', display: 'flex', gap: 6, alignItems: 'center' }}>
-            Provider reports:{' '}
-            <span style={{ color: 'var(--sp-text)' }}>
-              {item.providerReportedRemaining !== null ? fmtNum(item.providerReportedRemaining) : '—'}
-            </span>
+            Discrepancia:
             <span
               style={{
                 fontSize: 10,
@@ -160,7 +211,7 @@ function ProviderCard({
         </>
       ) : (
         <div style={{ fontSize: 12, color: 'var(--sp-text-40)', fontStyle: 'italic' }}>
-          Sin límite configurado — {fmtNum(item.usedUnitsObserved)} unidades usadas
+          Sin límite configurado — {fmtNum(displayUsed)} unidades usadas
         </div>
       )}
 

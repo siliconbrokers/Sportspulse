@@ -12,6 +12,8 @@ export interface ProviderSummaryItem {
   displayName: string;
   dailyLimit: number | null;
   usedUnitsObserved: number;
+  effectiveUsedUnits?: number;
+  dataSource?: 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED';
   estimatedRemaining: number | null;
   providerReportedRemaining: number | null;
   discrepancyStatus: 'NONE' | 'MINOR' | 'MAJOR' | 'UNKNOWN';

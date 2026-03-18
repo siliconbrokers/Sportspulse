@@ -97,27 +97,37 @@ export function registerApiUsageRoutes(
         dailyLimit,
       );
 
-      // Warning level based on % of daily limit consumed
-      const pctUsed = dailyLimit > 0 ? (usedUnits / dailyLimit) * 100 : 0;
+      // Preferir provider-reported data cuando está disponible — el ledger local
+      // puede ser incompleto (solo cubre requests desde que esta instancia arrancó)
+      const providerLimit = providerReportedLimit ?? dailyLimit;
+      const effectiveUsedUnits = (providerReportedRemaining !== null && providerLimit > 0)
+        ? providerLimit - providerReportedRemaining
+        : usedUnits;
+      const effectivePctUsed = dailyLimit > 0 ? (effectiveUsedUnits / dailyLimit) * 100 : 0;
+      const dataSource: 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED' =
+        providerReportedRemaining !== null ? 'PROVIDER_REPORTED' : 'LEDGER_OBSERVED';
+
       let warningLevel: 'NORMAL' | 'WARNING' | 'CRITICAL' | 'EXHAUSTED' = 'NORMAL';
       if (dailyLimit > 0) {
-        if (pctUsed >= quota.hardStopThresholdPct) warningLevel = 'EXHAUSTED';
-        else if (pctUsed >= quota.criticalThresholdPct) warningLevel = 'CRITICAL';
-        else if (pctUsed >= quota.warningThresholdPct) warningLevel = 'WARNING';
+        if (effectivePctUsed >= quota.hardStopThresholdPct) warningLevel = 'EXHAUSTED';
+        else if (effectivePctUsed >= quota.criticalThresholdPct) warningLevel = 'CRITICAL';
+        else if (effectivePctUsed >= quota.warningThresholdPct) warningLevel = 'WARNING';
       }
 
       return {
         providerKey: quota.providerKey,
         displayName: quota.displayName,
         dailyLimit: dailyLimit > 0 ? dailyLimit : null,
-        usedUnitsObserved: usedUnits,
+        usedUnitsObserved: usedUnits,        // lo que el ledger local registró (puede ser parcial)
+        effectiveUsedUnits,                   // basado en provider-reported cuando disponible
         estimatedRemaining,
         providerReportedRemaining,
         providerReportedLimit,
         discrepancyStatus,
-        warningLevel,
+        warningLevel,                         // calculado desde effectiveUsedUnits
         lastSeenAtUtc: latestRollup?.lastSeenAtUtc ?? null,
         byConsumerType,
+        dataSource,                           // 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED'
       };
     });
 
@@ -150,16 +160,37 @@ export function registerApiUsageRoutes(
 
       const rollup = summary.rollup;
       const dailyLimit = summary.quota?.dailyLimit ?? 0;
-      const estimatedRemaining = dailyLimit > 0 ? Math.max(0, dailyLimit - (rollup?.usedUnits ?? 0)) : null;
+      const usedUnitsObserved = rollup?.usedUnits ?? 0;
+      const estimatedRemaining = dailyLimit > 0 ? Math.max(0, dailyLimit - usedUnitsObserved) : null;
       const providerReportedRemaining = rollup?.lastRemoteRemaining ?? null;
+      const providerReportedLimit = rollup?.lastRemoteLimit ?? null;
       const discrepancyStatus = calcDiscrepancy(estimatedRemaining, providerReportedRemaining, dailyLimit);
+
+      // Override warningLevel with provider-reported data when available (same logic as /today)
+      const providerLimit = providerReportedLimit ?? dailyLimit;
+      const effectiveUsedUnits = (providerReportedRemaining !== null && providerLimit > 0)
+        ? providerLimit - providerReportedRemaining
+        : usedUnitsObserved;
+      const effectivePctUsed = dailyLimit > 0 ? (effectiveUsedUnits / dailyLimit) * 100 : 0;
+      const dataSource: 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED' =
+        providerReportedRemaining !== null ? 'PROVIDER_REPORTED' : 'LEDGER_OBSERVED';
+
+      let warningLevel: 'NORMAL' | 'WARNING' | 'CRITICAL' | 'EXHAUSTED' = 'NORMAL';
+      if (summary.quota && dailyLimit > 0) {
+        if (effectivePctUsed >= summary.quota.hardStopThresholdPct) warningLevel = 'EXHAUSTED';
+        else if (effectivePctUsed >= summary.quota.criticalThresholdPct) warningLevel = 'CRITICAL';
+        else if (effectivePctUsed >= summary.quota.warningThresholdPct) warningLevel = 'WARNING';
+      }
 
       return reply.send({
         providerKey,
         rollup,
         quota: summary.quota,
-        percentUsed: Math.round(summary.percentUsed * 10) / 10,
-        warningLevel: summary.warningLevel,
+        percentUsed: Math.round(effectivePctUsed * 10) / 10,
+        warningLevel,
+        usedUnitsObserved,
+        effectiveUsedUnits,
+        dataSource,
         recentEvents,
         topOperations,
         topConsumers,
