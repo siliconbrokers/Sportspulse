@@ -109,6 +109,34 @@ function normStr(s: string) {
     .trim();
 }
 
+/**
+ * Busca la URL de stream para un par de equipos normalizados.
+ * 1. Exact match (fast path)
+ * 2. Contains fallback — igual a la estrategia del LiveOverlay, maneja casos donde
+ *    streamtp10 usa nombres distintos al canónico AF (ej: "Gimnasia y Esgrima Mendoza"
+ *    vs "Gimnasia Mendoza", "Central Córdoba (SdE)" vs "Central Córdoba", etc.)
+ */
+function findStreamUrl(
+  streamUrlMap: Map<string, string>,
+  homeNorm: string,
+  awayNorm: string,
+): string | undefined {
+  const exactKey = `${homeNorm}|${awayNorm}`;
+  if (streamUrlMap.has(exactKey)) return streamUrlMap.get(exactKey);
+
+  for (const [k, url] of streamUrlMap) {
+    const sep = k.indexOf('|');
+    if (sep === -1) continue;
+    const kh = k.slice(0, sep);
+    const ka = k.slice(sep + 1);
+    if (
+      (kh.includes(homeNorm) || homeNorm.includes(kh)) &&
+      (ka.includes(awayNorm) || awayNorm.includes(ka))
+    ) return url;
+  }
+  return undefined;
+}
+
 function formatTime(isoStr: string | null): string {
   if (!isoStr) return '—';
   try {
@@ -146,7 +174,6 @@ function getLiveState(event: ParsedEvent): LiveState {
  * El click en tarjeta usa openUrl != null como señal de "abrir stream" (vs. DetailPanel).
  */
 function upcomingToEvent(m: UpcomingMatchDTO, streamUrlMap: Map<string, string>): ParsedEvent {
-  const key = `${normStr(m.homeTeam)}|${normStr(m.awayTeam)}`;
   return {
     id:                          `canonical:${m.id}`,
     rawText:                     `${m.homeTeam} vs ${m.awayTeam}`,
@@ -166,7 +193,7 @@ function upcomingToEvent(m: UpcomingMatchDTO, streamUrlMap: Map<string, string>)
     startsAtPortalTz:            m.startsAtPortalTz,
     isTodayInPortalTz:           m.isTodayInPortalTz,
     isDebugVisible:              false,
-    openUrl:                     streamUrlMap.get(key) ?? null,
+    openUrl:                     findStreamUrl(streamUrlMap, normStr(m.homeTeam), normStr(m.awayTeam)) ?? null,
     homeCrestUrl:                m.homeCrestUrl,
     awayCrestUrl:                m.awayCrestUrl,
     scoreHome:                   m.scoreHome,
