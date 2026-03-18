@@ -131,4 +131,81 @@ describe('ApiUsageLedger', () => {
       ledger.recordEvent(makeEvent({ id: '' })); // empty PK might fail, but should be caught
     }).not.toThrow();
   });
+
+  describe('getProviderTopOps', () => {
+    it('returns operations ordered by count desc', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      ledger.recordEvent(makeEvent({ operationKey: 'fixtures', usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ operationKey: 'fixtures', usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ operationKey: 'standings', usageDateLocal: today }));
+
+      const topOps = ledger.getProviderTopOps('api-football', 10);
+      expect(topOps.length).toBeGreaterThanOrEqual(2);
+      expect(topOps[0].operationKey).toBe('fixtures');
+      expect(topOps[0].count).toBe(2);
+      // standings should appear after fixtures
+      const standingsEntry = topOps.find((o) => o.operationKey === 'standings');
+      expect(standingsEntry).toBeDefined();
+      expect(standingsEntry!.count).toBe(1);
+    });
+
+    it('respects limit=1', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      ledger.recordEvent(makeEvent({ operationKey: 'fixtures', usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ operationKey: 'fixtures', usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ operationKey: 'standings', usageDateLocal: today }));
+
+      const topOps = ledger.getProviderTopOps('api-football', 1);
+      expect(topOps.length).toBe(1);
+      expect(topOps[0].operationKey).toBe('fixtures');
+    });
+
+    it('aggregates totalUnits correctly', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      ledger.recordEvent(makeEvent({ operationKey: 'fixtures', usageUnits: 3, usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ operationKey: 'fixtures', usageUnits: 5, usageDateLocal: today }));
+
+      const topOps = ledger.getProviderTopOps('api-football', 10);
+      const entry = topOps.find((o) => o.operationKey === 'fixtures');
+      expect(entry!.totalUnits).toBe(8);
+    });
+  });
+
+  describe('getProviderTopConsumers', () => {
+    it('filters out null consumerId rows', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      // consumerId=null — must NOT appear in results
+      ledger.recordEvent(makeEvent({ consumerId: null, usageDateLocal: today }));
+      // consumerId set — must appear
+      ledger.recordEvent(makeEvent({ consumerId: 'consumer-A', usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ consumerId: 'consumer-A', usageDateLocal: today }));
+
+      const topConsumers = ledger.getProviderTopConsumers('api-football', 10);
+      const consumerIds = topConsumers.map((c) => c.consumerId);
+      expect(consumerIds).not.toContain(null);
+      expect(consumerIds).toContain('consumer-A');
+      expect(topConsumers.find((c) => c.consumerId === 'consumer-A')!.count).toBe(2);
+    });
+
+    it('returns consumers ordered by count desc', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      ledger.recordEvent(makeEvent({ consumerId: 'consumer-B', usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ consumerId: 'consumer-A', usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ consumerId: 'consumer-A', usageDateLocal: today }));
+
+      const topConsumers = ledger.getProviderTopConsumers('api-football', 10);
+      expect(topConsumers[0].consumerId).toBe('consumer-A');
+      expect(topConsumers[0].count).toBe(2);
+    });
+
+    it('respects limit', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      ledger.recordEvent(makeEvent({ consumerId: 'consumer-A', usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ consumerId: 'consumer-B', usageDateLocal: today }));
+      ledger.recordEvent(makeEvent({ consumerId: 'consumer-C', usageDateLocal: today }));
+
+      const topConsumers = ledger.getProviderTopConsumers('api-football', 1);
+      expect(topConsumers.length).toBe(1);
+    });
+  });
 });

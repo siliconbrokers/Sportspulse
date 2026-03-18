@@ -286,6 +286,9 @@ function AdminPanel({ token }: { token: string }) {
           <div>
             <div style={S.title}>SportPulse</div>
             <div style={S.subtitle}>Configuración del portal</div>
+            <a href="/admin/ops" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
+              → Ver consumo de APIs (Ops)
+            </a>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {saveState === 'saving' && <span style={S.feedback('saving')}>Guardando…</span>}

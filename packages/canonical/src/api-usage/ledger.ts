@@ -83,6 +83,8 @@ export class ApiUsageLedger {
   private readonly stmtGetProviderRollup: Database.Statement;
   private readonly stmtGetRecentEvents: Database.Statement;
   private readonly stmtGetTodayTotal: Database.Statement;
+  private readonly stmtGetProviderTopOps: Database.Statement;
+  private readonly stmtGetProviderTopConsumers: Database.Statement;
 
   constructor(dbPath: string) {
     if (dbPath !== ':memory:') {
@@ -153,6 +155,28 @@ export class ApiUsageLedger {
       SELECT COALESCE(SUM(used_units), 0) as total
       FROM api_usage_daily_rollups
       WHERE provider_key = ? AND usage_date_local = ?
+    `);
+
+    this.stmtGetProviderTopOps = this.db.prepare(`
+      SELECT operation_key as operationKey,
+             COUNT(*) as count,
+             SUM(usage_units) as totalUnits
+      FROM api_usage_events
+      WHERE provider_key = ? AND usage_date_local = ?
+      GROUP BY operation_key
+      ORDER BY count DESC
+      LIMIT ?
+    `);
+
+    this.stmtGetProviderTopConsumers = this.db.prepare(`
+      SELECT consumer_id as consumerId,
+             COUNT(*) as count,
+             SUM(usage_units) as totalUnits
+      FROM api_usage_events
+      WHERE provider_key = ? AND usage_date_local = ? AND consumer_id IS NOT NULL
+      GROUP BY consumer_id
+      ORDER BY count DESC
+      LIMIT ?
     `);
 
     // Attempt legacy af-budget migration
@@ -316,6 +340,28 @@ export class ApiUsageLedger {
     }
 
     return { rollup, quota, percentUsed, warningLevel };
+  }
+
+  getProviderTopOps(
+    providerKey: ProviderKey,
+    limit: number,
+  ): { operationKey: string; count: number; totalUnits: number }[] {
+    return this.stmtGetProviderTopOps.all(
+      providerKey,
+      currentDayUtc(),
+      limit,
+    ) as { operationKey: string; count: number; totalUnits: number }[];
+  }
+
+  getProviderTopConsumers(
+    providerKey: ProviderKey,
+    limit: number,
+  ): { consumerId: string; count: number; totalUnits: number }[] {
+    return this.stmtGetProviderTopConsumers.all(
+      providerKey,
+      currentDayUtc(),
+      limit,
+    ) as { consumerId: string; count: number; totalUnits: number }[];
   }
 
   // ── Quota checks ──────────────────────────────────────────────────────────

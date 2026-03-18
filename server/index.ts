@@ -43,6 +43,7 @@ import { isV3ShadowEnabled } from './prediction/prediction-flags.js';
 import { runNexusShadow } from './prediction/nexus-shadow-runner.js';
 import { loadNexusModelWeights } from './prediction/nexus-model-loader.js';
 import type { NexusModelWeights } from './prediction/nexus-model-loader.js';
+import { runNexusStartupInit } from './prediction/nexus-startup-init.js';
 import { OddsService } from './odds/odds-service.js';
 import { AfOddsService } from './odds/af-odds-service.js';
 import { InjurySource } from './prediction/injury-source.js';
@@ -1253,6 +1254,14 @@ async function main() {
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`SportsPulse API running at http://localhost:${PORT}`);
+
+  // NEXUS startup init — fire-and-forget, only when shadow mode is enabled.
+  // Generates Track 3 weights and loads historical odds on first boot if absent.
+  // Never blocks server startup. Never throws to caller.
+  if (process.env.PREDICTION_NEXUS_SHADOW_ENABLED) {
+    const nexusCacheDir = path.join(process.cwd(), 'cache');
+    void runNexusStartupInit(nexusCacheDir);
+  }
 }
 
 main().catch((err) => {

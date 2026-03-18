@@ -28,6 +28,7 @@ import { SubTournamentSelector } from './components/SubTournamentSelector.js';
 import { usePortalConfig } from './hooks/use-portal-config.js';
 import type { PortalConfig } from './hooks/use-portal-config.js';
 import { AdminPage } from './admin/AdminPage.js';
+import { OpsApiUsagePage } from './admin/OpsApiUsagePage.js';
 import { ServerBootScreen } from './components/ServerBootScreen.js';
 
 function SubTournamentEmptyState() {
@@ -57,6 +58,10 @@ function isLabsRoute(): boolean {
   return window.location.pathname.startsWith('/labs/');
 }
 
+function isOpsRoute(): boolean {
+  return window.location.pathname.startsWith('/admin/ops');
+}
+
 function isAdminRoute(): boolean {
   return window.location.pathname.startsWith('/admin');
 }
@@ -67,6 +72,9 @@ function isAdminRoute(): boolean {
 export function AppRoot() {
   if (isPlayerTestRoute()) {
     return <EventPlayerTest />;
+  }
+  if (isOpsRoute()) {
+    return <OpsApiUsagePage />;
   }
   if (isAdminRoute()) {
     return <AdminPage />;
