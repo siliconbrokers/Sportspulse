@@ -140,7 +140,7 @@ function MarketPairRow({
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function MarketsPanel({ markets, homeTeamName, awayTeamName, probHome, probDraw, probAway, predictedResult }: MarketsPanelProps) {
-  const { over_under: ou, btts, double_chance: dc, expected_goals: xgData, top_scorelines: scorelines } = markets;
+  const { over_under: ou, btts, double_chance: dc, dnb, expected_goals: xgData, top_scorelines: scorelines } = markets;
 
   return (
     <div style={{
@@ -194,6 +194,8 @@ export function MarketsPanel({ markets, homeTeamName, awayTeamName, probHome, pr
         <MarketPairRow leftLabel="Over"   leftValue={ou.over_2_5}      rightLabel="Under" rightValue={ou.under_2_5} />
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-50)', marginBottom: 2, textAlign: 'center' as const }}>Anotan ambos equipos</div>
         <MarketPairRow leftLabel="Sí" leftValue={btts.yes} rightLabel="No" rightValue={btts.no} />
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-50)', marginBottom: 2, textAlign: 'center' as const }}>Sin Empate (DNB)</div>
+        <MarketPairRow leftLabel="Local" leftValue={dnb.home} rightLabel="Visita" rightValue={dnb.away} />
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-text-50)', marginBottom: 2, textAlign: 'center' as const }}>Ganador o Empate</div>
         {/* Double Chance — sin barra, dos columnas */}
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>

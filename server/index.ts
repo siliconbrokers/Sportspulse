@@ -1002,8 +1002,9 @@ async function main() {
     captureResults(dataSource, evaluationStore, ALL_COMP_IDS);
 
     // Forward validation — feature-flagged, fault-isolated
-    // Desactivado en AF mode: usa HistoricalStateService que carga FD team IDs — incompatible con AF.
-    const fvEnabled = !AF_CANONICAL_ENABLED && process.env.FORWARD_VALIDATION_ENABLED === 'true';
+    // Compatible con AF mode: ForwardValidationRunner usa afCompetitionIds para derivar estado
+    // desde DataSource (getPreMatchTeamStateFromDataSource) en lugar de HistoricalStateService.
+    const fvEnabled = process.env.FORWARD_VALIDATION_ENABLED === 'true';
     if (fvEnabled) {
       // In AF mode: use AF competition IDs; in legacy mode: build from FD codes
       const fvCompetitions = AF_CANONICAL_ENABLED && afCanonicalSource
