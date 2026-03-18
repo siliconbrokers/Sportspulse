@@ -171,6 +171,69 @@ describe('ApiUsageLedger', () => {
     });
   });
 
+  describe('reconcileFromProviderHeaders', () => {
+    it('closes the gap when provider reports more usage than ledger observed', () => {
+      // Ledger has 5 observed units
+      for (let i = 0; i < 5; i++) {
+        ledger.recordEvent(makeEvent());
+      }
+      // Provider reports limit=7500, remaining=7400 → providerUsed=100, gap=95
+      ledger.reconcileFromProviderHeaders('api-football', 7400, 7500);
+
+      const rollup = ledger.getTodayRollup('api-football');
+      // total = 5 observed + 95 reconciliation = 100
+      expect(rollup!.usedUnits).toBe(100);
+    });
+
+    it('does not double-count when called twice with the same values', () => {
+      for (let i = 0; i < 5; i++) {
+        ledger.recordEvent(makeEvent());
+      }
+      ledger.reconcileFromProviderHeaders('api-football', 7400, 7500);
+      // Second call with identical values — gap should remain 95, not add another 95
+      ledger.reconcileFromProviderHeaders('api-football', 7400, 7500);
+
+      const rollup = ledger.getTodayRollup('api-football');
+      expect(rollup!.usedUnits).toBe(100);
+    });
+
+    it('does not reconcile when ledger already has >= providerUsed', () => {
+      // Record 200 observed units
+      ledger.recordEvent(makeEvent({ usageUnits: 200 }));
+      // Provider reports only 100 used — ledger already exceeds this
+      ledger.reconcileFromProviderHeaders('api-football', 7400, 7500); // providerUsed=100
+
+      const rollup = ledger.getTodayRollup('api-football');
+      // Still 200 — no reconciliation row inserted
+      expect(rollup!.usedUnits).toBe(200);
+    });
+
+    it('getTodayObservedUnits excludes RECONCILIATION rows', () => {
+      ledger.recordEvent(makeEvent({ usageUnits: 5 }));
+      ledger.reconcileFromProviderHeaders('api-football', 7400, 7500); // adds 95 reconciliation
+
+      const observed = ledger.getTodayObservedUnits('api-football');
+      // Must be 5 — reconciliation row is excluded
+      expect(observed).toBe(5);
+    });
+
+    it('reconciliation updates the gap value when provider usage increases', () => {
+      ledger.recordEvent(makeEvent({ usageUnits: 5 }));
+      // First reconcile: providerUsed=100, gap=95
+      ledger.reconcileFromProviderHeaders('api-football', 7400, 7500);
+      expect(ledger.getTodayRollup('api-football')!.usedUnits).toBe(100);
+
+      // Ledger records another 10 requests (total observed = 15)
+      ledger.recordEvent(makeEvent({ usageUnits: 10 }));
+      // Provider now reports remaining=7380 → providerUsed=120, ledger observed=15, gap=105
+      ledger.reconcileFromProviderHeaders('api-football', 7380, 7500);
+
+      const rollup = ledger.getTodayRollup('api-football');
+      // total = 15 observed + 105 reconciliation = 120
+      expect(rollup!.usedUnits).toBe(120);
+    });
+  });
+
   describe('getProviderTopConsumers', () => {
     it('filters out null consumerId rows', () => {
       const today = new Date().toISOString().slice(0, 10);

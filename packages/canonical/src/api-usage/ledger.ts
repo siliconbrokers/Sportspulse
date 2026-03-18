@@ -85,6 +85,8 @@ export class ApiUsageLedger {
   private readonly stmtGetTodayTotal: Database.Statement;
   private readonly stmtGetProviderTopOps: Database.Statement;
   private readonly stmtGetProviderTopConsumers: Database.Statement;
+  private readonly stmtGetTodayObservedUnits: Database.Statement;
+  private readonly stmtUpsertReconciliation: Database.Statement;
 
   constructor(dbPath: string) {
     if (dbPath !== ':memory:') {
@@ -177,6 +179,24 @@ export class ApiUsageLedger {
       GROUP BY consumer_id
       ORDER BY count DESC
       LIMIT ?
+    `);
+
+    this.stmtGetTodayObservedUnits = this.db.prepare(`
+      SELECT COALESCE(SUM(used_units), 0) as total
+      FROM api_usage_daily_rollups
+      WHERE provider_key = ? AND usage_date_local = ? AND consumer_type != 'RECONCILIATION'
+    `);
+
+    this.stmtUpsertReconciliation = this.db.prepare(`
+      INSERT INTO api_usage_daily_rollups (
+        provider_key, usage_date_local, consumer_type,
+        used_units, success_count, error_count, rate_limited_count, cache_hit_count,
+        last_remote_limit, last_remote_remaining, last_remote_reset_at_utc, last_seen_at_utc
+      ) VALUES (?, ?, 'RECONCILIATION', ?, 0, 0, 0, 0, NULL, NULL, NULL, ?)
+      ON CONFLICT(provider_key, usage_date_local, consumer_type)
+      DO UPDATE SET
+        used_units       = excluded.used_units,
+        last_seen_at_utc = excluded.last_seen_at_utc
     `);
 
     // Attempt legacy af-budget migration
@@ -394,6 +414,34 @@ export class ApiUsageLedger {
     console.warn(
       `[ApiUsageLedger] Quota exhausted for ${providerKey} — suspended until ${nextMidnight.toISOString()}`,
     );
+  }
+
+  /**
+   * Returns the sum of used_units for today EXCLUDING RECONCILIATION rows.
+   * Used by reconcileFromProviderHeaders to compute the gap without double-counting.
+   */
+  getTodayObservedUnits(providerKey: ProviderKey): number {
+    const result = this.stmtGetTodayObservedUnits.get(providerKey, currentDayUtc()) as { total: number };
+    return result.total;
+  }
+
+  /**
+   * Closes the gap between ledger-observed usage and provider-reported usage.
+   * Called each time a provider response carries quota headers (remoteRemaining + remoteLimit).
+   * Idempotent: calling twice with the same provider values leaves the ledger unchanged.
+   * Non-blocking: a single RECONCILIATION row per (providerKey, date) is upserted (replaced, not added).
+   */
+  reconcileFromProviderHeaders(
+    providerKey: ProviderKey,
+    remoteRemaining: number,
+    remoteLimit: number,
+  ): void {
+    const providerUsed = remoteLimit - remoteRemaining;
+    if (providerUsed < 0) return; // nonsensical header values — skip
+    const ledgerObserved = this.getTodayObservedUnits(providerKey);
+    const gap = providerUsed - ledgerObserved;
+    if (gap <= 0) return; // ledger already accounts for equal or more — no reconciliation needed
+    this.stmtUpsertReconciliation.run(providerKey, currentDayUtc(), gap, new Date().toISOString());
   }
 
   getQuotaConfig(): QuotaConfigStore {

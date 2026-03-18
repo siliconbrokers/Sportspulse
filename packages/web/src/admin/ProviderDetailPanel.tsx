@@ -214,7 +214,11 @@ export function ProviderDetailPanel({ displayName, summaryItem, detail, loading,
               <tbody>
                 {summaryItem.byConsumerType.map((row) => (
                   <tr key={row.consumerType}>
-                    <td style={TD}>{row.consumerType}</td>
+                    <td style={TD}>
+                      {row.consumerType === 'RECONCILIATION'
+                        ? 'Uso previo (detectado desde headers del provider)'
+                        : row.consumerType}
+                    </td>
                     <td style={{ ...TD, textAlign: 'right' }}>{fmtNum(row.usedUnits)}</td>
                   </tr>
                 ))}

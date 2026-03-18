@@ -24,6 +24,7 @@ export type ConsumerType =
   | 'BACKFILL_JOB'
   | 'MANUAL_SCRIPT'
   | 'DEV_EXPERIMENT'
+  | 'RECONCILIATION'  // closes the gap between ledger-observed and provider-reported quota
   | 'UNKNOWN';
 
 // ── Priority tiers ────────────────────────────────────────────────────────────

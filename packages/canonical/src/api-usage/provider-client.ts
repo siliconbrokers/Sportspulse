@@ -225,6 +225,21 @@ export class InstrumentedProviderClient {
     };
 
     this.ledger.recordEvent(event);
+
+    // Reconcile ledger with provider-reported quota if headers were present.
+    // This closes the gap that arises when prior requests (from other processes or
+    // server restarts) were not recorded by this ledger instance.
+    if (event.remoteRemaining !== null && event.remoteLimit !== null) {
+      try {
+        this.ledger.reconcileFromProviderHeaders(
+          params.providerKey,
+          event.remoteRemaining,
+          event.remoteLimit,
+        );
+      } catch {
+        // Non-critical: reconciliation failure never breaks the request path
+      }
+    }
   }
 }
 
