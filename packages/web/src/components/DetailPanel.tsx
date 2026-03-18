@@ -598,14 +598,10 @@ const INCIDENT_DETAIL: Record<string, string> = {
 
 function IncidentTimeline({
   events,
-  homeTeamName,
-  awayTeamName,
   label,
   isMobile,
 }: {
   events: IncidentEvent[];
-  homeTeamName: string;
-  awayTeamName: string;
   label?: string;
   isMobile?: boolean;
 }) {
@@ -724,20 +720,6 @@ function IncidentTimeline({
                   )}
                 </div>
 
-                {/* Equipo label */}
-                <span style={{
-                  fontSize: 9,
-                  color: 'var(--sp-text-30)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  flexShrink: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  maxWidth: 52,
-                }}>
-                  {isHome ? homeTeamName : awayTeamName}
-                </span>
               </div>
             );
           })}
@@ -1193,8 +1175,6 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
             <PredictionExperimentalSection
               matchId={vm.matchId}
               competitionId={detail.header.competitionId}
-              homeTeamName={vm.homeTeam.name}
-              awayTeamName={vm.awayTeam.name}
             />
           )}
 
@@ -1240,8 +1220,6 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
               {incidentEvents ? (
                 <IncidentTimeline
                   events={incidentEvents}
-                  homeTeamName={vm.homeTeam.name}
-                  awayTeamName={vm.awayTeam.name}
                   label="Incidentes registrados"
                   isMobile={isMobile}
                 />
@@ -1352,8 +1330,6 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
               {incidentEvents ? (
                 <IncidentTimeline
                   events={incidentEvents}
-                  homeTeamName={vm.homeTeam.name}
-                  awayTeamName={vm.awayTeam.name}
                   label="Incidentes"
                   isMobile={isMobile}
                 />
@@ -1367,8 +1343,6 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
               {incidentEvents ? (
                 <IncidentTimeline
                   events={incidentEvents}
-                  homeTeamName={vm.homeTeam.name}
-                  awayTeamName={vm.awayTeam.name}
                   label="Resumen del partido"
                   isMobile={isMobile}
                 />

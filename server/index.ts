@@ -796,10 +796,14 @@ async function main() {
       // Skip entire AF refresh cycle when quota is exhausted — avoids 7 noisy error logs per cycle
       if (isAfQuotaExhausted()) {
         console.log('[Scheduler] AF quota exhausted — serving from disk cache preload');
-        // Still invalidate snapshot so it rebuilds from disk-preloaded data (Bug fix: without
-        // this call the snapshot stayed empty even when preloadAllCompetitions() had populated
-        // afCanonicalSource.cache from disk).
+        // Invalidate snapshot so it rebuilds from disk-preloaded data.
         snapshotService.invalidateAll();
+        // Run shadow prediction pipeline from preloaded in-memory data.
+        // runShadow is fire-and-forget and fault-isolated — it never calls the API,
+        // only reads from dataSource (which delegates to afCanonicalSource.cache).
+        // Without this call, the prediction store stays empty after a restart with
+        // quota exhausted, and DetailPanel shows no predictions even when disk data exists.
+        void runShadow(dataSource, ALL_COMP_IDS, predictionService, predictionStore);
         return;
       }
 
