@@ -7,8 +7,9 @@
  * Cache en disco por fixture: cache/xg/{leagueId}/{season}/{fixtureId}.json
  * TTL infinito para partidos FINISHED (los xG no cambian post-match).
  *
- * Budget: 1 request por fixture sin agotar (cuota diaria es el único límite),
- * más 1 request para la lista de fixtures (TTL 1h en memoria).
+ * Budget: máximo MAX_NEW_XG_FETCHES_PER_CYCLE requests nuevos por ciclo (previene
+ * backfill storm en deploys con cache limpia). Los fixtures pendientes se procesan
+ * en ciclos sucesivos. La lista de fixtures tiene TTL 1h en memoria y 24h en disco.
  *
  * Fault isolation: cualquier error retorna [] silenciosamente.
  *
@@ -29,6 +30,9 @@ import { normTeamName } from './injury-source.js';
 
 /** TTL for in-memory fixture list cache (per league+season). */
 const FIXTURE_LIST_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/** Max new fixture stats requests per getHistoricalXg call. Prevents backfill storm on fresh deploys. */
+const MAX_NEW_XG_FETCHES_PER_CYCLE = 20;
 
 /** Root directory for disk cache (relative to cwd). */
 const CACHE_ROOT = 'cache/xg';
@@ -417,17 +421,20 @@ export class XgSource {
         }),
       );
 
-      // Step 3: Fetch missing fixtures (cuota es el único límite)
+      // Step 3: Fetch missing fixtures — capped at MAX_NEW_XG_FETCHES_PER_CYCLE to
+      // prevent backfill storms on fresh deploys (Render wipes ephemeral FS on redeploy).
+      // Remaining fixtures are picked up in subsequent cycles.
       let fetched = 0;
       for (const f of toFetch) {
         if (isQuotaExhausted()) break;
+        if (fetched >= MAX_NEW_XG_FETCHES_PER_CYCLE) break;
 
         // Resolve canonical team IDs from AF team names via normTeamName matching
         const homeTeamId = teamNameToId.get(normTeamName(f.homeTeamName));
         const awayTeamId = teamNameToId.get(normTeamName(f.awayTeamName));
 
         if (!homeTeamId || !awayTeamId) {
-          // Cannot resolve team IDs — skip this fixture
+          // Cannot resolve team IDs — skip this fixture (does not count toward cap)
           continue;
         }
 
@@ -454,10 +461,11 @@ export class XgSource {
       }
 
       if (toFetch.length > 0) {
+        const remaining = toFetch.length - fetched;
         console.log(
           `[XgSource] ${competitionId} season=${season}: ` +
           `${results.length} xG records available, ` +
-          `${toFetch.length - fetched} still pending (budget limit or quota)`,
+          `${remaining} still pending (cap/budget/quota)`,
         );
       }
 

@@ -1,13 +1,20 @@
 /**
  * ApifootballLiveOverlay — scores en vivo via API-Football v3 (api-sports.io).
  *
- * Estrategia de budget (free tier: 100 req/día compartidos con IncidentSource y CLIOverlay):
- *   - Hay partidos en vivo  → poll cada 2 min
- *   - Sin partidos en vivo  → poll cada 15 min
- *   - Budget brake activo (≥80 req totales) → throttle a 20 min
+ * Estrategia de polling adaptativa basada en estado de partidos:
+ *
+ *   1. Hay partidos en vivo            → poll cada 2 min
+ *   2. Sin live, próximo partido ≤60 min → poll cada 15 min
+ *   3. Sin live, próximo partido >60 min → duerme hasta 60 min antes del kickoff
+ *   4. Sin live, nada en <24h o null   → poll cada 12h (máximo)
+ *   5. Budget brake activo             → throttle a 20 min
+ *
+ * La lógica de "cuándo es el próximo partido" se inyecta como callback
+ * `minutesUntilNextMatch` desde server/index.ts, que consulta el DataSource.
+ * Esto evita que el overlay haga requests innecesarios en días sin partidos.
  *
  * El contador de requests es compartido via af-budget.ts para coordinar
- * los 3 consumidores del mismo APIFOOTBALL_KEY.
+ * todos los consumidores del mismo APIFOOTBALL_KEY.
  *
  * Un único call a /fixtures?live=all trae TODOS los partidos en vivo de todas las ligas.
  */
@@ -16,9 +23,13 @@ import { isCompetitionEnabled } from './portal-config-store.js';
 
 const BASE_URL = 'https://v3.football.api-sports.io';
 
-const POLL_LIVE_MS   = 2  * 60_000;  // 2 min — hay live
-const POLL_IDLE_MS   = 15 * 60_000;  // 15 min — sin live
-const POLL_BUDGET_MS = 20 * 60_000;  // 20 min — brake activo
+const POLL_LIVE_MS        =   2 * 60_000;  // 2 min  — hay live
+const POLL_IDLE_MS        =  15 * 60_000;  // 15 min — sin live pero hay partido próximo
+const POLL_NO_MATCH_MS    = 12 * 60 * 60_000;  // 12h — no hay partidos en las próximas 24h
+const POLL_BUDGET_MS      =  20 * 60_000;  // 20 min — brake activo
+
+/** Minutos antes del kickoff en los que el overlay retoma el poll normal (15 min). */
+const WAKE_BEFORE_KICKOFF_MINS = 60;
 
 // ── API response types ────────────────────────────────────────────────────────
 
@@ -115,6 +126,8 @@ export class ApifootballLiveOverlay {
   constructor(
     private readonly apiKey: string,
     private readonly trackedCompetitionIds: string[] = [],
+    /** Optional: returns minutes until the next scheduled match, or null if unknown. */
+    private readonly minutesUntilNextMatch?: () => number | null,
   ) {}
 
   start(): void {
@@ -246,7 +259,21 @@ export class ApifootballLiveOverlay {
         this.clearLiveData();
       }
 
-      nextInterval = this.hasLive ? POLL_LIVE_MS : POLL_IDLE_MS;
+      if (this.hasLive) {
+        nextInterval = POLL_LIVE_MS;
+      } else {
+        // If a callback is available, check how far the next match is.
+        // If it's more than WAKE_BEFORE_KICKOFF_MINS away, sleep until
+        // WAKE_BEFORE_KICKOFF_MINS before kickoff (capped at POLL_NO_MATCH_MS).
+        const mins = this.minutesUntilNextMatch?.() ?? null;
+        if (mins !== null && mins > WAKE_BEFORE_KICKOFF_MINS) {
+          const sleepMins = Math.min(mins - WAKE_BEFORE_KICKOFF_MINS, POLL_NO_MATCH_MS / 60_000);
+          nextInterval = sleepMins * 60_000;
+          console.log(`[LiveOverlay] Próximo partido en ${Math.round(mins)} min — durmiendo ${Math.round(sleepMins)} min`);
+        } else {
+          nextInterval = POLL_IDLE_MS;
+        }
+      }
     }
 
     this.timer = setTimeout(() => void this.poll(), nextInterval);

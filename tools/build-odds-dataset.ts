@@ -27,9 +27,11 @@ interface LeagueDef {
 }
 
 const LEAGUES: LeagueDef[] = [
-  { code: 'PD',  csvCode: 'SP1', name: 'LaLiga'       },
+  { code: 'PD',  csvCode: 'SP1', name: 'LaLiga'         },
   { code: 'PL',  csvCode: 'E0',  name: 'Premier League' },
-  { code: 'BL1', csvCode: 'D1',  name: 'Bundesliga'   },
+  { code: 'BL1', csvCode: 'D1',  name: 'Bundesliga'     },
+  { code: 'SA',  csvCode: 'I1',  name: 'Serie A'        },
+  { code: 'FL1', csvCode: 'F1',  name: 'Ligue 1'        },
 ];
 
 // Temporadas disponibles en football-data.co.uk (formato XXYY)

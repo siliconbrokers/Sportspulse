@@ -62,7 +62,7 @@ const S = {
     textTransform: 'uppercase' as const,
     color: 'var(--sp-text-40)',
     marginBottom: 12,
-    marginTop: 24,
+    marginTop: 8,
   },
   row: {
     display: 'flex',
@@ -242,8 +242,7 @@ function AdminPanel({ token }: { token: string }) {
       const { config: newConfig } = await res.json();
       setConfig(newConfig);
       setSaveState('ok');
-      // Redirect to portal after 1.5s so the user sees the confirmation
-      setTimeout(() => { window.location.href = '/'; }, 1500);
+      setTimeout(() => setSaveState('idle'), 2000);
     } catch {
       setSaveState('error');
       setTimeout(() => setSaveState('idle'), 3000);
@@ -285,12 +284,12 @@ function AdminPanel({ token }: { token: string }) {
       <div style={{ ...S.card, maxWidth: 680 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={S.title}>Back Office</div>
-            <div style={S.subtitle}>SportPulse — Configuración del portal</div>
+            <div style={S.title}>SportPulse</div>
+            <div style={S.subtitle}>Configuración del portal</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {saveState === 'saving' && <span style={S.feedback('saving')}>Guardando…</span>}
-            {saveState === 'ok' && <span style={S.feedback('ok')}>✓ Redirigiendo…</span>}
+            {saveState === 'ok' && <span style={S.feedback('ok')}>✓ Guardado</span>}
             {saveState === 'error' && <span style={S.feedback('error')}>✗ Error al guardar</span>}
             <a
               href="/"
@@ -305,9 +304,9 @@ function AdminPanel({ token }: { token: string }) {
         <div style={S.sectionTitle}>Competiciones</div>
         {config.competitions.map((comp) => (
           <div key={comp.id} style={S.row}>
-            <div>
-              <div style={S.label}>{comp.displayName}</div>
-              <div style={S.slug}>{comp.slug} · {comp.id}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <span style={S.label}>{comp.displayName}</span>
+              <span style={{ ...S.slug, marginTop: 0 }}>{comp.slug} · {comp.id}</span>
             </div>
             <Toggle
               value={comp.enabled}

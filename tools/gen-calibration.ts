@@ -16,20 +16,25 @@
  *   --ensemble   Activar ENSEMBLE_ENABLED=true durante generación de tuplas.
  *                Carga coeficientes logísticos desde cache/logistic-coefficients.json.
  *                Las tablas se guardan con sufijo -ensemble.json.
+ *   --xg         Activar xG augmentation. Carga xG desde cache/xg/{leagueId}/{year}/
+ *                (formato AF: cada archivo = {fixtureId, homeTeamId, awayTeamId, xgHome, xgAway, utcDate}).
+ *                Las tablas se guardan con sufijo -xg.json.
+ *                Requiere backfill previo: npx tsx tools/xg-backfill-af.ts
  *
- * Uso: npx tsx --tsconfig tsconfig.server.json tools/gen-calibration.ts [--ensemble]
+ * Uso: npx tsx --tsconfig tsconfig.server.json tools/gen-calibration.ts [--ensemble] [--xg]
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { runV3Engine } from '../packages/prediction/src/engine/v3/v3-engine.js';
-import type { V3MatchRecord, V3EngineInput, CalibrationTable, CalibrationPoint } from '../packages/prediction/src/engine/v3/types.js';
+import type { V3MatchRecord, V3EngineInput, CalibrationTable, CalibrationPoint, XgRecord } from '../packages/prediction/src/engine/v3/types.js';
 import type { LogisticCoefficients } from '../packages/prediction/src/engine/v3/logistic-model.js';
 import { fitIsotonicRegression, applyIsoCalibration } from '../packages/prediction/src/calibration/iso-calibrator.js';
 
 // ── CLI flags ─────────────────────────────────────────────────────────────────
 
 const USE_ENSEMBLE = process.argv.includes('--ensemble');
+const USE_XG       = process.argv.includes('--xg');
 
 /** Carga coeficientes logísticos desde cache/logistic-coefficients.json. */
 function loadLogisticCoefficients(): LogisticCoefficients | undefined {
@@ -86,10 +91,21 @@ interface BacktestEval {
 
 const CACHE_BASE   = path.join(process.cwd(), 'cache', 'football-data');
 const HIST_BASE    = path.join(process.cwd(), 'cache', 'historical', 'football-data');
+const XG_BASE      = path.join(process.cwd(), 'cache', 'xg');
 const CAL_OUT_DIR  = path.join(process.cwd(), 'cache', 'calibration');
 // With --ensemble flag: save to separate files so baseline tables are preserved.
-const CAL_SUFFIX   = USE_ENSEMBLE ? '-ensemble' : '';
+// With --xg flag: also add '-xg' suffix so xG-aware tables don't overwrite baseline.
+const CAL_SUFFIX   = [USE_ENSEMBLE ? '-ensemble' : '', USE_XG ? '-xg' : ''].join('');
 const CAL_OUT_FILE = path.join(CAL_OUT_DIR, `v3-iso-calibration${CAL_SUFFIX}.json`);
+
+// AF league IDs for xG cache lookup
+const FD_CODE_TO_AF_LEAGUE: Record<string, number> = {
+  PD:  140,
+  PL:  39,
+  BL1: 78,
+  SA:  135,
+  FL1: 61,
+};
 
 interface LeagueConfig {
   name: string;
@@ -97,6 +113,9 @@ interface LeagueConfig {
   expectedSeasonGames: number;
 }
 
+// Ligas de producción — usadas para entrenar la tabla GLOBAL y sus propias tablas per-liga.
+// SA y FL1 están en FD_CODE_TO_AF_LEAGUE para xG lookup, pero NO en LEAGUES:
+//   añadirlas a la tabla global empeora PL/BL1 (sesgo de draw distinto). Ver SP-V4-37.
 const LEAGUES: LeagueConfig[] = [
   { name: 'LaLiga (PD)',         code: 'PD',  expectedSeasonGames: 38 },
   { name: 'Premier League (PL)', code: 'PL',  expectedSeasonGames: 38 },
@@ -112,6 +131,44 @@ function loadHistorical(code: string, year: number): V3MatchRecord[] {
     const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
     return (raw?.matches as V3MatchRecord[]) ?? [];
   } catch { return []; }
+}
+
+/**
+ * Carga xG records desde cache/xg/{leagueId}/{year}/*.json.
+ * Cada archivo tiene formato: { fixtureId, utcDate, homeTeamId, awayTeamId, xgHome, xgAway }
+ * Retorna [] si no hay datos (cobertura parcial es OK).
+ */
+function loadXgForSeason(fdCode: string, year: number): XgRecord[] {
+  const afId = FD_CODE_TO_AF_LEAGUE[fdCode];
+  if (afId === undefined) return [];
+  const dir = path.join(XG_BASE, String(afId), String(year));
+  if (!fs.existsSync(dir)) return [];
+  const records: XgRecord[] = [];
+  try {
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json') && !f.startsWith('fixture-list'));
+    for (const file of files) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8')) as {
+          utcDate: string;
+          homeTeamId: string;
+          awayTeamId: string;
+          xgHome: number;
+          xgAway: number;
+        };
+        if (raw.utcDate && raw.homeTeamId && raw.awayTeamId &&
+            typeof raw.xgHome === 'number' && typeof raw.xgAway === 'number') {
+          records.push({
+            utcDate:    raw.utcDate,
+            homeTeamId: raw.homeTeamId,
+            awayTeamId: raw.awayTeamId,
+            xgHome:     raw.xgHome,
+            xgAway:     raw.xgAway,
+          });
+        }
+      } catch { /* skip */ }
+    }
+  } catch { return []; }
+  return records;
 }
 
 /** Load matchday files for a given season directory. */
@@ -177,6 +234,7 @@ function generateCalibrationTuplesForSeason(
   league: LeagueConfig,
   seasonLabel: string,
   ensembleOverride?: EnsembleOverride,
+  historicalXg?: XgRecord[],
 ): CalibrationTuple[] {
   if (seasonMatches.length === 0) {
     console.log(`    [WARN] Sin datos para ${league.code} ${seasonLabel}`);
@@ -212,6 +270,9 @@ function generateCalibrationTuplesForSeason(
       // Calibration tuples must use pre-DrawAffinity probabilities so the
       // calibration is trained on the same space it is applied to at inference.
       _skipDrawAffinity: true,
+      // xG augmentation: pass full season xG so engine can find records for
+      // currentSeasonMatches (anti-lookahead is enforced by the engine itself).
+      ...(historicalXg !== undefined ? { historicalXg } : {}),
       ...(ensembleOverride?.enabled === true
         ? {
             _overrideConstants: { ENSEMBLE_ENABLED: true },
@@ -421,8 +482,9 @@ function printCompactReport(label: string, r: AccuracyReport): void {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const modeLabel = USE_ENSEMBLE ? 'ENSEMBLE activo (w_poisson=0.95, w_logistic=0.05)' : 'Poisson puro (ENSEMBLE_ENABLED=false)';
-  console.log(`\nSportPulse — Calibración Isotónica PE v3 (2 temporadas) — ${modeLabel}\n`);
+  const xgLabel      = USE_XG ? ' + xG augmentation' : '';
+  const modeLabel    = USE_ENSEMBLE ? 'ENSEMBLE activo' : 'Poisson puro (ENSEMBLE_ENABLED=false)';
+  console.log(`\nSportPulse — Calibración Isotónica PE v3 (2 temporadas) — ${modeLabel}${xgLabel}\n`);
   console.log('='.repeat(68));
 
   // Preparar ensemble override si aplica
@@ -445,16 +507,20 @@ async function main() {
 
     // Temporada 2023-24: sin prevSeason (no hay 2022-23 cacheado)
     const season2324 = loadHistorical(league.code, 2023);
+    const xg2324 = USE_XG ? loadXgForSeason(league.code, 2023) : undefined;
+    if (USE_XG) console.log(`    [xG] 2023-24: ${xg2324?.length ?? 0} records`);
     const tuples2324 = generateCalibrationTuplesForSeason(
-      season2324, [], league, '2023-24', ensembleOverride,
+      season2324, [], league, '2023-24', ensembleOverride, xg2324,
     );
     console.log(`    2023-24 (sin prevSeason): ${tuples2324.length} tuplas`);
 
     // Temporada 2024-25: prevSeason = 2023-24
     const season2425 = loadHistorical(league.code, 2024);
     const prevSeason2425 = loadHistorical(league.code, 2023);
+    const xg2425 = USE_XG ? loadXgForSeason(league.code, 2024) : undefined;
+    if (USE_XG) console.log(`    [xG] 2024-25: ${xg2425?.length ?? 0} records`);
     const tuples2425 = generateCalibrationTuplesForSeason(
-      season2425, prevSeason2425, league, '2024-25', ensembleOverride,
+      season2425, prevSeason2425, league, '2024-25', ensembleOverride, xg2425,
     );
     console.log(`    2024-25 (prevSeason=2023-24): ${tuples2425.length} tuplas`);
 
@@ -602,14 +668,15 @@ async function main() {
   const d = (a: number, b: number) => (a >= b ? '+' : '') + (a - b).toFixed(1) + 'pp';
 
   console.log('='.repeat(68));
-  console.log('  TOTAL (3 ligas, 2025-26)');
+  console.log(`  TOTAL (${LEAGUES.length} ligas, 2025-26)`);
   console.log('='.repeat(68));
   console.log(`  Nº tuplas: ${allTuples.length} global | ${[...LEAGUES].map((lg) => `${lg.code}:${allTuples.filter((t) => t.leagueCode === lg.code).length}`).join(' ')}\n`);
   printCompactReport('SIN calibración', rRawAll);
   printCompactReport('CON cal global', rGlobalAll);
   printCompactReport('CON cal per-liga', rPerLgAll);
   printCompactReport('CON cal MIXTA *', rMixed);
-  console.log('  * Mixta: PD=per-liga, PL=global, BL1=global\n');
+  const mixtaDesc = Object.entries(MIXED_STRATEGY).map(([c, s]) => `${c}=${s === 'perLg' ? 'per-liga' : 'global'}`).join(', ');
+  console.log(`  * Mixta: ${mixtaDesc} (resto=global)\n`);
   console.log(`  Global vs SIN:  acc ${d(rGlobalAll.accuracy*100, rRawAll.accuracy*100)}  DRAW recall ${d(rGlobalAll.drawRecall*100, rRawAll.drawRecall*100)}  prec ${d(rGlobalAll.drawPrecision*100, rRawAll.drawPrecision*100)}`);
   console.log(`  Mixta  vs SIN:  acc ${d(rMixed.accuracy*100, rRawAll.accuracy*100)}  DRAW recall ${d(rMixed.drawRecall*100, rRawAll.drawRecall*100)}  prec ${d(rMixed.drawPrecision*100, rRawAll.drawPrecision*100)}`);
   console.log(`  Mixta  vs Glb:  acc ${d(rMixed.accuracy*100, rGlobalAll.accuracy*100)}  DRAW recall ${d(rMixed.drawRecall*100, rGlobalAll.drawRecall*100)}  prec ${d(rMixed.drawPrecision*100, rGlobalAll.drawPrecision*100)}`);

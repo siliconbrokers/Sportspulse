@@ -38,6 +38,14 @@ function SubTournamentEmptyState() {
   );
 }
 
+function NoCompetitionsState() {
+  return (
+    <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--sp-text-40)', fontSize: 14 }}>
+      No hay ninguna liga ni torneo habilitado en el portal
+    </div>
+  );
+}
+
 // spec §16 — detectar si la ruta actual es el player de reproducción
 function isPlayerTestRoute(): boolean {
   const p = window.location.pathname;
@@ -115,17 +123,9 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
   const [subTournamentKey, setSubTournamentKey] = useState<string | undefined>(undefined);
 
   const currentComp = COMPETITIONS.find((c) => c.id === resolvedCompetitionId) ?? COMPETITIONS[0];
+  const noCompetitions = COMPETITIONS.length === 0;
 
-  // Guard: no competitions enabled yet (portal-config still loading or all disabled)
-  if (!currentComp) {
-    return (
-      <div style={{ minHeight: '100vh', backgroundColor: 'var(--sp-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--sp-text-40)', fontSize: 14 }}>Cargando competencias...</div>
-      </div>
-    );
-  }
-
-  const isTournament = currentComp.isTournament;
+  const isTournament = currentComp?.isTournament ?? false;
 
   const { data: compInfo, loading: compInfoLoading } = useCompetitionInfo(resolvedCompetitionId, subTournamentKey);
   const { data: standings, loading: standingsLoading } = useStandings(
@@ -224,7 +224,16 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
       />
 
       {/* ── Contenido principal ─────────────────────────────────────────── */}
-      {view === 'home' ? (
+      {noCompetitions ? (
+        view === 'home' ? (
+          <>
+            <NoCompetitionsState />
+            <HomePortal enabledCompetitionIds={[]} />
+          </>
+        ) : (
+          <NoCompetitionsState />
+        )
+      ) : view === 'home' ? (
         <HomePortal enabledCompetitionIds={COMPETITIONS.map((c) => c.id)} />
       ) : view === 'pronosticos' ? (
         <div style={{ padding: isMobile ? '12px 12px' : '16px 20px', maxWidth: 1400, margin: '0 auto' }}>

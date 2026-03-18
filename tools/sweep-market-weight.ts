@@ -409,8 +409,8 @@ function printTable(results: SweepResult[], baselineWeight: number): void {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const MARKET_WEIGHT_GRID = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
-const CURRENT_MARKET_WEIGHT = 0.15; // valor actual en constants.ts
+const MARKET_WEIGHT_GRID = [0.00, 0.10, 0.20, 0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75];
+const CURRENT_MARKET_WEIGHT = 0.70; // valor actual en constants.ts
 
 console.log('\n SportPulse — §SP-V4-11: MARKET_WEIGHT Sweep\n');
 console.log(`  Ligas:   ${compFilter.join(', ')}`);

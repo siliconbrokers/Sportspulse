@@ -177,15 +177,16 @@ async function main() {
   // Football-data.org — Copa del Mundo 2026 (torneo con grupos + eliminatorias)
   const wcSource = new FootballDataTournamentSource(API_TOKEN!, WC_CONFIG);
   const WC_COMPETITION_ID = wcSource.competitionId; // 'comp:football-data-wc:WC'
-  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(WC_COMPETITION_ID)) {
+  // Bracket/grupos de WC vienen de football-data.org independientemente del modo.
+  // En AF mode, los scores se sobreescriben vía overlay; la estructura del torneo (FD) sigue siendo necesaria.
+  const wcEnabled = isCompetitionEnabled(WC_COMPETITION_ID) || isCompetitionEnabled('comp:apifootball:1');
+  if (wcEnabled) {
     try {
       await new Promise<void>((r) => setTimeout(r, 7000));
       await wcSource.fetchTournament();
     } catch (err) {
       console.error('Failed to fetch Copa del Mundo 2026 from football-data.org:', err);
     }
-  } else if (AF_CANONICAL_ENABLED) {
-    console.log('[AF mode] WC data served from API-Football (comp:apifootball:1) — skipping FD fetch');
   } else {
     console.log('[PortalConfig] Copa del Mundo deshabilitada — startup fetch omitido');
   }
@@ -207,7 +208,10 @@ async function main() {
     console.warn('[Startup] APIFOOTBALL_KEY no configurada — scores CLI desde football-data.org (puede ser incorrecto)');
   }
 
-  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(CLI_COMPETITION_ID)) {
+  // Bracket/grupos de CLI vienen de football-data.org independientemente del modo.
+  // En AF mode, los scores se sobreescriben vía overlay; la estructura del torneo (FD) sigue siendo necesaria.
+  const cliEnabled = isCompetitionEnabled(CLI_COMPETITION_ID) || isCompetitionEnabled('comp:apifootball:13');
+  if (cliEnabled) {
     try {
       await new Promise<void>((r) => setTimeout(r, 20000));
       await cliSource.fetchTournament();
@@ -216,8 +220,6 @@ async function main() {
       console.error(`[Startup] ERROR cargando Copa Libertadores: ${cliErr}`);
       console.error('[Startup] Verificá que FOOTBALL_DATA_TOKEN tenga acceso a CLI. Visitá /api/ui/status para diagnóstico.');
     }
-  } else if (AF_CANONICAL_ENABLED) {
-    console.log('[AF mode] CLI data served from API-Football (comp:apifootball:13) — skipping FD fetch');
   } else {
     console.log('[PortalConfig] Copa Libertadores deshabilitada — startup fetch omitido');
   }
@@ -279,21 +281,45 @@ async function main() {
           providerKey:   AF_PROVIDER_KEY,
           source:        afCanonicalSource!,
         })),
-        { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
-        { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
+        { competitionId: WC_COMPETITION_ID,     providerKey: WC_PROVIDER_KEY,          source: wcSource },
+        { competitionId: CLI_COMPETITION_ID,    providerKey: CLI_CONFIG.providerKey,   source: cliSource },
+        { competitionId: 'comp:apifootball:1',  providerKey: WC_PROVIDER_KEY,          source: wcSource },   // AF canonical alias — Copa del Mundo
+        { competitionId: 'comp:apifootball:13', providerKey: CLI_CONFIG.providerKey,   source: cliSource },  // AF canonical alias — Copa Libertadores
       ])
     : new RoutingDataSource(fdSource, [
-        { competitionId: UY_COMPETITION_ID, providerKey: SPORTSDB_PROVIDER_KEY, source: sportsDbSource },
-        { competitionId: AR_COMPETITION_ID, providerKey: AR_PROVIDER_KEY, source: sportsDbArSource },
-        { competitionId: OLG_COMPETITION_ID, providerKey: OPENLIGADB_PROVIDER_KEY, source: openLigaDbSource },
-        { competitionId: WC_COMPETITION_ID, providerKey: WC_PROVIDER_KEY, source: wcSource },
-        { competitionId: CLI_COMPETITION_ID, providerKey: CLI_CONFIG.providerKey, source: cliSource },
+        { competitionId: UY_COMPETITION_ID,     providerKey: SPORTSDB_PROVIDER_KEY,    source: sportsDbSource },
+        { competitionId: AR_COMPETITION_ID,     providerKey: AR_PROVIDER_KEY,          source: sportsDbArSource },
+        { competitionId: OLG_COMPETITION_ID,    providerKey: OPENLIGADB_PROVIDER_KEY,  source: openLigaDbSource },
+        { competitionId: WC_COMPETITION_ID,     providerKey: WC_PROVIDER_KEY,          source: wcSource },
+        { competitionId: CLI_COMPETITION_ID,    providerKey: CLI_CONFIG.providerKey,   source: cliSource },
+        { competitionId: 'comp:apifootball:1',  providerKey: WC_PROVIDER_KEY,          source: wcSource },   // AF canonical alias — Copa del Mundo
+        { competitionId: 'comp:apifootball:13', providerKey: CLI_CONFIG.providerKey,   source: cliSource },  // AF canonical alias — Copa Libertadores
       ]);
 
   // Live score overlay: API-Football v3 — refresh cada 2 min durante partidos,
   // 15 min en idle. Score en fuente = 15s (vs ~5 min de football-data.org free tier).
   const AF_LIVE_KEY = process.env.APIFOOTBALL_KEY ?? '';
-  const liveOverlay = new ApifootballLiveOverlay(AF_LIVE_KEY, AF_COMP_IDS);
+
+  // Callback: minutes until the next scheduled match across all competitions.
+  // Used by LiveOverlay to sleep instead of polling every 15 min when there are no upcoming matches.
+  function minutesUntilNextMatch(): number | null {
+    const nowMs = Date.now();
+    let minKickoffMs = Infinity;
+    for (const compId of [...AF_COMP_IDS, WC_COMPETITION_ID, CLI_COMPETITION_ID]) {
+      const seasonId = routingDataSource.getSeasonId(compId);
+      if (!seasonId) continue;
+      for (const m of routingDataSource.getMatches(seasonId)) {
+        if (m.status !== 'SCHEDULED') continue;
+        if (!m.startTimeUtc) continue;
+        const kickoffMs = new Date(m.startTimeUtc).getTime();
+        if (kickoffMs > nowMs && kickoffMs < minKickoffMs) minKickoffMs = kickoffMs;
+      }
+    }
+    if (minKickoffMs === Infinity) return null;
+    return (minKickoffMs - nowMs) / 60_000;
+  }
+
+  const liveOverlay = new ApifootballLiveOverlay(AF_LIVE_KEY, AF_COMP_IDS, minutesUntilNextMatch);
   liveOverlay.start();
 
   // Wraps routingDataSource: getMatches() parchea scores en vivo desde el overlay.
@@ -550,7 +576,15 @@ async function main() {
       const cutoff = now + windowHours * 60 * 60 * 1000;
       const results: UpcomingMatchDTO[] = [];
 
-      for (const compId of ALL_COMP_IDS) {
+      // Recalcular en cada llamada para reflejar cambios en portal-config en runtime.
+      // ALL_COMP_IDS es estático (calculado en startup), por lo que si el admin habilita/deshabilita
+      // ligas sin reiniciar el servidor, ALL_COMP_IDS no se actualiza — por eso usamos la lista
+      // base sin filtro y filtramos dinámicamente con isCompetitionEnabled().
+      const liveCompIds = AF_CANONICAL_ENABLED && afCanonicalSource
+        ? [...AF_COMP_IDS, WC_COMPETITION_ID, CLI_COMPETITION_ID].filter((id) => isCompetitionEnabled(id))
+        : ALL_COMP_IDS;
+
+      for (const compId of liveCompIds) {
         const seasonId = dataSource.getSeasonId(compId);
         if (!seasonId) continue;
 
@@ -649,8 +683,10 @@ async function main() {
 
   // Composite tournament source — delega a WC, CA o CLI según competitionId
   const tournamentSources = new Map([
-    [WC_COMPETITION_ID,  wcSource],
-    [CLI_COMPETITION_ID, cliSource],
+    [WC_COMPETITION_ID,        wcSource],
+    [CLI_COMPETITION_ID,       cliSource],
+    ['comp:apifootball:1',  wcSource],   // AF canonical alias — Copa del Mundo
+    ['comp:apifootball:13', cliSource],  // AF canonical alias — Copa Libertadores
   ]);
   const compositeTournamentSource = {
     getGroupView:         (id: string) => tournamentSources.get(id)?.getGroupView(id)         ?? null,

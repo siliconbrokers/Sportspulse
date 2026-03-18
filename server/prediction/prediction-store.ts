@@ -3,7 +3,13 @@
  *
  * Isolated from portal production structures. Supports inspection endpoint (PE-75).
  *
- * Storage: cache/predictions/snapshots.json (relative to process.cwd())
+ * Storage strategy (two-tier):
+ *   Hot file:   cache/predictions/snapshots.json   — snapshots de los últimos HOT_RETENTION_DAYS días
+ *   Archive:    cache/predictions/archive/YYYY-MM.json — snapshots más antiguos, uno por mes, write-once
+ *
+ * El archivo hot se reescribe en cada ciclo. Los archivos de archive son inmutables una vez escritos.
+ * En startup solo se carga el archivo hot — el archive es read-only y se consulta a demanda.
+ *
  * Write strategy: atomic (tmp → rename), consistent with server/matchday-cache.ts
  * Error policy: persistence errors are logged and never propagated.
  *
@@ -67,6 +73,10 @@ const ENGINE_VERSION = '1.3';
 const SPEC_VERSION = '1.3';
 
 const DEFAULT_FILE_PATH = path.resolve(process.cwd(), 'cache/predictions/snapshots.json');
+const DEFAULT_ARCHIVE_DIR = path.resolve(process.cwd(), 'cache/predictions/archive');
+
+/** Snapshots con generated_at más antiguos que esto se archivan fuera del archivo hot. */
+const HOT_RETENTION_DAYS = 90;
 
 // ── Helper: extract fields from a PredictionResponse (any shape) ──────────────
 
@@ -161,6 +171,8 @@ export function buildSnapshot(
 export interface PredictionStoreOptions {
   /** Absolute path to the JSON file used for persistence. */
   filePath?: string;
+  /** Directory for monthly archive files. Defaults to cache/predictions/archive/. */
+  archiveDir?: string;
 }
 
 /**
@@ -172,10 +184,12 @@ export interface PredictionStoreOptions {
  */
 export class PredictionStore {
   private readonly filePath: string;
+  private readonly archiveDir: string;
   private snapshots: PredictionSnapshot[] = [];
 
   constructor(options: PredictionStoreOptions = {}) {
     this.filePath = options.filePath ?? DEFAULT_FILE_PATH;
+    this.archiveDir = options.archiveDir ?? DEFAULT_ARCHIVE_DIR;
     this._loadFromFile();
   }
 
@@ -268,28 +282,64 @@ export class PredictionStore {
   // ── Persistence ───────────────────────────────────────────────────────────────
 
   /**
-   * Persists the current in-memory store to the JSON file atomically.
+   * Persists the current in-memory store to disk, with pruning:
    *
-   * Fire-and-forget from the caller's perspective: errors are logged but never thrown.
-   * Uses tmp → rename pattern consistent with server/matchday-cache.ts.
+   * - Snapshots de los últimos HOT_RETENTION_DAYS días → archivo hot (snapshots.json)
+   * - Snapshots más antiguos → archivados en archive/YYYY-MM.json (write-once por mes)
+   *
+   * Los archivos de archive son inmutables una vez escritos. Si ya existe el archivo
+   * de un mes, se omite (los snapshots de ese mes son idempotentes por el upsert).
+   * El array en memoria se reduce a solo los snapshots hot después de archivar.
+   *
+   * Fire-and-forget desde la perspectiva del caller: errores se loguean y nunca se propagan.
+   * Usa tmp → rename para escritura atómica.
    */
   async persist(): Promise<void> {
-    const doc: StoreFileDoc = {
-      version: 1,
-      savedAt: new Date().toISOString(),
-      snapshots: this.snapshots,
-    };
-
-    const tmpPath = this.filePath.replace(/\.json$/, '.tmp');
-
     try {
+      const cutoffMs = Date.now() - HOT_RETENTION_DAYS * 24 * 3600_000;
+      const hot: PredictionSnapshot[] = [];
+      const coldByMonth = new Map<string, PredictionSnapshot[]>();
+
+      for (const s of this.snapshots) {
+        if (new Date(s.generated_at).getTime() >= cutoffMs) {
+          hot.push(s);
+        } else {
+          const month = s.generated_at.slice(0, 7); // 'YYYY-MM'
+          const bucket = coldByMonth.get(month) ?? [];
+          bucket.push(s);
+          coldByMonth.set(month, bucket);
+        }
+      }
+
+      // Escribir archivo hot (JSON compacto, sin pretty-print)
+      const doc: StoreFileDoc = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        snapshots: hot,
+      };
+      const tmpPath = this.filePath.replace(/\.json$/, '.tmp');
       fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
-      fs.writeFileSync(tmpPath, JSON.stringify(doc, null, 2), 'utf-8');
+      fs.writeFileSync(tmpPath, JSON.stringify(doc), 'utf-8');
       fs.renameSync(tmpPath, this.filePath);
+
+      // Archivar snapshots cold por mes (write-once: si el archivo existe, ya están archivados)
+      if (coldByMonth.size > 0) {
+        fs.mkdirSync(this.archiveDir, { recursive: true });
+        for (const [month, snapshots] of coldByMonth) {
+          const archivePath = path.join(this.archiveDir, `${month}.json`);
+          if (!fs.existsSync(archivePath)) {
+            const archiveDoc = { version: 1, month, count: snapshots.length, snapshots };
+            const archiveTmp = `${archivePath}.tmp`;
+            fs.writeFileSync(archiveTmp, JSON.stringify(archiveDoc), 'utf-8');
+            fs.renameSync(archiveTmp, archivePath);
+            console.log(`[PredictionStore] Archived ${snapshots.length} snapshots → archive/${month}.json`);
+          }
+        }
+        // Reducir memoria a solo snapshots hot
+        this.snapshots = hot;
+      }
     } catch (err) {
       console.error('[PredictionStore] persist failed:', err);
-      // Clean up orphaned .tmp if it exists
-      try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
       // Do NOT propagate — callers must not crash due to store write failures.
     }
   }
@@ -319,8 +369,18 @@ export class PredictionStore {
           // were all generated by V1. Safe assumption — V2 was never wired to this store.
           engine_id: (s.engine_id ?? 'v1_elo_poisson') as PredictionSnapshot['engine_id'],
         }));
+
+        // Report archive state so ops can see the full track record size at a glance
+        let archiveMonths = 0;
+        try {
+          if (fs.existsSync(this.archiveDir)) {
+            archiveMonths = fs.readdirSync(this.archiveDir).filter((f) => f.endsWith('.json')).length;
+          }
+        } catch { /* non-fatal */ }
+
         console.log(
-          `[PredictionStore] Loaded ${this.snapshots.length} snapshots from ${this.filePath}`,
+          `[PredictionStore] Loaded ${this.snapshots.length} hot snapshots` +
+          (archiveMonths > 0 ? ` + ${archiveMonths} archive month(s) on disk` : ''),
         );
       }
     } catch (err) {

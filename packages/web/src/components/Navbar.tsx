@@ -94,7 +94,7 @@ export function Navbar({
           </div>
 
           {/* Fila 3: tabs TV -o- selector de liga según vista */}
-          {isLeagueView && (
+          {isLeagueView && competitions.length > 0 && (
             <div style={{
               maxWidth: 1200, margin: '0 auto',
               padding: '0 14px 10px',
@@ -166,7 +166,7 @@ export function Navbar({
           {/* Zona derecha */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
-            {isLeagueView && (
+            {isLeagueView && competitions.length > 0 && (
               <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
             )}
           </div>

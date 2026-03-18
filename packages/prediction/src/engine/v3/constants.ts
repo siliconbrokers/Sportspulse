@@ -202,8 +202,10 @@ export const LINEUP_MISSING_STARTER_IMPORTANCE = 0.4;
 export const DOUBTFUL_WEIGHT = 0.5;
 
 /** Weight of market odds in the 1X2 blend — 0 = pure model, 1 = pure market (§T3-04).
- * SP-V4-35 sweep (2026-03-18): óptimo en 0.70 (acc=55.3%, DR=28.1% en walk-forward 806p). */
-export const MARKET_WEIGHT = 0.70;
+ * SP-V4-36 sweep (2026-03-18, +xG calibration): óptimo inicial 0.55 (acc=56.3% DR=36.5%, 630p,
+ * xG PD 2024-25 incompleto). Re-sweep 2026-03-18 con xG completo (380/380 PD 2024-25):
+ * óptimo 0.65 (acc=55.7%, DR=34.3%, 644p). Mejor composite 47.1 vs 45.3 @0.55. */
+export const MARKET_WEIGHT = 0.65;
 
 // ── SP-V4-12: Importance threshold ────────────────────────────────────────────
 

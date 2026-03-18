@@ -157,3 +157,34 @@ export type {
   RawEngineOutputs,
   CalibratedOutputs,
 } from './response-builder.js';
+
+// ── NEXUS (PE v2) — Meta-Ensemble and Scorecard Infrastructure ─────────────
+// Exports the NEXUS ensemble orchestrator + scorecard types for server/ consumers.
+// Shadow runner (server/prediction/nexus-shadow-runner.ts) imports from here.
+export {
+  runNexusEnsemble,
+  buildBootstrapCalibrationTable,
+} from './nexus/ensemble/index.js';
+export type {
+  WeightRegistry,
+  NexusEnsembleOutput,
+  Track12Output,
+  Track3EnsembleInput,
+  Track4EnsembleInput,
+  PredictionHorizon,
+  NexusCalibrationTable,
+} from './nexus/ensemble/index.js';
+export type { DataQualityTier } from './nexus/feature-store/index.js';
+
+// NEXUS Scorecards — Phase 4 evaluation infrastructure
+export {
+  appendScorecardEntry,
+  loadScorecard,
+  computeRps as computeNexusRps,
+  buildCombinedScorecard,
+} from './nexus/scorecards/index.js';
+export type {
+  ScorecardType,
+  ScorecardEntry,
+  NexusScorecard,
+} from './nexus/scorecards/index.js';

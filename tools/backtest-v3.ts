@@ -51,6 +51,15 @@ const MARKET_WEIGHT_OVERRIDE: number | undefined = (() => {
   return undefined;
 })();
 
+const DRAW_MARGIN_OVERRIDE: number | undefined = (() => {
+  const idx = process.argv.indexOf('--draw-margin');
+  if (idx !== -1 && process.argv[idx + 1]) {
+    const val = parseFloat(process.argv[idx + 1]);
+    return isNaN(val) ? undefined : val;
+  }
+  return undefined;
+})();
+
 /** Carga coeficientes logísticos desde cache/logistic-coefficients.json. */
 function loadLogisticCoefficients(): LogisticCoefficients | undefined {
   const file = path.join(process.cwd(), 'cache', 'logistic-coefficients.json');
@@ -80,8 +89,8 @@ function loadCalibrationTable(filePath: string): CalibrationTable | undefined {
 function getCalibrationTable(leagueCode: string): CalibrationTable | undefined {
   const calDir = path.join(process.cwd(), 'cache', 'calibration');
   const suffix = USE_ENSEMBLE ? '-ensemble' : '';
-  // Estrategia MIXTA: PD=per-liga, PL=global, BL1=global (igual que gen-calibration)
-  const MIXED_STRATEGY: Record<string, 'perLg' | 'global'> = { PD: 'perLg', PL: 'global', BL1: 'global' };
+  // Estrategia MIXTA: PD=per-liga, PL=global, BL1=global, SA=per-liga, FL1=global (FL1 per-liga suprime draws)
+  const MIXED_STRATEGY: Record<string, 'perLg' | 'global'> = { PD: 'perLg', PL: 'global', BL1: 'global', SA: 'perLg', FL1: 'global' };
   const strategy = MIXED_STRATEGY[leagueCode] ?? 'global';
   if (strategy === 'perLg') {
     const perLgFile = path.join(calDir, `v3-iso-calibration-${leagueCode}${suffix}.json`);
@@ -259,11 +268,22 @@ interface LeagueConfigFull extends LeagueConfig {
   prevSeasonFile: string;
 }
 
-const LEAGUES: LeagueConfigFull[] = [
+const LEAGUES_PROD: LeagueConfigFull[] = [
   { name: 'LaLiga (PD)',         dir: path.join(CACHE_BASE, 'PD',  '2025-26'), expectedSeasonGames: 38, prevSeasonFile: path.join(CACHE_BASE, 'PD',  '2024-25', 'prev-season.json') },
   { name: 'Premier League (PL)', dir: path.join(CACHE_BASE, 'PL',  '2025-26'), expectedSeasonGames: 38, prevSeasonFile: path.join(CACHE_BASE, 'PL',  '2024-25', 'prev-season.json') },
   { name: 'Bundesliga (BL1)',    dir: path.join(CACHE_BASE, 'BL1', '2025-26'), expectedSeasonGames: 34, prevSeasonFile: path.join(CACHE_BASE, 'BL1', '2024-25', 'prev-season.json') },
 ];
+
+const LEAGUES_EXTRA: LeagueConfigFull[] = [
+  { name: 'Serie A (SA)',        dir: path.join(CACHE_BASE, 'SA',  '2025-26'), expectedSeasonGames: 38, prevSeasonFile: path.join(CACHE_BASE, 'SA',  '2024-25', 'prev-season.json') },
+  { name: 'Ligue 1 (FL1)',       dir: path.join(CACHE_BASE, 'FL1', '2025-26'), expectedSeasonGames: 34, prevSeasonFile: path.join(CACHE_BASE, 'FL1', '2024-25', 'prev-season.json') },
+];
+
+// --all-leagues flag: incluir SA y FL1 además de las ligas de producción
+const ALL_LEAGUES_FLAG = process.argv.includes('--all-leagues');
+const LEAGUES: LeagueConfigFull[] = ALL_LEAGUES_FLAG
+  ? [...LEAGUES_PROD, ...LEAGUES_EXTRA]
+  : LEAGUES_PROD;
 
 function loadPrevSeason(file: string): V3MatchRecord[] {
   if (!fs.existsSync(file)) return [];
@@ -446,6 +466,7 @@ function backtestLeague(
         _overrideConstants: {
           ...(USE_ENSEMBLE ? { ENSEMBLE_ENABLED: true } : {}),
           ...(MARKET_WEIGHT_OVERRIDE !== undefined ? { MARKET_WEIGHT: MARKET_WEIGHT_OVERRIDE } : {}),
+          ...(DRAW_MARGIN_OVERRIDE !== undefined ? { DRAW_MARGIN: DRAW_MARGIN_OVERRIDE } : {}),
         },
         ...(USE_ENSEMBLE ? { logisticCoefficients } : {}),
       };
@@ -600,7 +621,7 @@ const modeLabel = USE_ENSEMBLE
   : 'Poisson puro (ENSEMBLE_ENABLED=false)';
 const mwLabel = MARKET_WEIGHT_OVERRIDE !== undefined
   ? ` | MARKET_WEIGHT=${MARKET_WEIGHT_OVERRIDE} (override §SP-V4-11)`
-  : ' | MARKET_WEIGHT=0.20 (constants.ts, optimizado §SP-V4-11)';
+  : ' | MARKET_WEIGHT=constants.ts';
 console.log(`\nSportsPulse — Backtest del motor PE v1.3 (runV3Engine)\n`);
 console.log(`Metodología: walk-forward por jornada, sin data leakage`);
 console.log(`Motor: runV3Engine — ${modeLabel}${mwLabel}\n`);
@@ -624,7 +645,7 @@ if (USE_ENSEMBLE) {
 }
 
 // Cargar índice de odds (football-data.co.uk) para market features
-const oddsIndex = buildOddsIndex(['PD', 'PL', 'BL1']);
+const oddsIndex = buildOddsIndex(ALL_LEAGUES_FLAG ? ['PD', 'PL', 'BL1', 'SA', 'FL1'] : ['PD', 'PL', 'BL1']);
 console.log(`[ODDS] Índice cargado: ${oddsIndex.size} registros\n`);
 
 // ── xG desde disco — carga y matching de IDs ─────────────────────────────
@@ -683,7 +704,7 @@ for (const league of LEAGUES) {
 // ── Total global ─────────────────────────────────────────────────────────
 
 console.log(`\n${'═'.repeat(72)}`);
-console.log('  TOTAL (3 ligas)');
+console.log(`  TOTAL (${LEAGUES.length} ligas)`);
 console.log('═'.repeat(72));
 
 const totalEv = allEvals.filter(e =>

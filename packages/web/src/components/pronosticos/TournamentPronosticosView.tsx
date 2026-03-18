@@ -256,8 +256,8 @@ export function TournamentPronosticosView({ competitionId }: TournamentPronostic
     : null;
 
   const allRounds: RoundDTO[] = [
-    ...(gruposRound ? [gruposRound] : []),
     ...(bracket?.preliminaryRounds ?? []),
+    ...(gruposRound ? [gruposRound] : []),
     ...(bracket?.knockoutRounds ?? []),
   ];
 

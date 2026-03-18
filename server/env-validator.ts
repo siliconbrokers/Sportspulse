@@ -17,6 +17,7 @@ const ENV_SPEC: EnvVarSpec[] = [
   { name: 'SPORTSDB_API_KEY',    required: false, description: 'TheSportsDB key (default: 123 free tier)' },
   { name: 'YOUTUBE_API_KEY',     required: false, description: 'YouTube Data API v3 — video highlights disabled if missing' },
   { name: 'ADMIN_SECRET',        required: false, description: 'Admin panel password — /admin route disabled if missing' },
+  { name: 'PREDICTION_NEXUS_SHADOW_ENABLED', required: false, description: 'Comma-separated competition IDs for NEXUS (PE v2) shadow predictions — disabled if missing' },
 ];
 
 export function validateEnv(): void {

@@ -678,7 +678,7 @@ export function LiveCarousel({ isMobile, enabledCompetitionIds }: LiveCarouselPr
   // Título dinámico
   const sectionTitle = hasLive ? `(${liveCount}) EN VIVO AHORA` : 'PRÓXIMOS PARTIDOS';
 
-  if (!loading && sorted.length === 0) return null;
+  if (sorted.length === 0) return null;
 
   return (
     <div style={{ marginBottom: isMobile ? 24 : 32 }}>

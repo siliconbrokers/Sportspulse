@@ -43,8 +43,8 @@ import type { LineupSource } from './lineup-source.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** API-Football only publishes odds for ~7-10 days ahead. Skip odds fetch for matches beyond this window. */
-const ODDS_WINDOW_MS = 10 * 24 * 60 * 60 * 1000; // 10 días
+/** API-Football only publishes odds for ~7-10 days ahead. 5 days covers the next matchday with margin. */
+const ODDS_WINDOW_MS = 5 * 24 * 60 * 60 * 1000; // 5 días
 
 // ── Helpers (top-level) ───────────────────────────────────────────────────────
 
