@@ -167,6 +167,7 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
   const dcRhoOverride           = _overrideConstants?.DC_RHO;
   // §SP-V4-05: SoS sensitivity — uses override if provided (sweep tools), else global constant
   const sosSensitivity          = _overrideConstants?.SOS_SENSITIVITY ?? SOS_SENSITIVITY;
+  const homeAdvMultOverride     = _overrideConstants?.HOME_ADV_MULT_OVERRIDE;
   // §SP-V4-11: market weight override — only defined when running sweep tools
   const marketWeightOverride    = _overrideConstants?.MARKET_WEIGHT;
   const drawAffinityOverrides   = (_overrideConstants?.DRAW_AFFINITY_POWER != null ||
@@ -375,6 +376,8 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
     venue_split_away: awayStats.venueSplit,
     baselines,
     betaRecentOverride,
+    homeAdvMultOverride,
+    leagueCode: input.leagueCode,
   });
 
   // ── §T2-01: Rest adjustment ────────────────────────────────────────────
@@ -566,6 +569,13 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
       marketImpHome:    marketOdds?.probHome,
       marketImpDraw:    marketOdds?.probDraw,
       marketImpAway:    marketOdds?.probAway,
+      // §SP-DRAW-V1: draw-propensity features — computed above for DrawAffinity
+      homeDrawRate,
+      awayDrawRate,
+      h2hDrawRate,
+      // tableProximity: 1 - 1/(1+|ppgH-ppgA|) — inverse of the DrawAffinity proximity
+      // DrawAffinity uses 1/(1+|ppgH-ppgA|) (high=similar), logistic uses inverse (high=dissimilar)
+      tableProximity: 1 - tableProximity,
     });
 
     const logisticOutput = predictLogistic(features, coefficients);
@@ -710,6 +720,12 @@ export function runV3Engine(input: V3EngineInput): V3PredictionOutput {
         xgCoverage:        xgCoverage.totalMatches > 0
           ? xgCoverage.coverageMatches / xgCoverage.totalMatches
           : 0,
+        // §SP-DRAW-V1: draw-propensity signals
+        homeDrawRate,
+        awayDrawRate,
+        h2hDrawRate,
+        // tableProximity stored as the LOGISTIC convention: 1 - DrawAffinity_proximity
+        tableProximity: 1 - tableProximity,
       }
     : undefined;
 

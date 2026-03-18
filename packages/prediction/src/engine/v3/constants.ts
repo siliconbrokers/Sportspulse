@@ -40,6 +40,41 @@ export const PRIOR_EQUIV_GAMES = 16;
  */
 export const HOME_ADVANTAGE_MULT = 1.12;
 
+/**
+ * Multiplicador de home advantage por liga — derivado por grid search walk-forward.
+ *
+ * SP-V4-34 (2026-03-17): sweep [1.00..1.30 step 0.025] per-liga sobre 2025-26.
+ * Cuando está disponible, reemplaza el ratio dinámico (league_home/league_away)
+ * que el motor computaba por liga en cada partido. El ratio dinámico era sensible
+ * al tamaño de muestra de la temporada en curso — especialmente early-season —
+ * y producía sobre-predicción de victorias locales.
+ *
+ * Valores óptimos (composite = 0.4×acc + 0.3×DR + 0.3×DP):
+ *   PD:  1.075 → composite +0.038 vs dynamic (DR+12.4pp, DP+0.8pp, acc-0.2pp)
+ *   PL:  1.000 → acc +1.01pp, composite +0.043 vs dynamic (dynamic ~1.15+ en 25-26)
+ *   BL1: 1.075 → acc +1.94pp, composite +0.053 vs dynamic (BL1 high-scoring, menos HA real)
+ *
+ * Fallback: ligas no listadas usan el ratio dinámico (comportamiento pre-SP-V4-34).
+ */
+/**
+ * Home advantage multiplier per-liga — vacío por diseño (SP-V4-34, 2026-03-17).
+ *
+ * SP-V4-34 sweep result: el ratio dinámico (league_home_goals_pg / league_away_goals_pg)
+ * supera a cualquier valor fijo per-liga con datos de temporada completa.
+ * El sweep con datos escasos (early-season) mostraba mejoras ficticias de PL: +1.01pp,
+ * BL1: +1.94pp. Con la cache completa (806 partidos 25-26), los mults fijos degradan:
+ *   PL  1.000: 54.0% → 53.4% (-0.6pp)
+ *   BL1 1.075: 60.2% → 60.3% (+0.1pp)
+ *   Overall:   54.9% → 54.6% (-0.3pp)
+ * Conclusión: el ratio dinámico ya es el mejor estimador per-liga disponible.
+ *
+ * Infraestructura: el override mechanism (HOME_ADV_MULT_OVERRIDE en _overrideConstants
+ * + homeAdvMultOverride en V3LambdaInputs) se mantiene para experimentos futuros.
+ * Agregar entradas aquí solo si un sweep con >=2 temporadas completas muestra mejora
+ * estadísticamente significativa (>0.5pp en >=2 ligas).
+ */
+export const HOME_ADV_MULT_PER_LEAGUE: Record<string, number> = {};
+
 /** Baseline de goles locales por partido cuando hay < MIN_GAMES_FOR_BASELINE (§4, §19). */
 export const HOME_GOALS_FALLBACK = 1.45;
 

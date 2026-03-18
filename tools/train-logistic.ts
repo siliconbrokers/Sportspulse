@@ -196,6 +196,11 @@ function extractTrainingExamples(league: LeagueConfig, oddsIndex: OddsIndex): Tr
         marketImpHome:    oddsHit?.impliedProbHome,
         marketImpDraw:    oddsHit?.impliedProbDraw,
         marketImpAway:    oddsHit?.impliedProbAway,
+        // §SP-DRAW-V1: draw-propensity features from intermediates
+        homeDrawRate:     inter.homeDrawRate,
+        awayDrawRate:     inter.awayDrawRate,
+        h2hDrawRate:      inter.h2hDrawRate,
+        tableProximity:   inter.tableProximity,
       });
 
       examples.push({ features, label: actual as Outcome, hasMarketOdds: oddsHit !== null });
@@ -268,6 +273,11 @@ function extractHistoricalExamples(
       marketImpHome:    oddsHit?.impliedProbHome,
       marketImpDraw:    oddsHit?.impliedProbDraw,
       marketImpAway:    oddsHit?.impliedProbAway,
+      // §SP-DRAW-V1: draw-propensity features from intermediates
+      homeDrawRate:     inter.homeDrawRate,
+      awayDrawRate:     inter.awayDrawRate,
+      h2hDrawRate:      inter.h2hDrawRate,
+      tableProximity:   inter.tableProximity,
     });
 
     examples.push({ features, label: actual, hasMarketOdds: oddsHit !== null });

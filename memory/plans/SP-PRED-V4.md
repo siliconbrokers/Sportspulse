@@ -667,6 +667,60 @@ Anti-lookahead filter
 
 ---
 
+---
+
+## Fase 4 — Activar features implementadas pero inactivas (2026-03-17)
+
+**Contexto:** Tras completar Fases 1-3 + SP-DRAW-V1, el motor está en V4.4 con accuracy=54.9%.
+Diagnóstico realizado el 2026-03-17 reveló que tres features del plan están **implementadas en código
+pero inactivas** — nunca contribuyeron al 54.9%. Son el margen de mejora más directo hacia el 57%.
+
+### Estado real de features post-Fase-3
+
+| Feature | Código | Estado real | Efecto en accuracy |
+|---------|--------|-------------|--------------------|
+| DC_RHO per-liga | ✅ | ACTIVO (PD=-0.25, PL=-0.19, BL1=-0.14) | Contribuye |
+| Market blend (w=0.20) | ✅ | ACTIVO | Contribuye |
+| Isotonic calibration | ✅ | ACTIVO | Contribuye |
+| DRAW_FLOOR rule | ✅ | ACTIVO (0.26/0.15) | Contribuye |
+| Positional injuries | ✅ | ACTIVO | Contribuye |
+| **xG augmentation** | ✅ | **INACTIVO — cache/xg/ vacío (0% cobertura)** | **0 beneficio actual** |
+| **SoS weighted recency** | ✅ | **INACTIVO — SOS_SENSITIVITY=0.0** | **0 beneficio actual** |
+| **Logistic model** | ✅ | **INACTIVO — w_logistic=0.00, ENSEMBLE_ENABLED=false** | **0 beneficio actual** |
+| HOME_ADVANTAGE_MULT per-liga | ❌ | No implementado — constante global 1.12 | Pendiente |
+
+### Hoja de ruta Fase 4 (ordenada por impacto estimado/esfuerzo)
+
+| ID | Acción | Impacto estimado | Esfuerzo | Dependencia |
+|----|--------|-----------------|---------|-------------|
+| SP-V4-30 | Poblar cache/xg/ via SofaScore MCP (SofaScoreXgSource ya existe) | +0.5–1.0pp | M | Ninguna — adaptador listo |
+| SP-V4-31 | Regenerar calibración post-xG (gen-calibration.ts) | parte de SP-V4-30 | S | SP-V4-30 |
+| SP-V4-32 | Sweep SOS_SENSITIVITY en [0.0..0.3 step 0.05] — activar si mejora | +0.2–0.5pp | S | Ninguna |
+| SP-V4-33 | Logistic con 4 features de empate (SP-DRAW-V1 Fase 2: home_draw_rate, away_draw_rate, h2h_draw_rate, table_proximity) + re-train | desconocido (puede ser 0) | M | SP-V4-31 |
+| SP-V4-34 | HOME_ADVANTAGE_MULT per-liga derivado de datos históricos (sweep por liga) | +0.1–0.3pp | M | SP-V4-30 |
+
+### Targets Fase 4
+
+| Métrica | Actual (V4.4) | Target Fase 4 |
+|---------|--------------|---------------|
+| Accuracy | 54.9% | ≥56.0% |
+| DRAW recall | 28.2% | ≥25% (mantener) |
+| engine_version | 4.4 | 4.5 |
+
+**Techo razonable con xG + SoS activados:** ~55.5–56.0%.
+**Techo aspiracional (57%):** requiere xG + SoS + logistic con features de empate activo.
+
+### Definition of Done Fase 4
+
+- cache/xg/ tiene ≥80% cobertura para PD/PL/BL1 2025-26
+- Walk-forward con xG muestra acc ≥ 55.5%
+- SOS_SENSITIVITY > 0 si sweep muestra mejora; 0.0 si no mejora
+- engine_version = '4.5'
+- Suite completa pasa (pnpm -r test)
+- Auditoría PE formal post-Fase4
+
+---
+
 ## Appendix B: SofaScore xG Data Format (Verificado)
 
 El endpoint `Get_match_statistics` con `match_id` retorna un array de periodos.

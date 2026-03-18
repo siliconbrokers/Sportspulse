@@ -35,10 +35,26 @@ import { HistoricalStateService } from './historical-state-service.js';
 import { loadOLGPrevSeason, loadSDBPrevSeason } from './non-fd-prev-season-loader.js';
 import { loadAfHistoricalMatches } from './historical-match-loader-af.js';
 import type { OddsService } from '../odds/odds-service.js';
+import type { AfOddsService } from '../odds/af-odds-service.js';
 import type { InjurySource } from './injury-source.js';
 import { normTeamName } from './injury-source.js';
 import type { XgSource } from './xg-source.js';
 import type { LineupSource } from './lineup-source.js';
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+/** API-Football only publishes odds for ~7-10 days ahead. Skip odds fetch for matches beyond this window. */
+const ODDS_WINDOW_MS = 10 * 24 * 60 * 60 * 1000; // 10 días
+
+// ── Helpers (top-level) ───────────────────────────────────────────────────────
+
+/** Extrae el fixtureId numérico de un matchId AF canonical (match:apifootball:{id}). Retorna null si no es AF canonical. */
+function extractAfFixtureId(matchId: string): number | null {
+  const prefix = 'match:apifootball:';
+  if (!matchId.startsWith(prefix)) return null;
+  const id = parseInt(matchId.slice(prefix.length), 10);
+  return isNaN(id) ? null : id;
+}
 
 // ── Logistic coefficients (loaded once, refreshed when file changes) ──────────
 //
@@ -259,6 +275,7 @@ export async function runV3Shadow(
   injurySource?: InjurySource,
   xgSource?: XgSource,
   lineupSource?: LineupSource,
+  afOddsService?: AfOddsService,
 ): Promise<void> {
   try {
     const buildNowUtc = new Date().toISOString();
@@ -305,7 +322,7 @@ export async function runV3Shadow(
         dataSource, seasonId, competitionId, competitionCode,
         currentSeasonMatches, prevSeasonMatches, buildNowUtc, store, 'fd',
         38, // FD leagues (EPL/PD): standard 38-game season
-        evaluationStore, oddsService, injurySource, xgSource, lineupSource,
+        evaluationStore, oddsService, injurySource, xgSource, lineupSource, afOddsService,
       );
     }
 
@@ -344,7 +361,7 @@ export async function runV3Shadow(
       await runMatchPredictions(
         dataSource, seasonId, desc.competitionId, desc.providerLeagueId,
         currentSeasonMatches, prevSeasonMatches, buildNowUtc, store, 'datasource',
-        desc.expectedSeasonGames, evaluationStore, oddsService, injurySource, xgSource, lineupSource,
+        desc.expectedSeasonGames, evaluationStore, oddsService, injurySource, xgSource, lineupSource, afOddsService,
       );
     }
 
@@ -373,6 +390,7 @@ async function runMatchPredictions(
   injurySource?: InjurySource,
   xgSource?: XgSource,
   lineupSource?: LineupSource,
+  afOddsService?: AfOddsService,
 ): Promise<void> {
   const scheduled = dataSource.getMatches(seasonId).filter(
     (m) =>
@@ -462,31 +480,56 @@ async function runMatchPredictions(
         }
       }
 
-      // SP-V4-10: Fetch market odds before engine run so market-blend step activates.
-      // OddsService has a 30-min in-memory cache per sport key, so repeated calls within
-      // the same competition batch are free. Fault-isolated: if fetch fails, engine runs
-      // with marketOdds=undefined (pure model, no blend).
+      // SP-V4-10: Fetch market odds — AF canonical first (fixture ID exact), fallback to OddsService.
+      // AfOddsService has a 2h in-memory cache per fixture ID; OddsService has 30min per sport key.
+      // Fault-isolated: if fetch fails, engine runs with marketOdds=undefined (pure model, no blend).
+      // ODDS_WINDOW_MS guard: API-Football only publishes odds ~7-10 days ahead — skip for distant matches.
       let marketOdds: import('@sportpulse/prediction').MarketOddsRecord | undefined;
-      if (oddsService && match.startTimeUtc) {
-        const homeTeamName = teamNameMap.get(match.homeTeamId) ?? match.homeTeamId;
-        const awayTeamName = teamNameMap.get(match.awayTeamId) ?? match.awayTeamId;
-        try {
-          const fetched = await oddsService.getOddsForMatch(
-            competitionId,
-            match.startTimeUtc,
-            homeTeamName,
-            awayTeamName,
-          );
-          if (fetched) {
-            marketOdds = {
-              probHome: fetched.probHome,
-              probDraw: fetched.probDraw,
-              probAway: fetched.probAway,
-              capturedAtUtc: fetched.capturedAtUtc,
-            };
+      if (match.startTimeUtc) {
+        const kickoffMs = new Date(match.startTimeUtc).getTime();
+        const withinOddsWindow = kickoffMs - Date.now() < ODDS_WINDOW_MS;
+
+        if (withinOddsWindow) {
+          try {
+            // Extraer fixture ID AF una sola vez — usado en ambos casos
+            const afFixtureId = extractAfFixtureId(match.matchId);
+
+            // Caso 1: match AF canonical → usar AfOddsService con fixture ID directo
+            if (afFixtureId !== null && afOddsService) {
+              const fetched = await afOddsService.getOddsForFixture(afFixtureId);
+              if (fetched) {
+                marketOdds = {
+                  probHome: fetched.probHome,
+                  probDraw: fetched.probDraw,
+                  probAway: fetched.probAway,
+                  capturedAtUtc: fetched.capturedAtUtc,
+                };
+              }
+            }
+            // Caso 2: fallback a OddsService (The Odds API) solo cuando NO es AF canonical.
+            // Para AF canonical el fixture ID es exacto — OddsService no puede matchear por nombre útilmente
+            // y además está quota-agotada (401). Si afFixtureId !== null, no tiene sentido el fallback.
+            if (!marketOdds && oddsService && afFixtureId === null) {
+              const homeTeamName = teamNameMap.get(match.homeTeamId) ?? match.homeTeamId;
+              const awayTeamName = teamNameMap.get(match.awayTeamId) ?? match.awayTeamId;
+              const fetched = await oddsService.getOddsForMatch(
+                competitionId,
+                match.startTimeUtc,
+                homeTeamName,
+                awayTeamName,
+              );
+              if (fetched) {
+                marketOdds = {
+                  probHome: fetched.probHome,
+                  probDraw: fetched.probDraw,
+                  probAway: fetched.probAway,
+                  capturedAtUtc: fetched.capturedAtUtc,
+                };
+              }
+            }
+          } catch {
+            marketOdds = undefined; // fault isolation
           }
-        } catch {
-          marketOdds = undefined; // fault isolation
         }
       }
 
@@ -518,18 +561,31 @@ async function runMatchPredictions(
       if (evaluationStore) {
         evaluationStore.freezeSnapshot(competitionId, matchRef, snapshot);
 
-        // MKT-T3-02: Attach market odds fire-and-forget — never propagates errors
-        // Uses the same OddsService call (cached 30min) to avoid duplicate API requests.
-        if (oddsService && output.prob_home_win != null && output.prob_draw != null && output.prob_away_win != null) {
-          const evalHomeTeamName = teamNameMap.get(match.homeTeamId) ?? match.homeTeamId;
-          const evalAwayTeamName = teamNameMap.get(match.awayTeamId) ?? match.awayTeamId;
-          void oddsService.getOddsForMatch(
-            competitionId,
-            match.startTimeUtc!,
-            evalHomeTeamName,
-            evalAwayTeamName,
-          ).then((odds) => {
-            if (odds) {
+        // MKT-T3-02: Attach market odds fire-and-forget — never propagates errors.
+        // AF canonical first (2h cache, fixture ID exact), fallback to OddsService (30min cache).
+        // ODDS_WINDOW_MS guard: skip odds fetch for matches beyond 10 days (no odds available anyway).
+        if (output.prob_home_win != null && output.prob_draw != null && output.prob_away_win != null) {
+          const afFixtureId = extractAfFixtureId(match.matchId);
+          const kickoffMs2 = match.startTimeUtc ? new Date(match.startTimeUtc).getTime() : 0;
+          const withinOddsWindow2 = kickoffMs2 > 0 && kickoffMs2 - Date.now() < ODDS_WINDOW_MS;
+
+          // AF canonical → solo AfOddsService (null si no disponible, no fallback a OddsService).
+          // No AF canonical → solo OddsService (AF no puede matchear por nombre útilmente).
+          const getOddsPromise = withinOddsWindow2
+            ? ((afFixtureId !== null)
+                ? (afOddsService ? afOddsService.getOddsForFixture(afFixtureId) : Promise.resolve(null))
+                : (oddsService
+                    ? oddsService.getOddsForMatch(
+                        competitionId,
+                        match.startTimeUtc!,
+                        teamNameMap.get(match.homeTeamId) ?? match.homeTeamId,
+                        teamNameMap.get(match.awayTeamId) ?? match.awayTeamId,
+                      )
+                    : Promise.resolve(null)))
+            : Promise.resolve(null);
+
+          void getOddsPromise.then((odds) => {
+            if (odds && evaluationStore) {
               evaluationStore.attachMarketOdds(
                 match.matchId,
                 odds,
@@ -537,13 +593,9 @@ async function runMatchPredictions(
                 output.prob_draw!,
                 output.prob_away_win!,
               );
-              // Persist after odds attachment
               evaluationStore.persist().catch(console.error);
             }
-          }).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.warn(`[V3Runner] odds fetch failed for ${match.matchId}: ${msg}`);
-          });
+          }).catch(() => {}); // fault isolation
         }
       }
     } catch (err: unknown) {

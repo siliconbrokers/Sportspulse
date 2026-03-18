@@ -67,6 +67,27 @@ export interface LogisticFeatureVector {
   market_imp_draw: number;
   /** Implied prob away win del mercado. 1/3 cuando no disponible. */
   market_imp_away: number;
+  /**
+   * §SP-DRAW-V1: Tasa de empate Bayesian-smoothed del equipo local jugando como local.
+   * Rango ∈ (0, 1). Default 0.25 cuando no hay datos.
+   */
+  home_draw_rate: number;
+  /**
+   * §SP-DRAW-V1: Tasa de empate Bayesian-smoothed del equipo visitante jugando como visitante.
+   * Rango ∈ (0, 1). Default 0.25 cuando no hay datos.
+   */
+  away_draw_rate: number;
+  /**
+   * §SP-DRAW-V1: Fracción de empates en el historial H2H entre estos dos equipos.
+   * Default 0.25 cuando hay < 2 partidos H2H.
+   */
+  h2h_draw_rate: number;
+  /**
+   * §SP-DRAW-V1: Diferencia normalizada de ppg entre los dos equipos.
+   * ≈0 = muy parejo (más propenso a empate), ≈1 = muy distinto.
+   * Fórmula: 1 - 1/(1+|ppgHome-ppgAway|) → ∈ [0,1).
+   */
+  table_proximity: number;
 }
 
 /** Lista ordenada de keys del feature vector — usada para iterar sobre pesos. */
@@ -90,6 +111,11 @@ export const LOGISTIC_FEATURE_KEYS: ReadonlyArray<keyof LogisticFeatureVector> =
   'market_imp_home',
   'market_imp_draw',
   'market_imp_away',
+  // §SP-DRAW-V1: draw-propensity features
+  'home_draw_rate',
+  'away_draw_rate',
+  'h2h_draw_rate',
+  'table_proximity',
 ] as const;
 
 /**
@@ -179,6 +205,26 @@ export function extractLogisticFeatures(params: {
   marketImpDraw?: number;
   /** Implied prob away win del mercado (normalizada). Defaults a 1/3. */
   marketImpAway?: number;
+  /**
+   * §SP-DRAW-V1: Tasa de empate Bayesian-smoothed del local en rol local.
+   * Defaults a 0.25 cuando no hay datos.
+   */
+  homeDrawRate?: number;
+  /**
+   * §SP-DRAW-V1: Tasa de empate Bayesian-smoothed del visitante en rol visitante.
+   * Defaults a 0.25 cuando no hay datos.
+   */
+  awayDrawRate?: number;
+  /**
+   * §SP-DRAW-V1: Fracción de empates en el H2H histórico.
+   * Defaults a 0.25 cuando hay < 2 partidos H2H.
+   */
+  h2hDrawRate?: number;
+  /**
+   * §SP-DRAW-V1: Diferencia normalizada de ppg.
+   * 1 - 1/(1+|ppgHome-ppgAway|) → ∈ [0,1). Default 0.5.
+   */
+  tableProximity?: number;
 }): LogisticFeatureVector {
   const {
     lambdaHome,
@@ -194,6 +240,10 @@ export function extractLogisticFeatures(params: {
     marketImpHome,
     marketImpDraw,
     marketImpAway,
+    homeDrawRate,
+    awayDrawRate,
+    h2hDrawRate,
+    tableProximity,
   } = params;
 
   // §SP-V4-20: balance_ratio = min(λh,λa) / max(λh,λa)
@@ -244,6 +294,14 @@ export function extractLogisticFeatures(params: {
     market_imp_home: marketImpHome ?? (1 / 3),
     market_imp_draw: marketImpDraw ?? (1 / 3),
     market_imp_away: marketImpAway ?? (1 / 3),
+    // §SP-DRAW-V1: draw-propensity features — default 0.25 (league-average prior)
+    // With DEFAULT_LOGISTIC_COEFFICIENTS (all zeros), these features have zero effect
+    // and the output is bit-exact to pre-SP-DRAW-V1 (backward-compatible).
+    home_draw_rate: homeDrawRate ?? 0.25,
+    away_draw_rate: awayDrawRate ?? 0.25,
+    h2h_draw_rate:  h2hDrawRate  ?? 0.25,
+    // table_proximity: 1 - 1/(1+|ppgH-ppgA|) where 0.5 default → |ppgH-ppgA|=1 (moderate gap)
+    table_proximity: tableProximity ?? 0.5,
   };
 }
 

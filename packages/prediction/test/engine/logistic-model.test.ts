@@ -124,7 +124,7 @@ describe('extractLogisticFeatures', () => {
     expect(fv.balance_ratio).toBeLessThan(0.01);
   });
 
-  it('SP-V4-20-F11: all 19 feature keys present in output', () => {
+  it('SP-V4-20-F11: all 23 feature keys present in output (19 original + 4 SP-DRAW-V1)', () => {
     const fv = extractLogisticFeatures(makeBaseParams());
     for (const key of LOGISTIC_FEATURE_KEYS) {
       expect(fv[key]).toBeDefined();
@@ -155,13 +155,60 @@ describe('extractLogisticFeatures', () => {
     expect(fv.market_imp_draw).toBe(0.25);
     expect(fv.market_imp_away).toBe(0.20);
   });
+
+  // §SP-DRAW-V1 feature tests
+
+  it('SP-DRAW-V1-F01: draw rate features default to 0.25 when not provided', () => {
+    const fv = extractLogisticFeatures(makeBaseParams());
+    expect(fv.home_draw_rate).toBe(0.25);
+    expect(fv.away_draw_rate).toBe(0.25);
+    expect(fv.h2h_draw_rate).toBe(0.25);
+  });
+
+  it('SP-DRAW-V1-F02: table_proximity defaults to 0.5 when not provided', () => {
+    const fv = extractLogisticFeatures(makeBaseParams());
+    expect(fv.table_proximity).toBe(0.5);
+  });
+
+  it('SP-DRAW-V1-F03: draw rate features passed through when provided', () => {
+    const fv = extractLogisticFeatures({
+      ...makeBaseParams(),
+      homeDrawRate: 0.33,
+      awayDrawRate: 0.28,
+      h2hDrawRate: 0.40,
+    });
+    expect(fv.home_draw_rate).toBe(0.33);
+    expect(fv.away_draw_rate).toBe(0.28);
+    expect(fv.h2h_draw_rate).toBe(0.40);
+  });
+
+  it('SP-DRAW-V1-F04: table_proximity passed through when provided', () => {
+    const fv = extractLogisticFeatures({ ...makeBaseParams(), tableProximity: 0.12 });
+    expect(fv.table_proximity).toBe(0.12);
+  });
+
+  it('SP-DRAW-V1-F05: backward-compatible — default coefficients produce uniform output regardless of draw rate values', () => {
+    // With all-zero DEFAULT_LOGISTIC_COEFFICIENTS, the 4 new features have zero weight
+    // → predictLogistic output must equal uniform 33.3% (invariant: same output as pre-SP-DRAW-V1)
+    const fvExtreme = extractLogisticFeatures({
+      ...makeBaseParams(),
+      homeDrawRate: 0.99,
+      awayDrawRate: 0.99,
+      h2hDrawRate: 0.99,
+      tableProximity: 0.99,
+    });
+    const out = predictLogistic(fvExtreme, DEFAULT_LOGISTIC_COEFFICIENTS);
+    expect(out.probHome).toBeCloseTo(1 / 3, 6);
+    expect(out.probDraw).toBeCloseTo(1 / 3, 6);
+    expect(out.probAway).toBeCloseTo(1 / 3, 6);
+  });
 });
 
 // ── LOGISTIC_FEATURE_KEYS ──────────────────────────────────────────────────
 
 describe('LOGISTIC_FEATURE_KEYS', () => {
-  it('SP-V4-20-K01: contains exactly 19 keys matching LogisticFeatureVector fields', () => {
-    expect(LOGISTIC_FEATURE_KEYS).toHaveLength(19);
+  it('SP-V4-20-K01: contains exactly 23 keys matching LogisticFeatureVector fields (19 original + 4 SP-DRAW-V1)', () => {
+    expect(LOGISTIC_FEATURE_KEYS).toHaveLength(23);
   });
 
   it('SP-V4-20-K02: no duplicate keys', () => {

@@ -13,14 +13,17 @@
  *                           Las tablas de calibración se cargan desde archivos -ensemble.json.
  *   --market-weight <val>   Override de MARKET_WEIGHT (0.0..0.30) para sweep SP-V4-11.
  *                           Si se omite, usa el valor de constants.ts (actualmente 0.15).
+ *   --xg                    Cargar xG desde disco (cache/xg/) e inyectarlo en el engine.
+ *                           Matching por proximidad (fecha + score) para resolver la diferencia
+ *                           de IDs entre football-data.org (backtest) y API-Football (xG cache).
  *
- * Uso: npx tsx --tsconfig tsconfig.server.json tools/backtest-v3.ts [--ensemble] [--market-weight 0.20]
+ * Uso: npx tsx --tsconfig tsconfig.server.json tools/backtest-v3.ts [--ensemble] [--market-weight 0.20] [--xg]
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { runV3Engine } from '../packages/prediction/src/engine/v3/v3-engine.js';
-import type { V3MatchRecord, V3EngineInput } from '../packages/prediction/src/engine/v3/types.js';
+import type { V3MatchRecord, V3EngineInput, XgRecord } from '../packages/prediction/src/engine/v3/types.js';
 import type { LogisticCoefficients } from '../packages/prediction/src/engine/v3/logistic-model.js';
 import {
   computeProbabilityMetrics,
@@ -32,6 +35,7 @@ import { buildOddsIndex, lookupOdds, type OddsIndex } from './odds-lookup.js';
 // ── CLI flags ─────────────────────────────────────────────────────────────────
 
 const USE_ENSEMBLE = process.argv.includes('--ensemble');
+const USE_XG = process.argv.includes('--xg');
 
 /**
  * §SP-V4-11: optional MARKET_WEIGHT override for sweep experiments.
@@ -87,6 +91,145 @@ function getCalibrationTable(leagueCode: string): CalibrationTable | undefined {
   // Fallback a global
   const globalFile = path.join(calDir, `v3-iso-calibration${suffix}.json`);
   return loadCalibrationTable(globalFile);
+}
+
+// ── xG desde disco ──────────────────────────────────────────────────────────
+
+/**
+ * Disco de xG raw (formato cache/xg/{leagueId}/{season}/{fixtureId}.json).
+ * Los team IDs usan formato API-Football (team:apifootball:*), distintos
+ * de los IDs del backtest (team:football-data:*). No son joinables por ID.
+ */
+interface RawXgFile {
+  fixtureId: number;
+  utcDate: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  xgHome: number;
+  xgAway: number;
+  cachedAt: string;
+}
+
+/** Mapeo leagueCode → API-Football leagueId para resolver el path de disco. */
+const XG_LEAGUE_ID: Record<string, number> = {
+  PD: 140,
+  PL: 39,
+  BL1: 78,
+};
+
+/**
+ * Carga todos los archivos xG de disco para una liga.
+ * Los archivos están en cache/xg/{afLeagueId}/{season}/{fixtureId}.json.
+ * Retorna los registros raw — los team IDs son team:apifootball:*.
+ */
+function loadRawXgFiles(leagueCode: string): RawXgFile[] {
+  const afId = XG_LEAGUE_ID[leagueCode];
+  if (afId === undefined) return [];
+
+  const xgBase = path.join(process.cwd(), 'cache', 'xg', String(afId));
+  if (!fs.existsSync(xgBase)) return [];
+
+  const records: RawXgFile[] = [];
+  // Iterar sobre seasons (e.g., 2025/)
+  for (const season of fs.readdirSync(xgBase)) {
+    const seasonDir = path.join(xgBase, season);
+    if (!fs.statSync(seasonDir).isDirectory()) continue;
+    for (const file of fs.readdirSync(seasonDir)) {
+      if (!file.endsWith('.json')) continue;
+      try {
+        const raw = JSON.parse(fs.readFileSync(path.join(seasonDir, file), 'utf-8')) as RawXgFile;
+        if (typeof raw.xgHome === 'number' && typeof raw.xgAway === 'number' && raw.utcDate) {
+          records.push(raw);
+        }
+      } catch {
+        // skip corrupt files
+      }
+    }
+  }
+  return records;
+}
+
+/**
+ * Construye un XgRecord[] con los IDs correctos (team:football-data:*)
+ * usando matching por fecha + proximidad de score.
+ *
+ * Estrategia:
+ *   1. Agrupar los archivos xG por fecha (YYYY-MM-DD).
+ *   2. Para cada fecha, agrupar los partidos del backtest (que tienen goals reales).
+ *   3. Resolver el matching óptimo entre xG records y backtest records minimizando
+ *      la distancia |xgHome - actualGoals_home| + |xgAway - actualGoals_away|.
+ *      (Greedy: asignar el par con menor distancia primero, sin repetir.)
+ *   4. Construir XgRecord[] con los team IDs del backtest match asignado.
+ *
+ * @param rawXg  Records crudos (team:apifootball:* IDs)
+ * @param allBacktestMatches  Todos los partidos FINISHED del backtest (con goals reales)
+ * @returns XgRecord[] con team IDs de football-data, joinables por augmentMatchesWithXg
+ */
+function resolveXgWithFdIds(
+  rawXg: RawXgFile[],
+  allBacktestMatches: { utcDate: string; homeTeamId: string; awayTeamId: string; homeGoals: number; awayGoals: number }[],
+): { records: XgRecord[]; matchedCount: number; totalXg: number } {
+  // Agrupar xG por fecha
+  const xgByDate = new Map<string, RawXgFile[]>();
+  for (const xg of rawXg) {
+    const day = xg.utcDate.slice(0, 10);
+    if (!xgByDate.has(day)) xgByDate.set(day, []);
+    xgByDate.get(day)!.push(xg);
+  }
+
+  // Agrupar partidos del backtest por fecha
+  const backtestByDate = new Map<string, typeof allBacktestMatches>();
+  for (const m of allBacktestMatches) {
+    const day = m.utcDate.slice(0, 10);
+    if (!backtestByDate.has(day)) backtestByDate.set(day, []);
+    backtestByDate.get(day)!.push(m);
+  }
+
+  const result: XgRecord[] = [];
+  let matchedCount = 0;
+
+  for (const [day, xgList] of xgByDate) {
+    const btList = backtestByDate.get(day);
+    if (!btList || btList.length === 0) continue;
+
+    // Matching greedy por distancia mínima: para cada xG record, encontrar
+    // el backtest record no asignado con menor costo.
+    // Construir matrix de costos: cost[i][j] = dist(xgList[i], btList[j])
+    const usedBt = new Set<number>();
+    const usedXg = new Set<number>();
+
+    // Ordenar pares por costo ascendente y asignar greedy
+    const pairs: { cost: number; xi: number; bi: number }[] = [];
+    for (let xi = 0; xi < xgList.length; xi++) {
+      for (let bi = 0; bi < btList.length; bi++) {
+        const xg = xgList[xi];
+        const bt = btList[bi];
+        const cost = Math.abs(xg.xgHome - bt.homeGoals) + Math.abs(xg.xgAway - bt.awayGoals);
+        pairs.push({ cost, xi, bi });
+      }
+    }
+    pairs.sort((a, b) => a.cost - b.cost);
+
+    for (const { xi, bi } of pairs) {
+      if (usedXg.has(xi) || usedBt.has(bi)) continue;
+      usedXg.add(xi);
+      usedBt.add(bi);
+
+      const xg = xgList[xi];
+      const bt = btList[bi];
+
+      result.push({
+        utcDate: bt.utcDate,       // usar la fecha exacta del backtest (ISO con Z)
+        homeTeamId: bt.homeTeamId, // IDs football-data — joinables por augmentMatchesWithXg
+        awayTeamId: bt.awayTeamId,
+        xgHome: xg.xgHome,
+        xgAway: xg.xgAway,
+      });
+      matchedCount++;
+    }
+  }
+
+  return { records: result, matchedCount, totalXg: rawXg.length };
 }
 
 // ── Tipos de cache ──────────────────────────────────────────────────────────
@@ -247,6 +390,7 @@ function backtestLeague(
   league: LeagueConfigFull,
   oddsIndex: OddsIndex,
   logisticCoefficients?: LogisticCoefficients,
+  xgRecords?: XgRecord[],
 ): MatchEval[] {
   const allMatchdays = loadMatchdayFiles(league.dir);
   const code = path.basename(path.dirname(league.dir)); // 'PD', 'PL', 'BL1'
@@ -295,6 +439,8 @@ function backtestLeague(
         leagueCode: code,
         marketOdds,
         ...(calibrationTable ? { calibrationTable } : {}),
+        // §T3-01: xG augmentation — inyectar cuando --xg está activo
+        ...(xgRecords !== undefined && xgRecords.length > 0 ? { historicalXg: xgRecords } : {}),
         // §SP-V4-11: inject MARKET_WEIGHT override when provided
         // §SP-V4-23: inject ENSEMBLE_ENABLED when --ensemble flag is set
         _overrideConstants: {
@@ -481,12 +627,54 @@ if (USE_ENSEMBLE) {
 const oddsIndex = buildOddsIndex(['PD', 'PL', 'BL1']);
 console.log(`[ODDS] Índice cargado: ${oddsIndex.size} registros\n`);
 
+// ── xG desde disco — carga y matching de IDs ─────────────────────────────
+// Los archivos xG usan team:apifootball:* IDs. El backtest usa team:football-data:*.
+// Resolver mapping vía fecha + proximidad de score (greedy bipartite assignment).
+const xgByLeague = new Map<string, { records: XgRecord[]; matchedCount: number; totalXg: number }>();
+
+if (USE_XG) {
+  console.log('[XG] Cargando xG desde disco y resolviendo IDs...');
+  for (const league of LEAGUES) {
+    const code = path.basename(path.dirname(league.dir)); // 'PD', 'PL', 'BL1'
+    const rawXg = loadRawXgFiles(code);
+
+    // Construir lista de todos los partidos FINISHED del backtest (con goals reales)
+    // para hacer el matching por fecha + score
+    const allMatchdays = loadMatchdayFiles(league.dir);
+    const backtestMatchesFlat: { utcDate: string; homeTeamId: string; awayTeamId: string; homeGoals: number; awayGoals: number }[] = [];
+    for (const matches of allMatchdays.values()) {
+      for (const m of matches) {
+        if (m.status === 'FINISHED' && m.scoreHome !== null && m.scoreAway !== null && m.startTimeUtc) {
+          backtestMatchesFlat.push({
+            utcDate: m.startTimeUtc,
+            homeTeamId: m.homeTeamId,
+            awayTeamId: m.awayTeamId,
+            homeGoals: m.scoreHome,
+            awayGoals: m.scoreAway,
+          });
+        }
+      }
+    }
+
+    const resolved = resolveXgWithFdIds(rawXg, backtestMatchesFlat);
+    xgByLeague.set(code, resolved);
+
+    const coveragePct = backtestMatchesFlat.length > 0
+      ? (resolved.matchedCount / backtestMatchesFlat.length * 100).toFixed(1)
+      : '0.0';
+    console.log(`  ${code}: ${rawXg.length} archivos xG → ${resolved.matchedCount} matched / ${backtestMatchesFlat.length} partidos (${coveragePct}% cobertura)`);
+  }
+  console.log();
+}
+
 const allEvals: MatchEval[] = [];
 
 for (const league of LEAGUES) {
+  const code = path.basename(path.dirname(league.dir));
   const prevExists = fs.existsSync(league.prevSeasonFile) || fs.existsSync(path.join(process.cwd(), 'cache', 'historical', 'football-data', path.basename(path.dirname(path.dirname(league.prevSeasonFile))), '2024.json'));
   process.stdout.write(`Procesando ${league.name}${prevExists ? ' [+2yr prev]' : ''}... `);
-  const evals = backtestLeague(league, oddsIndex, logisticCoefficients);
+  const xgForLeague = USE_XG ? xgByLeague.get(code)?.records : undefined;
+  const evals = backtestLeague(league, oddsIndex, logisticCoefficients, xgForLeague);
   allEvals.push(...evals);
   console.log(`${evals.length} partidos cargados`);
   printLeagueReport(league.name, evals);

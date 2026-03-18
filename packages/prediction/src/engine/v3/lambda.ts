@@ -12,6 +12,7 @@ import {
   BETA_RECENT,
   LAMBDA_MIN,
   LAMBDA_MAX,
+  HOME_ADV_MULT_PER_LEAGUE,
 } from './constants.js';
 
 /** Clamp para el multiplicador de home advantage derivado de baselines.
@@ -36,6 +37,10 @@ export interface V3LambdaInputs {
   venue_split_away: boolean;
   baselines: LeagueBaselines;
   betaRecentOverride?: number;
+  /** §SP-V4-34: fixed home advantage mult (bypasses dynamic ratio). Sweep use only. */
+  homeAdvMultOverride?: number;
+  /** §SP-V4-34: league code for HOME_ADV_MULT_PER_LEAGUE lookup (e.g., 'PD', 'PL', 'BL1'). */
+  leagueCode?: string;
 }
 
 export interface V3LambdaResult {
@@ -74,6 +79,8 @@ export function computeV3Lambdas(inputs: V3LambdaInputs): V3LambdaResult {
     venue_split_away,
     baselines,
     betaRecentOverride,
+    homeAdvMultOverride,
+    leagueCode,
   } = inputs;
   const betaRecent = betaRecentOverride ?? BETA_RECENT;
 
@@ -88,9 +95,18 @@ export function computeV3Lambdas(inputs: V3LambdaInputs): V3LambdaResult {
 
   const applyHomeAdvantage = !(venue_split_home && venue_split_away);
   if (applyHomeAdvantage) {
-    const rawRatio = baselines.league_away_goals_pg > 0
-      ? baselines.league_home_goals_pg / baselines.league_away_goals_pg
-      : 1.12; // fallback defensivo ante división por cero
+    // §SP-V4-34: priority order for home advantage multiplier:
+    //   1. homeAdvMultOverride (sweep experiments, bypasses all lookups)
+    //   2. HOME_ADV_MULT_PER_LEAGUE[leagueCode] (per-liga historical optimal)
+    //   3. Dynamic ratio from current season baselines (pre-SP-V4-34 behavior)
+    const perLeagueMult = leagueCode !== undefined ? HOME_ADV_MULT_PER_LEAGUE[leagueCode] : undefined;
+    const rawRatio = homeAdvMultOverride !== undefined
+      ? homeAdvMultOverride
+      : (perLeagueMult !== undefined
+          ? perLeagueMult
+          : (baselines.league_away_goals_pg > 0
+              ? baselines.league_home_goals_pg / baselines.league_away_goals_pg
+              : 1.12)); // fallback defensivo ante división por cero
     const homeAdvMult = Math.max(HOME_ADV_MIN, Math.min(HOME_ADV_MAX, rawRatio));
     eff_attack_home  *= homeAdvMult;
     eff_defense_away *= homeAdvMult;

@@ -131,6 +131,13 @@ export interface V3EngineInput {
     DRAW_AFFINITY_ENABLED?: boolean;
     /** fix #3: override DRAW_FLOOR_ENABLED feature flag. */
     DRAW_FLOOR_ENABLED?: boolean;
+    /**
+     * §SP-V4-34: override home advantage multiplier (bypass dynamic ratio computation).
+     * When set, replaces the runtime-derived ratio (league_home/league_away) with this
+     * fixed value. Used by sweep-home-advantage.ts to evaluate per-liga historical mults.
+     * Range: [1.0, 1.3]. When undefined, the engine uses the dynamic ratio (current behavior).
+     */
+    HOME_ADV_MULT_OVERRIDE?: number;
   };
 
   /**
@@ -441,6 +448,21 @@ export interface V3PipelineIntermediates {
   absenceScoreAway: number;
   /** Fracción [0,1] de partidos del historial con xG disponible. */
   xgCoverage: number;
+  // §SP-DRAW-V1: draw-propensity signals
+  /** Tasa de empate Bayesian-smoothed del local en rol local. */
+  homeDrawRate: number;
+  /** Tasa de empate Bayesian-smoothed del visitante en rol visitante. */
+  awayDrawRate: number;
+  /**
+   * Fracción de empates en el H2H histórico.
+   * undefined cuando hay < 2 partidos H2H (train-logistic usa default 0.25 en ese caso).
+   */
+  h2hDrawRate: number | undefined;
+  /**
+   * Diferencia normalizada de ppg: 1 - 1/(1+|ppgHome-ppgAway|) → ∈ [0,1).
+   * 0 = equipos idénticos en ppg, 1 (asíntota) = diferencia extrema.
+   */
+  tableProximity: number;
 }
 
 export interface V3Explanation {

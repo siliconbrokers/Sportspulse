@@ -117,10 +117,12 @@ V4-20/21 constants: `ENSEMBLE_WEIGHTS_DEFAULT={w_poisson:0.70, w_market:0.15, w_
 
 First train run (2026-03-17): 718 examples (PD+PL+BL1), in-sample accuracy 51.5%. DRAW class bias (0 draws predicted) is a known imbalanced-class behavior — SP-V4-24 calibration will address.
 
+**SP-DRAW-V1 re-train (2026-03-17):** 2673 examples (3 ligas × 3 seasons), 23 features. Draw-rate coefficients all < 0.04 (threshold 0.1). Ensemble backtest: acc −1.7pp (54.9→53.2%), DRAW recall −2.8pp. **SP-V4-33 CLOSED — no improvement. ENSEMBLE_ENABLED stays false.**
+
 ## Test Coverage
 
-- **1249 tests total** in `packages/prediction/test/` (45 test files) — as of 2026-03-17 session 5 (SP-V4-23)
-- `test/engine/logistic-model.test.ts` — 27 tests (SP-V4-20: features, softmax invariants, defaults)
+- **1261 tests total** in `packages/prediction/test/` (46 test files) — as of 2026-03-17 SP-DRAW-V1
+- `test/engine/logistic-model.test.ts` — 32 tests (SP-V4-20: features, softmax invariants, defaults + 5 SP-DRAW-V1 tests)
 - `test/engine/ensemble.test.ts` — 28 tests (SP-V4-21: 3-component, missing market, missing logistic, only poisson, weight normalization)
 - `test/engine/tier3-signals.test.ts` — 39 tests (MKT-T3-00 T3-01..T3-REG + T3-POS-01..07 + T3-V4-12)
 - `test/engine/sos-recency.test.ts` — 11 tests (SP-V4-05 SoS weighted recency)
@@ -133,4 +135,15 @@ First train run (2026-03-17): 718 examples (PD+PL+BL1), in-sample accuracy 51.5%
 
 ## SoS Invariant (SP-V4-05)
 
-**rival_adjustment (§8) already captures SoS effect.** Adding SoS weighting on top of RA signals introduces double-counting: `attack_signal_i = goals / rival_defense_eff_i` — the signal is already amplified by rival strength. Extra weight = over-counting. Sweep confirms SOS_SENSITIVITY=0 is optimal across all tested values (0, 0.1, 0.15, 0.2, 0.3). `MatchSignalRA.rivalStrength` field kept as extension point for future research.
+**rival_adjustment (§8) already captures SoS effect.** Adding SoS weighting on top of RA signals introduces double-counting: `attack_signal_i = goals / rival_defense_eff_i` — the signal is already amplified by rival strength. Extra weight = over-counting.
+
+**Sweep confirmado 2026-03-17** con pipeline de producción completo (calibración + market odds + per-league rho, n=638–639):
+
+| SoS   | acc%   | DR%   | DP%   | AR%   | composite |
+|-------|--------|-------|-------|-------|-----------|
+| 0.00  | 54.86  | 28.22 | 35.66 | 45.05 | 0.4111    |
+| 0.05  | 54.86  | 28.22 | 35.66 | 45.05 | 0.4111    |
+| 0.10  | 54.86  | 28.22 | 35.38 | 45.05 | 0.4103    |
+| 0.15+ | 54.77  | 28.22 | 35.11 | 44.81 | 0.4091    |
+
+Conclusión: **SOS_SENSITIVITY=0.0 es óptimo.** Ningún valor del grid supera el baseline en accuracy. A SoS≥0.15 hay degradación leve. `MatchSignalRA.rivalStrength` mantenido como extension point. Artefacto: `cache/sos-sweep.json`, audit: `docs/audits/PE-audit-2026-03-17.md §SP-V4-05`.

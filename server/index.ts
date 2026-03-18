@@ -43,6 +43,7 @@ import { V2PredictionStore } from './prediction/v2-prediction-store.js';
 import { runV3Shadow, type NonFdCompDescriptor } from './prediction/v3-shadow-runner.js';
 import { isV3ShadowEnabled } from './prediction/prediction-flags.js';
 import { OddsService } from './odds/odds-service.js';
+import { AfOddsService } from './odds/af-odds-service.js';
 import { InjurySource } from './prediction/injury-source.js';
 import { XgSource } from './prediction/xg-source.js';
 import { LineupSource } from './prediction/lineup-source.js';
@@ -620,6 +621,8 @@ async function main() {
   const predictionStore = new PredictionStore();
   // MKT-T3-02: Market odds service for edge tracking (evaluation only, never affects predictions)
   const oddsService = new OddsService();
+  // SP-V4-10: AF odds service — exact fixture ID match, 2h cache, 300 req/day budget
+  const afOddsService = new AfOddsService(process.env.APIFOOTBALL_KEY ?? null);
   // MKT-T3-01: Injury source — API-Football v3 /injuries endpoint, budget-aware, in-memory cache 6h
   const injurySource = new InjurySource();
   // MKT-T3-03: xG source — API-Football v3 /fixtures/statistics, incremental disk cache per fixture
@@ -945,12 +948,14 @@ async function main() {
     const shadowSeasonYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
 
     if (AF_CANONICAL_ENABLED && afCanonicalSource) {
-      // V3 shadow runner desactivado en AF mode.
-      // HistoricalStateService carga datos de football-data.org con FD team IDs (fd_xxx),
-      // pero en AF mode el datasource usa AF team IDs (af_xxx) — mismatch total.
-      // Resultado: 9 requests inútiles a FD + Elo history nunca se aplica (0 matches).
-      // TODO: adaptar HistoricalLoader para cargar desde AF API con AF team IDs.
-      console.log('[AF mode] V3 shadow runner desactivado (HistoricalStateService usa FD IDs incompatibles con AF)');
+      // AF mode: activar V3 shadow con AF competition IDs.
+      // El runner maneja comp:apifootball:* vía extractFinishedFromDataSource (rama isAfCanonical).
+      // fdCompetitionCodeMap ya contiene AF→FD code mappings (construido en líneas 412-422).
+      // v3NonFdDescriptors = [] porque AF canonical cubre todas las ligas directamente.
+      const v3AfCompIds = AF_COMP_IDS.filter((id) => isCompetitionEnabled(id) && isV3ShadowEnabled(id));
+      if (v3AfCompIds.length > 0) {
+        void runV3Shadow(dataSource, v3AfCompIds, [], historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, shadowSeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource, afOddsService);
+      }
     } else {
       // Legacy mode: V2 + V3 shadow for FD and non-FD competitions
       void runV2Shadow(dataSource, FD_COMP_IDS, historicalStateServiceFV, v2PredictionStore, fdCompetitionCodeMap, shadowSeasonYear);
@@ -981,7 +986,7 @@ async function main() {
         },
       ].filter((d) => isCompetitionEnabled(d.competitionId) && isV3ShadowEnabled(d.competitionId));
       if (v3FdCompIds.length > 0 || v3NonFdDescriptors.length > 0) {
-        void runV3Shadow(dataSource, v3FdCompIds, v3NonFdDescriptors, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, shadowSeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource);
+        void runV3Shadow(dataSource, v3FdCompIds, v3NonFdDescriptors, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, shadowSeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource, afOddsService);
       }
     }
 
