@@ -36,10 +36,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { config } from 'dotenv';
 import {
+  ApiUsageLedger,
+  InstrumentedProviderClient,
   consumeRequest,
   isQuotaExhausted,
   markQuotaExhausted,
-} from '../server/af-budget.js';
+  setGlobalLedger,
+  setGlobalProviderClient,
+} from '@sportpulse/canonical';
 
 config();
 
@@ -354,6 +358,15 @@ function loadFdHistorical(fdCode: string, fdYear: number): FdHistMatch[] {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  // Initialize global ledger and provider client for standalone script execution.
+  // Without this, consumeRequest / isQuotaExhausted / markQuotaExhausted emit
+  // "Global ledger not initialized" warnings and fall back to no-ops, meaning
+  // API usage is never recorded to cache/api-usage.db.
+  const ledger = new ApiUsageLedger(path.join(process.cwd(), 'cache', 'api-usage.db'));
+  setGlobalLedger(ledger);
+  const client = new InstrumentedProviderClient(ledger);
+  setGlobalProviderClient(client);
+
   if (!AF_API_KEY) {
     console.error('[XgBackfillAF] APIFOOTBALL_KEY not set — aborting');
     process.exit(1);

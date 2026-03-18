@@ -17,7 +17,7 @@ import {
   isQuotaExhausted as isAfQuotaExhausted,
   markQuotaExhausted as markAfQuotaExhausted,
   consumeRequest as consumeAfRequest,
-} from './af-budget.js';
+} from '@sportpulse/canonical';
 
 const AF_BASE       = 'https://v3.football.api-sports.io';
 const CLI_LEAGUE_ID = 13;

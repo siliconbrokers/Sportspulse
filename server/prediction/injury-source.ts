@@ -18,7 +18,7 @@ import {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
-} from '../af-budget.js';
+} from '@sportpulse/canonical';
 import type { InjuryRecord, AbsenceType, PlayerPosition } from '@sportpulse/prediction';
 
 // SP-V4-12: Same value as packages/prediction/src/engine/v3/constants.ts MIN_IMPORTANCE_THRESHOLD

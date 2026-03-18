@@ -4,3 +4,6 @@ export type { ErrorCodeValue, ErrorEnvelope } from './errors/index.js';
 export { buildApp } from './app.js';
 export type { AppDependencies, IUpcomingService, UpcomingMatchDTO } from './ui/types.js';
 export type { IPredictionService } from './ui/prediction-route.js';
+
+export { registerApiUsageRoutes } from './internal/api-usage-routes.js';
+export type { IApiUsageLedger, IQuotaConfigStore } from './internal/api-usage-routes.js';

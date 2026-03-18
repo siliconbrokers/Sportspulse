@@ -20,6 +20,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm tsc --noEmit --project tsconfig.server.typecheck.json
+      - name: Check provider call governance
+        run: bash scripts/check-provider-bypass.sh
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm validate:registry

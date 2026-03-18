@@ -8,6 +8,7 @@ import {
   teamId as canonicalTeamId,
   matchId as canonicalMatchId,
   resolveDisplayName,
+  getGlobalProviderClient,
 } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry, SubTournamentInfo } from '@sportpulse/snapshot';
 import { persistTeamsCache, loadTeamsCache, persistScoreSnapshot, loadScoreSnapshot } from './matchday-cache.js';
@@ -492,8 +493,17 @@ export class TheSportsDbSource implements DataSource {
     const url = `${this.baseUrl}/${this.apiKey}${path}`;
     const t0 = Date.now();
     let res: Response;
+    const client = getGlobalProviderClient();
     try {
-      res = await fetch(url);
+      res = client
+        ? await client.fetch(url, {
+            providerKey: 'thesportsdb',
+            consumerType: 'CANONICAL_INGESTION',
+            priorityTier: 'product-critical',
+            moduleKey: 'the-sports-db-source',
+            operationKey: path.split('?')[0].replace(/^\//, '').replace(/\//g, '-'),
+          })
+        : await fetch(url);
     } catch (err) {
       const elapsed = Date.now() - t0;
       console.error(

@@ -37,7 +37,7 @@ import {
   isQuotaExhausted as isAfQuotaExhausted,
   consumeRequest as consumeAfRequest,
   markQuotaExhausted as markAfQuotaExhausted,
-} from './af-budget.js';
+} from '@sportpulse/canonical';
 import {
   checkMatchdayCache,
   listAvailableSeasons,

@@ -14,7 +14,7 @@ import {
   consumeRequest,
   isQuotaExhausted,
   markQuotaExhausted,
-} from '../af-budget.js';
+} from '@sportpulse/canonical';
 import { normTeamName } from './injury-source.js';
 
 // ── Cache types ───────────────────────────────────────────────────────────────

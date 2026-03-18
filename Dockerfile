@@ -1,5 +1,8 @@
 FROM node:22-alpine
 
+# Build tools required for better-sqlite3 (native node-gyp compilation on Alpine)
+RUN apk add --no-cache python3 make g++
+
 RUN npm install -g pnpm
 
 WORKDIR /app

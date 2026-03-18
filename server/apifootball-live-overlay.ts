@@ -18,7 +18,7 @@
  *
  * Un único call a /fixtures?live=all trae TODOS los partidos en vivo de todas las ligas.
  */
-import { isQuotaExhausted, isLiveBrakeActive, consumeRequest, markQuotaExhausted, getBudgetStats } from './af-budget.js';
+import { isQuotaExhausted, isLiveBrakeActive, consumeRequest, markQuotaExhausted, getBudgetStats, getGlobalProviderClient } from '@sportpulse/canonical';
 import { isCompetitionEnabled } from './portal-config-store.js';
 
 const BASE_URL = 'https://v3.football.api-sports.io';
@@ -224,7 +224,8 @@ export class ApifootballLiveOverlay {
     } else {
       try {
         const data = await this.apiFetch<{ response: AfFixture[] }>('/fixtures?live=all');
-        consumeRequest();
+        // consumeRequest() is called inside apiFetch when no instrumented client is available.
+        // When the global client is used, recordEvent() already captures the usage.
 
         const newCache  = new Map<string, LiveScoreEntry>();
         const newRaw: typeof this.rawList = [];
@@ -280,10 +281,27 @@ export class ApifootballLiveOverlay {
   }
 
   private async apiFetch<T extends object>(endpoint: string): Promise<T> {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
-      headers: { 'x-apisports-key': this.apiKey },
-      signal:  AbortSignal.timeout(10_000),
-    });
+    const url = `${BASE_URL}${endpoint}`;
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: { 'x-apisports-key': this.apiKey },
+        signal:  AbortSignal.timeout(10_000),
+        providerKey: 'api-football',
+        consumerType: 'PORTAL_RUNTIME',
+        priorityTier: 'product-critical',
+        moduleKey: 'apifootball-live-overlay',
+        operationKey: 'fixtures-live-all',
+      });
+    } else {
+      res = await fetch(url, {
+        headers: { 'x-apisports-key': this.apiKey },
+        signal:  AbortSignal.timeout(10_000),
+      });
+      // Legacy path: manually record usage when no instrumented client available
+      consumeRequest();
+    }
     if (!res.ok) throw new Error(`API-Football HTTP ${res.status}: ${endpoint}`);
     const data = await res.json() as T;
     const dataAny = data as { errors?: { requests?: unknown } };

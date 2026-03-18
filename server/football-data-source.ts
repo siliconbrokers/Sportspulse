@@ -1,4 +1,5 @@
 import type { Team, Match } from '@sportpulse/canonical';
+import { getGlobalProviderClient } from '@sportpulse/canonical';
 import {
   normalizeIngestion,
   competitionId as canonicalCompId,
@@ -662,9 +663,17 @@ export class FootballDataSource implements DataSource {
 
   private async apiGet<T>(path: string): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const res = await fetch(url, {
-      headers: { 'X-Auth-Token': this.apiToken },
-    });
+    const client = getGlobalProviderClient();
+    const res = client
+      ? await client.fetch(url, {
+          headers: { 'X-Auth-Token': this.apiToken },
+          providerKey: 'football-data',
+          consumerType: 'CANONICAL_INGESTION',
+          priorityTier: 'product-critical',
+          moduleKey: 'football-data-source',
+          operationKey: path.split('?')[0].replace(/^\//, '').replace(/\//g, '-'),
+        })
+      : await fetch(url, { headers: { 'X-Auth-Token': this.apiToken } });
 
     if (!res.ok) {
       throw new Error(`football-data.org ${res.status}: ${url}`);

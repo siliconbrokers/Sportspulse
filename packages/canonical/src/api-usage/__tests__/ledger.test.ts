@@ -1,0 +1,134 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ApiUsageLedger } from '../ledger.js';
+import type { ApiUsageEvent } from '@sportpulse/shared';
+
+function makeEvent(overrides: Partial<ApiUsageEvent> = {}): ApiUsageEvent {
+  const now = new Date().toISOString();
+  return {
+    id: `test-${Math.random().toString(36).slice(2)}`,
+    providerKey: 'api-football',
+    usageDateLocal: now.slice(0, 10),
+    unitType: 'REQUEST',
+    usageUnits: 1,
+    consumerType: 'PORTAL_RUNTIME',
+    consumerId: null,
+    moduleKey: 'test',
+    operationKey: 'test-op',
+    requestMethod: 'GET',
+    endpointTemplate: '/test',
+    statusCode: 200,
+    success: true,
+    rateLimited: false,
+    cacheHit: false,
+    startedAtUtc: now,
+    finishedAtUtc: now,
+    latencyMs: 50,
+    remoteLimit: null,
+    remoteRemaining: null,
+    remoteResetAtUtc: null,
+    errorCode: null,
+    errorClass: null,
+    requestId: null,
+    metadataJson: null,
+    createdAtUtc: now,
+    ...overrides,
+  };
+}
+
+describe('ApiUsageLedger', () => {
+  let ledger: ApiUsageLedger;
+
+  beforeEach(() => {
+    // Use in-memory SQLite for tests
+    ledger = new ApiUsageLedger(':memory:');
+  });
+
+  it('records an event and updates rollup', () => {
+    const event = makeEvent();
+    ledger.recordEvent(event);
+
+    const rollup = ledger.getTodayRollup('api-football');
+    expect(rollup).not.toBeNull();
+    expect(rollup!.usedUnits).toBe(1);
+    expect(rollup!.successCount).toBe(1);
+    expect(rollup!.errorCount).toBe(0);
+  });
+
+  it('accumulates multiple events in rollup', () => {
+    ledger.recordEvent(makeEvent());
+    ledger.recordEvent(makeEvent());
+    ledger.recordEvent(makeEvent({ success: false, errorCode: 'TIMEOUT' }));
+
+    const rollup = ledger.getTodayRollup('api-football');
+    expect(rollup!.usedUnits).toBe(3);
+    expect(rollup!.successCount).toBe(2);
+    expect(rollup!.errorCount).toBe(1);
+  });
+
+  it('tracks rate-limited events', () => {
+    ledger.recordEvent(makeEvent({ rateLimited: true, success: false }));
+    const rollup = ledger.getTodayRollup('api-football');
+    expect(rollup!.rateLimitedCount).toBe(1);
+  });
+
+  it('isQuotaExhausted returns false when under limit', () => {
+    ledger.recordEvent(makeEvent());
+    expect(ledger.isQuotaExhausted('api-football')).toBe(false);
+  });
+
+  it('isQuotaExhausted returns false for providers with dailyLimit=0', () => {
+    ledger.recordEvent(makeEvent({ providerKey: 'thesportsdb' }));
+    expect(ledger.isQuotaExhausted('thesportsdb')).toBe(false);
+  });
+
+  it('markQuotaExhausted sets in-memory exhaustion', () => {
+    ledger.markQuotaExhausted('api-football');
+    expect(ledger.isQuotaExhausted('api-football')).toBe(true);
+  });
+
+  it('consumeRequest compatibility facade works', () => {
+    ledger.consumeRequest();
+    const stats = ledger.getBudgetStats();
+    expect(stats.requestsToday).toBe(1);
+    expect(stats.exhausted).toBe(false);
+  });
+
+  it('getBudgetStats returns correct shape', () => {
+    ledger.consumeRequest();
+    ledger.consumeRequest();
+    const stats = ledger.getBudgetStats();
+    expect(stats.requestsToday).toBe(2);
+    expect(stats.limit).toBe(7500);
+    expect(typeof stats.exhausted).toBe('boolean');
+    expect(typeof stats.brakeActive).toBe('boolean');
+    expect(typeof stats.quotaExhaustedUntil).toBe('number');
+  });
+
+  it('getAllTodayRollups returns rows for all tracked providers', () => {
+    ledger.recordEvent(makeEvent({ providerKey: 'api-football' }));
+    ledger.recordEvent(makeEvent({ providerKey: 'football-data' }));
+    const rollups = ledger.getAllTodayRollups();
+    const keys = rollups.map((r) => r.providerKey);
+    expect(keys).toContain('api-football');
+    expect(keys).toContain('football-data');
+  });
+
+  it('getRecentEvents returns events in descending order', () => {
+    const t1 = '2026-01-01T00:00:00.001Z';
+    const t2 = '2026-01-01T00:00:00.002Z';
+    const e1 = makeEvent({ id: 'e1', createdAtUtc: t1, startedAtUtc: t1, finishedAtUtc: t1, usageDateLocal: '2026-01-01' });
+    const e2 = makeEvent({ id: 'e2', createdAtUtc: t2, startedAtUtc: t2, finishedAtUtc: t2, usageDateLocal: '2026-01-01' });
+    ledger.recordEvent(e1);
+    ledger.recordEvent(e2);
+    const events = ledger.getRecentEvents('api-football', 10);
+    expect(events.length).toBe(2);
+    expect(events[0].id).toBe('e2'); // newest first
+  });
+
+  it('recordEvent is non-blocking on error (returns without throwing)', () => {
+    // Simulate a broken event (missing required field) — should not throw
+    expect(() => {
+      ledger.recordEvent(makeEvent({ id: '' })); // empty PK might fail, but should be caught
+    }).not.toThrow();
+  });
+});

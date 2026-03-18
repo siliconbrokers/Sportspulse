@@ -48,3 +48,20 @@ export { canonicalId, competitionId, seasonId, teamId, matchId } from './normali
 export { normalizeIngestion } from './normalize/normalize-ingestion.js';
 export type { NormalizationResult } from './normalize/normalize-ingestion.js';
 export { resolveDisplayName } from './normalize/team-display-name.js';
+
+// API Usage Governance
+export {
+  ApiUsageLedger,
+  runRetentionPruner,
+  setGlobalLedger,
+  isQuotaExhausted,
+  consumeRequest,
+  markQuotaExhausted,
+  isLiveBrakeActive,
+  getBudgetStats,
+  InstrumentedProviderClient,
+  QuotaExhaustedError,
+  setGlobalProviderClient,
+  getGlobalProviderClient,
+} from './api-usage/index.js';
+export type { ProviderCallContext } from './api-usage/index.js';

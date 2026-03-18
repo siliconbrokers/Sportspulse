@@ -20,7 +20,7 @@ import {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
-} from '../af-budget.js';
+} from '@sportpulse/canonical';
 import type { FinishedMatchRecord } from '@sportpulse/prediction';
 
 // ── Constants ─────────────────────────────────────────────────────────────────

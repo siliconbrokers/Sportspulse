@@ -11,7 +11,7 @@
  *   - WC (Copa del Mundo 2026): usePERanking=false, usa standings API
  *   - CA (Copa América 2027):   usePERanking=true, usa PE competition engine
  */
-import { teamId as canonicalTeamId, matchId as canonicalMatchId, seasonId as canonicalSeasonId, competitionId as canonicalCompId, resolveDisplayName } from '@sportpulse/canonical';
+import { teamId as canonicalTeamId, matchId as canonicalMatchId, seasonId as canonicalSeasonId, competitionId as canonicalCompId, resolveDisplayName, getGlobalProviderClient } from '@sportpulse/canonical';
 import type { Team, Match, StageType } from '@sportpulse/canonical';
 import type { DataSource, StandingEntry } from '@sportpulse/snapshot';
 import type { TournamentConfig } from './tournament-config.js';
@@ -1231,9 +1231,17 @@ export class FootballDataTournamentSource implements DataSource {
 
   private async apiGet<T>(path: string): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const res = await fetch(url, {
-      headers: { 'X-Auth-Token': this.apiToken },
-    });
+    const client = getGlobalProviderClient();
+    const res = client
+      ? await client.fetch(url, {
+          headers: { 'X-Auth-Token': this.apiToken },
+          providerKey: 'football-data',
+          consumerType: 'CANONICAL_INGESTION',
+          priorityTier: 'product-critical',
+          moduleKey: 'football-data-tournament-source',
+          operationKey: path.split('?')[0].replace(/^\//, '').replace(/\//g, '-'),
+        })
+      : await fetch(url, { headers: { 'X-Auth-Token': this.apiToken } });
     if (!res.ok) {
       throw new Error(`football-data.org ${res.status}: ${url}`);
     }

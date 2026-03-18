@@ -20,10 +20,13 @@
     "backtest:v3:historical": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/run-backtest-v3-historical.ts",
     "train:calibrator": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json scripts/train-global-calibrator.ts",
     "train:odds": "npx tsx --tsconfig tsconfig.server.json tools/build-odds-dataset.ts",
+    "load:odds": "npx tsx --tsconfig tsconfig.server.json tools/load-odds-to-store.ts",
     "train:logistic": "npx tsx --tsconfig tsconfig.server.json tools/train-logistic.ts",
     "train": "bash scripts/train-logistic-pipeline.sh",
     "backtest": "npx tsx --tsconfig tsconfig.server.json tools/backtest-v3.ts",
     "backtest:ensemble": "npx tsx --tsconfig tsconfig.server.json tools/backtest-v3.ts --ensemble",
+    "backtest:nexus": "dotenv -e .env -- tsx --tsconfig tsconfig.server.json tools/backtest-nexus.ts",
+    "train:track3": "dotenv -e .env -- tsx --tsconfig tsconfig.server.json tools/train-track3.ts",
     "validate:registry": "pnpm tsx scripts/validate-doc-registry.ts",
     "smoke-test": "tsx scripts/smoke-test.ts"
   },
@@ -55,6 +58,9 @@
     "prettier": "^3.8.1",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild", "husky"]
   },
   "engines": {
     "node": ">=22"

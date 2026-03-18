@@ -21,7 +21,7 @@ import {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
-} from '../af-budget.js';
+} from '@sportpulse/canonical';
 import type { ConfirmedLineupRecord, PlayerPosition } from '@sportpulse/prediction';
 import { normTeamName } from './injury-source.js';
 

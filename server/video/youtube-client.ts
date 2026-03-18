@@ -1,6 +1,8 @@
 // YouTube Data API v3 — thin client
 // Quota costs: playlistItems.list = 1 unit; search.list = 100 units; videos.list = 1 unit
 
+import { getGlobalProviderClient } from '@sportpulse/canonical';
+
 const YT_BASE = 'https://www.googleapis.com/youtube/v3';
 
 export interface YtSnippet {
@@ -45,10 +47,23 @@ export async function fetchChannelUploads(
     key: apiKey,
   });
 
-  const res = await fetch(`${YT_BASE}/playlistItems?${params}`, {
-    headers: { 'Accept': 'application/json' },
-    signal: AbortSignal.timeout(10000),
-  });
+  const client = getGlobalProviderClient();
+  const url = `${YT_BASE}/playlistItems?${params}`;
+  const res = client
+    ? await client.fetch(url, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+        providerKey: 'youtube',
+        consumerType: 'PORTAL_RUNTIME',
+        priorityTier: 'product-critical',
+        moduleKey: 'youtube-client',
+        operationKey: 'playlistItems-list',
+        quotaCost: 1,
+      })
+    : await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      });
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -77,10 +92,23 @@ export async function searchYouTubeVideos(
     key: apiKey,
   });
 
-  const res = await fetch(`${YT_BASE}/search?${params}`, {
-    headers: { 'Accept': 'application/json' },
-    signal: AbortSignal.timeout(10000),
-  });
+  const client = getGlobalProviderClient();
+  const searchUrl = `${YT_BASE}/search?${params}`;
+  const res = client
+    ? await client.fetch(searchUrl, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+        providerKey: 'youtube',
+        consumerType: 'PORTAL_RUNTIME',
+        priorityTier: 'product-critical',
+        moduleKey: 'youtube-client',
+        operationKey: 'search-list',
+        quotaCost: 100,
+      })
+    : await fetch(searchUrl, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      });
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -123,10 +151,23 @@ export async function fetchVideoAvailability(
     key: apiKey,
   });
 
-  const res = await fetch(`${YT_BASE}/videos?${params}`, {
-    headers: { 'Accept': 'application/json' },
-    signal: AbortSignal.timeout(10000),
-  });
+  const client = getGlobalProviderClient();
+  const videosUrl = `${YT_BASE}/videos?${params}`;
+  const res = client
+    ? await client.fetch(videosUrl, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+        providerKey: 'youtube',
+        consumerType: 'PORTAL_RUNTIME',
+        priorityTier: 'product-critical',
+        moduleKey: 'youtube-client',
+        operationKey: 'videos-list',
+        quotaCost: 1,
+      })
+    : await fetch(videosUrl, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      });
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');

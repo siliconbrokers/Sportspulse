@@ -29,7 +29,8 @@ import {
   isQuotaExhausted as isAfQuotaExhausted,
   markQuotaExhausted as markAfQuotaExhausted,
   consumeRequest as consumeAfRequest,
-} from '../af-budget.js';
+  getGlobalProviderClient,
+} from '@sportpulse/canonical';
 
 const BASE_URL    = 'https://v3.football.api-sports.io';
 const ID_MAP_PATH = path.resolve(process.cwd(), 'cache', 'incidents', 'af-fixture-map.json');
@@ -386,13 +387,32 @@ export class ApiFootballIncidentSource {
     if (isAfQuotaExhausted()) throw new Error('API-Football quota exhausted');
 
     const url = `${BASE_URL}${endpoint}`;
-    const res = await fetch(url, {
-      headers: {
-        'x-rapidapi-key': this.apiKey,
-        'x-rapidapi-host': 'v3.football.api-sports.io',
-      },
-      signal: AbortSignal.timeout(12_000),
-    });
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: {
+          'x-rapidapi-key': this.apiKey,
+          'x-rapidapi-host': 'v3.football.api-sports.io',
+        },
+        signal: AbortSignal.timeout(12_000),
+        providerKey: 'api-football',
+        consumerType: 'PORTAL_RUNTIME',
+        priorityTier: 'product-critical',
+        moduleKey: 'apifootball-incident-source',
+        operationKey: endpoint.split('?')[0].replace(/^\//, '').replace(/\//g, '-'),
+      });
+    } else {
+      res = await fetch(url, {
+        headers: {
+          'x-rapidapi-key': this.apiKey,
+          'x-rapidapi-host': 'v3.football.api-sports.io',
+        },
+        signal: AbortSignal.timeout(12_000),
+      });
+      // Legacy path: manually record usage when no instrumented client available
+      consumeAfRequest();
+    }
     if (!res.ok) throw new Error(`API-Football HTTP ${res.status}: ${endpoint}`);
 
     const data = await res.json() as T;
@@ -401,7 +421,6 @@ export class ApiFootballIncidentSource {
       markAfQuotaExhausted();
       throw new Error(`API-Football quota: ${dataAny.errors.requests}`);
     }
-    consumeAfRequest();
     return data;
   }
 }

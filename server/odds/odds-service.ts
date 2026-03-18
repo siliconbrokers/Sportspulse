@@ -7,6 +7,8 @@
  * MKT-T3-02 Fase A
  */
 
+import { getGlobalProviderClient } from '@sportpulse/canonical';
+
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
 export interface ImpliedOdds {
@@ -152,7 +154,17 @@ export class OddsService {
     url.searchParams.set('oddsFormat', 'decimal');
     url.searchParams.set('dateFormat', 'iso');
 
-    const response = await fetch(url.toString());
+    const client = getGlobalProviderClient();
+    const urlStr = url.toString();
+    const response = client
+      ? await client.fetch(urlStr, {
+          providerKey: 'the-odds-api',
+          consumerType: 'PORTAL_RUNTIME',
+          priorityTier: 'deferrable',
+          moduleKey: 'odds-service',
+          operationKey: 'sports-odds',
+        })
+      : await fetch(urlStr);
 
     if (!response.ok) {
       const body = await response.text().catch(() => '');

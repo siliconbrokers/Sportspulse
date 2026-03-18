@@ -1,5 +1,6 @@
+import * as path from 'node:path';
 import { validateEnv } from './env-validator.js';
-import { buildApp } from '@sportpulse/api';
+import { buildApp, registerApiUsageRoutes } from '@sportpulse/api';
 import { resolveDisplayName } from '@sportpulse/canonical';
 import { FootballDataSource } from './football-data-source.js';
 import { FootballDataTournamentSource, WC_PROVIDER_KEY } from './football-data-tournament-source.js';
@@ -39,6 +40,9 @@ import { ForwardValidationEvaluator } from './prediction/forward-validation-eval
 import { HistoricalStateService } from './prediction/historical-state-service.js';
 import { runV3Shadow, type NonFdCompDescriptor } from './prediction/v3-shadow-runner.js';
 import { isV3ShadowEnabled } from './prediction/prediction-flags.js';
+import { runNexusShadow } from './prediction/nexus-shadow-runner.js';
+import { loadNexusModelWeights } from './prediction/nexus-model-loader.js';
+import type { NexusModelWeights } from './prediction/nexus-model-loader.js';
 import { OddsService } from './odds/odds-service.js';
 import { AfOddsService } from './odds/af-odds-service.js';
 import { InjurySource } from './prediction/injury-source.js';
@@ -46,7 +50,15 @@ import { XgSource } from './prediction/xg-source.js';
 import { LineupSource } from './prediction/lineup-source.js';
 import { runAfShadowValidation } from './prediction/af-shadow-runner.js';
 import { ApiFootballCanonicalSource, AF_COMPETITION_CONFIGS, AF_PROVIDER_KEY } from './api-football-canonical-source.js';
-import { getBudgetStats as getAfBudgetStats, isQuotaExhausted as isAfQuotaExhausted } from './af-budget.js';
+import {
+  ApiUsageLedger,
+  setGlobalLedger,
+  runRetentionPruner,
+  getBudgetStats as getAfBudgetStats,
+  isQuotaExhausted as isAfQuotaExhausted,
+  InstrumentedProviderClient,
+  setGlobalProviderClient,
+} from '@sportpulse/canonical';
 import { COMPETITION_REGISTRY, REGISTRY_BY_ID } from './competition-registry.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig, isFeatureEnabled } from './portal-config-store.js';
@@ -95,6 +107,17 @@ const DEFAULT_CONTAINER = {
 
 async function main() {
   validateEnv();
+
+  // ── API Usage Ledger (GOV-03) ───────────────────────────────────────────────
+  // Single source of truth for all provider quota accounting. Replaces af-budget.ts.
+  const ledger = new ApiUsageLedger(path.join(process.cwd(), 'cache', 'api-usage.db'));
+  setGlobalLedger(ledger);
+  runRetentionPruner(ledger.getDb());
+
+  // ── Global InstrumentedProviderClient (GOV-05/GOV-06) ──────────────────────
+  // Wraps all provider fetch calls with quota accounting + structured event logging.
+  const providerClient = new InstrumentedProviderClient(ledger);
+  setGlobalProviderClient(providerClient);
 
   // Detect AF canonical mode early so we can skip legacy startup fetches.
   const AF_CANONICAL_ENABLED = !!process.env.APIFOOTBALL_KEY &&
@@ -681,6 +704,19 @@ async function main() {
   );
   const forwardValEvaluator = new ForwardValidationEvaluator(forwardValStore, dataSource);
 
+  // ── NEXUS model weights — loaded once at startup ──────────────────────────
+  // Loaded from cache/nexus-models/track3-weights-global.json (if present).
+  // Graceful degradation: if file absent or corrupt, nexusModelWeights.track3Global = null
+  // and Track 3 remains inactive in the NEXUS ensemble (no startup failure).
+  let nexusModelWeights: NexusModelWeights | null = null;
+  try {
+    const cacheDir = path.join(process.cwd(), 'cache');
+    nexusModelWeights = await loadNexusModelWeights(cacheDir);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[NexusModelLoader] Startup load failed (non-fatal): ${msg}`);
+  }
+
   // Composite tournament source — delega a WC, CA o CLI según competitionId
   const tournamentSources = new Map([
     [WC_COMPETITION_ID,        wcSource],
@@ -722,6 +758,7 @@ async function main() {
 
   const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getEnrichedPortalConfig, competitionIds: COMPETITION_REGISTRY.map(e => e.id).filter(id => isCompetitionEnabled(id)), getBudgetStats: getAfBudgetStats });
   registerAdminRoutes(app, snapshotStore);
+  registerApiUsageRoutes(app, ledger);
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
   // Refresh interval adapts to match state. Only polls when data can change.
@@ -1028,6 +1065,12 @@ async function main() {
       const afShadowKey = process.env.APIFOOTBALL_KEY ?? '';
       void runAfShadowValidation(dataSource, FD_COMP_IDS, historicalStateServiceFV, shadowSeasonYear, afShadowKey);
     }
+
+    // NEXUS shadow runner — fire-and-forget, fault-isolated
+    // Errors are fully contained inside runNexusShadow; never affect the refresh cycle or V3 output.
+    // Only runs for competitionIds listed in PREDICTION_NEXUS_SHADOW_ENABLED.
+    // nexusModelWeights loaded once at startup; null → Track 3 inactive (graceful degradation).
+    void runNexusShadow(dataSource, ALL_COMP_IDS, nexusModelWeights);
 
     // OE-3: capture ground truth for completed matches
     captureResults(dataSource, evaluationStore, ALL_COMP_IDS);
