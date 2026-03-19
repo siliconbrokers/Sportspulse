@@ -171,6 +171,48 @@ If detection fails (no fixtures found, API error, key missing), show:
     hasSubTournaments, aperturaSeason e isTournament deben ingresarse manualmente en Step 4.
 ```
 
+### 3.5.5 — TheSportsDB Auto-resolution
+
+Fetch badge and accent color from TheSportsDB:
+
+```
+GET https://www.thesportsdb.com/api/v1/json/3/search_all_leagues.php?l={displayName}
+→ strBadge → logoUrl
+→ Extract dominant color from badge URL → accentColor (use most prominent non-white color from the badge filename/path if extractable, else '#6b7280')
+→ If not found: logoUrl='', accentColor='#6b7280' (log warning, do not interrupt)
+```
+
+Show as detected facts (same format as hasSubTournaments):
+```
+logoUrl:        {auto-detected}
+accentColor:    {auto-detected}
+```
+
+### 3.5.6 — Capability Declaration
+
+Check AF availability for this league:
+
+```
+GET /odds?league={leagueId}&season={currentSeason}&bookmaker=6 → Track 4 (odds) available?
+GET /fixtures/statistics?fixture={sampleFixtureId} → xG available?
+GET /fixtures/lineups?fixture={sampleFixtureId} → Track 1B (lineups) available?
+```
+
+Output:
+
+```
+## Capacidades para {displayName}
+
+✅/⚠️  Tabla de posiciones: {sí/no}
+✅/⚠️  Datos históricos: {N temporadas} disponibles
+✅/⚠️  xG: {disponible | no disponible en AF — signal omitida del ensemble}
+✅/⚠️  Odds: {disponibles | no disponibles — Track 4 con peso cero}
+✅/⚠️  Lineups: {disponibles | no disponibles — Track 1B sin señal}
+
+If any ⚠️ → ask: "¿Continuamos sabiendo que X estará degradado? (s/n)"
+If all ✅ → continue automatically without asking
+```
+
 ---
 
 ## Step 4 — Collect remaining metadata
@@ -180,8 +222,10 @@ If detection fails (no fixtures found, API error, key missing), show:
 Ask the user ONLY for:
 
 **Always ask:**
-- **accentColor** — color hex para el UI (ej: `#16a34a`). Sugerí uno basado en los colores oficiales de la liga si los encontraste.
-- **logoUrl** — URL del logo de la liga. Sugerí la URL de TheSportsDB o similar si la encontraste.
+- **mode** — En qué modo querés agregar esta liga?
+  - `portal` — visible para usuarios, datos y predicciones activos
+  - `shadow` — no visible en portal, datos y predicciones activos internamente
+  - `disabled` — completamente desactivada (solo registrar en el sistema)
 
 **Auto-infer (show proposed value, let user correct):**
 - **slug** — derive from country/league (ej: MX, CO, PE, CL, MX2). Show proposed value.
@@ -197,6 +241,8 @@ Ask the user ONLY for:
 - **hasSubTournaments** — `{detected value}` ← auto-detectado desde rondas AF
 - **isTournament** — `{detected value}` ← auto-detectado desde rondas AF
 - **aperturaSeason** — `{H1|H2|omitted}` ← auto-detectado desde fecha kickoff Apertura (ONLY if hasSubTournaments=true)
+- **logoUrl** — `{auto-detected}` ← auto-detectado desde TheSportsDB
+- **accentColor** — `{auto-detected}` ← auto-detectado desde TheSportsDB
 
 Present all values in a compact block and ask:
 > ¿Corregís algo? Si está todo bien, escribí "ok".
@@ -215,8 +261,9 @@ Liga a agregar:
   displayName:      {displayName}
   shortName:        {shortName}
   normalizedLeague: {normalizedLeague}
-  accentColor:      {accentColor}
-  logoUrl:          {logoUrl}
+  mode:             {mode}
+  accentColor:      {auto-detectado}
+  logoUrl:          {auto-detectado}
   seasonLabel:      {seasonLabel}
   seasonKind:       {seasonKind}
   isTournament:     {isTournament}  ← {auto-detectado | ingresado manualmente}
@@ -259,6 +306,7 @@ Entry shape:
     logoUrl:             '{logoUrl}',
     seasonLabel:         '{seasonLabel}',
     seasonKind:          '{seasonKind}',
+    defaultMode:         '{mode}',
     isTournament:        {isTournament},
     expectedSeasonGames: {expectedSeasonGames},
   },
@@ -291,14 +339,14 @@ Read the file first. Append to `DEFAULT_CONFIG.competitions` array:
 
 ```typescript
     {
-      id: 'comp:apifootball:{leagueId}', slug: '{slug}', displayName: '{displayName}', enabled: false,
+      id: 'comp:apifootball:{leagueId}', slug: '{slug}', displayName: '{displayName}', mode: '{mode}',
       normalizedLeague: '{normalizedLeague}', newsKey: null, accentColor: '{accentColor}',
       isTournament: {isTournament}, logoUrl: '{logoUrl}',
       seasonLabel: '{seasonLabel}',
     },
 ```
 
-`enabled: false` — activation is admin-only via back office.
+`mode: '{mode}'` — el modo inicial lo define el wizard. El admin puede cambiarlo desde /admin.
 Add `phases` and `startDate` if applicable.
 
 ---
@@ -355,6 +403,7 @@ Show this checklist after reporting. Tell the user to run these verifications **
 - [ ] No hay tabla de posiciones vacía (los torneos knockout no tienen tabla)
 
 ### Next steps tras activar:
+- Ir a `/admin` → el selector de 3 estados mostrará la liga con el modo configurado. Cambiar a `portal` cuando corresponda.
 - En la primera activación: el data source descarga la temporada actual (~2 requests a API-Football)
 - El motor predictivo empieza a generar predicciones shadow una vez hay partidos FINISHED
 - xG se backfill automáticamente en el primer ciclo (máximo 20 fixtures/ciclo)
@@ -396,7 +445,7 @@ If the user chooses 4: close with the same note as "NO" above.
 ## Constraints
 
 - Do NOT add news feeds or YouTube channels (separate workflow, out of scope)
-- Do NOT set `enabled: true` — activation is always admin-only
+- El modo inicial lo define el wizard en Step 4. El admin puede cambiarlo en cualquier momento desde /admin.
 - Do NOT commit or push — wait for explicit user instruction
 - Do NOT add to COMPETITIONS env var
 - `newsKey` must always be `null`

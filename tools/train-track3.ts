@@ -27,10 +27,20 @@ import type { FeatureValue } from '../packages/prediction/src/nexus/feature-stor
 import type { LogisticWeights } from '../packages/prediction/src/nexus/track3/logistic-model.js';
 import type { HistoricalMatch } from '../packages/prediction/src/nexus/track1/types.js';
 import { computeTrack1 } from '../packages/prediction/src/nexus/track1/track1-engine.js';
+import { COMPETITION_REGISTRY, resolveAfSeason } from '../server/competition-registry.js';
 
 // ── CLI flags ──────────────────────────────────────────────────────────────
 
 const ALL_LEAGUES_FLAG = process.argv.includes('--all-leagues');
+
+// Parse --include-comp {compId}
+let INCLUDE_COMP_ID: string | null = null;
+{
+  const idx = process.argv.indexOf('--include-comp');
+  if (idx !== -1 && process.argv[idx + 1]) {
+    INCLUDE_COMP_ID = process.argv[idx + 1];
+  }
+}
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -38,6 +48,8 @@ const LEARNING_RATE = 0.1;
 const EPOCHS = 2000;
 const L2_LAMBDA = 0.001;
 const CACHE_BASE = path.join(process.cwd(), 'cache', 'football-data');
+const AF_CACHE_BASE = path.join(process.cwd(), 'cache', 'apifootball');
+const AF_HIST_BASE = path.join(process.cwd(), 'cache', 'historical', 'apifootball');
 const OUTPUT_DIR = path.join(process.cwd(), 'cache', 'nexus-models');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'track3-weights-global.json');
 
@@ -182,6 +194,175 @@ function loadMatchdayFiles(leagueDir: string): Map<number, CachedMatch[]> {
     } catch { /* skip corrupt */ }
   }
   return result;
+}
+
+/**
+ * Load matchday files for an AF canonical competition.
+ *
+ * AF matchday files live at: cache/apifootball/{competitionId}/{season}/matchday-{NN}.json
+ * Sub-tournament leagues also produce matchday-{NN}-{KEY}.json — both variants are loaded.
+ * Matches from the same matchday number (across sub-tournament suffixes) are merged.
+ */
+function loadAfMatchdayFiles(competitionId: string, season: string): Map<number, CachedMatch[]> {
+  const result = new Map<number, CachedMatch[]>();
+  const leagueDir = path.join(AF_CACHE_BASE, competitionId, season);
+  if (!fs.existsSync(leagueDir)) return result;
+
+  // Match both matchday-07.json and matchday-07-CLAUSURA.json variants
+  const files = fs.readdirSync(leagueDir)
+    .filter(f => f.match(/^matchday-\d+(?:-[A-Z]+)?\.json$/))
+    .sort();
+
+  for (const file of files) {
+    const numMatch = file.match(/^matchday-(\d+)/);
+    if (!numMatch) continue;
+    const num = parseInt(numMatch[1], 10);
+    if (!num) continue;
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.join(leagueDir, file), 'utf-8'));
+      const matches: CachedMatch[] = raw?.data?.matches ?? [];
+      // Merge into existing matchday (handles sub-tournament split files)
+      const existing = result.get(num) ?? [];
+      result.set(num, [...existing, ...matches]);
+    } catch { /* skip corrupt */ }
+  }
+  return result;
+}
+
+/**
+ * Load AF historical matches for a given leagueId and year.
+ * Cache path: cache/historical/apifootball/{leagueId}/{year}.json
+ */
+function loadAfHistoricalCache(leagueId: number, year: number): HistoricalMatch[] {
+  const file = path.join(AF_HIST_BASE, String(leagueId), `${year}.json`);
+  if (!fs.existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    const matches: Array<{
+      homeTeamId: string; awayTeamId: string;
+      utcDate?: string; startTimeUtc?: string;
+      homeGoals?: number | null; awayGoals?: number | null;
+      scoreHome?: number | null; scoreAway?: number | null;
+    }> = raw?.matches ?? [];
+    return matches
+      .filter(m => (m.homeGoals ?? m.scoreHome) !== null && (m.homeGoals ?? m.scoreHome) !== undefined)
+      .map(m => ({
+        homeTeamId: m.homeTeamId,
+        awayTeamId: m.awayTeamId,
+        utcDate: m.utcDate ?? m.startTimeUtc ?? '',
+        homeGoals: m.homeGoals ?? m.scoreHome ?? 0,
+        awayGoals: m.awayGoals ?? m.scoreAway ?? 0,
+        isNeutralVenue: false,
+      }));
+  } catch { return []; }
+}
+
+/**
+ * Collect training samples from an AF canonical competition.
+ *
+ * Uses the same walk-forward methodology as collectSamples() for FD leagues.
+ * Historical context: AF historical cache (prev year) + AF matchday files (current season).
+ */
+function collectSamplesAf(
+  compId: string,
+  leagueId: number,
+  seasonKind: 'european' | 'calendar',
+  totalTeams: number,
+  code: string,
+): TrainingSample[] {
+  // Derive current season label to find cache directory
+  const now = new Date().toISOString();
+  const seasonYear = resolveAfSeason(now, seasonKind);
+  const season = seasonKind === 'european'
+    ? `${seasonYear}-${String(seasonYear + 1).slice(2)}`
+    : String(seasonYear);
+
+  const allMatchdays = loadAfMatchdayFiles(compId, season);
+  if (allMatchdays.size === 0) {
+    console.log(`  [${code}] No AF matchday files found at cache/apifootball/${compId}/${season}/, skipping.`);
+    return [];
+  }
+
+  // Historical context: AF historical cache for prev year
+  const prevYear = seasonYear - 1;
+  const prevSeasonMatches = loadAfHistoricalCache(leagueId, prevYear);
+  console.log(`  [${code}] AF historical prev year (${prevYear}): ${prevSeasonMatches.length} matches`);
+
+  const sortedMatchdays = [...allMatchdays.keys()].sort((a, b) => a - b);
+  const samples: TrainingSample[] = [];
+  let skipped = 0;
+
+  for (const md of sortedMatchdays) {
+    const testMatches = (allMatchdays.get(md) ?? [])
+      .filter(m =>
+        m.status === 'FINISHED' &&
+        m.scoreHome !== null &&
+        m.scoreAway !== null &&
+        m.startTimeUtc,
+      );
+
+    if (testMatches.length === 0) continue;
+
+    // Training history: prev season + all current-season matchdays < md
+    const trainingHistory: HistoricalMatch[] = [...prevSeasonMatches];
+    for (const prevMd of sortedMatchdays) {
+      if (prevMd >= md) break;
+      for (const m of (allMatchdays.get(prevMd) ?? [])) {
+        if (m.scoreHome !== null && m.scoreAway !== null && m.startTimeUtc) {
+          trainingHistory.push({
+            homeTeamId: m.homeTeamId,
+            awayTeamId: m.awayTeamId,
+            utcDate: m.startTimeUtc,
+            homeGoals: m.scoreHome,
+            awayGoals: m.scoreAway,
+            isNeutralVenue: false,
+          });
+        }
+      }
+    }
+
+    for (const match of testMatches) {
+      if (!match.startTimeUtc || match.scoreHome === null || match.scoreAway === null) continue;
+
+      const buildNowUtc = match.startTimeUtc;
+
+      try {
+        const track1 = computeTrack1(
+          match.homeTeamId,
+          match.awayTeamId,
+          trainingHistory,
+          false,
+          code,
+          buildNowUtc,
+        );
+
+        const eloHome = track1.homeStrength.eloRating;
+        const eloAway = track1.awayStrength.eloRating;
+
+        const fv = buildTrack3FeatureVector(
+          match.homeTeamId,
+          match.awayTeamId,
+          buildNowUtc,
+          trainingHistory,
+          eloHome,
+          eloAway,
+          0, // homePosition: unavailable in backtest
+          0, // awayPosition: unavailable in backtest
+          totalTeams,
+          md,
+        );
+
+        const features = extractFeatureArray(fv);
+        const label = outcomeToOneHot(match.scoreHome, match.scoreAway);
+        samples.push({ features, label });
+      } catch {
+        skipped++;
+      }
+    }
+  }
+
+  console.log(`  [${code}] AF: Collected ${samples.length} samples (skipped: ${skipped})`);
+  return samples;
 }
 
 // ── Feature scaling constants ─────────────────────────────────────────────
@@ -619,8 +800,24 @@ function atomicWriteJson(filePath: string, data: unknown): void {
 async function main(): Promise<void> {
   console.log('=== NEXUS Track 3 — Walk-Forward Logistic Training ===');
   console.log(`Leagues: ${LEAGUES.map(l => l.code).join(', ')}`);
+  if (INCLUDE_COMP_ID) console.log(`Extra AF comp: ${INCLUDE_COMP_ID}`);
   console.log(`Output: ${OUTPUT_FILE}`);
   console.log('');
+
+  // Validate --include-comp if provided
+  let afEntry: typeof COMPETITION_REGISTRY[number] | null = null;
+  if (INCLUDE_COMP_ID) {
+    afEntry = COMPETITION_REGISTRY.find(e => e.id === INCLUDE_COMP_ID) ?? null;
+    if (!afEntry) {
+      console.error(`Error: --include-comp "${INCLUDE_COMP_ID}" not found in COMPETITION_REGISTRY.`);
+      console.error(`Valid AF comp IDs: ${COMPETITION_REGISTRY.filter(e => e.id.startsWith('comp:apifootball:')).map(e => e.id).join(', ')}`);
+      process.exit(1);
+    }
+    if (afEntry.isTournament) {
+      console.error(`Error: --include-comp "${INCLUDE_COMP_ID}" is a tournament (isTournament=true). Only league competitions are supported.`);
+      process.exit(1);
+    }
+  }
 
   // Collect training samples from all leagues
   const allSamples: TrainingSample[] = [];
@@ -631,6 +828,24 @@ async function main(): Promise<void> {
     const samples = collectSamples(league);
     allSamples.push(...samples);
     if (samples.length > 0) leagueNames.push(league.code);
+  }
+
+  // Collect samples from AF canonical competition if --include-comp provided
+  if (afEntry) {
+    console.log(`Loading AF canonical: ${afEntry.displayName} (${afEntry.id})...`);
+    // Estimate totalTeams from expectedSeasonGames (38 games → 20 teams for round-robin)
+    // For leagues without expectedSeasonGames, default to 18
+    const expectedGames = afEntry.expectedSeasonGames ?? 30;
+    const totalTeams = Math.round(expectedGames / (expectedGames >= 36 ? 1.9 : expectedGames >= 30 ? 1.8 : 1.7));
+    const samples = collectSamplesAf(
+      afEntry.id,
+      afEntry.leagueId,
+      afEntry.seasonKind,
+      totalTeams,
+      afEntry.slug,
+    );
+    allSamples.push(...samples);
+    if (samples.length > 0) leagueNames.push(afEntry.slug);
   }
 
   if (allSamples.length === 0) {

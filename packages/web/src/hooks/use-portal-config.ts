@@ -5,6 +5,7 @@ export interface CompetitionEntry {
   slug: string;
   displayName: string;
   enabled: boolean;
+  mode?: 'portal' | 'shadow' | 'disabled';
   /** Stable semantic key for frontend filtering (e.g. 'LALIGA', 'PREMIER_LEAGUE') */
   normalizedLeague?: string;
   /** Key for news/video section grouping (e.g. 'LL', 'EPL'). Null = no dedicated feed. */
@@ -45,6 +46,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
       slug: 'URU',
       displayName: 'Fútbol Uruguayo',
       enabled: true,
+      mode: 'portal',
       normalizedLeague: 'URUGUAY_PRIMERA',
       newsKey: 'URU',
       accentColor: '#3b82f6',
@@ -57,6 +59,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
       slug: 'AR',
       displayName: 'Liga Argentina',
       enabled: true,
+      mode: 'portal',
       normalizedLeague: 'ARGENTINA_PRIMERA',
       newsKey: 'AR',
       accentColor: '#74b9ff',
@@ -69,6 +72,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
       slug: 'PD',
       displayName: 'La Liga',
       enabled: true,
+      mode: 'portal',
       normalizedLeague: 'LALIGA',
       newsKey: 'LL',
       accentColor: '#f59e0b',
@@ -81,6 +85,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
       slug: 'PL',
       displayName: 'Premier League',
       enabled: true,
+      mode: 'portal',
       normalizedLeague: 'PREMIER_LEAGUE',
       newsKey: 'EPL',
       accentColor: '#a855f7',
@@ -93,6 +98,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
       slug: 'BL1',
       displayName: 'Bundesliga',
       enabled: true,
+      mode: 'portal',
       normalizedLeague: 'BUNDESLIGA',
       newsKey: 'BUN',
       accentColor: '#ef4444',
@@ -105,6 +111,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
       slug: 'CLI',
       displayName: 'Copa Libertadores',
       enabled: true,
+      mode: 'portal',
       normalizedLeague: 'COPA_LIBERTADORES',
       newsKey: 'CLI',
       accentColor: '#eab308',
@@ -118,6 +125,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
       slug: 'WC',
       displayName: 'Copa del Mundo 2026',
       enabled: true,
+      mode: 'portal',
       normalizedLeague: 'MUNDIAL',
       newsKey: 'WC',
       accentColor: '#22c55e',
@@ -132,6 +140,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
       slug: 'MX',
       displayName: 'Liga MX',
       enabled: false,
+      mode: 'disabled',
       normalizedLeague: 'LIGA_MX',
       newsKey: null,
       accentColor: '#1a1a6e',

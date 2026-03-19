@@ -32,12 +32,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MISSING } from './types.js';
-import type {
-  FeatureValue,
-  FeatureProvenance,
-  XgMatchData,
-  MissingValue,
-} from './types.js';
+import type { FeatureValue, FeatureProvenance, XgMatchData, MissingValue } from './types.js';
 
 // ── AF League ID mapping (per MEMORY.md, tools/xg-backfill-af.ts) ────────
 
@@ -46,11 +41,15 @@ import type {
  * Used to build the cache path: cache/xg/{afLeagueId}/{year}/{fixtureId}.json
  */
 export const AF_LEAGUE_IDS: Readonly<Record<string, number>> = {
-  PD: 140,   // LaLiga
-  PL: 39,    // Premier League
-  BL1: 78,   // Bundesliga
-  SA: 135,   // Serie A
-  FL1: 61,   // Ligue 1
+  PD: 140, // LaLiga
+  PL: 39, // Premier League
+  BL1: 78, // Bundesliga
+  SA: 135, // Serie A
+  FL1: 61, // Ligue 1
+  // AF-canonical leagues registered in portal (competition-registry.ts)
+  URU: 268, // Fútbol Uruguayo
+  ARG: 128, // Liga Argentina
+  MX: 262, // Liga MX
 } as const;
 
 /**
@@ -62,6 +61,10 @@ export const AF_LEAGUE_ID_TO_CODE: Readonly<Record<number, string>> = {
   78: 'BL1',
   135: 'SA',
   61: 'FL1',
+  // AF-canonical leagues registered in portal (competition-registry.ts)
+  268: 'URU',
+  128: 'ARG',
+  262: 'MX',
 } as const;
 
 // ── Cache file shape ──────────────────────────────────────────────────────
@@ -122,17 +125,12 @@ export function loadXgFeature(
   }
 
   // Validate the parsed data minimally
-  if (
-    typeof cached.fixtureId !== 'number' ||
-    typeof cached.utcDate !== 'string'
-  ) {
+  if (typeof cached.fixtureId !== 'number' || typeof cached.utcDate !== 'string') {
     return buildMissingXgFeature(buildNowUtc, 'api-football', cached.cachedAt ?? buildNowUtc);
   }
 
-  const xgHome: number | MissingValue =
-    cached.xgHome != null ? cached.xgHome : MISSING;
-  const xgAway: number | MissingValue =
-    cached.xgAway != null ? cached.xgAway : MISSING;
+  const xgHome: number | MissingValue = cached.xgHome != null ? cached.xgHome : MISSING;
+  const xgAway: number | MissingValue = cached.xgAway != null ? cached.xgAway : MISSING;
 
   const xgDataAvailable = xgHome !== MISSING && xgAway !== MISSING;
 
@@ -172,9 +170,7 @@ export function loadXgFeature(
  *
  * @returns A number in [0, 1]. Returns 0 if the list is empty.
  */
-export function computeXgCoverage(
-  featureValues: ReadonlyArray<FeatureValue<XgMatchData>>,
-): number {
+export function computeXgCoverage(featureValues: ReadonlyArray<FeatureValue<XgMatchData>>): number {
   if (featureValues.length === 0) return 0;
 
   const available = featureValues.filter(
@@ -220,7 +216,7 @@ function buildMissingXgFeature(
     source,
     ingestedAt,
     effectiveAt: ingestedAt, // No effectiveAt known when file is absent
-    confidence: 'UNKNOWN',   // No data → UNKNOWN → excluded from model (S7.1)
+    confidence: 'UNKNOWN', // No data → UNKNOWN → excluded from model (S7.1)
     freshness,
   };
 
@@ -231,10 +227,7 @@ function buildMissingXgFeature(
  * Compute freshness in seconds: buildNowUtc - ingestedAt.
  * Returns 0 if timestamps are invalid or ingestedAt > buildNowUtc.
  */
-function computeFreshnessSeconds(
-  ingestedAt: string,
-  buildNowUtc: string,
-): number {
+function computeFreshnessSeconds(ingestedAt: string, buildNowUtc: string): number {
   const ingestedMs = Date.parse(ingestedAt);
   const buildNowMs = Date.parse(buildNowUtc);
 

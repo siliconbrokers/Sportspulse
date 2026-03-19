@@ -7,11 +7,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../hooks/use-theme.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
 
+type CompetitionMode = 'portal' | 'shadow' | 'disabled';
+
 interface CompetitionConfig {
   id: string;
   slug: string;
   displayName: string;
   enabled: boolean;
+  mode?: CompetitionMode;
   updatedAt: string;
   updatedBy: string;
 }
@@ -153,6 +156,62 @@ function Toggle({ value, onChange, disabled }: { value: boolean; onChange: (v: b
   );
 }
 
+// ─── Mode selector (segmented control) ───────────────────────────────────────
+
+const MODE_OPTIONS: { value: CompetitionMode; label: string; activeColor: string; borderColor: string; activeText: string }[] = [
+  { value: 'portal',   label: 'Portal',  activeColor: '#22c55e', borderColor: '#22c55e', activeText: '#fff' },
+  { value: 'shadow',   label: 'Shadow',  activeColor: '#f59e0b', borderColor: '#f59e0b', activeText: '#fff' },
+  { value: 'disabled', label: 'Off',     activeColor: '#9ca3af', borderColor: '#9ca3af', activeText: '#fff' },
+];
+
+function ModeSelector({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: CompetitionMode;
+  onChange: (v: CompetitionMode) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 4,
+        flexShrink: 0,
+      }}
+    >
+      {MODE_OPTIONS.map((opt) => {
+        const isActive = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            onClick={() => !disabled && onChange(opt.value)}
+            title={opt.label}
+            style={{
+              padding: '4px 10px',
+              borderRadius: 6,
+              border: `1.5px solid ${opt.borderColor}`,
+              background: isActive ? opt.activeColor : 'transparent',
+              color: isActive ? opt.activeText : opt.borderColor,
+              fontWeight: isActive ? 700 : 500,
+              fontSize: 12,
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              opacity: disabled ? 0.5 : 1,
+              transition: 'background 0.15s, color 0.15s',
+              lineHeight: 1.4,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Login screen ─────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
@@ -233,7 +292,7 @@ function AdminPanel({ token }: { token: string }) {
 
   useEffect(() => { void loadConfig(); }, [loadConfig]);
 
-  async function patch(update: { competitions?: { id: string; enabled: boolean }[]; features?: { tv?: boolean; predictions?: boolean } }) {
+  async function patch(update: { competitions?: { id: string; mode: CompetitionMode }[]; features?: { tv?: boolean; predictions?: boolean } }) {
     setSaveState('saving');
     try {
       const res = await fetch('/api/admin/config', {
@@ -252,8 +311,8 @@ function AdminPanel({ token }: { token: string }) {
     }
   }
 
-  function toggleCompetition(id: string, enabled: boolean) {
-    void patch({ competitions: [{ id, enabled }] });
+  function setCompetitionMode(id: string, mode: CompetitionMode) {
+    void patch({ competitions: [{ id, mode }] });
   }
 
   function toggleFeature(key: 'tv' | 'predictions', value: boolean) {
@@ -323,19 +382,23 @@ function AdminPanel({ token }: { token: string }) {
 
         {/* ── Sección A — Competiciones ── */}
         <div style={S.sectionTitle}>Competiciones</div>
-        {config.competitions.map((comp) => (
-          <div key={comp.id} style={S.row}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span style={S.label}>{comp.displayName}</span>
-              <span style={{ ...S.slug, marginTop: 0 }}>{comp.slug} · {comp.id}</span>
+        {config.competitions.map((comp) => {
+          // Derive current mode: prefer explicit mode, fall back to enabled boolean
+          const currentMode: CompetitionMode = comp.mode ?? (comp.enabled ? 'portal' : 'disabled');
+          return (
+            <div key={comp.id} style={{ ...S.row, gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                <span style={S.label}>{comp.displayName}</span>
+                <span style={{ ...S.slug, marginTop: 0 }}>{comp.slug} · {comp.id}</span>
+              </div>
+              <ModeSelector
+                value={currentMode}
+                onChange={(mode) => setCompetitionMode(comp.id, mode)}
+                disabled={isSaving}
+              />
             </div>
-            <Toggle
-              value={comp.enabled}
-              onChange={(v) => toggleCompetition(comp.id, v)}
-              disabled={isSaving}
-            />
-          </div>
-        ))}
+          );
+        })}
 
         {/* ── Sección B — Features de menú ── */}
         <div style={S.sectionTitle}>Opciones del menú</div>

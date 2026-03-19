@@ -11,11 +11,23 @@ import { COMPETITION_REGISTRY } from './competition-registry.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Three-state competition mode.
+ *
+ * portal   — visible in the portal, data fetched, predictions active
+ * shadow   — NOT visible in portal, data fetched, predictions active (internal / NEXUS accumulation)
+ * disabled — completely off: no portal display, no data fetching, no predictions
+ */
+export type CompetitionMode = 'portal' | 'shadow' | 'disabled';
+
 export interface CompetitionConfig {
   id: string;
   slug: string;
   displayName: string;
-  enabled: boolean;
+  mode: CompetitionMode;
+  /** @deprecated Transitional backward-compat field — do NOT rely on this in new code.
+   *  Kept until AdminPage (Fase 3) is migrated to the 3-state selector. */
+  enabled?: boolean;
   updatedAt: string;   // ISO UTC
   updatedBy: string;
 }
@@ -49,7 +61,7 @@ const CATALOG_DEFAULTS: Omit<CompetitionConfig, 'updatedAt' | 'updatedBy'>[] =
     id:          e.id,
     slug:        e.slug,
     displayName: e.displayName,
-    enabled:     true,
+    mode:        'portal' as CompetitionMode,
   }));
 
 const FEATURE_DEFAULTS: Omit<PortalFeatureConfig, 'updatedAt' | 'updatedBy'> = {
@@ -63,7 +75,7 @@ const CACHE_DIR  = path.join(process.cwd(), 'cache');
 const CONFIG_FILE = path.join(CACHE_DIR, 'portal-config.json');
 const AUDIT_FILE  = path.join(CACHE_DIR, 'portal-config-audit.jsonl');
 
-// ── Default config (all enabled) ─────────────────────────────────────────────
+// ── Default config (all portal) ───────────────────────────────────────────────
 
 function buildDefault(): PortalConfig {
   const now = new Date().toISOString();
@@ -73,6 +85,19 @@ function buildDefault(): PortalConfig {
   };
 }
 
+// ── Migration helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Migration-on-read: convert old format { enabled: boolean } to { mode: CompetitionMode }.
+ * First read converts; first write persists the new format.
+ */
+function migrateCompEntry(comp: Record<string, unknown>): void {
+  if ('enabled' in comp && !('mode' in comp)) {
+    comp['mode'] = comp['enabled'] ? 'portal' : 'disabled';
+    delete comp['enabled'];
+  }
+}
+
 // ── Read / Write ──────────────────────────────────────────────────────────────
 
 function readConfig(): PortalConfig {
@@ -80,7 +105,13 @@ function readConfig(): PortalConfig {
     if (!fs.existsSync(CONFIG_FILE)) return buildDefault();
     const raw = fs.readFileSync(CONFIG_FILE, 'utf8');
     const parsed = JSON.parse(raw) as PortalConfig;
-    // Merge catalog: if a new competition was added to code, inject it as enabled
+
+    // Migration-on-read: detect old boolean `enabled` format and convert to `mode`
+    for (const comp of parsed.competitions as unknown as Record<string, unknown>[]) {
+      migrateCompEntry(comp);
+    }
+
+    // Merge catalog: if a new competition was added to code, inject it as portal
     const storedIds = new Set(parsed.competitions.map((c) => c.id));
     const now = new Date().toISOString();
     for (const def of CATALOG_DEFAULTS) {
@@ -126,14 +157,54 @@ export function getFullConfig(): PortalConfig {
   return getConfig();
 }
 
-export function getEnabledCompetitions(): CompetitionConfig[] {
-  return getConfig().competitions.filter((c) => c.enabled);
+/**
+ * Returns competitions with mode !== 'disabled' (portal + shadow).
+ * Use this for data fetching, predictions, polling — anything that is not portal display.
+ */
+export function getActiveCompetitions(): CompetitionConfig[] {
+  return getConfig().competitions.filter((c) => c.mode !== 'disabled');
 }
 
-export function isCompetitionEnabled(competitionId: string): boolean {
+/**
+ * @deprecated Use getActiveCompetitions() instead.
+ * Kept for backward compatibility during transition.
+ */
+export function getEnabledCompetitions(): CompetitionConfig[] {
+  return getActiveCompetitions();
+}
+
+/**
+ * Returns the mode for a given competition ID.
+ * Unknown competitions (not in catalog) default to 'portal' for backward compat.
+ */
+export function getCompetitionMode(competitionId: string): CompetitionMode {
   const comp = getConfig().competitions.find((c) => c.id === competitionId);
-  // Unknown competitions (not in catalog) are allowed by default
-  return comp ? comp.enabled : true;
+  return comp ? comp.mode : 'portal';
+}
+
+/**
+ * Returns true if the competition is active (portal or shadow).
+ * Use for data fetching, predictions, and all non-display concerns.
+ * Unknown competitions default to true for backward compat.
+ */
+export function isCompetitionActive(competitionId: string): boolean {
+  return getCompetitionMode(competitionId) !== 'disabled';
+}
+
+/**
+ * Returns true only if the competition is in portal mode (visible to users).
+ * Use for portal display filtering.
+ */
+export function isCompetitionPortal(competitionId: string): boolean {
+  return getCompetitionMode(competitionId) === 'portal';
+}
+
+/**
+ * @deprecated Use isCompetitionActive() instead.
+ * Kept for backward compatibility during transition (server/index.ts will migrate in Fase 1).
+ */
+export function isCompetitionEnabled(competitionId: string): boolean {
+  return isCompetitionActive(competitionId);
 }
 
 export function isFeatureEnabled(key: 'tv' | 'predictions'): boolean {
@@ -141,7 +212,7 @@ export function isFeatureEnabled(key: 'tv' | 'predictions'): boolean {
 }
 
 export interface PortalConfigPatch {
-  competitions?: { id: string; enabled: boolean }[];
+  competitions?: { id: string; mode?: CompetitionMode; enabled?: boolean }[];
   features?: { tv?: boolean; predictions?: boolean };
 }
 
@@ -151,11 +222,21 @@ export function updateConfig(patch: PortalConfigPatch, updatedBy: string): void 
   const audit: AuditEntry[] = [];
 
   if (patch.competitions) {
-    for (const { id, enabled } of patch.competitions) {
+    for (const entry of patch.competitions) {
+      const { id } = entry;
+
+      // Backward compat: if patch arrives with { id, enabled } without mode, convert
+      let newMode: CompetitionMode | undefined = entry.mode;
+      if (newMode === undefined && entry.enabled !== undefined) {
+        newMode = entry.enabled ? 'portal' : 'disabled';
+      }
+
+      if (newMode === undefined) continue;
+
       const comp = config.competitions.find((c) => c.id === id);
-      if (comp && comp.enabled !== enabled) {
-        audit.push({ at: now, by: updatedBy, field: `competition.${id}.enabled`, from: comp.enabled, to: enabled });
-        comp.enabled = enabled;
+      if (comp && comp.mode !== newMode) {
+        audit.push({ at: now, by: updatedBy, field: `competition.${id}.mode`, from: comp.mode, to: newMode });
+        comp.mode = newMode;
         comp.updatedAt = now;
         comp.updatedBy = updatedBy;
       }
@@ -176,4 +257,22 @@ export function updateConfig(patch: PortalConfigPatch, updatedBy: string): void 
   writeConfig(config);
   appendAudit(audit);
   invalidateCache();
+}
+
+/**
+ * Returns an enriched config suitable for the client (portal-config-route).
+ * Includes `mode` for new consumers and `enabled` as a derived field for backward compat.
+ */
+export function getEnrichedPortalConfig(): {
+  competitions: (CompetitionConfig & { enabled: boolean })[];
+  features: PortalFeatureConfig;
+} {
+  const config = getConfig();
+  return {
+    competitions: config.competitions.map((c) => ({
+      ...c,
+      enabled: c.mode === 'portal',  // derived backward-compat field
+    })),
+    features: config.features,
+  };
 }

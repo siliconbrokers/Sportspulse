@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.command // \"\"' | grep -qE 'git push' && echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"BLOQUEADO: git push requiere instruccion EXPLICITA del usuario. El push despliega a produccion automaticamente via Render.\"}}' || true",
+            "command": "jq -r '.tool_input.command // \"\"' | grep -qE '^git push' && echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"BLOQUEADO: git push requiere instruccion EXPLICITA del usuario. El push despliega a produccion automaticamente via Render.\"}}' || true",
             "timeout": 5
           }
         ]

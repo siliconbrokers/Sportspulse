@@ -86,22 +86,26 @@ async function fetchFullCoefficients(): Promise<Coefficients | null> {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const ROOT: React.CSSProperties = {
-  minHeight: '100vh',
-  backgroundColor: '#0a0a0a',
-  color: '#e2e8f0',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
-  fontSize: 12,
-  padding: '12px 16px',
-};
+function makeRoot(isDark: boolean): React.CSSProperties {
+  return {
+    minHeight: '100vh',
+    backgroundColor: isDark ? '#0a0a0a' : '#f8fafc',
+    color: isDark ? '#e2e8f0' : '#0f172a',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
+    fontSize: 12,
+    padding: '12px 16px',
+  };
+}
 
-const PANEL: React.CSSProperties = {
-  background: '#141414',
-  border: '1px solid #2a2a2a',
-  borderRadius: 8,
-  padding: '12px 14px',
-  marginBottom: 12,
-};
+function makePanel(isDark: boolean): React.CSSProperties {
+  return {
+    background: isDark ? '#141414' : '#ffffff',
+    border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    borderRadius: 8,
+    padding: '12px 14px',
+    marginBottom: 12,
+  };
+}
 
 const SECTION_TITLE: React.CSSProperties = {
   fontSize: 10,
@@ -112,23 +116,25 @@ const SECTION_TITLE: React.CSSProperties = {
   marginBottom: 8,
 };
 
-const TH: React.CSSProperties = {
-  padding: '5px 8px',
-  fontSize: 10,
-  fontWeight: 600,
-  color: '#64748b',
-  textAlign: 'left' as const,
-  whiteSpace: 'nowrap' as const,
-  borderBottom: '1px solid #2a2a2a',
-  background: '#0f0f0f',
-};
+function makeTH(isDark: boolean): React.CSSProperties {
+  return {
+    padding: '5px 8px',
+    fontSize: 10,
+    fontWeight: 600,
+    color: isDark ? '#64748b' : '#475569',
+    textAlign: 'left' as const,
+    whiteSpace: 'nowrap' as const,
+    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    background: isDark ? '#0f0f0f' : '#f1f5f9',
+  };
+}
 
-function TD(i: number, right = false, mono = false): React.CSSProperties {
+function makeTD(isDark: boolean, i: number, right = false, mono = false): React.CSSProperties {
   return {
     padding: '4px 8px',
     fontSize: 11,
-    background: i % 2 === 0 ? '#141414' : '#111',
-    borderBottom: '1px solid #1c1c1c',
+    background: isDark ? (i % 2 === 0 ? '#141414' : '#111') : (i % 2 === 0 ? '#ffffff' : '#f8fafc'),
+    borderBottom: isDark ? '1px solid #1c1c1c' : '1px solid #e8ecf0',
     whiteSpace: 'nowrap' as const,
     textAlign: right ? 'right' as const : 'left' as const,
     fontFamily: mono ? 'monospace' : 'inherit',
@@ -177,7 +183,8 @@ const FEATURE_LABELS: Record<string, string> = {
   market_imp_away:      'Mercado: visitante',
 };
 
-function FeatureTable({ coeff }: { coeff: Coefficients }) {
+function FeatureTable({ coeff, isDark }: { coeff: Coefficients; isDark: boolean }) {
+  const TH = makeTH(isDark);
   const keys = Object.keys(coeff.home.weights);
 
   // Para cada feature, el "peso neto" es la diferencia max - min entre clases
@@ -230,20 +237,20 @@ function FeatureTable({ coeff }: { coeff: Coefficients }) {
         </thead>
         <tbody>
           <tr>
-            <td style={{ ...TD(0), color: '#64748b', fontStyle: 'italic' }}>bias</td>
-            <td style={TD(0)}>{bar(coeff.home.bias)}</td>
-            <td style={TD(0)}>{bar(coeff.draw.bias)}</td>
-            <td style={TD(0)}>{bar(coeff.away.bias)}</td>
+            <td style={{ ...makeTD(isDark, 0), color: isDark ? '#64748b' : '#475569', fontStyle: 'italic' }}>bias</td>
+            <td style={makeTD(isDark, 0)}>{bar(coeff.home.bias)}</td>
+            <td style={makeTD(isDark, 0)}>{bar(coeff.draw.bias)}</td>
+            <td style={makeTD(isDark, 0)}>{bar(coeff.away.bias)}</td>
           </tr>
           {rows.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ ...TD(i + 1), color: r.key.startsWith('market') ? '#f59e0b' : '#cbd5e1' }}>
+              <td style={{ ...makeTD(isDark, i + 1), color: r.key.startsWith('market') ? '#f59e0b' : (isDark ? '#cbd5e1' : '#334155') }}>
                 {r.label}
                 {r.key.startsWith('market') && <span style={{ color: '#f59e0b', marginLeft: 4 }}>★</span>}
               </td>
-              <td style={TD(i + 1)}>{bar(r.home)}</td>
-              <td style={TD(i + 1)}>{bar(r.draw)}</td>
-              <td style={TD(i + 1)}>{bar(r.away)}</td>
+              <td style={makeTD(isDark, i + 1)}>{bar(r.home)}</td>
+              <td style={makeTD(isDark, i + 1)}>{bar(r.draw)}</td>
+              <td style={makeTD(isDark, i + 1)}>{bar(r.away)}</td>
             </tr>
           ))}
         </tbody>
@@ -257,7 +264,7 @@ function FeatureTable({ coeff }: { coeff: Coefficients }) {
 
 // ── Log viewer ────────────────────────────────────────────────────────────────
 
-function LogViewer({ lines, status }: { lines: string[]; status: JobStatus }) {
+function LogViewer({ lines, status, isDark }: { lines: string[]; status: JobStatus; isDark: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -268,8 +275,8 @@ function LogViewer({ lines, status }: { lines: string[]; status: JobStatus }) {
 
   return (
     <div ref={ref} style={{
-      background: '#0a0a0a',
-      border: '1px solid #2a2a2a',
+      background: isDark ? '#0a0a0a' : '#f1f5f9',
+      border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
       borderRadius: 6,
       padding: '8px 10px',
       maxHeight: 280,
@@ -277,7 +284,7 @@ function LogViewer({ lines, status }: { lines: string[]; status: JobStatus }) {
       fontFamily: 'monospace',
       fontSize: 11,
       lineHeight: 1.5,
-      color: '#94a3b8',
+      color: isDark ? '#94a3b8' : '#64748b',
       marginTop: 8,
     }}>
       {lines.map((l, i) => {
@@ -299,6 +306,7 @@ function LogViewer({ lines, status }: { lines: string[]; status: JobStatus }) {
 
 export function TrainingLabPage() {
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
   const [status, setStatus]           = useState<StatusResponse | null>(null);
   const [coeff, setCoeff]             = useState<Coefficients | null>(null);
   const [loading, setLoading]         = useState(true);
@@ -361,13 +369,16 @@ export function TrainingLabPage() {
 
   // ── Render states ──────────────────────────────────────────────────────────
 
+  const ROOT = makeRoot(isDark);
+  const PANEL = makePanel(isDark);
+
   if (loading) {
     return (
       <div style={ROOT}>
         <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
-        <div style={{ color: '#64748b', padding: 24 }}>Cargando...</div>
+        <div style={{ color: isDark ? '#64748b' : '#475569', padding: 24 }}>Cargando...</div>
       </div>
     );
   }
@@ -378,9 +389,9 @@ export function TrainingLabPage() {
         <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
-        <div style={{ ...PANEL, borderColor: '#451a03', background: '#1a0a00' }}>
+        <div style={{ ...PANEL, borderColor: '#451a03', background: isDark ? '#1a0a00' : '#fff7ed' }}>
           <div style={{ color: '#f97316', fontWeight: 600, marginBottom: 6 }}>Lab no disponible</div>
-          <div style={{ color: '#94a3b8' }}>Activar con <code style={{ color: '#f59e0b' }}>PREDICTION_INTERNAL_VIEW_ENABLED=true</code> en el servidor.</div>
+          <div style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Activar con <code style={{ color: '#f59e0b' }}>PREDICTION_INTERNAL_VIEW_ENABLED=true</code> en el servidor.</div>
         </div>
       </div>
     );
@@ -392,10 +403,10 @@ export function TrainingLabPage() {
         <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
-        <div style={{ ...PANEL, borderColor: '#450a0a', background: '#1a0000' }}>
+        <div style={{ ...PANEL, borderColor: '#450a0a', background: isDark ? '#1a0000' : '#fef2f2' }}>
           <div style={{ color: '#ef4444', marginBottom: 4 }}>Error al cargar</div>
-          <div style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: 11 }}>{error}</div>
-          <button onClick={() => void load()} style={{ marginTop: 10, background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
+          <div style={{ color: isDark ? '#94a3b8' : '#64748b', fontFamily: 'monospace', fontSize: 11 }}>{error}</div>
+          <button onClick={() => void load()} style={{ marginTop: 10, background: isDark ? '#1e293b' : '#f1f5f9', color: isDark ? '#e2e8f0' : '#0f172a', border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
             Reintentar
           </button>
         </div>
@@ -413,7 +424,7 @@ export function TrainingLabPage() {
       {/* Header */}
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', marginBottom: 2 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#f1f5f9' : '#0f172a', marginBottom: 2 }}>
             Entrenamiento — Modelo Logístico PE
           </div>
           <div style={{ fontSize: 11, color: '#475569' }}>
@@ -428,12 +439,12 @@ export function TrainingLabPage() {
         <div style={SECTION_TITLE}>Estado del pipeline</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
-          <Stat label="Job actual" value={job.status} valueColor={statusColor(job.status)} />
-          <Stat label="Último inicio" value={fmtDate(job.startedAt)} />
-          <Stat label="Duración" value={fmtMs(job.durationMs)} />
-          {meta && <Stat label="Último entrenamiento" value={fmtDate(meta.trainedAt)} />}
-          {meta && <Stat label="Ejemplos entrenados" value={meta.trainedOnMatches.toLocaleString()} />}
-          {meta && <Stat label="Regularización λ" value={meta.regularizationLambda.toFixed(3)} />}
+          <Stat label="Job actual" value={job.status} valueColor={statusColor(job.status)} isDark={isDark} />
+          <Stat label="Último inicio" value={fmtDate(job.startedAt)} isDark={isDark} />
+          <Stat label="Duración" value={fmtMs(job.durationMs)} isDark={isDark} />
+          {meta && <Stat label="Último entrenamiento" value={fmtDate(meta.trainedAt)} isDark={isDark} />}
+          {meta && <Stat label="Ejemplos entrenados" value={meta.trainedOnMatches.toLocaleString()} isDark={isDark} />}
+          {meta && <Stat label="Regularización λ" value={meta.regularizationLambda.toFixed(3)} isDark={isDark} />}
         </div>
 
         {/* Botón trigger */}
@@ -455,7 +466,7 @@ export function TrainingLabPage() {
             {isRunning ? '⏳ Entrenando...' : triggering ? 'Iniciando...' : '▶ Reentrenar'}
           </button>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#94a3b8', fontSize: 11, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 11, cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={skipDownload}
@@ -467,13 +478,13 @@ export function TrainingLabPage() {
           </label>
 
           {!isRunning && (
-            <button onClick={() => void load()} style={{ background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
+            <button onClick={() => void load()} style={{ background: isDark ? '#1e293b' : '#f1f5f9', color: isDark ? '#94a3b8' : '#64748b', border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
               Actualizar
             </button>
           )}
         </div>
 
-        <LogViewer lines={job.lastLines} status={job.status} />
+        <LogViewer lines={job.lastLines} status={job.status} isDark={isDark} />
       </div>
 
       {/* Panel B — Comandos rápidos */}
@@ -498,7 +509,7 @@ export function TrainingLabPage() {
           <div style={{ fontSize: 10, color: '#475569', marginBottom: 8 }}>
             Ordenado por magnitud máxima entre clases. Verde = favorece la clase. Rojo = penaliza.
           </div>
-          <FeatureTable coeff={coeff} />
+          <FeatureTable coeff={coeff} isDark={isDark} />
         </div>
       )}
 
@@ -516,11 +527,11 @@ export function TrainingLabPage() {
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
-function Stat({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+function Stat({ label, value, valueColor, isDark }: { label: string; value: string; valueColor?: string; isDark: boolean }) {
   return (
     <div>
       <div style={{ fontSize: 10, color: '#475569', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: valueColor ?? '#e2e8f0' }}>{value}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: valueColor ?? (isDark ? '#e2e8f0' : '#0f172a') }}>{value}</div>
     </div>
   );
 }

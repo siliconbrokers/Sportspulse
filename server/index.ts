@@ -63,7 +63,7 @@ import {
 } from '@sportpulse/canonical';
 import { COMPETITION_REGISTRY, REGISTRY_BY_ID } from './competition-registry.js';
 import type { MatchCoreInput } from './incidents/types.js';
-import { isCompetitionEnabled, getEnabledCompetitions, getFullConfig, isFeatureEnabled } from './portal-config-store.js';
+import { isCompetitionActive, getActiveCompetitions, getFullConfig, isFeatureEnabled } from './portal-config-store.js';
 import { registerAdminRoutes } from './admin-router.js';
 import { fetchStreamEmbedUrls } from './stream-embed/stream-embed-service.js';
 import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
@@ -132,7 +132,7 @@ async function main() {
   for (let i = 0; i < FD_COMPETITION_CODES.length; i++) {
     const code = FD_COMPETITION_CODES[i];
     const competitionId = `comp:football-data:${code}`;
-    if (!isCompetitionEnabled(competitionId)) {
+    if (!isCompetitionActive(competitionId)) {
       console.log(`[FDSource] ${code} deshabilitado — startup fetch omitido`);
       continue;
     }
@@ -160,7 +160,7 @@ async function main() {
     'https://www.thesportsdb.com/api/v1/json', SPORTSDB_PROVIDER_KEY,
     UY_SUB_TOURNAMENTS,
   );
-  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(UY_COMPETITION_ID)) {
+  if (!AF_CANONICAL_ENABLED && isCompetitionActive(UY_COMPETITION_ID)) {
     try {
       await sportsDbSource.fetchSeason();
     } catch (err) {
@@ -176,7 +176,7 @@ async function main() {
     SPORTSDB_API_KEY, AR_LEAGUE_ID, AR_LEAGUE_NAME,
     'https://www.thesportsdb.com/api/v1/json', AR_PROVIDER_KEY,
   );
-  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(AR_COMPETITION_ID)) {
+  if (!AF_CANONICAL_ENABLED && isCompetitionActive(AR_COMPETITION_ID)) {
     try {
       await new Promise<void>((r) => setTimeout(r, 5000));
       await sportsDbArSource.fetchSeason();
@@ -189,7 +189,7 @@ async function main() {
 
   // OpenLigaDB — Bundesliga (no auth required)
   const openLigaDbSource = new OpenLigaDBSource(OLG_LEAGUE, '1. Bundesliga');
-  if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(OLG_COMPETITION_ID)) {
+  if (!AF_CANONICAL_ENABLED && isCompetitionActive(OLG_COMPETITION_ID)) {
     try {
       await openLigaDbSource.fetchSeason();
     } catch (err) {
@@ -204,7 +204,7 @@ async function main() {
   const WC_COMPETITION_ID = wcSource.competitionId; // 'comp:football-data-wc:WC'
   // Bracket/grupos de WC vienen de football-data.org independientemente del modo.
   // En AF mode, los scores se sobreescriben vía overlay; la estructura del torneo (FD) sigue siendo necesaria.
-  const wcEnabled = isCompetitionEnabled(WC_COMPETITION_ID) || isCompetitionEnabled('comp:apifootball:1');
+  const wcEnabled = isCompetitionActive(WC_COMPETITION_ID) || isCompetitionActive('comp:apifootball:1');
   if (wcEnabled) {
     try {
       await new Promise<void>((r) => setTimeout(r, 7000));
@@ -235,7 +235,7 @@ async function main() {
 
   // Bracket/grupos de CLI vienen de football-data.org independientemente del modo.
   // En AF mode, los scores se sobreescriben vía overlay; la estructura del torneo (FD) sigue siendo necesaria.
-  const cliEnabled = isCompetitionEnabled(CLI_COMPETITION_ID) || isCompetitionEnabled('comp:apifootball:13');
+  const cliEnabled = isCompetitionActive(CLI_COMPETITION_ID) || isCompetitionActive('comp:apifootball:13');
   if (cliEnabled) {
     try {
       await new Promise<void>((r) => setTimeout(r, 20000));
@@ -281,7 +281,7 @@ async function main() {
         // Fetch all AF competitions sequentially (small delays to avoid quota bursts)
         for (let i = 0; i < AF_COMP_IDS.length; i++) {
           const compId = AF_COMP_IDS[i];
-          if (!isCompetitionEnabled(compId)) {
+          if (!isCompetitionActive(compId)) {
             console.log(`[AfCanonical] ${compId} deshabilitado — startup fetch omitido`);
             continue;
           }
@@ -437,7 +437,7 @@ async function main() {
   const EVENTOS_DEBUG = process.env.EVENTOS_DEBUG === 'true';
 
   // Crest resolver: busca el escudo en el DataSource canónico por nombre de equipo (lazy, league-aware)
-  const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`).filter((id) => isCompetitionEnabled(id));
+  const FD_COMP_IDS = FD_COMPETITION_CODES.map((c) => `comp:football-data:${c}`).filter((id) => isCompetitionActive(id));
   const ALL_COMP_IDS = (AF_CANONICAL_ENABLED && afCanonicalSource
     ? [
         ...AF_COMP_IDS,
@@ -452,7 +452,7 @@ async function main() {
         WC_COMPETITION_ID,
         CLI_COMPETITION_ID,
       ]
-  ).filter((id) => isCompetitionEnabled(id));
+  ).filter((id) => isCompetitionActive(id));
   // V2 only supports football-data.org competitions (historical loader only covers FD)
   const fdCompetitionCodeMap = new Map(FD_COMPETITION_CODES.map((c) => [`comp:football-data:${c}`, c]));
   // In AF mode: map AF competition IDs → FD codes so V3 shadow can still query HistoricalStateService
@@ -604,9 +604,9 @@ async function main() {
       // Recalcular en cada llamada para reflejar cambios en portal-config en runtime.
       // ALL_COMP_IDS es estático (calculado en startup), por lo que si el admin habilita/deshabilita
       // ligas sin reiniciar el servidor, ALL_COMP_IDS no se actualiza — por eso usamos la lista
-      // base sin filtro y filtramos dinámicamente con isCompetitionEnabled().
+      // base sin filtro y filtramos dinámicamente con isCompetitionActive().
       const liveCompIds = AF_CANONICAL_ENABLED && afCanonicalSource
-        ? [...AF_COMP_IDS, WC_COMPETITION_ID, CLI_COMPETITION_ID].filter((id) => isCompetitionEnabled(id))
+        ? [...AF_COMP_IDS, WC_COMPETITION_ID, CLI_COMPETITION_ID].filter((id) => isCompetitionActive(id))
         : ALL_COMP_IDS;
 
       for (const compId of liveCompIds) {
@@ -743,7 +743,8 @@ async function main() {
           id:               c.id,
           slug:             c.slug,
           displayName:      c.displayName,
-          enabled:          c.enabled,
+          mode:             c.mode,
+          enabled:          c.mode === 'portal',  // derived backward-compat field
           normalizedLeague: meta?.normalizedLeague ?? 'OTRA',
           newsKey:          meta?.newsKey ?? null,
           accentColor:      meta?.accentColor ?? '#6b7280',
@@ -758,7 +759,7 @@ async function main() {
     };
   }
 
-  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getEnrichedPortalConfig, competitionIds: COMPETITION_REGISTRY.map(e => e.id).filter(id => isCompetitionEnabled(id)), getBudgetStats: getAfBudgetStats });
+  const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getEnrichedPortalConfig, competitionIds: COMPETITION_REGISTRY.map(e => e.id).filter(id => isCompetitionActive(id)), getBudgetStats: getAfBudgetStats });
   registerAdminRoutes(app, snapshotStore);
   registerApiUsageRoutes(app, ledger);
 
@@ -926,7 +927,7 @@ async function main() {
 
       const todayUtc = new Date(nowMs).toISOString().slice(0, 10); // YYYY-MM-DD UTC
 
-      const enabledAfIds = AF_COMP_IDS.filter((id) => isCompetitionEnabled(id));
+      const enabledAfIds = AF_COMP_IDS.filter((id) => isCompetitionActive(id));
       const toFetch: string[] = [];
 
       for (const compId of enabledAfIds) {
@@ -1012,7 +1013,7 @@ async function main() {
     } else {
       // Legacy mode: refresh FD, TheSportsDB, OpenLigaDB — with tier-based guards
       const enabledFdCodes = FD_COMPETITION_CODES.filter((c) =>
-        isCompetitionEnabled(`comp:football-data:${c}`),
+        isCompetitionActive(`comp:football-data:${c}`),
       );
       let didFetch = false;
       for (const code of enabledFdCodes) {
@@ -1033,7 +1034,7 @@ async function main() {
           console.error(`Refresh failed for ${code}:`, err);
         }
       }
-      if (isCompetitionEnabled(UY_COMPETITION_ID)) {
+      if (isCompetitionActive(UY_COMPETITION_ID)) {
         const tierMs = computeLegacyTierMs(UY_COMPETITION_ID, nowMs);
         const lastFetched = legacyLastFetchedMs.get(UY_COMPETITION_ID) ?? 0;
         if (nowMs - lastFetched >= tierMs) {
@@ -1046,7 +1047,7 @@ async function main() {
           }
         }
       }
-      if (isCompetitionEnabled(AR_COMPETITION_ID)) {
+      if (isCompetitionActive(AR_COMPETITION_ID)) {
         const tierMs = computeLegacyTierMs(AR_COMPETITION_ID, nowMs);
         const lastFetched = legacyLastFetchedMs.get(AR_COMPETITION_ID) ?? 0;
         if (nowMs - lastFetched >= tierMs) {
@@ -1059,7 +1060,7 @@ async function main() {
           }
         }
       }
-      if (isCompetitionEnabled(OLG_COMPETITION_ID)) {
+      if (isCompetitionActive(OLG_COMPETITION_ID)) {
         const tierMs = computeLegacyTierMs(OLG_COMPETITION_ID, nowMs);
         const lastFetched = legacyLastFetchedMs.get(OLG_COMPETITION_ID) ?? 0;
         if (nowMs - lastFetched >= tierMs) {
@@ -1073,7 +1074,7 @@ async function main() {
         }
       }
     }
-    if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(WC_COMPETITION_ID)) {
+    if (!AF_CANONICAL_ENABLED && isCompetitionActive(WC_COMPETITION_ID)) {
       const tierMs = computeLegacyTierMs(WC_COMPETITION_ID, nowMs);
       const lastFetched = legacyLastFetchedMs.get(WC_COMPETITION_ID) ?? 0;
       if (nowMs - lastFetched >= tierMs) {
@@ -1087,7 +1088,7 @@ async function main() {
         }
       }
     }
-    if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(CLI_COMPETITION_ID)) {
+    if (!AF_CANONICAL_ENABLED && isCompetitionActive(CLI_COMPETITION_ID)) {
       const tierMs = computeLegacyTierMs(CLI_COMPETITION_ID, nowMs);
       const lastFetched = legacyLastFetchedMs.get(CLI_COMPETITION_ID) ?? 0;
       if (nowMs - lastFetched >= tierMs) {
@@ -1114,13 +1115,13 @@ async function main() {
       // El runner maneja comp:apifootball:* vía extractFinishedFromDataSource (rama isAfCanonical).
       // fdCompetitionCodeMap ya contiene AF→FD code mappings (construido en líneas 412-422).
       // v3NonFdDescriptors = [] porque AF canonical cubre todas las ligas directamente.
-      const v3AfCompIds = AF_COMP_IDS.filter((id) => isCompetitionEnabled(id) && isV3ShadowEnabled(id));
+      const v3AfCompIds = AF_COMP_IDS.filter((id) => isCompetitionActive(id) && isV3ShadowEnabled(id));
       if (v3AfCompIds.length > 0) {
         void runV3Shadow(dataSource, v3AfCompIds, [], historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, shadowSeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource, afOddsService);
       }
     } else {
       // Legacy mode: V3 shadow for FD and non-FD competitions
-      const v3FdCompIds = FD_COMP_IDS.filter((id) => isCompetitionEnabled(id) && isV3ShadowEnabled(id));
+      const v3FdCompIds = FD_COMP_IDS.filter((id) => isCompetitionActive(id) && isV3ShadowEnabled(id));
       const v3NonFdDescriptors: NonFdCompDescriptor[] = [
         {
           competitionId: OLG_COMPETITION_ID,
@@ -1145,7 +1146,7 @@ async function main() {
           sdbApiKey: SPORTSDB_API_KEY,
           expectedSeasonGames: 19,
         },
-      ].filter((d) => isCompetitionEnabled(d.competitionId) && isV3ShadowEnabled(d.competitionId));
+      ].filter((d) => isCompetitionActive(d.competitionId) && isV3ShadowEnabled(d.competitionId));
       if (v3FdCompIds.length > 0 || v3NonFdDescriptors.length > 0) {
         void runV3Shadow(dataSource, v3FdCompIds, v3NonFdDescriptors, historicalStateServiceFV, predictionStore, fdCompetitionCodeMap, shadowSeasonYear, evaluationStore, oddsService, injurySource, xgSource, lineupSource, afOddsService);
       }
@@ -1175,7 +1176,7 @@ async function main() {
     if (fvEnabled) {
       // In AF mode: use AF competition IDs; in legacy mode: build from FD codes
       const fvCompetitions = AF_CANONICAL_ENABLED && afCanonicalSource
-        ? COMPETITION_REGISTRY.filter((e) => !e.isTournament).map((e) => e.id).filter((id) => isCompetitionEnabled(id))
+        ? COMPETITION_REGISTRY.filter((e) => !e.isTournament).map((e) => e.id).filter((id) => isCompetitionActive(id))
         : (process.env.FORWARD_VALIDATION_COMPETITIONS ?? 'PD,PL,BL1')
             .split(',').map(c => `comp:football-data:${c.trim()}`);
       const seasonStartYear = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);

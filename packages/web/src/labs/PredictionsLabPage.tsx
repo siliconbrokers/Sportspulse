@@ -82,29 +82,31 @@ function expandKey(snap: Snapshot): string {
 function ExpandedRow({ snap }: { snap: Snapshot }) {
   const [showRequest, setShowRequest] = useState(false);
   const [showResponse, setShowResponse] = useState(false);
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   const cellStyle: React.CSSProperties = {
     padding: '14px 16px',
-    background: '#111',
-    borderBottom: '1px solid #2a2a2a',
+    background: isDark ? '#111' : '#f8fafc',
+    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
   };
 
   const sectionTitle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 700,
-    color: '#64748b',
+    color: isDark ? '#64748b' : '#475569',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     marginBottom: 6,
   };
 
   const preStyle: React.CSSProperties = {
-    background: '#0a0a0a',
-    border: '1px solid #2a2a2a',
+    background: isDark ? '#0a0a0a' : '#f1f5f9',
+    border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
     borderRadius: 6,
     padding: '10px 12px',
     fontSize: 11,
-    color: '#94a3b8',
+    color: isDark ? '#94a3b8' : '#475569',
     overflowX: 'auto',
     maxHeight: 300,
     overflowY: 'auto',
@@ -129,7 +131,7 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
     <tr>
       <td colSpan={11} style={cellStyle}>
         {/* Summary line */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: 12, fontSize: 12, color: '#94a3b8' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: 12, fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
           <span><span style={{ color: '#64748b' }}>Mode:</span> {snap.mode}</span>
           <span><span style={{ color: '#64748b' }}>Calibration:</span> {snap.calibration_mode ?? '—'}</span>
           {snap.favorite_margin !== null && (
@@ -195,7 +197,7 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
 
         {/* Request payload */}
         <div style={{ marginBottom: 10 }}>
-          <div style={{ ...sectionTitle, borderTop: '1px solid #2a2a2a', paddingTop: 10 }}>
+          <div style={{ ...sectionTitle, borderTop: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', paddingTop: 10 }}>
             Request Payload
           </div>
           <button style={toggleBtn} onClick={() => setShowRequest((v) => !v)}>
@@ -208,7 +210,7 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
 
         {/* Response payload */}
         <div>
-          <div style={{ ...sectionTitle, borderTop: '1px solid #2a2a2a', paddingTop: 10 }}>
+          <div style={{ ...sectionTitle, borderTop: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', paddingTop: 10 }}>
             Response Payload
           </div>
           <button style={toggleBtn} onClick={() => setShowResponse((v) => !v)}>
@@ -225,6 +227,7 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
 
 export function PredictionsLabPage() {
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -256,8 +259,8 @@ export function PredictionsLabPage() {
 
   const root: React.CSSProperties = {
     minHeight: '100vh',
-    backgroundColor: '#0f0f0f',
-    color: '#e2e8f0',
+    backgroundColor: isDark ? '#0f0f0f' : '#f8fafc',
+    color: isDark ? '#e2e8f0' : '#0f172a',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
     padding: 16,
   };
@@ -272,16 +275,16 @@ export function PredictionsLabPage() {
   const title: React.CSSProperties = {
     fontSize: 15,
     fontWeight: 700,
-    color: '#e2e8f0',
+    color: isDark ? '#e2e8f0' : '#0f172a',
     margin: 0,
     flex: 1,
   };
 
   const refreshBtn: React.CSSProperties = {
     fontSize: 12,
-    background: 'rgba(255,255,255,0.06)',
-    color: '#94a3b8',
-    border: '1px solid rgba(255,255,255,0.12)',
+    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    color: isDark ? '#94a3b8' : '#64748b',
+    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.12)',
     borderRadius: 6,
     padding: '5px 12px',
     cursor: 'pointer',
@@ -291,20 +294,20 @@ export function PredictionsLabPage() {
     padding: '8px 10px',
     fontSize: 11,
     fontWeight: 600,
-    color: '#64748b',
+    color: isDark ? '#64748b' : '#475569',
     textAlign: 'left',
     whiteSpace: 'nowrap',
-    borderBottom: '1px solid #2a2a2a',
-    background: '#141414',
+    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    background: isDark ? '#141414' : '#f1f5f9',
   };
 
   function tdStyle(isEven: boolean): React.CSSProperties {
     return {
       padding: '8px 10px',
       fontSize: 12,
-      color: '#e2e8f0',
-      background: isEven ? '#222' : '#1a1a1a',
-      borderBottom: '1px solid #222',
+      color: isDark ? '#e2e8f0' : '#0f172a',
+      background: isDark ? (isEven ? '#222' : '#1a1a1a') : (isEven ? '#ffffff' : '#f8fafc'),
+      borderBottom: isDark ? '1px solid #222' : '1px solid #e8ecf0',
       whiteSpace: 'nowrap',
       cursor: 'pointer',
     };
@@ -319,7 +322,7 @@ export function PredictionsLabPage() {
         <div style={headerRow}>
           <h1 style={title}>Labs — Predicciones</h1>
         </div>
-        <div style={{ fontSize: 13, color: '#94a3b8', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, padding: '16px 20px' }}>
+        <div style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 8, padding: '16px 20px' }}>
           Labs no disponible — <code style={{ color: '#f87171' }}>PREDICTION_INTERNAL_VIEW_ENABLED</code> no esta configurado.
         </div>
       </div>
@@ -347,7 +350,7 @@ export function PredictionsLabPage() {
       )}
 
       {!loading && !error && snapshots.length === 0 && (
-        <div style={{ fontSize: 13, color: '#64748b', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, padding: '16px 20px' }}>
+        <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#475569', background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 8, padding: '16px 20px' }}>
           Sin predicciones almacenadas. Activa{' '}
           <code style={{ color: '#facc15' }}>PREDICTION_SHADOW_ENABLED=comp:apifootball:140</code>{' '}
           para comenzar.

@@ -26,10 +26,13 @@ import {
   type LogisticCoefficients,
 } from '../packages/prediction/src/engine/v3/logistic-model.js';
 import { buildOddsIndex, lookupOdds, oddsIndexStats, type OddsIndex } from './odds-lookup.js';
+import { COMPETITION_REGISTRY, resolveAfSeason } from '../server/competition-registry.js';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
 const CACHE_BASE = path.join(process.cwd(), 'cache', 'football-data');
+const AF_CACHE_BASE = path.join(process.cwd(), 'cache', 'apifootball');
+const AF_HIST_BASE = path.join(process.cwd(), 'cache', 'historical', 'apifootball');
 const OUTPUT_PATH = path.join(process.cwd(), 'cache', 'logistic-coefficients.json');
 
 // Training hyperparameters (may be overridden by CLI args)
@@ -39,10 +42,12 @@ const REG_LAMBDA = 0.01; // L2 regularization strength
 
 // ── CLI argument parsing ─────────────────────────────────────────────────────
 
+let INCLUDE_COMP_ID: string | null = null;
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--max-iter' && args[i + 1]) MAX_ITER = parseInt(args[++i], 10);
   if (args[i] === '--lr'       && args[i + 1]) LR       = parseFloat(args[++i]);
+  if (args[i] === '--include-comp' && args[i + 1]) INCLUDE_COMP_ID = args[++i];
 }
 
 // ── League config (same as backtest-v3.ts) ───────────────────────────────────
@@ -115,6 +120,62 @@ function loadMatchdayFiles(leagueDir: string): Map<number, CachedMatch[]> {
     } catch { /* skip corrupt files */ }
   }
   return result;
+}
+
+/**
+ * Load matchday files for an AF canonical competition.
+ * AF path: cache/apifootball/{competitionId}/{season}/matchday-{NN}[–{KEY}].json
+ * Sub-tournament variants (matchday-07-CLAUSURA.json) are merged into the same matchday number.
+ */
+function loadAfMatchdayFiles(competitionId: string, season: string): Map<number, CachedMatch[]> {
+  const result = new Map<number, CachedMatch[]>();
+  const leagueDir = path.join(AF_CACHE_BASE, competitionId, season);
+  if (!fs.existsSync(leagueDir)) return result;
+
+  const files = fs.readdirSync(leagueDir)
+    .filter(f => f.match(/^matchday-\d+(?:-[A-Z]+)?\.json$/))
+    .sort();
+
+  for (const file of files) {
+    const numMatch = file.match(/^matchday-(\d+)/);
+    if (!numMatch) continue;
+    const num = parseInt(numMatch[1], 10);
+    if (!num) continue;
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.join(leagueDir, file), 'utf-8'));
+      const matches: CachedMatch[] = raw?.data?.matches ?? [];
+      const existing = result.get(num) ?? [];
+      result.set(num, [...existing, ...matches]);
+    } catch { /* skip corrupt */ }
+  }
+  return result;
+}
+
+/**
+ * Load AF historical matches for a given leagueId and year.
+ * Cache path: cache/historical/apifootball/{leagueId}/{year}.json
+ */
+function loadAfHistoricalCache(leagueId: number, year: number): V3MatchRecord[] {
+  const file = path.join(AF_HIST_BASE, String(leagueId), `${year}.json`);
+  if (!fs.existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    const matches: Array<{
+      homeTeamId: string; awayTeamId: string;
+      utcDate?: string; startTimeUtc?: string;
+      homeGoals?: number | null; awayGoals?: number | null;
+      scoreHome?: number | null; scoreAway?: number | null;
+    }> = raw?.matches ?? [];
+    return matches
+      .filter(m => (m.homeGoals ?? m.scoreHome) !== null && (m.homeGoals ?? m.scoreHome) !== undefined)
+      .map(m => ({
+        homeTeamId: m.homeTeamId,
+        awayTeamId: m.awayTeamId,
+        utcDate: m.utcDate ?? m.startTimeUtc ?? '',
+        homeGoals: m.homeGoals ?? m.scoreHome ?? 0,
+        awayGoals: m.awayGoals ?? m.scoreAway ?? 0,
+      }));
+  } catch { return []; }
 }
 
 function toV3Record(m: CachedMatch): V3MatchRecord | null {
@@ -286,6 +347,106 @@ function extractHistoricalExamples(
   return examples;
 }
 
+/**
+ * Extracts training examples from an AF canonical competition.
+ *
+ * Uses the same walk-forward methodology as extractTrainingExamples().
+ * Odds: skipped gracefully if no odds index hits (AF leagues rarely have
+ *       historical odds in the football-data.co.uk index).
+ */
+function extractTrainingExamplesAf(
+  compId: string,
+  leagueId: number,
+  seasonKind: 'european' | 'calendar',
+  expectedSeasonGames: number,
+  leagueCode: string,
+  oddsIndex: OddsIndex,
+): TrainingExample[] {
+  const now = new Date().toISOString();
+  const seasonYear = resolveAfSeason(now, seasonKind);
+  const season = seasonKind === 'european'
+    ? `${seasonYear}-${String(seasonYear + 1).slice(2)}`
+    : String(seasonYear);
+
+  const allMatchdays = loadAfMatchdayFiles(compId, season);
+  if (allMatchdays.size === 0) {
+    console.log(`    [${leagueCode}] No AF matchday files at cache/apifootball/${compId}/${season}/, skipping.`);
+    return [];
+  }
+
+  // Historical context: AF historical cache for prev year
+  const prevYear = seasonYear - 1;
+  const prevSeasonMatches = loadAfHistoricalCache(leagueId, prevYear);
+
+  const sortedMatchdays = [...allMatchdays.keys()].sort((a, b) => a - b);
+  const examples: TrainingExample[] = [];
+
+  for (const md of sortedMatchdays) {
+    const testMatches = (allMatchdays.get(md) ?? [])
+      .filter(m => m.status === 'FINISHED' && m.scoreHome !== null && m.scoreAway !== null && m.startTimeUtc);
+
+    if (testMatches.length === 0) continue;
+
+    // Training data: all matches from prior matchdays
+    const trainingRecords: V3MatchRecord[] = [...prevSeasonMatches];
+    for (const prevMd of sortedMatchdays) {
+      if (prevMd >= md) break;
+      for (const m of (allMatchdays.get(prevMd) ?? [])) {
+        const rec = toV3Record(m);
+        if (rec) trainingRecords.push(rec);
+      }
+    }
+
+    for (const m of testMatches) {
+      const actual = m.scoreHome! > m.scoreAway! ? 0 : m.scoreHome! < m.scoreAway! ? 2 : 1;
+
+      const engineInput: V3EngineInput = {
+        homeTeamId:           m.homeTeamId,
+        awayTeamId:           m.awayTeamId,
+        kickoffUtc:           m.startTimeUtc,
+        buildNowUtc:          m.startTimeUtc,
+        currentSeasonMatches: trainingRecords,
+        prevSeasonMatches,
+        expectedSeasonGames,
+        leagueCode,
+        collectIntermediates: true,
+      };
+
+      const output = runV3Engine(engineInput);
+      if (output.eligibility === 'NOT_ELIGIBLE') continue;
+      if (!output._intermediates) continue;
+
+      const inter = output._intermediates;
+      // Odds for AF leagues: graceful skip — most AF leagues lack entries in football-data.co.uk index
+      const oddsHit = lookupOdds(oddsIndex, leagueCode, m.startTimeUtc, m.scoreHome!, m.scoreAway!);
+
+      const features = extractLogisticFeatures({
+        lambdaHome:       inter.lambdaHome,
+        lambdaAway:       inter.lambdaAway,
+        restDaysHome:     inter.restDaysHome,
+        restDaysAway:     inter.restDaysAway,
+        h2hMultHome:      inter.h2hMultHome,
+        h2hMultAway:      inter.h2hMultAway,
+        absenceScoreHome: inter.absenceScoreHome,
+        absenceScoreAway: inter.absenceScoreAway,
+        xgCoverage:       inter.xgCoverage,
+        leagueCode,
+        marketImpHome:    oddsHit?.impliedProbHome,
+        marketImpDraw:    oddsHit?.impliedProbDraw,
+        marketImpAway:    oddsHit?.impliedProbAway,
+        homeDrawRate:     inter.homeDrawRate,
+        awayDrawRate:     inter.awayDrawRate,
+        h2hDrawRate:      inter.h2hDrawRate,
+        tableProximity:   inter.tableProximity,
+      });
+
+      examples.push({ features, label: actual as Outcome, hasMarketOdds: oddsHit !== null });
+    }
+  }
+
+  return examples;
+}
+
 // ── Logistic regression training ─────────────────────────────────────────────
 
 type ClassWeights = { bias: number; weights: Record<keyof LogisticFeatureVector, number> };
@@ -445,7 +606,23 @@ function evaluateLogistic(
 async function main() {
   console.log('=== SP-V4-20: Logistic Model Training ===\n');
   console.log(`Config: MAX_ITER=${MAX_ITER}, LR=${LR}, REG_LAMBDA=${REG_LAMBDA}`);
+  if (INCLUDE_COMP_ID) console.log(`Extra AF comp: ${INCLUDE_COMP_ID}`);
   console.log(`Output: ${OUTPUT_PATH}\n`);
+
+  // Validate --include-comp if provided
+  let afEntry: typeof COMPETITION_REGISTRY[number] | null = null;
+  if (INCLUDE_COMP_ID) {
+    afEntry = COMPETITION_REGISTRY.find(e => e.id === INCLUDE_COMP_ID) ?? null;
+    if (!afEntry) {
+      console.error(`Error: --include-comp "${INCLUDE_COMP_ID}" not found in COMPETITION_REGISTRY.`);
+      console.error(`Valid AF comp IDs: ${COMPETITION_REGISTRY.filter(e => e.id.startsWith('comp:apifootball:')).map(e => e.id).join(', ')}`);
+      process.exit(1);
+    }
+    if (afEntry.isTournament) {
+      console.error(`Error: --include-comp "${INCLUDE_COMP_ID}" is a tournament. Only league competitions are supported.`);
+      process.exit(1);
+    }
+  }
 
   // ── Step 1: Load odds index ───────────────────────────────────────────────
   console.log('Loading market odds index (football-data.co.uk)...');
@@ -488,6 +665,41 @@ async function main() {
       const wo = ex.filter(e => e.hasMarketOdds).length;
       console.log(`    2023-24: ${ex.length} examples · odds: ${wo}/${ex.length} (${Math.round(100*wo/Math.max(ex.length,1))}%)`);
       allExamples.push(...ex);
+    }
+  }
+
+  // Extract examples from AF canonical competition if --include-comp provided
+  if (afEntry) {
+    console.log(`  [${afEntry.slug}] ${afEntry.displayName} (AF canonical: ${afEntry.id})`);
+    const expectedGames = afEntry.expectedSeasonGames ?? 30;
+    const examples = extractTrainingExamplesAf(
+      afEntry.id,
+      afEntry.leagueId,
+      afEntry.seasonKind,
+      expectedGames,
+      afEntry.slug,
+      oddsIndex,
+    );
+    const withOdds = examples.filter(e => e.hasMarketOdds).length;
+    console.log(`    current season: ${examples.length} examples · odds: ${withOdds}/${examples.length} (note: odds rarely available for AF-only leagues)`);
+    allExamples.push(...examples);
+
+    // AF historical: previous year
+    const now = new Date().toISOString();
+    const seasonYear = resolveAfSeason(now, afEntry.seasonKind);
+    const prevYear = seasonYear - 1;
+    const prevMatches = loadAfHistoricalCache(afEntry.leagueId, prevYear);
+    if (prevMatches.length > 0) {
+      const histExamples = extractHistoricalExamples(
+        afEntry.slug,
+        expectedGames,
+        prevMatches,
+        [],  // no prev-prev season for AF
+        oddsIndex,
+      );
+      const wo = histExamples.filter(e => e.hasMarketOdds).length;
+      console.log(`    ${prevYear}: ${histExamples.length} examples · odds: ${wo}/${histExamples.length}`);
+      allExamples.push(...histExamples);
     }
   }
 

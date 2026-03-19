@@ -148,6 +148,33 @@ function getCalTableForCompetition(competitionId: string): CalibrationTable | un
   return table;
 }
 
+// ── AF canonical descriptor builder ──────────────────────────────────────────
+
+/**
+ * Builds a NonFdCompDescriptor from a competition-registry entry for AF canonical leagues.
+ *
+ * Used in legacy mode (non-AF_CANONICAL_ENABLED) to register AF-sourced leagues
+ * (URU, ARG, MX) that are tracked via the AF historical loader rather than TheSportsDB.
+ *
+ * In AF mode, these competitions are routed through fdCompetitionIds directly
+ * (isAfCanonical branch) and do NOT need a nonFd descriptor.
+ */
+export function buildAfCanonicalDescriptor(
+  competitionId: string,
+  leagueId: number,
+  expectedSeasonGames: number | undefined,
+  afApiKey: string,
+): NonFdCompDescriptor {
+  return {
+    competitionId,
+    provider: 'apifootball',
+    providerLeagueId: String(leagueId),
+    providerKey: 'apifootball',
+    expectedSeasonGames,
+    afApiKey,
+  };
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -219,6 +246,12 @@ function deriveLeagueCode(competitionId: string): string | undefined {
   if (competitionId === 'comp:football-data:PL' || competitionId === 'PL') return 'PL';
   if (competitionId === 'comp:openligadb:bl1'   || competitionId === 'BL1') return 'BL1';
   if (competitionId === 'comp:thesportsdb:4432')  return 'URU';
+  // AF-canonical competition IDs registered in competition-registry.ts
+  if (competitionId === 'comp:apifootball:268')   return 'URU';  // Fútbol Uruguayo (Bug #1 fix)
+  if (competitionId === 'comp:apifootball:128')   return 'ARG';  // Liga Argentina
+  if (competitionId === 'comp:apifootball:140')   return 'PD';   // LaLiga (AF canonical)
+  if (competitionId === 'comp:apifootball:39')    return 'PL';   // Premier League (AF canonical)
+  if (competitionId === 'comp:apifootball:78')    return 'BL1';  // Bundesliga (AF canonical)
   return undefined;
 }
 

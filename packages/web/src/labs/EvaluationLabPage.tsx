@@ -121,13 +121,15 @@ function fmtNum(v: number | null, dp = 3): string {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const ROOT: React.CSSProperties = {
-  minHeight: '100vh',
-  backgroundColor: '#0f0f0f',
-  color: '#e2e8f0',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
-  padding: 16,
-};
+function makeRoot(isDark: boolean): React.CSSProperties {
+  return {
+    minHeight: '100vh',
+    backgroundColor: isDark ? '#0f0f0f' : '#f8fafc',
+    color: isDark ? '#e2e8f0' : '#0f172a',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
+    padding: 16,
+  };
+}
 
 const SECTION_TITLE: React.CSSProperties = {
   fontSize: 11,
@@ -139,32 +141,36 @@ const SECTION_TITLE: React.CSSProperties = {
   marginTop: 20,
 };
 
-const PANEL: React.CSSProperties = {
-  background: '#1a1a1a',
-  border: '1px solid #2a2a2a',
-  borderRadius: 8,
-  padding: '14px 16px',
-  marginBottom: 12,
-};
+function makePanel(isDark: boolean): React.CSSProperties {
+  return {
+    background: isDark ? '#1a1a1a' : '#ffffff',
+    border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    borderRadius: 8,
+    padding: '14px 16px',
+    marginBottom: 12,
+  };
+}
 
-const TH: React.CSSProperties = {
-  padding: '7px 9px',
-  fontSize: 10,
-  fontWeight: 600,
-  color: '#64748b',
-  textAlign: 'left',
-  whiteSpace: 'nowrap',
-  borderBottom: '1px solid #2a2a2a',
-  background: '#141414',
-};
+function makeTH(isDark: boolean): React.CSSProperties {
+  return {
+    padding: '7px 9px',
+    fontSize: 10,
+    fontWeight: 600,
+    color: isDark ? '#64748b' : '#475569',
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
+    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    background: isDark ? '#141414' : '#f1f5f9',
+  };
+}
 
-function tdStyle(isEven: boolean): React.CSSProperties {
+function makeTD(isDark: boolean, isEven: boolean): React.CSSProperties {
   return {
     padding: '6px 9px',
     fontSize: 11,
-    color: '#e2e8f0',
-    background: isEven ? '#1d1d1d' : '#171717',
-    borderBottom: '1px solid #1f1f1f',
+    color: isDark ? '#e2e8f0' : '#0f172a',
+    background: isDark ? (isEven ? '#1d1d1d' : '#171717') : (isEven ? '#ffffff' : '#f8fafc'),
+    borderBottom: isDark ? '1px solid #1f1f1f' : '1px solid #e8ecf0',
     whiteSpace: 'nowrap',
   };
 }
@@ -195,7 +201,8 @@ function hitBadge(predicted: string | null, actual: string | null): string {
 
 // ── Coverage Funnel Panel ─────────────────────────────────────────────────────
 
-function CoverageFunnelPanel({ funnel }: { funnel: CoverageFunnel }) {
+function CoverageFunnelPanel({ funnel, isDark }: { funnel: CoverageFunnel; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
   const rows: [string, number][] = [
     ['1. In scope',            funnel.total_in_scope],
     ['2. Pre-kickoff snapshot', funnel.with_pregame_snapshot],
@@ -210,8 +217,8 @@ function CoverageFunnelPanel({ funnel }: { funnel: CoverageFunnel }) {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         {rows.map(([label, count]) => (
           <div key={label} style={{ ...PANEL, minWidth: 130, padding: '10px 14px', marginBottom: 0 }}>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#e2e8f0' }}>{count}</div>
+            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#475569', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>{count}</div>
           </div>
         ))}
       </div>
@@ -239,7 +246,9 @@ function CoverageFunnelPanel({ funnel }: { funnel: CoverageFunnel }) {
 
 // ── Performance Panel ─────────────────────────────────────────────────────────
 
-function PerformancePanel({ perf }: { perf: PerformanceMetrics }) {
+function PerformancePanel({ perf, isDark }: { perf: PerformanceMetrics; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
+  const TH = makeTH(isDark);
   return (
     <div>
       <div style={SECTION_TITLE}>Performance</div>
@@ -251,8 +260,8 @@ function PerformancePanel({ perf }: { perf: PerformanceMetrics }) {
           { label: 'Baseline B acc.', val: fmtPct(perf.baseline_b_accuracy) },
         ].map(({ label, val }) => (
           <div key={label} style={{ ...PANEL, minWidth: 120, padding: '10px 14px', marginBottom: 0 }}>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#e2e8f0' }}>{val}</div>
+            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#475569', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>{val}</div>
           </div>
         ))}
       </div>
@@ -265,9 +274,9 @@ function PerformancePanel({ perf }: { perf: PerformanceMetrics }) {
             {Object.entries(perf.by_mode).map(([mode, m]) => (
               <div key={mode} style={{ ...PANEL, padding: '8px 12px', marginBottom: 0, minWidth: 140 }}>
                 <div style={{ fontSize: 10, color: modeBadge(mode).color, fontWeight: 700, marginBottom: 4 }}>{mode} ({m.count})</div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>acc: {fmtPct(m.accuracy)}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>brier: {fmtNum(m.brier)}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>logloss: {fmtNum(m.log_loss)}</div>
+                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>acc: {fmtPct(m.accuracy)}</div>
+                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>brier: {fmtNum(m.brier)}</div>
+                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>logloss: {fmtNum(m.log_loss)}</div>
               </div>
             ))}
           </div>
@@ -281,9 +290,9 @@ function PerformancePanel({ perf }: { perf: PerformanceMetrics }) {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {Object.entries(perf.by_calibration_mode).map(([key, m]) => (
               <div key={key} style={{ ...PANEL, padding: '8px 12px', marginBottom: 0, minWidth: 120 }}>
-                <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 4 }}>{key} ({m.count})</div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>acc: {fmtPct(m.accuracy)}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>brier: {fmtNum(m.brier)}</div>
+                <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b', fontWeight: 700, marginBottom: 4 }}>{key} ({m.count})</div>
+                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>acc: {fmtPct(m.accuracy)}</div>
+                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>brier: {fmtNum(m.brier)}</div>
               </div>
             ))}
           </div>
@@ -298,21 +307,21 @@ function PerformancePanel({ perf }: { perf: PerformanceMetrics }) {
             <table style={{ borderCollapse: 'collapse', fontSize: 11 }}>
               <thead>
                 <tr>
-                  <th style={{ ...TH, background: '#111' }}>pred\actual</th>
+                  <th style={{ ...TH, background: isDark ? '#111' : '#f1f5f9' }}>pred\actual</th>
                   {['HOME_WIN', 'DRAW', 'AWAY_WIN'].map((h) => (
-                    <th key={h} style={{ ...TH, color: '#94a3b8' }}>{h}</th>
+                    <th key={h} style={{ ...TH, color: isDark ? '#94a3b8' : '#64748b' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {['HOME_WIN', 'DRAW', 'AWAY_WIN'].map((pred) => (
                   <tr key={pred}>
-                    <td style={{ ...tdStyle(false), fontWeight: 600, color: '#94a3b8' }}>{pred}</td>
+                    <td style={{ ...makeTD(isDark, false), fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b' }}>{pred}</td>
                     {['HOME_WIN', 'DRAW', 'AWAY_WIN'].map((actual) => {
                       const v = perf.confusion_matrix?.[pred]?.[actual] ?? 0;
                       const isDiag = pred === actual;
                       return (
-                        <td key={actual} style={{ ...tdStyle(false), color: isDiag ? '#4ade80' : '#e2e8f0', fontWeight: isDiag ? 700 : 400 }}>
+                        <td key={actual} style={{ ...makeTD(isDark, false), color: isDiag ? '#4ade80' : (isDark ? '#e2e8f0' : '#0f172a'), fontWeight: isDiag ? 700 : 400 }}>
                           {v}
                         </td>
                       );
@@ -330,7 +339,8 @@ function PerformancePanel({ perf }: { perf: PerformanceMetrics }) {
 
 // ── Operational Panel ─────────────────────────────────────────────────────────
 
-function OperationalPanel({ op }: { op: OperationalMetrics }) {
+function OperationalPanel({ op, isDark }: { op: OperationalMetrics; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
   return (
     <div>
       <div style={SECTION_TITLE}>Operational</div>
@@ -342,7 +352,7 @@ function OperationalPanel({ op }: { op: OperationalMetrics }) {
           { label: 'Scope mismatches', val: op.scope_mismatch_count, warn: op.scope_mismatch_count > 0 },
         ].map(({ label, val, warn }) => (
           <div key={label} style={{ ...PANEL, minWidth: 110, padding: '10px 14px', marginBottom: 0 }}>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#475569', marginBottom: 4 }}>{label}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: warn ? '#f87171' : '#4ade80' }}>{val}</div>
           </div>
         ))}
@@ -353,10 +363,12 @@ function OperationalPanel({ op }: { op: OperationalMetrics }) {
 
 // ── Per-match table ───────────────────────────────────────────────────────────
 
-function RecordsTable({ records }: { records: EvaluationRecord[] }) {
+function RecordsTable({ records, isDark }: { records: EvaluationRecord[]; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
+  const TH = makeTH(isDark);
   if (records.length === 0) {
     return (
-      <div style={{ fontSize: 13, color: '#64748b', ...PANEL }}>
+      <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#475569', ...PANEL }}>
         Sin registros de evaluación todavía.
       </div>
     );
@@ -387,7 +399,7 @@ function RecordsTable({ records }: { records: EvaluationRecord[] }) {
         <tbody>
           {records.map((r, idx) => {
             const isEven = idx % 2 === 0;
-            const td = tdStyle(isEven);
+            const td = makeTD(isDark, isEven);
             const badge = modeBadge(r.mode);
             const gt = gtBadge(r.ground_truth_status);
             const score = r.final_home_goals !== null && r.final_away_goals !== null
@@ -396,8 +408,8 @@ function RecordsTable({ records }: { records: EvaluationRecord[] }) {
 
             return (
               <tr key={r.match_id}>
-                <td style={{ ...td, color: '#94a3b8' }}>{fmtDate(r.scheduled_kickoff_utc)}</td>
-                <td style={{ ...td, fontFamily: 'monospace', color: '#64748b', fontSize: 10 }}>
+                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{fmtDate(r.scheduled_kickoff_utc)}</td>
+                <td style={{ ...td, fontFamily: 'monospace', color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
                   {r.match_id.slice(-12)}
                 </td>
                 <td style={td}>
@@ -406,19 +418,19 @@ function RecordsTable({ records }: { records: EvaluationRecord[] }) {
                   </span>
                 </td>
                 <td style={{ ...td, color: gt.color, fontWeight: 700 }}>{gt.label}</td>
-                <td style={{ ...td, color: '#94a3b8' }}>{r.actual_result ?? score}</td>
-                <td style={{ ...td, color: '#94a3b8' }}>{r.predicted_result ?? '—'}</td>
+                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{r.actual_result ?? score}</td>
+                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{r.predicted_result ?? '—'}</td>
                 <td style={td}>{hitBadge(r.predicted_result, r.actual_result)}</td>
                 <td style={td}>{fmtNum(r.p_home_win, 2)}</td>
                 <td style={td}>{fmtNum(r.p_draw, 2)}</td>
                 <td style={td}>{fmtNum(r.p_away_win, 2)}</td>
                 <td style={td}>{fmtNum(r.expected_goals_home, 2)}</td>
                 <td style={td}>{fmtNum(r.expected_goals_away, 2)}</td>
-                <td style={{ ...td, fontSize: 9, color: '#64748b' }}>{r.ui_render_result ?? '—'}</td>
+                <td style={{ ...td, fontSize: 9, color: isDark ? '#64748b' : '#475569' }}>{r.ui_render_result ?? '—'}</td>
                 <td style={{ ...td, color: r.evaluation_eligible ? '#4ade80' : '#f87171' }}>
                   {r.evaluation_eligible ? 'Y' : 'N'}
                 </td>
-                <td style={{ ...td, fontSize: 9, color: '#94a3b8' }}>{r.excluded_reason ?? '—'}</td>
+                <td style={{ ...td, fontSize: 9, color: isDark ? '#94a3b8' : '#64748b' }}>{r.excluded_reason ?? '—'}</td>
               </tr>
             );
           })}
@@ -432,6 +444,9 @@ function RecordsTable({ records }: { records: EvaluationRecord[] }) {
 
 export function EvaluationLabPage() {
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+  const ROOT = makeRoot(isDark);
+  const PANEL = makePanel(isDark);
   const [data, setData] = useState<EvaluationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -469,16 +484,16 @@ export function EvaluationLabPage() {
   const title: React.CSSProperties = {
     fontSize: 15,
     fontWeight: 700,
-    color: '#e2e8f0',
+    color: isDark ? '#e2e8f0' : '#0f172a',
     margin: 0,
     flex: 1,
   };
 
   const refreshBtn: React.CSSProperties = {
     fontSize: 12,
-    background: 'rgba(255,255,255,0.06)',
-    color: '#94a3b8',
-    border: '1px solid rgba(255,255,255,0.12)',
+    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    color: isDark ? '#94a3b8' : '#64748b',
+    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.12)',
     borderRadius: 6,
     padding: '5px 12px',
     cursor: 'pointer',
@@ -493,7 +508,7 @@ export function EvaluationLabPage() {
         <div style={headerRow}>
           <h1 style={title}>Labs — Evaluación PE</h1>
         </div>
-        <div style={{ fontSize: 13, color: '#94a3b8', ...PANEL }}>
+        <div style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', ...PANEL }}>
           No disponible — <code style={{ color: '#f87171' }}>PREDICTION_INTERNAL_VIEW_ENABLED</code> no está configurado.
         </div>
       </div>
@@ -522,23 +537,23 @@ export function EvaluationLabPage() {
       )}
 
       {loading && !data && (
-        <div style={{ fontSize: 13, color: '#64748b', ...PANEL }}>Cargando...</div>
+        <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#475569', ...PANEL }}>Cargando...</div>
       )}
 
       {data && (
         <>
           <div style={PANEL}>
-            <CoverageFunnelPanel funnel={data.coverage_funnel} />
+            <CoverageFunnelPanel funnel={data.coverage_funnel} isDark={isDark} />
           </div>
           <div style={PANEL}>
-            <PerformancePanel perf={data.performance} />
+            <PerformancePanel perf={data.performance} isDark={isDark} />
           </div>
           <div style={PANEL}>
-            <OperationalPanel op={data.operational} />
+            <OperationalPanel op={data.operational} isDark={isDark} />
           </div>
           <div style={SECTION_TITLE}>Registros por partido ({data.records.length})</div>
           <div style={PANEL}>
-            <RecordsTable records={data.records} />
+            <RecordsTable records={data.records} isDark={isDark} />
           </div>
         </>
       )}

@@ -79,6 +79,20 @@ const dateLocal = new Date(utcIsoString).toLocaleDateString('en-CA', {
 
 ---
 
+## League Governance — Regla CRÍTICA
+
+**Toda adición de liga o torneo al portal DEBE ejecutarse via el skill `/add-league`.**
+No se permite agregar ligas por instrucción directa en chat. Si el usuario pide agregar
+una liga, el agente DEBE invocar el skill `/add-league` que guía el proceso paso a paso.
+
+**Motivo:** El proceso de agregar una liga toca 4+ archivos y requiere campos específicos
+(leagueId, seasonKind, mode, etc.). El skill garantiza que no se olvide ningún paso.
+
+**Excepciones:** Modificar el `mode` de una liga existente SÍ se puede hacer directamente
+via admin back-office o instrucción directa (es un cambio de configuración, no de schema).
+
+---
+
 ## Nuevo paquete workspace — Regla CRÍTICA
 
 Cada vez que se crea un nuevo paquete en `packages/`, se deben hacer **obligatoriamente** estas cuatro cosas antes de terminar la tarea:

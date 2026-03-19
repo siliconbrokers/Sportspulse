@@ -206,51 +206,59 @@ function resultColor(r: string | null): string {
 
 // ── Styles ────────────────────────────────────────────────────────────────
 
-const ROOT: React.CSSProperties = {
-  minHeight: '100vh',
-  backgroundColor: '#0a0a0a',
-  color: '#e2e8f0',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
-  fontSize: 12,
-  padding: '12px 16px',
-};
+function makeRoot(isDark: boolean): React.CSSProperties {
+  return {
+    minHeight: '100vh',
+    backgroundColor: isDark ? '#0a0a0a' : '#f8fafc',
+    color: isDark ? '#e2e8f0' : '#0f172a',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
+    fontSize: 12,
+    padding: '12px 16px',
+  };
+}
 
-const PANEL: React.CSSProperties = {
-  background: '#141414',
-  border: '1px solid #2a2a2a',
-  borderRadius: 8,
-  padding: '12px 14px',
-  marginBottom: 12,
-};
+function makePanel(isDark: boolean): React.CSSProperties {
+  return {
+    background: isDark ? '#141414' : '#ffffff',
+    border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    borderRadius: 8,
+    padding: '12px 14px',
+    marginBottom: 12,
+  };
+}
 
-const SECTION_TITLE: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 700,
-  color: '#64748b',
-  textTransform: 'uppercase',
-  letterSpacing: '0.1em',
-  marginBottom: 8,
-  marginTop: 16,
-};
+function makeSectionTitle(isDark: boolean): React.CSSProperties {
+  return {
+    fontSize: 10,
+    fontWeight: 700,
+    color: isDark ? '#64748b' : '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: '0.1em',
+    marginBottom: 8,
+    marginTop: 16,
+  };
+}
 
-const TH: React.CSSProperties = {
-  padding: '6px 8px',
-  fontSize: 10,
-  fontWeight: 600,
-  color: '#64748b',
-  textAlign: 'left',
-  whiteSpace: 'nowrap',
-  borderBottom: '1px solid #2a2a2a',
-  background: '#0f0f0f',
-  cursor: 'default',
-};
+function makeTH(isDark: boolean): React.CSSProperties {
+  return {
+    padding: '6px 8px',
+    fontSize: 10,
+    fontWeight: 600,
+    color: isDark ? '#64748b' : '#475569',
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
+    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    background: isDark ? '#0f0f0f' : '#f1f5f9',
+    cursor: 'default',
+  };
+}
 
-function TD(i: number, right = false): React.CSSProperties {
+function makeTD(isDark: boolean, i: number, right = false): React.CSSProperties {
   return {
     padding: '5px 8px',
     fontSize: 11,
-    background: i % 2 === 0 ? '#141414' : '#111',
-    borderBottom: '1px solid #1c1c1c',
+    background: isDark ? (i % 2 === 0 ? '#141414' : '#111') : (i % 2 === 0 ? '#ffffff' : '#f8fafc'),
+    borderBottom: isDark ? '1px solid #1c1c1c' : '1px solid #e8ecf0',
     whiteSpace: 'nowrap',
     textAlign: right ? 'right' : 'left',
   };
@@ -270,14 +278,14 @@ const BADGE_HBT: React.CSSProperties = {
 
 // ── Small bar chart ───────────────────────────────────────────────────────
 
-function DistBar({ value, total, color }: { value: number; total: number; color: string }) {
+function DistBar({ value, total, color, isDark }: { value: number; total: number; color: string; isDark: boolean }) {
   const pct = total > 0 ? (value / total) * 100 : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ width: 120, height: 8, background: '#2a2a2a', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ width: 120, height: 8, background: isDark ? '#2a2a2a' : '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4 }} />
       </div>
-      <span style={{ color: '#94a3b8', fontSize: 11, minWidth: 60 }}>
+      <span style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 11, minWidth: 60 }}>
         {value} / {total} ({pct.toFixed(1)}%)
       </span>
     </div>
@@ -306,9 +314,11 @@ type Filters = {
   hit: string;
 };
 
-function FilterBar({ filters, onChange }: { filters: Filters; onChange: (f: Filters) => void }) {
+function FilterBar({ filters, onChange, isDark }: { filters: Filters; onChange: (f: Filters) => void; isDark: boolean }) {
   const sel: React.CSSProperties = {
-    background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#e2e8f0',
+    background: isDark ? '#1a1a1a' : '#ffffff',
+    border: isDark ? '1px solid #2a2a2a' : '1px solid #d1d5db',
+    color: isDark ? '#e2e8f0' : '#0f172a',
     borderRadius: 4, padding: '3px 6px', fontSize: 11, marginRight: 8,
   };
   return (
@@ -350,8 +360,9 @@ function FilterBar({ filters, onChange }: { filters: Filters; onChange: (f: Filt
 
 // ── Per-match table ───────────────────────────────────────────────────────
 
-function MatchTable({ snapshots }: { snapshots: Snapshot[] }) {
+function MatchTable({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: boolean }) {
   const [filters, setFilters] = useState<Filters>({ mode: '', actual: '', predicted: '', hit: '' });
+  const TH = makeTH(isDark);
 
   const filtered = snapshots.filter(s => {
     if (filters.mode && s.mode !== filters.mode) return false;
@@ -367,8 +378,8 @@ function MatchTable({ snapshots }: { snapshots: Snapshot[] }) {
 
   return (
     <>
-      <FilterBar filters={filters} onChange={setFilters} />
-      <div style={{ color: '#64748b', fontSize: 10, marginBottom: 6 }}>
+      <FilterBar filters={filters} onChange={setFilters} isDark={isDark} />
+      <div style={{ color: isDark ? '#64748b' : '#475569', fontSize: 10, marginBottom: 6 }}>
         Mostrando {filtered.length} de {snapshots.length} partidos · source_type = HISTORICAL_BACKTEST
       </div>
       <div style={{ overflowX: 'auto' }}>
@@ -386,40 +397,40 @@ function MatchTable({ snapshots }: { snapshots: Snapshot[] }) {
               const miss = s.predicted_result !== null && s.predicted_result !== s.actual_result;
               return (
                 <tr key={s.snapshot_id}>
-                  <td style={TD(i)}>{fmtDate(s.kickoff_utc)}</td>
-                  <td style={TD(i)}>
-                    <span style={{ color: '#94a3b8', fontSize: 10 }}>{shortId(s.match_id)}</span>
-                    <span style={{ marginLeft: 6, color: '#e2e8f0' }}>
+                  <td style={makeTD(isDark, i)}>{fmtDate(s.kickoff_utc)}</td>
+                  <td style={makeTD(isDark, i)}>
+                    <span style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>{shortId(s.match_id)}</span>
+                    <span style={{ marginLeft: 6, color: isDark ? '#e2e8f0' : '#0f172a' }}>
                       {s.home_goals}–{s.away_goals}
                     </span>
                   </td>
-                  <td style={{ ...TD(i), color: resultColor(s.actual_result), fontWeight: 600 }}>
+                  <td style={{ ...makeTD(isDark, i), color: resultColor(s.actual_result), fontWeight: 600 }}>
                     {s.actual_result.replace('_WIN','')}
                   </td>
-                  <td style={{ ...TD(i), color: resultColor(s.predicted_result) }}>
+                  <td style={{ ...makeTD(isDark, i), color: resultColor(s.predicted_result) }}>
                     {s.predicted_result ? s.predicted_result.replace('_WIN','') : '—'}
                   </td>
-                  <td style={{ ...TD(i), textAlign: 'center' }}>
+                  <td style={{ ...makeTD(isDark, i), textAlign: 'center' }}>
                     {s.predicted_result === null ? <span style={{ color: '#475569' }}>—</span>
                       : hit ? <span style={{ color: '#22c55e', fontWeight: 700 }}>✓</span>
                       : miss ? <span style={{ color: '#ef4444', fontWeight: 700 }}>✗</span>
                       : null}
                   </td>
-                  <td style={{ ...TD(i), color: s.mode === 'FULL_MODE' ? '#60a5fa' : s.mode === 'LIMITED_MODE' ? '#f59e0b' : '#64748b', fontSize: 10 }}>
+                  <td style={{ ...makeTD(isDark, i), color: s.mode === 'FULL_MODE' ? '#60a5fa' : s.mode === 'LIMITED_MODE' ? '#f59e0b' : '#64748b', fontSize: 10 }}>
                     {s.mode.replace('_MODE','').replace('NOT_ELIGIBLE','N/E')}
                   </td>
-                  <td style={{ ...TD(i, true), color: '#94a3b8' }}>{fmtNum(s.p_home_win, 2)}</td>
-                  <td style={{ ...TD(i, true), color: s.actual_result === 'DRAW' ? '#f59e0b' : '#94a3b8' }}>{fmtNum(s.p_draw, 2)}</td>
-                  <td style={{ ...TD(i, true), color: '#94a3b8' }}>{fmtNum(s.p_away_win, 2)}</td>
-                  <td style={{ ...TD(i, true), color: '#94a3b8' }}>{fmtNum(s.expected_goals_home, 2)}</td>
-                  <td style={{ ...TD(i, true), color: '#94a3b8' }}>{fmtNum(s.expected_goals_away, 2)}</td>
-                  <td style={{ ...TD(i), color: resultColor(s.baseline_predicted_result), fontSize: 10 }}>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.p_home_win, 2)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: s.actual_result === 'DRAW' ? '#f59e0b' : (isDark ? '#94a3b8' : '#64748b') }}>{fmtNum(s.p_draw, 2)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.p_away_win, 2)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.expected_goals_home, 2)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.expected_goals_away, 2)}</td>
+                  <td style={{ ...makeTD(isDark, i), color: resultColor(s.baseline_predicted_result), fontSize: 10 }}>
                     {s.baseline_predicted_result ? s.baseline_predicted_result.replace('_WIN','') : '—'}
                   </td>
-                  <td style={{ ...TD(i, true), color: '#64748b', fontSize: 10 }}>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
                     {s.elo_home_pre.toFixed(0)}/{s.elo_away_pre.toFixed(0)}
                   </td>
-                  <td style={{ ...TD(i, true), color: '#64748b', fontSize: 10 }}>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
                     {s.matches_365d_home}/{s.matches_365d_away}
                   </td>
                 </tr>
@@ -439,7 +450,9 @@ function MatchTable({ snapshots }: { snapshots: Snapshot[] }) {
 
 // ── DRAW Diagnosis Panel ───────────────────────────────────────────────────
 
-function DrawDiagnosisPanel({ snapshots }: { snapshots: Snapshot[] }) {
+function DrawDiagnosisPanel({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
+  const TH = makeTH(isDark);
   const drawMatches = snapshots.filter(s => s.actual_result === 'DRAW');
   const withProbs = drawMatches.filter(s => s.p_home_win !== null);
   const diagRows: DrawDiagRow[] = withProbs.map(computeDrawDiag);
@@ -454,7 +467,7 @@ function DrawDiagnosisPanel({ snapshots }: { snapshots: Snapshot[] }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <span style={{ fontSize: 14, color: '#f59e0b' }}>⚠</span>
         <strong style={{ color: '#f59e0b', fontSize: 13 }}>DRAW Collapse Diagnosis</strong>
-        <span style={{ color: '#64748b', fontSize: 11 }}>
+        <span style={{ color: isDark ? '#64748b' : '#475569', fontSize: 11 }}>
           — Real DRAWs: <strong style={{ color: '#f59e0b' }}>{drawMatches.length}</strong>
           {' · '}Predicted DRAWs: <strong style={{ color: '#ef4444' }}>0</strong>
         </span>
@@ -462,23 +475,23 @@ function DrawDiagnosisPanel({ snapshots }: { snapshots: Snapshot[] }) {
 
       {/* Summary boxes */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
-          <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Prob problem</div>
+        <div style={{ background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
+          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Prob problem</div>
           <div style={{ fontSize: 20, color: '#ef4444', fontWeight: 700 }}>{probProblem.length}</div>
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>selected_minus_draw &gt; 5%</div>
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>Model genuinely underestimates DRAW</div>
+          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>selected_minus_draw &gt; 5%</div>
+          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>Model genuinely underestimates DRAW</div>
         </div>
-        <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
-          <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Borderline</div>
+        <div style={{ background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
+          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Borderline</div>
           <div style={{ fontSize: 20, color: '#f59e0b', fontWeight: 700 }}>{borderline.length}</div>
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>selected_minus_draw ≤ 5%</div>
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>Decision rule blocks DRAW call</div>
+          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>selected_minus_draw ≤ 5%</div>
+          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>Decision rule blocks DRAW call</div>
         </div>
-        <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
-          <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>No probs</div>
-          <div style={{ fontSize: 20, color: '#64748b', fontWeight: 700 }}>{noProbs.length}</div>
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>NOT_ELIGIBLE / LIMITED_MODE</div>
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>Cannot diagnose</div>
+        <div style={{ background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
+          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>No probs</div>
+          <div style={{ fontSize: 20, color: isDark ? '#64748b' : '#475569', fontWeight: 700 }}>{noProbs.length}</div>
+          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>NOT_ELIGIBLE / LIMITED_MODE</div>
+          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>Cannot diagnose</div>
         </div>
       </div>
 
@@ -508,31 +521,31 @@ function DrawDiagnosisPanel({ snapshots }: { snapshots: Snapshot[] }) {
                 const selColor = isBorderline ? '#f59e0b' : isProb ? '#ef4444' : '#64748b';
                 return (
                   <tr key={row.snap.snapshot_id}>
-                    <td style={TD(i)}>{fmtDate(row.snap.kickoff_utc)}</td>
-                    <td style={TD(i)}>
-                      <span style={{ color: '#94a3b8', fontSize: 10 }}>{shortId(row.snap.match_id)}</span>
+                    <td style={makeTD(isDark, i)}>{fmtDate(row.snap.kickoff_utc)}</td>
+                    <td style={makeTD(isDark, i)}>
+                      <span style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>{shortId(row.snap.match_id)}</span>
                       <span style={{ marginLeft: 5, color: '#f59e0b', fontWeight: 600 }}>
                         {row.snap.home_goals}–{row.snap.away_goals}
                       </span>
                     </td>
-                    <td style={{ ...TD(i), color: '#60a5fa', fontSize: 10 }}>
+                    <td style={{ ...makeTD(isDark, i), color: '#60a5fa', fontSize: 10 }}>
                       {row.snap.mode.replace('_MODE','').replace('NOT_ELIGIBLE','N/E')}
                     </td>
-                    <td style={{ ...TD(i), color: resultColor(row.snap.predicted_result) }}>
+                    <td style={{ ...makeTD(isDark, i), color: resultColor(row.snap.predicted_result) }}>
                       {row.snap.predicted_result ? row.snap.predicted_result.replace('_WIN','') : '—'}
                     </td>
-                    <td style={TD(i, true)}>{fmtNum(row.snap.p_home_win, 3)}</td>
-                    <td style={{ ...TD(i, true), color: '#f59e0b', fontWeight: 600 }}>
+                    <td style={makeTD(isDark, i, true)}>{fmtNum(row.snap.p_home_win, 3)}</td>
+                    <td style={{ ...makeTD(isDark, i, true), color: '#f59e0b', fontWeight: 600 }}>
                       {fmtNum(row.snap.p_draw, 3)}
                     </td>
-                    <td style={TD(i, true)}>{fmtNum(row.snap.p_away_win, 3)}</td>
-                    <td style={{ ...TD(i), color: '#94a3b8', fontSize: 10 }}>{row.top1_class.replace('_WIN','')}</td>
-                    <td style={{ ...TD(i), color: '#64748b', fontSize: 10 }}>{row.top2_class.replace('_WIN','')}</td>
-                    <td style={{ ...TD(i, true), color: '#94a3b8' }}>{fmtNum(row.top1_minus_top2, 3)}</td>
-                    <td style={{ ...TD(i, true), color: selColor, fontWeight: 700 }}>
+                    <td style={makeTD(isDark, i, true)}>{fmtNum(row.snap.p_away_win, 3)}</td>
+                    <td style={{ ...makeTD(isDark, i), color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>{row.top1_class.replace('_WIN','')}</td>
+                    <td style={{ ...makeTD(isDark, i), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>{row.top2_class.replace('_WIN','')}</td>
+                    <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(row.top1_minus_top2, 3)}</td>
+                    <td style={{ ...makeTD(isDark, i, true), color: selColor, fontWeight: 700 }}>
                       {row.selected_minus_draw !== null ? fmtNum(row.selected_minus_draw, 3) : '—'}
                     </td>
-                    <td style={{ ...TD(i, true), color: '#64748b', fontSize: 10 }}>
+                    <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
                       {fmtNum(row.snap.expected_goals_home, 2)}/{fmtNum(row.snap.expected_goals_away, 2)}
                     </td>
                   </tr>
@@ -548,7 +561,10 @@ function DrawDiagnosisPanel({ snapshots }: { snapshots: Snapshot[] }) {
 
 // ── Summary panel ─────────────────────────────────────────────────────────
 
-function SummaryPanel({ report }: { report: EvaluationReport }) {
+function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
+  const SECTION_TITLE = makeSectionTitle(isDark);
+  const TH = makeTH(isDark);
   const ex = report.exclusion_breakdown;
   const cm = report.combined_metrics;
   const fm = report.full_mode_metrics;
@@ -566,19 +582,19 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <tbody>
               {[
-                ['Total snapshots', ex.total_snapshots, '#e2e8f0'],
-                ['NOT_ELIGIBLE', ex.not_eligible, '#64748b'],
+                ['Total snapshots', ex.total_snapshots, isDark ? '#e2e8f0' : '#0f172a'],
+                ['NOT_ELIGIBLE', ex.not_eligible, isDark ? '#64748b' : '#475569'],
                 ['ERROR', ex.error, '#ef4444'],
-                ['LIMITED_MODE sin pred.', ex.limited_mode_no_prediction, '#64748b'],
-                ['TOO_CLOSE', ex.too_close, '#64748b'],
-                ['Total excluidos', ex.total_excluded, '#94a3b8'],
+                ['LIMITED_MODE sin pred.', ex.limited_mode_no_prediction, isDark ? '#64748b' : '#475569'],
+                ['TOO_CLOSE', ex.too_close, isDark ? '#64748b' : '#475569'],
+                ['Total excluidos', ex.total_excluded, isDark ? '#94a3b8' : '#64748b'],
               ].map(([label, value, color]) => (
                 <tr key={String(label)}>
-                  <td style={{ padding: '3px 0', color: '#94a3b8', fontSize: 11 }}>{label}</td>
+                  <td style={{ padding: '3px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>{label}</td>
                   <td style={{ padding: '3px 0', color: color as string, fontWeight: 600, textAlign: 'right', fontSize: 12 }}>{String(value)}</td>
                 </tr>
               ))}
-              <tr style={{ borderTop: '1px solid #2a2a2a' }}>
+              <tr style={{ borderTop: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0' }}>
                 <td style={{ padding: '5px 0', color: '#60a5fa', fontSize: 12, fontWeight: 700 }}>
                   ▶ Evaluable (denominador)
                 </td>
@@ -609,12 +625,12 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
                       {cls.replace('_WIN','')}
                     </td>
                     <td style={{ padding: '4px 0' }}>
-                      <DistBar value={acd[cls]} total={acd.total} color={resultColor(cls)} />
+                      <DistBar value={acd[cls]} total={acd.total} color={resultColor(cls)} isDark={isDark} />
                     </td>
                     <td style={{ padding: '4px 0' }}>
                       {pcd[cls] === 0
                         ? <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 700 }}>0 ⚠ colapso</span>
-                        : <DistBar value={pcd[cls]} total={acd.total} color={resultColor(cls)} />
+                        : <DistBar value={pcd[cls]} total={acd.total} color={resultColor(cls)} isDark={isDark} />
                       }
                     </td>
                   </tr>
@@ -635,20 +651,20 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <tbody>
               <tr>
-                <td style={{ padding: '4px 0', color: '#94a3b8', fontSize: 11 }}>Accuracy (n={cm?.denominator ?? 0})</td>
-                <td style={{ padding: '4px 0', textAlign: 'right', color: '#e2e8f0', fontWeight: 700, fontSize: 14 }}>{fmtPct(cm?.accuracy ?? null)}</td>
+                <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>Accuracy (n={cm?.denominator ?? 0})</td>
+                <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a', fontWeight: 700, fontSize: 14 }}>{fmtPct(cm?.accuracy ?? null)}</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px 0', color: '#94a3b8', fontSize: 11 }}>Correcto / total</td>
-                <td style={{ padding: '4px 0', textAlign: 'right', color: '#94a3b8', fontSize: 11 }}>{cm?.correct ?? 0} / {cm?.denominator ?? 0}</td>
+                <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>Correcto / total</td>
+                <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>{cm?.correct ?? 0} / {cm?.denominator ?? 0}</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px 0', color: '#94a3b8', fontSize: 11 }}>Brier score (n={fm?.prob_denominator ?? 0})</td>
-                <td style={{ padding: '4px 0', textAlign: 'right', color: '#e2e8f0', fontSize: 12 }}>{fmtNum(fm?.brier_score ?? null)}</td>
+                <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>Brier score (n={fm?.prob_denominator ?? 0})</td>
+                <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 12 }}>{fmtNum(fm?.brier_score ?? null)}</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px 0', color: '#94a3b8', fontSize: 11 }}>Log loss</td>
-                <td style={{ padding: '4px 0', textAlign: 'right', color: '#e2e8f0', fontSize: 12 }}>{fmtNum(fm?.log_loss ?? null)}</td>
+                <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>Log loss</td>
+                <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 12 }}>{fmtNum(fm?.log_loss ?? null)}</td>
               </tr>
             </tbody>
           </table>
@@ -679,7 +695,7 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
                               padding: '3px 12px',
                               textAlign: 'center',
                               fontWeight: isHit ? 700 : 400,
-                              color: isHit ? '#22c55e' : '#94a3b8',
+                              color: isHit ? '#22c55e' : (isDark ? '#94a3b8' : '#64748b'),
                               background: isHit ? '#0d2618' : 'transparent',
                             }}>{v}</td>
                           );
@@ -710,19 +726,19 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
               {/* Model */}
               <tr>
                 <td style={{ padding: '5px 0', color: '#60a5fa', fontWeight: 700, fontSize: 11 }}>Modelo</td>
-                <td style={{ padding: '5px 0', textAlign: 'right', color: '#e2e8f0', fontWeight: 700 }}>{fmtPct(cm?.accuracy ?? null)}</td>
-                <td style={{ padding: '5px 0', textAlign: 'right', color: '#e2e8f0' }}>{fmtNum(fm?.brier_score ?? null)}</td>
-                <td style={{ padding: '5px 0', textAlign: 'right', color: '#e2e8f0' }}>{fmtNum(fm?.log_loss ?? null)}</td>
+                <td style={{ padding: '5px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a', fontWeight: 700 }}>{fmtPct(cm?.accuracy ?? null)}</td>
+                <td style={{ padding: '5px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a' }}>{fmtNum(fm?.brier_score ?? null)}</td>
+                <td style={{ padding: '5px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a' }}>{fmtNum(fm?.log_loss ?? null)}</td>
                 <td></td>
               </tr>
               {/* Cat baselines */}
               {report.baselines && (
                 <>
                   <tr>
-                    <td style={{ padding: '4px 0', color: '#94a3b8', fontSize: 10 }}>
+                    <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>
                       MOST_FREQ ("{report.baselines.most_frequent_class.always_predicts.replace('_WIN','')}")
                     </td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#94a3b8' }}>{fmtPct(report.baselines.most_frequent_class.accuracy)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(report.baselines.most_frequent_class.accuracy)}</td>
                     <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
                     <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
                     <td style={{ padding: '4px 0', textAlign: 'center' }}>
@@ -732,8 +748,8 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
                     </td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '4px 0', color: '#94a3b8', fontSize: 10 }}>ALWAYS_HOME_WIN</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#94a3b8' }}>{fmtPct(report.baselines.always_home_win.accuracy)}</td>
+                    <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>ALWAYS_HOME_WIN</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(report.baselines.always_home_win.accuracy)}</td>
                     <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
                     <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
                     <td style={{ padding: '4px 0', textAlign: 'center' }}>
@@ -747,11 +763,11 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
               {/* Prob baselines */}
               {pb && (
                 <>
-                  <tr style={{ borderTop: '1px solid #1c1c1c' }}>
-                    <td style={{ padding: '4px 0', color: '#94a3b8', fontSize: 10 }}>UNIFORM (1/3,1/3,1/3)</td>
+                  <tr style={{ borderTop: isDark ? '1px solid #1c1c1c' : '1px solid #e8ecf0' }}>
+                    <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>UNIFORM (1/3,1/3,1/3)</td>
                     <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#94a3b8' }}>{fmtNum(pb.uniform.brier_score)}</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#94a3b8' }}>{fmtNum(pb.uniform.log_loss)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(pb.uniform.brier_score)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(pb.uniform.log_loss)}</td>
                     <td style={{ padding: '4px 0', textAlign: 'center', fontSize: 10 }}>
                       <span style={{ color: report.beats_uniform_brier ? '#22c55e' : '#ef4444' }}>
                         {report.beats_uniform_brier ? '✓' : '✗'}B
@@ -763,12 +779,12 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
                     </td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '4px 0', color: '#94a3b8', fontSize: 10 }}>
+                    <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>
                       EMPIRICAL ({(pb.empirical_freq.probs.HOME_WIN * 100).toFixed(0)}%/{(pb.empirical_freq.probs.DRAW * 100).toFixed(0)}%/{(pb.empirical_freq.probs.AWAY_WIN * 100).toFixed(0)}%)
                     </td>
                     <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#94a3b8' }}>{fmtNum(pb.empirical_freq.brier_score)}</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#94a3b8' }}>{fmtNum(pb.empirical_freq.log_loss)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(pb.empirical_freq.brier_score)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(pb.empirical_freq.log_loss)}</td>
                     <td style={{ padding: '4px 0', textAlign: 'center', fontSize: 10 }}>
                       <span style={{ color: report.beats_empirical_brier ? '#22c55e' : '#ef4444' }}>
                         {report.beats_empirical_brier ? '✓' : '✗'}B
@@ -796,18 +812,18 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
 
           <div style={{ marginTop: 14 }}>
             <div style={SECTION_TITLE}>Elo symmetry</div>
-            <div style={{ fontSize: 11, color: '#94a3b8' }}>
+            <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>
               Breaks symmetry: {' '}
               <strong style={{ color: '#60a5fa' }}>
                 {report.elo_breaks_symmetry}/{report.elo_breaks_symmetry_denominator}
               </strong>
               {report.elo_breaks_symmetry_denominator > 0 && (
-                <span style={{ color: '#64748b' }}>
+                <span style={{ color: isDark ? '#64748b' : '#475569' }}>
                   {' '}({((report.elo_breaks_symmetry / report.elo_breaks_symmetry_denominator) * 100).toFixed(0)}%)
                 </span>
               )}
             </div>
-            <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>
+            <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', marginTop: 3 }}>
               Elo histórico influye en las probabilidades del modelo.
             </div>
           </div>
@@ -821,6 +837,9 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
 
 export function HistoricalEvaluationLabPage() {
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+  const ROOT = makeRoot(isDark);
+  const PANEL = makePanel(isDark);
   const [data, setData] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -839,8 +858,8 @@ export function HistoricalEvaluationLabPage() {
     cursor: 'pointer',
     border: 'none',
     borderRadius: 4,
-    background: tab === key ? '#1e3a5f' : '#1a1a1a',
-    color: tab === key ? '#60a5fa' : '#64748b',
+    background: tab === key ? '#1e3a5f' : (isDark ? '#1a1a1a' : '#f1f5f9'),
+    color: tab === key ? '#60a5fa' : (isDark ? '#64748b' : '#475569'),
     outline: 'none',
   });
 
@@ -868,22 +887,22 @@ export function HistoricalEvaluationLabPage() {
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
         {data && (
-          <div style={{ marginTop: 6, color: '#64748b', fontSize: 10 }}>
+          <div style={{ marginTop: 6, color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
             {data.snapshot_count} snapshots · generado {new Date(data.report.exclusion_breakdown.total_snapshots > 0 ? Date.now() : 0).toLocaleString()}
           </div>
         )}
       </div>
 
       {loading && (
-        <div style={{ color: '#64748b', padding: '40px 0', textAlign: 'center' }}>
+        <div style={{ color: isDark ? '#64748b' : '#475569', padding: '40px 0', textAlign: 'center' }}>
           Cargando evaluación histórica…
         </div>
       )}
 
       {error && (
-        <div style={{ color: '#ef4444', background: '#1a0f0f', border: '1px solid #ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>
+        <div style={{ color: '#ef4444', background: isDark ? '#1a0f0f' : '#fef2f2', border: '1px solid #ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>
           <strong>Error:</strong> {error}
-          <div style={{ marginTop: 6, color: '#94a3b8', fontSize: 10 }}>
+          <div style={{ marginTop: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>
             Asegurate de tener <code>PREDICTION_INTERNAL_VIEW_ENABLED=true</code> en .env y de haber ejecutado
             {' '}<code>npx tsx --tsconfig tsconfig.server.json scripts/run-backtest.ts</code> al menos una vez.
           </div>
@@ -905,9 +924,9 @@ export function HistoricalEvaluationLabPage() {
             </button>
           </div>
 
-          {tab === 'summary' && <SummaryPanel report={data.report} />}
-          {tab === 'draws' && <DrawDiagnosisPanel snapshots={data.snapshots} />}
-          {tab === 'table' && <MatchTable snapshots={data.snapshots} />}
+          {tab === 'summary' && <SummaryPanel report={data.report} isDark={isDark} />}
+          {tab === 'draws' && <DrawDiagnosisPanel snapshots={data.snapshots} isDark={isDark} />}
+          {tab === 'table' && <MatchTable snapshots={data.snapshots} isDark={isDark} />}
         </>
       )}
     </div>

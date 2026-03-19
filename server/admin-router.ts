@@ -49,25 +49,28 @@ export function registerAdminRoutes(app: FastifyInstance, snapshotStore: Snapsho
       return reply.status(401).send({ error: 'Unauthorized' });
     }
     const patch = request.body as {
-      competitions?: { id: string; enabled: boolean }[];
+      competitions?: { id: string; mode?: 'portal' | 'shadow' | 'disabled'; enabled?: boolean }[];
       features?: { tv?: boolean; predictions?: boolean };
     };
     if (!patch || (patch.competitions === undefined && patch.features === undefined)) {
       return reply.status(400).send({ error: 'Empty patch' });
     }
 
-    // Capture which competition IDs are currently enabled before the update
-    const prevEnabled = new Set(
-      getFullConfig().competitions.filter((c) => c.enabled).map((c) => c.id),
+    // Capture which competition IDs are currently active (portal or shadow) before the update
+    const prevActive = new Set(
+      getFullConfig().competitions.filter((c) => c.mode !== 'disabled').map((c) => c.id),
     );
 
     updateConfig(patch, 'admin');
 
-    // Invalidate snapshot entries for competitions that were just disabled
+    // Invalidate snapshot entries for competitions that were just disabled or moved to shadow
     if (patch.competitions) {
       const newlyDisabled = patch.competitions
-        .filter(({ id, enabled }) => !enabled && prevEnabled.has(id))
-        .map(({ id }) => id);
+        .filter((entry) => {
+          const resolvedMode = entry.mode ?? (entry.enabled === false ? 'disabled' : entry.enabled === true ? 'portal' : undefined);
+          return resolvedMode === 'disabled' && prevActive.has(entry.id);
+        })
+        .map((entry) => entry.id);
 
       if (newlyDisabled.length > 0) {
         console.log(`[AdminRouter] Invalidating snapshot cache for disabled competitions: ${newlyDisabled.join(', ')}`);

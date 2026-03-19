@@ -54,6 +54,15 @@ Finding if: vars in env-validator not in .env.production.example.
 Read: `memory/plans/PLAN-INDEX.md` and list all `memory/plans/*.md` files.
 Finding if: any .md plan file exists but is not mentioned in PLAN-INDEX.md, or any plan shows a stale/incorrect status.
 
+**D19 — Spec coverage de fases implementadas**
+Read: `memory/plans/PLAN-INDEX.md`. Find all phases marked ✅ DONE that are Phase 11 or newer (post-MVP core: SP-PRED-V3, NEXUS, Liga MX, Back Office, SP-COMP-MODES, SP-GOVERNANCE-SKILL, etc.).
+For each done phase, check if PLAN-INDEX.md has a `- Spec:` reference pointing to a file in `docs/specs/` or `docs/architecture/`.
+Also run: `ls docs/specs/**/*.md docs/specs/*.md docs/architecture/*.md 2>/dev/null`
+Finding if: any post-Phase-10 done phase has no corresponding spec file referenced in PLAN-INDEX.md AND no file in docs/specs/ or docs/architecture/ covers that feature by name/keyword.
+Severity: MEDIUM
+Auto-fix: git-ops creates the missing spec from the plan content.
+Note: Phases 0–10 (MVP core) are covered by the original spec suite — no new spec needed for those.
+
 **D7 — Findings OPEN en último governance audit**
 Glob: most recent `memory/governance-audit-*.md` file.
 Read it and find any findings marked as OPEN without a corresponding task.
@@ -151,6 +160,7 @@ Apply all auto-fix corrections in order: HIGH findings first, then MEDIUM, then 
 | D8/D15 — memory orphans | git-ops | Add references to MEMORY.md |
 | D17 — Dockerfile parity | git-ops | Show lines to add — do NOT auto-edit production files, show and confirm |
 | D18 — env parity | git-ops | Show lines to add to .env.production.example |
+| D19 — spec coverage faltante | git-ops | Create missing spec in docs/specs/ from plan content |
 
 ### After all corrections
 
@@ -178,7 +188,7 @@ End with the agent declaration line:
 ## Important rules
 
 - NEVER correct anything before showing the full report and receiving confirmation
-- NEVER skip Phase 1 — all 18 checks must run before reporting
+- NEVER skip Phase 1 — all 19 checks must run before reporting
 - NEVER commit or push as part of corrections (git discipline rule)
 - ALWAYS save the audit file at the end, even if no corrections were made
 - Parallelize Phase 1 checks wherever possible (independent checks run together)
