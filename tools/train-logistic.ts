@@ -368,9 +368,9 @@ function extractTrainingExamplesAf(
     ? `${seasonYear}-${String(seasonYear + 1).slice(2)}`
     : String(seasonYear);
 
-  const allMatchdays = loadAfMatchdayFiles(compId, season);
+  const allMatchdays = loadAfMatchdayFiles(String(leagueId), season);
   if (allMatchdays.size === 0) {
-    console.log(`    [${leagueCode}] No AF matchday files at cache/apifootball/${compId}/${season}/, skipping.`);
+    console.log(`    [${leagueCode}] No AF matchday files at cache/apifootball/${leagueId}/${season}/, skipping.`);
     return [];
   }
 

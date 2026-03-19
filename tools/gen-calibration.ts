@@ -218,7 +218,8 @@ function getAfSeasonLabels(leagueId: number, seasonKind: 'european' | 'calendar'
   const existing = new Set<string>();
   for (const dir of [base, histBase]) {
     if (fs.existsSync(dir)) {
-      for (const entry of fs.readdirSync(dir)) {
+      for (const rawEntry of fs.readdirSync(dir)) {
+        const entry = rawEntry.endsWith('.json') ? rawEntry.slice(0, -5) : rawEntry;
         if (seasonKind === 'european' && /^\d{4}-\d{2}$/.test(entry)) existing.add(entry);
         if (seasonKind === 'calendar' && /^\d{4}$/.test(entry)) existing.add(entry);
       }
@@ -815,8 +816,16 @@ async function mainSingleComp(compArg: string): Promise<void> {
     const rD = allTuples.filter((t) => t.actual === 'DRAW').length / n;
     const rA = allTuples.filter((t) => t.actual === 'AWAY_WIN').length / n;
     const fmt = (v: number) => (v >= 0 ? '+' : '') + v.toFixed(3);
-    console.log(`\n  Bias (pred_avg - real_rate):`);
-    console.log(`  ${comp.slug.padEnd(8)}  HOME:${fmt(avgH-rH)}  DRAW:${fmt(avgD-rD)}  AWAY:${fmt(avgA-rA)}`);
+    const interpretBias = (v: number) => {
+      const a = Math.abs(v);
+      if (a < 0.03) return '✓';
+      if (a < 0.08) return '⚠';
+      return '❌';
+    };
+    const bH = avgH - rH, bD = avgD - rD, bA = avgA - rA;
+    console.log(`\n  Bias (pred_avg - real_rate):  [✓<0.03 pequeño  ⚠ 0.03-0.08 moderado  ❌>0.08 grande]`);
+    console.log(`  ${comp.slug.padEnd(8)}  HOME:${fmt(bH)} ${interpretBias(bH)}  DRAW:${fmt(bD)} ${interpretBias(bD)}  AWAY:${fmt(bA)} ${interpretBias(bA)}`);
+    console.log(`  Real rates →  HOME:${(rH*100).toFixed(1)}%  DRAW:${(rD*100).toFixed(1)}%  AWAY:${(rA*100).toFixed(1)}%`);
   }
 
   // ── PASO 3: Guardar tabla ──────────────────────────────────────────────
@@ -857,17 +866,33 @@ async function mainSingleComp(compArg: string): Promise<void> {
   const rGlb = computeAccuracy(evalsGlobal);
   const rPL  = computeAccuracy(evalsPerLg);
 
-  console.log(`  ${comp.name.padEnd(30)} ${evalsRaw.length} partidos`);
-  printCompactReport('  SIN calibración', rRaw);
-  if (globalTable) printCompactReport('  CON cal global', rGlb);
-  else console.log('  [INFO] Tabla global no disponible — solo per-liga');
-  if (lgTable) printCompactReport(`  CON cal ${comp.slug}`, rPL);
-  else console.log(`  [INFO] Sin tabla per-liga (insuficientes tuplas)`);
+  // Determine test season label for context
+  let testSeasonLabel = '?';
+  if (comp.provider !== 'football-data' && comp.afLeagueId !== undefined) {
+    const allLabels = getAfSeasonLabels(comp.afLeagueId, comp.seasonKind);
+    testSeasonLabel = allLabels[0] ?? '?';
+  } else {
+    testSeasonLabel = '2025-26';
+  }
 
-  const d = (a: number, b: number) => (a >= b ? '+' : '') + (a - b).toFixed(1) + 'pp';
-  console.log('');
-  if (globalTable && lgTable) {
-    console.log(`  Per-liga vs Global: acc ${d(rPL.accuracy*100, rGlb.accuracy*100)}  DRAW recall ${d(rPL.drawRecall*100, rGlb.drawRecall*100)}`);
+  const noEvaluable = rRaw.evaluable === 0;
+  console.log(`  ${comp.name.padEnd(30)} ${rRaw.evaluable} partidos evaluables (temporada test: ${testSeasonLabel})`);
+  if (noEvaluable) {
+    console.log(`\n  [BACKTEST N/A] La temporada ${testSeasonLabel} aún no tiene partidos FINISHED en caché.`);
+    console.log(`  El backtest estará disponible cuando avance la temporada actual.`);
+    console.log(`  La tabla de calibración se generó correctamente con datos históricos (ver bias arriba).`);
+  } else {
+    printCompactReport('  SIN calibración', rRaw);
+    if (globalTable) printCompactReport('  CON cal global', rGlb);
+    else console.log('  [INFO] Tabla global no disponible — solo per-liga');
+    if (lgTable) printCompactReport(`  CON cal ${comp.slug}`, rPL);
+    else console.log(`  [INFO] Sin tabla per-liga (insuficientes tuplas)`);
+
+    const d = (a: number, b: number) => (a >= b ? '+' : '') + (a - b).toFixed(1) + 'pp';
+    console.log('');
+    if (globalTable && lgTable) {
+      console.log(`  Per-liga vs Global: acc ${d(rPL.accuracy*100, rGlb.accuracy*100)}  DRAW recall ${d(rPL.drawRecall*100, rGlb.drawRecall*100)}`);
+    }
   }
   console.log('='.repeat(68));
 

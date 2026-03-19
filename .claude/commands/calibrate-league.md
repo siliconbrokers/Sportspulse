@@ -55,9 +55,11 @@ Ask:
 
 If the user selects 4: exit with message "Calibración cancelada. Podés correr /calibrate-league en cualquier momento."
 
-If the user selects 2 or 3 (NEXUS): inform that NEXUS calibration is Iteración 2 (pendiente de revisión de scripts de reentrenamiento). Offer to proceed only with V3, or cancel.
+If the user selects 2 or 3 (NEXUS): proceed — NEXUS retraining is fully supported via `tools/train-track3.ts` and `tools/train-logistic.ts` with `--include-comp`.
 
-For now, proceed with V3 calibration (Step 2).
+If the user selects 1 (V3 only): proceed to Step 2 (V3 pipeline).
+If the user selects 2 (NEXUS only): skip Step 2, go directly to Step 3 (NEXUS pipeline).
+If the user selects 3 (V3 + NEXUS): run Step 2 first, then Step 3.
 
 ---
 

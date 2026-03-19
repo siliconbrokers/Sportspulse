@@ -112,6 +112,7 @@ const CAL_TABLE_TTL_MS = 6 * 60 * 60_000; // 6h — generated offline, changes r
 const PER_LEAGUE_TABLE_CODES: Record<string, string> = {
   'comp:football-data:PD': 'PD',
   'comp:apifootball:140':  'PD',
+  'comp:apifootball:262':  'MX',  // Liga MX — per-liga table (313 tuples, intermediate tier)
 };
 
 interface CalTableEntry {
