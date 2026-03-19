@@ -75,9 +75,109 @@ If the user selects a league marked as `← ya agregada`, reject the selection i
 
 ---
 
+## Step 3.5 — Auto-detect league format from AF fixtures (mandatory)
+
+**Do NOT skip this step. Do NOT ask the user about format — detect it automatically.**
+
+After the user confirms the league, fetch real fixtures from API-Football to determine the format. This must be done programmatically, not by asking the user — users frequently don't know or answer incorrectly.
+
+### 3.5.1 — Get the API key
+
+Read the `.env` file to extract `APIFOOTBALL_KEY`:
+
+```bash
+AFKEY=$(grep '^APIFOOTBALL_KEY=' .env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+echo "Key found: ${AFKEY:0:8}..."
+```
+
+If the key is empty, try `.env.local` as fallback. If still not found, skip to Step 3.5.3 and mark all three format fields as "no detectado — ingresar manualmente".
+
+### 3.5.2 — Fetch fixture data
+
+Fetch the last 20 fixtures AND next 20 fixtures (to cover leagues mid-season and off-season):
+
+```bash
+AFKEY=$(grep '^APIFOOTBALL_KEY=' .env 2>/dev/null | cut -d= -f2 | tr -d '"')
+YEAR=$(date +%Y)
+PREV_YEAR=$((YEAR - 1))
+
+# Try current year first, then previous year as fallback
+ROUNDS=$(curl -s \
+  "https://v3.football.api-sports.io/fixtures?league={leagueId}&season=${YEAR}&last=20" \
+  -H "x-apisports-key: ${AFKEY}" \
+  -H "x-rapidapi-key: ${AFKEY}" | \
+  jq -r '[.response[].league.round] | unique | .[]' 2>/dev/null)
+
+if [ -z "$ROUNDS" ]; then
+  ROUNDS=$(curl -s \
+    "https://v3.football.api-sports.io/fixtures?league={leagueId}&season=${PREV_YEAR}&last=20" \
+    -H "x-apisports-key: ${AFKEY}" \
+    -H "x-rapidapi-key: ${AFKEY}" | \
+    jq -r '[.response[].league.round] | unique | .[]' 2>/dev/null)
+fi
+
+echo "$ROUNDS"
+```
+
+### 3.5.3 — Apply detection rules to round names
+
+Given the list of unique round name strings, apply these rules **in order**:
+
+**Rule A — Detect `hasSubTournaments`:**
+- If any round contains the word `"Apertura"` OR `"Clausura"` (case-insensitive) → `hasSubTournaments = true`
+- Otherwise → `hasSubTournaments = false`
+
+**Rule B — Detect `aperturaSeason`** (only if hasSubTournaments=true):
+- Find the earliest fixture whose round contains `"Apertura"` and look at its month (from `fixture.date`)
+- If Apertura fixtures exist in months Jul–Dec (months 7–12) → `aperturaSeason = 'H2'`
+- If Apertura fixtures exist in months Jan–Jun (months 1–6) → `aperturaSeason = 'H1'`
+- If dates not available, fallback: fetch kickoff dates for the first Apertura fixtures:
+  ```bash
+  curl -s "https://v3.football.api-sports.io/fixtures?league={leagueId}&season=${YEAR}&round=Apertura%20-%201" \
+    -H "x-apisports-key: ${AFKEY}" | jq -r '.response[0].fixture.date'
+  ```
+- CRITICAL: if this is wrong, the active sub-tournament detection will pick the wrong one (Apertura instead of Clausura or vice versa).
+
+**Rule C — Detect `isTournament`:**
+- If any round contains `"Group"` or `"Quarter"` or `"Semi"` or `"Final"` or `"Round of"` → `isTournament = true`
+- If hasSubTournaments=true → `isTournament = false` (Apertura/Clausura are always league tables, not knockout)
+- Otherwise → `isTournament = false`
+
+**Rule D — Detect `totalMatchdays` / `expectedSeasonGames`:**
+- Extract all round numbers: parse `"Regular Season - 14"` → 14, `"Apertura - 17"` → 17
+- The max round number found = rounds per sub-tournament (or per season if no sub-tournaments)
+- If hasSubTournaments=true: `totalMatchdays = max_round`, `expectedSeasonGames = max_round * 2` (home + away across both tournaments)
+- If hasSubTournaments=false and isTournament=false: `totalMatchdays = max_round`
+
+### 3.5.4 — Show detection results
+
+After running the detection, show:
+
+```
+Formato detectado automáticamente (desde fixtures AF):
+
+  Rondas encontradas:   ["Regular Season - 1", "Regular Season - 17", ...]
+                        ["Apertura - 1", "Apertura - 17", "Clausura - 1", ...]  ← ejemplo con sub-torneos
+
+  hasSubTournaments:    true  ← rondas "Apertura" y "Clausura" detectadas
+  aperturaSeason:       H2    ← primer fixture "Apertura - 1" = 2025-07-18 (julio = H2)
+  isTournament:         false ← no hay rondas tipo "Group" o "Round of"
+  totalMatchdays:       17    ← máximo round number detectado
+```
+
+If detection fails (no fixtures found, API error, key missing), show:
+```
+⚠️  No se pudo auto-detectar el formato (sin fixtures disponibles o sin APIFOOTBALL_KEY).
+    hasSubTournaments, aperturaSeason e isTournament deben ingresarse manualmente en Step 4.
+```
+
+---
+
 ## Step 4 — Collect remaining metadata
 
-Auto-infer as much as possible from the search results. Then ask the user ONLY for what cannot be inferred:
+**The fields `hasSubTournaments`, `aperturaSeason`, and `isTournament` come from Step 3.5 detection — do NOT ask the user about them.** Show them as detected facts. The user may override only if the detection result is clearly wrong (e.g. they say "that's wrong, fix it").
+
+Ask the user ONLY for:
 
 **Always ask:**
 - **accentColor** — color hex para el UI (ej: `#16a34a`). Sugerí uno basado en los colores oficiales de la liga si los encontraste.
@@ -90,17 +190,15 @@ Auto-infer as much as possible from the search results. Then ask the user ONLY f
 - **normalizedLeague** — SCREAMING_SNAKE_CASE (ej: LIGA_MX). Show proposed value.
 - **seasonLabel** — "2026" for calendar-year, "25/26" for european-style. Show proposed value.
 - **seasonKind** — `calendar` or `european`. Show proposed value.
-- **isTournament** — `false` for league tables, `true` for knockout cups. Show proposed value.
-- **expectedSeasonGames** — games per team per season. Show proposed value with reasoning (ej: "17 games × 2 torneos = 34 total season games").
-- **totalMatchdays** — if known and not a tournament. Show proposed value or "omitted".
-- **hasSubTournaments** — `true` if Apertura/Clausura style. Show proposed value.
-- **aperturaSeason** — ONLY if `hasSubTournaments=true`. Which half-year maps to "Apertura"?
-  - `H1` = Apertura runs Jan–Jun (Argentina, Uruguay style — default)
-  - `H2` = Apertura runs Jul–Dec (Liga MX, Colombia style)
-  - Show proposed value. If wrong, the sub-tournament selector will auto-select the wrong tournament.
-  - **CRITICAL**: this field is mandatory for any league with `hasSubTournaments=true`. Getting it wrong causes the calendar detection to return the wrong active sub-tournament.
+- **expectedSeasonGames** — games per team per season. Use value from detection. Show proposed value with reasoning (ej: "17 rondas × 2 torneos = 34 partidos/temporada completa"). If detection failed, show "?" and compute from league structure.
+- **totalMatchdays** — use value from detection. Show proposed value or "omitted" if tournament.
 
-Present all inferred values in a compact block and ask:
+**Show as detected facts (not questions):**
+- **hasSubTournaments** — `{detected value}` ← auto-detectado desde rondas AF
+- **isTournament** — `{detected value}` ← auto-detectado desde rondas AF
+- **aperturaSeason** — `{H1|H2|omitted}` ← auto-detectado desde fecha kickoff Apertura (ONLY if hasSubTournaments=true)
+
+Present all values in a compact block and ask:
 > ¿Corregís algo? Si está todo bien, escribí "ok".
 
 ---
@@ -121,11 +219,15 @@ Liga a agregar:
   logoUrl:          {logoUrl}
   seasonLabel:      {seasonLabel}
   seasonKind:       {seasonKind}
-  isTournament:     {isTournament}
+  isTournament:     {isTournament}  ← {auto-detectado | ingresado manualmente}
   expectedSeasonGames: {expectedSeasonGames}
   totalMatchdays:   {totalMatchdays or 'omitted'}
-  hasSubTournaments: {hasSubTournaments or 'false'}
-  aperturaSeason:    {aperturaSeason or 'omitted (no sub-tournaments)'}
+  hasSubTournaments: {hasSubTournaments}  ← {auto-detectado | ingresado manualmente}
+  aperturaSeason:    {aperturaSeason or 'omitted (no sub-tournaments)'}  ← {auto-detectado | ingresado manualmente}
+
+Detección de formato:
+  Rondas AF analizadas: {muestra las 5 primeras rondas únicas encontradas, o "n/a"}
+  Fuente:               {fixtures season {year} | fallback season {prev_year} | sin datos}
 
 Archivos a editar:
   1. server/competition-registry.ts
@@ -226,17 +328,37 @@ This script (`scripts/dev-restart.sh`) kills all previous processes, waits for p
 
 ---
 
-## Step 10 — Report result
+## Step 10 — Report result and post-activation checklist
 
 Report:
 1. The 3 files edited, one line each describing the change
 2. Build and typecheck status
 3. Dev server restarted — new league visible in `/admin`
-4. Next steps:
-   - Ir a `/admin` → activar la liga con el toggle
-   - En la primera activación: el data source descarga la temporada actual (~2 requests a API-Football)
-   - El motor predictivo empieza a generar predicciones shadow una vez hay partidos FINISHED
-   - xG se backfill automáticamente en el primer ciclo (máximo 20 fixtures/ciclo)
+
+### Post-activation validation checklist
+
+Show this checklist after reporting. Tell the user to run these verifications **after activating the league** in `/admin`:
+
+**Para toda liga:**
+- [ ] `/api/ui/status` muestra la liga con `loaded: true`
+- [ ] `/api/ui/dashboard?competition={id}` devuelve partidos (o array vacío si fuera de temporada)
+- [ ] `/api/ui/standings?competition={id}` devuelve tabla con equipos reales y puntos razonables
+- [ ] El carrusel y el panel de detalle abren matches correctamente
+
+**Solo si `hasSubTournaments=true`:**
+- [ ] `/api/ui/competition-info?competition={id}` devuelve `activeSubTournament` con valor correcto (`APERTURA` o `CLAUSURA`) — verificar que corresponde al torneo activo según la fecha de hoy
+- [ ] `/api/ui/standings?competition={id}&subTournamentKey=APERTURA` y `...&subTournamentKey=CLAUSURA` devuelven **tablas distintas** (diferente líder, distintos puntos). Si devuelven la misma tabla → hay un bug en la detección o en la implementación
+- [ ] El selector de sub-torneo en el UI muestra ambas pestañas y auto-selecciona el torneo activo al cargar
+
+**Solo si `isTournament=true`:**
+- [ ] El bracket / fase de grupos se renderiza correctamente
+- [ ] No hay tabla de posiciones vacía (los torneos knockout no tienen tabla)
+
+### Next steps tras activar:
+- En la primera activación: el data source descarga la temporada actual (~2 requests a API-Football)
+- El motor predictivo empieza a generar predicciones shadow una vez hay partidos FINISHED
+- xG se backfill automáticamente en el primer ciclo (máximo 20 fixtures/ciclo)
+- Si algo falla en el checklist: reportar como bug antes de considerar la liga como lista
 
 ---
 
@@ -248,3 +370,6 @@ Report:
 - Do NOT add to COMPETITIONS env var
 - `newsKey` must always be `null`
 - If leagueId already exists in COMPETITION_REGISTRY → abort immediately
+- Do NOT ask the user about `hasSubTournaments`, `aperturaSeason`, or `isTournament` — always auto-detect from AF fixtures in Step 3.5. Users frequently don't know the answer or answer incorrectly.
+- Do NOT skip Step 3.5 even if the league "looks simple". The AF round names are the only reliable source of truth for format detection.
+- If Step 3.5 detection fails (no APIFOOTBALL_KEY, no fixtures), mark the three fields as "no detectado" and ask the user only as a last resort — with explicit warning that a wrong answer will cause data bugs.

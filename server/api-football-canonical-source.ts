@@ -369,8 +369,82 @@ export class ApiFootballCanonicalSource implements DataSource {
     return this.getCached(compId)?.matches ?? [];
   }
 
-  getStandings(compId: string): StandingEntry[] {
+  getStandings(compId: string, subTournamentKey?: string): StandingEntry[] {
+    const cfg = AF_COMPETITION_CONFIGS[compId];
+    if (cfg?.hasSubTournaments) {
+      // Compute standings from match results so each sub-tournament has its own table.
+      // Relying on AF's /standings endpoint returns the same table regardless of sub-tournament.
+      const matches = this.getSubTournamentMatches(compId, subTournamentKey);
+      return this.computeStandingsFromMatches(compId, matches);
+    }
     return this.getCached(compId)?.standings ?? [];
+  }
+
+  /**
+   * Computes a standings table from finished match results.
+   * Used for leagues with sub-tournaments (Apertura/Clausura) where the AF
+   * standings endpoint does not distinguish between them.
+   */
+  private computeStandingsFromMatches(compId: string, matches: Match[]): StandingEntry[] {
+    const teams = this.getCached(compId)?.teams ?? [];
+    const teamMap = new Map(teams.map((t) => [t.teamId, t]));
+
+    const stats = new Map<string, {
+      teamId: string; pj: number; w: number; d: number; l: number; gf: number; ga: number;
+    }>();
+    const getOrCreate = (teamId: string) => {
+      if (!stats.has(teamId)) stats.set(teamId, { teamId, pj: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 });
+      return stats.get(teamId)!;
+    };
+
+    // Initialize all teams that participate (so 0-result teams still appear)
+    for (const m of matches) {
+      getOrCreate(m.homeTeamId);
+      getOrCreate(m.awayTeamId);
+    }
+
+    // Accumulate results from FINISHED matches only
+    for (const m of matches) {
+      if (m.status !== 'FINISHED' || m.scoreHome == null || m.scoreAway == null) continue;
+      const hg = m.scoreHome;
+      const ag = m.scoreAway;
+      const home = getOrCreate(m.homeTeamId);
+      const away = getOrCreate(m.awayTeamId);
+      home.pj++; away.pj++;
+      home.gf += hg; home.ga += ag;
+      away.gf += ag; away.ga += hg;
+      if (hg > ag) { home.w++; away.l++; }
+      else if (hg < ag) { away.w++; home.l++; }
+      else { home.d++; away.d++; }
+    }
+
+    const entries = [...stats.values()].map((s) => {
+      const team = teamMap.get(s.teamId);
+      return {
+        teamId:         s.teamId,
+        teamName:       team?.name ?? s.teamId,
+        crestUrl:       team?.crestUrl,
+        playedGames:    s.pj,
+        won:            s.w,
+        draw:           s.d,
+        lost:           s.l,
+        goalsFor:       s.gf,
+        goalsAgainst:   s.ga,
+        goalDifference: s.gf - s.ga,
+        points:         s.w * 3 + s.d,
+        position:       0,
+      };
+    });
+
+    // Sort: points desc → goal diff desc → goals for desc → name asc (stable tiebreak)
+    entries.sort((a, b) =>
+      b.points - a.points ||
+      b.goalDifference - a.goalDifference ||
+      b.goalsFor - a.goalsFor ||
+      a.teamName.localeCompare(b.teamName),
+    );
+    entries.forEach((e, i) => { e.position = i + 1; });
+    return entries;
   }
 
   getCurrentMatchday(compId: string, subTournamentKey?: string): number | undefined {

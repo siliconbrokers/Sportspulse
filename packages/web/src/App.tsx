@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from './components/DashboardLayout.js';
 import { StandingsTable } from './components/StandingsTable.js';
 import { TopScorers } from './components/TopScorers.js';
@@ -124,11 +124,15 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
     setTournamentFocusId(null);
     setTournamentFocusDate(null);
     setSubTournamentKey(undefined);
+    userPickedSubTournament.current = false;
   };
   const [tournamentFocusDate, setTournamentFocusDate] = useState<string | null>(null);
   const [hasLiveMatches, setHasLiveMatches] = useState(false);
   const [tvTab, setTvTab] = useState<'hoy' | 'manana'>('hoy');
   const [subTournamentKey, setSubTournamentKey] = useState<string | undefined>(undefined);
+  // Tracks whether the user has explicitly selected a sub-tournament in this session.
+  // Resets when the competition changes. Prevents auto-correction from overriding an intentional pick.
+  const userPickedSubTournament = useRef(false);
 
   const currentComp = COMPETITIONS.find((c) => c.id === resolvedCompetitionId) ?? COMPETITIONS[0];
   const noCompetitions = COMPETITIONS.length === 0;
@@ -172,14 +176,17 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
     setTournamentFocusId(null);
     setTournamentFocusDate(null);
     setSubTournamentKey(undefined); // se resolverá al activo según compInfo
+    userPickedSubTournament.current = false; // reset explicit pick on competition change
   }, [resolvedCompetitionId]);
 
-  // Cuando carga compInfo y hay sub-torneo activo: seleccionar por defecto
+  // Cuando carga compInfo y hay sub-torneo activo: seleccionar por defecto.
+  // Solo saltea si el usuario eligió explícitamente (click en selector). Esto garantiza
+  // que HMR / hot-reload no quede con un sub-torneo inactivo de una sesión anterior.
   useEffect(() => {
-    if (subTournamentKey) return; // ya hay selección explícita
+    if (userPickedSubTournament.current) return;
     const active = compInfo?.activeSubTournament;
     if (active) setSubTournamentKey(active);
-  }, [compInfo, subTournamentKey]);
+  }, [compInfo]);
 
   // Cuando carga compInfo: setear jornada por defecto
   useEffect(() => {
@@ -254,7 +261,7 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
                   <SubTournamentSelector
                     subTournaments={compInfo!.subTournaments}
                     selected={subTournamentKey ?? null}
-                    onChange={(key) => { setSubTournamentKey(key); setMatchday(null); }}
+                    onChange={(key) => { userPickedSubTournament.current = true; setSubTournamentKey(key); setMatchday(null); }}
                   />
                 </div>
               )}
@@ -300,7 +307,7 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
                 <SubTournamentSelector
                   subTournaments={compInfo!.subTournaments}
                   selected={subTournamentKey ?? null}
-                  onChange={(key) => { setSubTournamentKey(key); setMatchday(null); }}
+                  onChange={(key) => { userPickedSubTournament.current = true; setSubTournamentKey(key); setMatchday(null); }}
                 />
               </div>
             )}
@@ -363,7 +370,7 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
                   <SubTournamentSelector
                     subTournaments={compInfo!.subTournaments}
                     selected={subTournamentKey ?? null}
-                    onChange={(key) => { setSubTournamentKey(key); }}
+                    onChange={(key) => { userPickedSubTournament.current = true; setSubTournamentKey(key); }}
                   />
                 </div>
               )}
