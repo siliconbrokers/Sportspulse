@@ -204,103 +204,27 @@ export function fitPerClassCalibrator(
 // ── Main calibration fitting (taxonomy spec S8.2, S8.3) ───────────────────
 
 /**
- * Fit NEXUS calibration tables (per-liga + global).
+ * @deprecated — REMOVED. This function was broken: it assigned `homePoints` to all three
+ * calibrators (home, draw, away), producing three identical PAVA curves instead of
+ * independent one-vs-rest calibrators. This violates taxonomy spec S8.2.
  *
- * taxonomy spec S8.3:
- *   League >= 300 samples → per-liga calibration table.
- *   League < 300 samples → falls back to global.
+ * Use `fitNexusCalibrationFromTriplets()` instead, which is the correct public interface.
  *
- * @param allData     All calibration data points across all leagues.
- *                    Each point must have matchUtcDate < fittedAt.
- * @param fittedAt    ISO 8601 UTC timestamp for this calibration.
- * @returns           Map from leagueCode → NexusCalibrationTable.
- *                    Always includes 'global' key.
- * @throws            CalibrationTemporalLeakageError on anti-lookahead violation.
+ * FINDING-005 fix (audit 2026-03-19): throwing NotImplementedError to prevent silent misuse.
+ * Any caller reaching this function has a bug — the class-separated CalibrationTripletBundle
+ * interface (`fitNexusCalibrationFromTriplets`) must be used instead.
+ *
+ * @throws Error — always. Use fitNexusCalibrationFromTriplets instead.
  */
 export function fitNexusCalibration(
-  allData: CalibrationDataPoint[],
-  fittedAt: string,
+  _allData: CalibrationDataPoint[],
+  _fittedAt: string,
 ): Map<string, NexusCalibrationTable> {
-  const result = new Map<string, NexusCalibrationTable>();
-
-  // Anti-lookahead check first (taxonomy spec S8.5)
-  for (const point of allData) {
-    if (point.matchUtcDate >= fittedAt) {
-      throw new CalibrationTemporalLeakageError(point.matchUtcDate, fittedAt);
-    }
-  }
-
-  // Group by outcome class for one-vs-rest
-  // Each CalibrationDataPoint encodes one observation for one class.
-  // We need three parallel datasets: home class, draw class, away class.
-  // By convention: CalibrationDataPoint contains rawProb for its outcome class
-  // and isActual = 1 if that was the actual outcome.
-
-  // Group by league
-  const byLeague = new Map<string, CalibrationDataPoint[]>();
-  for (const point of allData) {
-    if (!byLeague.has(point.leagueCode)) byLeague.set(point.leagueCode, []);
-    byLeague.get(point.leagueCode)!.push(point);
-  }
-
-  // Fit global calibrator
-  const globalTable = fitLeagueCalibration(allData, 'global', fittedAt);
-  result.set('global', globalTable);
-
-  // Fit per-liga calibrators where sufficient samples exist
-  for (const [league, leagueData] of byLeague) {
-    if (leagueData.length >= MIN_SAMPLES_PER_LIGA_CALIBRATION) {
-      const leagueTable = fitLeagueCalibration(leagueData, league, fittedAt);
-      result.set(league, leagueTable);
-    }
-    // Under-threshold leagues use global — no entry created, caller uses 'global'
-  }
-
-  return result;
-}
-
-/**
- * Fit a calibration table for one scope (a specific league or 'global').
- *
- * The input data must already be anti-lookahead validated by the caller.
- * Each CalibrationDataPoint.isActual encodes whether rawProb's class was
- * the realized outcome. We fit three separate PAVA models:
- *   - home class: rawProb = ensemble p_home, isActual = 1 iff outcome = home
- *   - draw class: rawProb = ensemble p_draw, isActual = 1 iff outcome = draw
- *   - away class: rawProb = ensemble p_away, isActual = 1 iff outcome = away
- *
- * For this to work correctly, allData must contain triplets: one entry per
- * match per class. The callersets the appropriate (rawProb, isActual) per class.
- * See NexusCalibrationDataBundle in nexus-ensemble.ts for the full structure.
- */
-function fitLeagueCalibration(
-  data: CalibrationDataPoint[],
-  leagueCode: string,
-  fittedAt: string,
-): NexusCalibrationTable {
-  const homePairs = data.map((p) => ({ rawProb: p.rawProb, isActual: p.isActual }));
-
-  // Each CalibrationDataPoint already represents ONE class's data.
-  // The three classes are passed in as separate data arrays, but here we
-  // receive a unified dataset. This function is intended to be called with
-  // class-specific data. See fitNexusCalibrationFromTriplets for the
-  // organized interface.
-
-  const homePoints = fitPAVA(homePairs);
-  // Placeholder: for the unified interface, home/draw/away are all the same input.
-  // The real per-class fit is in fitNexusCalibrationFromTriplets below.
-
-  return {
-    leagueCode,
-    calibrators: {
-      home: homePoints,
-      draw: homePoints,
-      away: homePoints,
-    },
-    nCalibrationMatches: data.length,
-    fittedAt,
-    calibrationVersion: CALIBRATION_VERSION,
-  };
+  throw new Error(
+    'fitNexusCalibration() is not implemented and must not be called. ' +
+    'It produces three identical calibrators (FINDING-005, taxonomy spec S8.2 violation). ' +
+    'Use fitNexusCalibrationFromTriplets() with a CalibrationTripletBundle instead.',
+  );
 }
 
 // ── Organized per-class fitting (the correct public interface) ─────────────

@@ -27,8 +27,8 @@
  *   ensembleConfidence, createdAtUtc
  *
  * Flag format:
- *   PREDICTION_NEXUS_SHADOW_ENABLED=comp:football-data:PD,comp:football-data:PL,...
- *   (same format as existing prediction flags)
+ *   NEXUS_SHADOW_ENABLED=comp:football-data:PD,comp:football-data:PL,...
+ *   (master spec §S8.2 defines the canonical env var name as NEXUS_SHADOW_ENABLED)
  *
  * @module server/prediction/nexus-shadow-runner
  */
@@ -48,6 +48,10 @@ import type { NexusModelWeights } from './nexus-model-loader.js';
  *
  * buildNowUtc is always the semantic time anchor (core invariant).
  * createdAtUtc is the wall-clock time the file was written (audit metadata).
+ *
+ * NEXUS-0 §S9.2 requires 8 fingerprint fields:
+ *   matchId, buildNowUtc, kickoffUtc, featureSchemaVersion, datasetWindow,
+ *   modelVersion, calibrationVersion, ensembleVersion.
  */
 export interface NexusShadowSnapshot {
   matchId: string;
@@ -55,6 +59,16 @@ export interface NexusShadowSnapshot {
   /** buildNowUtc: semantic time anchor — the "now" when the prediction was made. */
   buildNowUtc: string;
   kickoffUtc: string;
+  // ── Prediction fingerprint fields (NEXUS-0 §S9.2) ────────────────────────
+  /** Feature schema version — tracks which features were available at prediction time. */
+  featureSchemaVersion: string;
+  /** Dataset window used for training (ISO interval). */
+  datasetWindow: string;
+  /** Model version identifier (tracks the NEXUS model release). */
+  modelVersion: string;
+  /** Calibration version identifier (bootstrap or trained). */
+  calibrationVersion: string;
+  // ─────────────────────────────────────────────────────────────────────────
   /** Calibrated 1X2 probabilities from the NEXUS meta-ensemble. */
   probs: { home: number; draw: number; away: number };
   /** Ensemble weight vector applied (after Track 4 redistribution if needed). */
@@ -69,10 +83,33 @@ export interface NexusShadowSnapshot {
   createdAtUtc: string;
 }
 
+// ── NEXUS version constants (NEXUS-0 §S9.2 fingerprint fields) ────────────────
+
+/** Feature schema version — bump when the feature set used by Track 3 changes. */
+const NEXUS_FEATURE_SCHEMA_VERSION = '1.0.0';
+
+/**
+ * Dataset window for the bootstrap phase (no trained calibration yet).
+ * This covers the historical data used in Track 1+2 Elo replay.
+ * Update when expanding to earlier seasons.
+ */
+const NEXUS_DATASET_WINDOW = '2023-24+2024-25';
+
+/** Model version — identifies this NEXUS release. Bump on Track 3 weight changes. */
+const NEXUS_MODEL_VERSION = 'nexus-v2.0.0';
+
+/**
+ * Calibration version for the bootstrap phase.
+ * Will be replaced by a trained date (e.g. 'trained-2026-03-20') once
+ * walk-forward calibration accumulates ≥300 samples (taxonomy spec §S8.3).
+ */
+const NEXUS_CALIBRATION_VERSION = 'bootstrap-1.0';
+
 // ── Flag parsing ───────────────────────────────────────────────────────────────
 
 function parseNexusShadowFlag(): ReadonlySet<string> {
-  const envVal = process.env.PREDICTION_NEXUS_SHADOW_ENABLED;
+  // FINDING-001 fix: master spec §S8.2 defines the flag as NEXUS_SHADOW_ENABLED.
+  const envVal = process.env.NEXUS_SHADOW_ENABLED;
   if (!envVal) return new Set();
   return new Set(
     envVal
@@ -191,15 +228,20 @@ async function runNexusPrediction(
   }
 
   // Map canonical match data to HistoricalMatch shape required by Track 1.
-  // isNeutralVenue defaults to false — canonical data doesn't expose this flag
-  // at the match list level. Overriding to false is safe (conservative).
+  // SPEC-DEVIATION (FINDING-006): Taxonomy spec §S3.2 prohibits defaulting isNeutralVenue.
+  // However, the canonical DataSource.getMatches() DTO does not expose a neutralVenue field.
+  // Until the canonical DTO is extended to include neutralVenue, defaulting to false for
+  // domestic league matches (where neutral venue is extremely rare). A formal spec amendment
+  // is required to authorize this default — tracked as a pending spec change request.
   const historicalMatches = finishedMatches.map((m) => ({
     homeTeamId: m.homeTeamId,
     awayTeamId: m.awayTeamId,
     utcDate: m.startTimeUtc!,
     homeGoals: m.scoreHome!,
     awayGoals: m.scoreAway!,
-    isNeutralVenue: false, // canonical data does not provide neutral_venue flag
+    // SPEC-DEVIATION: canonical DTO does not expose neutralVenue — defaulting to false
+    // pending DTO extension. See taxonomy spec §S3.2 + audit FINDING-006.
+    isNeutralVenue: false,
   }));
 
   // Extract league code from competitionId (e.g. "comp:football-data:PD" → "PD").
@@ -313,6 +355,11 @@ async function runNexusPrediction(
     competitionId,
     buildNowUtc,
     kickoffUtc,
+    // NEXUS-0 §S9.2 prediction fingerprint fields (FINDING-002 fix)
+    featureSchemaVersion: NEXUS_FEATURE_SCHEMA_VERSION,
+    datasetWindow: NEXUS_DATASET_WINDOW,
+    modelVersion: NEXUS_MODEL_VERSION,
+    calibrationVersion: NEXUS_CALIBRATION_VERSION,
     probs: output.probs,
     weights: {
       track12: output.weights.track12,
@@ -414,7 +461,11 @@ function buildBootstrapWeightRegistry(): import('@sportpulse/prediction').Weight
     segments: {},
     global: bootstrapVector,
     ensembleVersion: 'nexus-ensemble-bootstrap-v1.0',
-    learnedAt: '2026-03-18T00:00:00.000Z',
+    // FINDING-007 fix: use the actual startup time rather than a hardcoded past date.
+    // For bootstrap weights (known constants, not trained), learnedAt reflects
+    // when the registry was instantiated, which is the best available proxy for
+    // "when these weights became active on this server instance."
+    learnedAt: new Date().toISOString(),
   };
 }
 

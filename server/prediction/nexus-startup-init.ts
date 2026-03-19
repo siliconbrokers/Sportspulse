@@ -30,14 +30,22 @@ import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { buildTrack3FeatureVector } from '../../packages/prediction/src/nexus/track3/context-features.js';
-import { MISSING } from '../../packages/prediction/src/nexus/feature-store/types.js';
-import type { FeatureValue } from '../../packages/prediction/src/nexus/feature-store/types.js';
-import type { LogisticWeights } from '../../packages/prediction/src/nexus/track3/logistic-model.js';
-import type { HistoricalMatch } from '../../packages/prediction/src/nexus/track1/types.js';
-import { computeTrack1 } from '../../packages/prediction/src/nexus/track1/track1-engine.js';
-import { appendOddsRecord } from '../../packages/prediction/src/nexus/odds/raw-odds-store.js';
-import type { OddsRecord, OddsProvider } from '../../packages/prediction/src/nexus/odds/types.js';
+// FINDING-008 fix: use workspace alias @sportpulse/prediction instead of direct relative
+// imports into packages/prediction/src/. This enforces the workspace module boundary
+// and is consistent with how nexus-shadow-runner.ts accesses the prediction package.
+import {
+  buildTrack3FeatureVector,
+  MISSING,
+  computeTrack1,
+  appendOddsRecord,
+} from '@sportpulse/prediction';
+import type {
+  FeatureValue,
+  LogisticWeights,
+  HistoricalMatch,
+  OddsRecord,
+  OddsProvider,
+} from '@sportpulse/prediction';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

@@ -95,34 +95,38 @@ export function deVigProportional(
 // ── Confidence (MSP S2.2, S6.1) ───────────────────────────────────────────
 
 /**
- * Compute Track 4 confidence from snapshot age in hours.
+ * Compute Track 4 confidence from snapshot capture distance to kickoff.
  *
- * The spec (MSP S2.2, S6.1) defines confidence in terms of "capture distance
- * from kickoff". This function uses snapshot_age_hours (age relative to
- * buildNowUtc) as a proxy. The caller is responsible for mapping to kickoff
- * distance if needed; the store layer does not have access to kickoffUtc.
+ * Per MSP S2.2: confidence is a function of (kickoffUtc - snapshot_utc),
+ * i.e. how far before kickoff the snapshot was captured — NOT how old the
+ * snapshot is relative to buildNowUtc.
  *
- * Thresholds per MSP S2.2 / S6.1, aligned with FRESHNESS_THRESHOLDS_SECONDS:
+ * Thresholds per MSP S2.2, aligned with FRESHNESS_THRESHOLDS_SECONDS:
  *   < 24h  → HIGH     (closing line or near-closing line)
  *   24-72h → MEDIUM   (full learned weight, per-horizon segmentation handles quality)
  *   > 72h  → LOW      (stale; FAR horizon weight vector applied by meta-ensemble)
- *   Infinity → DEACTIVATED (no snapshot available — Track 4 excluded from ensemble)
  *
- * @param snapshotAgeHours Hours between snapshot_utc and buildNowUtc.
- *                         Pass Infinity when no snapshot is available.
+ * @param snapshotUtc ISO-8601 UTC string — the moment the odds were captured.
+ * @param kickoffUtc  ISO-8601 UTC string — the scheduled match kickoff time.
+ *
+ * Precondition: both strings must be valid ISO-8601 UTC. The caller guarantees
+ * snapshotUtc < kickoffUtc (odds captured before the match). If
+ * snapshotUtc >= kickoffUtc the result is LOW (effectively post-kickoff capture
+ * is treated as the farthest horizon).
  */
-export function computeOddsConfidence(snapshotAgeHours: number): OddsConfidence {
-  if (!isFinite(snapshotAgeHours)) {
-    return 'DEACTIVATED';
-  }
+export function computeOddsConfidence(snapshotUtc: string, kickoffUtc: string): OddsConfidence {
+  const snapshotMs = new Date(snapshotUtc).getTime();
+  const kickoffMs = new Date(kickoffUtc).getTime();
 
-  // Convert hours to seconds for comparison against FRESHNESS_THRESHOLDS_SECONDS.
-  const ageSeconds = snapshotAgeHours * 3600;
+  // Distance in seconds from snapshot capture to kickoff.
+  // If snapshot_utc >= kickoffUtc (post-kickoff capture), distance is <= 0;
+  // treat as the farthest horizon (LOW) — conservative and safe.
+  const distanceSeconds = Math.max(0, (kickoffMs - snapshotMs) / 1000);
 
-  if (ageSeconds < FRESHNESS_THRESHOLDS_SECONDS.MARKET_ODDS_HIGH_CUTOFF) {
+  if (distanceSeconds < FRESHNESS_THRESHOLDS_SECONDS.MARKET_ODDS_HIGH_CUTOFF) {
     return 'HIGH';
   }
-  if (ageSeconds < FRESHNESS_THRESHOLDS_SECONDS.MARKET_ODDS_MEDIUM_CUTOFF) {
+  if (distanceSeconds < FRESHNESS_THRESHOLDS_SECONDS.MARKET_ODDS_MEDIUM_CUTOFF) {
     return 'MEDIUM';
   }
   return 'LOW';
@@ -224,8 +228,10 @@ export function selectBenchmarkProvider(
  *
  * When a valid snapshot is found:
  *   1. De-vig the raw odds using proportional normalization (MSP S7.2).
- *   2. Compute snapshot_age_hours (buildNowUtc - snapshot_utc).
- *   3. Compute OddsConfidence from snapshot_age_hours.
+ *   2. Compute snapshot_age_hours (buildNowUtc - snapshot_utc) for reference.
+ *   3. Compute OddsConfidence per MSP S2.2: distance from snapshot_utc to
+ *      kickoffUtc — NOT from buildNowUtc. Pass kickoffUtc to
+ *      computeOddsConfidence() directly.
  *   4. Return CanonicalOddsSnapshot.
  *
  * The well-formedness check (overround within [1.00, 1.15], MSP S4.1) is
@@ -235,13 +241,16 @@ export function selectBenchmarkProvider(
  * by using the OddsQuality check from types.ts.
  *
  * @param records      All OddsRecords for the match (from raw store).
- * @param buildNowUtc  Temporal anchor for as-of filtering.
+ * @param buildNowUtc  Temporal anchor for as-of filtering (strict < snapshot_utc).
  * @param role         'feature' or 'benchmark' — determines provider selection.
+ * @param kickoffUtc   Scheduled kickoff time used to compute capture-to-kickoff
+ *                     distance per MSP S2.2. Must be a valid ISO-8601 UTC string.
  */
 export function getCanonicalOddsSnapshot(
   records: OddsRecord[],
   buildNowUtc: string,
   role: ProviderRole,
+  kickoffUtc: string,
 ): CanonicalOddsSnapshot | null {
   // Select best record for the requested role.
   const selected =
@@ -261,13 +270,16 @@ export function getCanonicalOddsSnapshot(
     selected.odds_away,
   );
 
-  // Compute snapshot age in hours (non-negative; snapshot_utc < buildNowUtc is guaranteed).
+  // Compute snapshot age in hours (buildNowUtc - snapshot_utc) for reference only.
+  // This field is retained in the output for diagnostics but is NOT used for
+  // confidence classification per MSP S2.2.
   const snapshotMs = new Date(selected.snapshot_utc).getTime();
   const buildMs = new Date(buildNowUtc).getTime();
   const snapshot_age_hours = Math.max(0, (buildMs - snapshotMs) / (1000 * 3600));
 
-  // Confidence from snapshot age.
-  const confidence = computeOddsConfidence(snapshot_age_hours);
+  // Confidence per MSP S2.2: distance from snapshot capture to KICKOFF.
+  // Correct reference point: (kickoffUtc - snapshot_utc), not (buildNowUtc - snapshot_utc).
+  const confidence = computeOddsConfidence(selected.snapshot_utc, kickoffUtc);
 
   return {
     match_id: selected.match_id,

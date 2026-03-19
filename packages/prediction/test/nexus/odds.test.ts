@@ -179,7 +179,7 @@ describe('Canonical Serving View', () => {
     const records = [
       makeRecord('m1', 'pinnacle', '2025-01-16T10:00:00Z', [2.5, 3.2, 2.8]), // future
     ];
-    const result = getCanonicalOddsSnapshot(records, '2025-01-15T10:00:00Z', 'feature');
+    const result = getCanonicalOddsSnapshot(records, '2025-01-15T10:00:00Z', 'feature', '2025-01-16T15:00:00Z');
     expect(result).toBeNull();
   });
 
@@ -189,7 +189,7 @@ describe('Canonical Serving View', () => {
     const records = [
       makeRecord('m1b', 'pinnacle', buildNow, [2.5, 3.2, 2.8]),
     ];
-    const result = getCanonicalOddsSnapshot(records, buildNow, 'feature');
+    const result = getCanonicalOddsSnapshot(records, buildNow, 'feature', '2025-01-16T15:00:00Z');
     expect(result).toBeNull();
   });
 
@@ -199,7 +199,7 @@ describe('Canonical Serving View', () => {
       makeRecord('m2', 'pinnacle', '2025-01-14T10:00:00Z', [2.5, 3.2, 2.8]),
       makeRecord('m2', 'bet365', '2025-01-15T10:00:00Z', [2.4, 3.1, 2.9]), // more recent
     ];
-    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'benchmark');
+    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'benchmark', '2025-01-17T15:00:00Z');
     expect(result).not.toBeNull();
     expect(result!.provider).toBe('pinnacle');
     expect(result!.provider).not.toBe('bet365');
@@ -211,21 +211,64 @@ describe('Canonical Serving View', () => {
       makeRecord('m3', 'pinnacle', '2025-01-15T08:00:00Z', [2.5, 3.2, 2.8]),
       makeRecord('m3', 'bet365', '2025-01-15T09:00:00Z', [2.4, 3.1, 2.9]),
     ];
-    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature');
+    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature', '2025-01-17T15:00:00Z');
     expect(result).not.toBeNull();
     expect(result!.provider).toBe('pinnacle');
   });
 
-  // ODS-08: Confidence thresholds
-  test('ODS-08: confidence thresholds — HIGH / MEDIUM / LOW / DEACTIVATED', () => {
-    expect(computeOddsConfidence(12)).toBe('HIGH');       // < 24h
-    expect(computeOddsConfidence(23.9)).toBe('HIGH');
-    expect(computeOddsConfidence(24)).toBe('MEDIUM');     // exactly 24h → MEDIUM
-    expect(computeOddsConfidence(36)).toBe('MEDIUM');     // 24-72h
-    expect(computeOddsConfidence(71.9)).toBe('MEDIUM');
-    expect(computeOddsConfidence(72)).toBe('LOW');        // exactly 72h → LOW
-    expect(computeOddsConfidence(96)).toBe('LOW');        // > 72h
-    expect(computeOddsConfidence(Infinity)).toBe('DEACTIVATED');
+  // ODS-08: Confidence thresholds (MSP S2.2 — distance from snapshot to kickoff)
+  // Confidence is determined by (kickoffUtc - snapshotUtc), NOT by how old the
+  // snapshot is relative to buildNowUtc.
+  test('ODS-08: confidence thresholds — HIGH / MEDIUM / LOW', () => {
+    // Anchor kickoff at a fixed time; vary snapshotUtc to control distance.
+    const kickoff = '2025-01-16T15:00:00Z';
+
+    // < 24h before kickoff → HIGH
+    // snapshot 12h before kickoff
+    expect(computeOddsConfidence('2025-01-16T03:00:00Z', kickoff)).toBe('HIGH');
+    // snapshot 23.9h before kickoff (just under threshold)
+    expect(computeOddsConfidence('2025-01-15T15:06:00Z', kickoff)).toBe('HIGH');
+
+    // exactly 24h before kickoff → MEDIUM (boundary: 24h is NOT < 24h)
+    expect(computeOddsConfidence('2025-01-15T15:00:00Z', kickoff)).toBe('MEDIUM');
+
+    // 24–72h before kickoff → MEDIUM
+    expect(computeOddsConfidence('2025-01-15T03:00:00Z', kickoff)).toBe('MEDIUM'); // 36h
+    expect(computeOddsConfidence('2025-01-13T15:06:00Z', kickoff)).toBe('MEDIUM'); // ~71.9h
+
+    // exactly 72h before kickoff → LOW (boundary: 72h is NOT < 72h)
+    expect(computeOddsConfidence('2025-01-13T15:00:00Z', kickoff)).toBe('LOW');
+
+    // > 72h before kickoff → LOW
+    expect(computeOddsConfidence('2025-01-12T15:00:00Z', kickoff)).toBe('LOW');    // 96h
+  });
+
+  // ODS-08b: MSP S2.2 — kickoff-relative semantics (FINDING-003 fix verification)
+  // These three tests prove that confidence reflects time-to-kickoff, not snapshot age.
+  test('ODS-08b: HIGH when snapshot is 48h old but kickoff is only 2h away', () => {
+    // Snapshot captured 48h ago, but kickoff is in 2h.
+    // By spec: distance = kickoff - snapshot = 50h → MEDIUM.
+    // But with old (wrong) logic: age from buildNow = 48h → MEDIUM.
+    // The key case: snapshot is from 2h before kickoff (HIGH), captured 50h ago.
+    const kickoff    = '2025-01-16T12:00:00Z';
+    const snapshotUtc = '2025-01-16T10:00:00Z'; // 2h before kickoff → HIGH
+    // Distance from snapshot to kickoff = 2h → HIGH.
+    expect(computeOddsConfidence(snapshotUtc, kickoff)).toBe('HIGH');
+  });
+
+  test('ODS-08c: LOW when snapshot was captured recently but kickoff is 80h away', () => {
+    // Snapshot captured 1h ago (very fresh relative to buildNow), but kickoff is 80h from snapshot.
+    const kickoff    = '2025-01-20T12:00:00Z';
+    const snapshotUtc = '2025-01-17T04:00:00Z'; // 80h before kickoff → LOW
+    // Distance from snapshot to kickoff = 80h → LOW.
+    expect(computeOddsConfidence(snapshotUtc, kickoff)).toBe('LOW');
+  });
+
+  test('ODS-08d: MEDIUM when kickoff is exactly 48h from snapshot (boundary)', () => {
+    // Distance from snapshot to kickoff = 48h → MEDIUM (24h ≤ 48h < 72h).
+    const kickoff    = '2025-01-18T12:00:00Z';
+    const snapshotUtc = '2025-01-16T12:00:00Z'; // exactly 48h before kickoff
+    expect(computeOddsConfidence(snapshotUtc, kickoff)).toBe('MEDIUM');
   });
 
   // ODS-09: Feature falls back to Bet365 when no Pinnacle
@@ -233,7 +276,7 @@ describe('Canonical Serving View', () => {
     const records = [
       makeRecord('m4', 'bet365', '2025-01-15T10:00:00Z', [2.4, 3.1, 2.9]),
     ];
-    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature');
+    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature', '2025-01-17T15:00:00Z');
     expect(result).not.toBeNull();
     expect(result!.provider).toBe('bet365');
   });
@@ -243,7 +286,7 @@ describe('Canonical Serving View', () => {
     const records = [
       makeRecord('m5', 'bet365', '2025-01-15T10:00:00Z', [2.4, 3.1, 2.9]),
     ];
-    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'benchmark');
+    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'benchmark', '2025-01-17T15:00:00Z');
     expect(result).toBeNull();
   });
 
@@ -252,7 +295,7 @@ describe('Canonical Serving View', () => {
     const records = [
       makeRecord('m6', 'pinnacle', '2025-01-15T10:00:00Z', [2.5, 3.2, 2.8]),
     ];
-    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature');
+    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature', '2025-01-17T15:00:00Z');
     expect(result).not.toBeNull();
     expect(result!.raw_record.match_id).toBe('m6');
     expect(result!.raw_record.snapshot_utc).toBe('2025-01-15T10:00:00Z');
@@ -262,10 +305,10 @@ describe('Canonical Serving View', () => {
     const records = [
       makeRecord('m7', 'pinnacle', '2025-01-15T10:00:00Z', [2.5, 3.2, 2.8]),
     ];
-    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature');
+    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature', '2025-01-17T15:00:00Z');
     expect(result).not.toBeNull();
     expect(result!.snapshot_age_hours).toBeGreaterThan(0);
-    // 24h gap: 2025-01-15T10 → 2025-01-16T10
+    // 24h gap: 2025-01-15T10 → 2025-01-16T10 (snapshot_age_hours is buildNow-relative, for diagnostics)
     expect(result!.snapshot_age_hours).toBeCloseTo(24, 5);
   });
 
@@ -274,14 +317,14 @@ describe('Canonical Serving View', () => {
       makeRecord('m8', 'pinnacle', '2025-01-13T10:00:00Z', [2.5, 3.2, 2.8]),
       makeRecord('m8', 'pinnacle', '2025-01-15T10:00:00Z', [2.3, 3.0, 3.1]), // newer
     ];
-    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature');
+    const result = getCanonicalOddsSnapshot(records, '2025-01-16T10:00:00Z', 'feature', '2025-01-17T15:00:00Z');
     expect(result).not.toBeNull();
     expect(result!.raw_record.snapshot_utc).toBe('2025-01-15T10:00:00Z');
   });
 
   test('empty records array returns null for both roles', () => {
-    expect(getCanonicalOddsSnapshot([], '2025-01-16T10:00:00Z', 'feature')).toBeNull();
-    expect(getCanonicalOddsSnapshot([], '2025-01-16T10:00:00Z', 'benchmark')).toBeNull();
+    expect(getCanonicalOddsSnapshot([], '2025-01-16T10:00:00Z', 'feature', '2025-01-17T15:00:00Z')).toBeNull();
+    expect(getCanonicalOddsSnapshot([], '2025-01-16T10:00:00Z', 'benchmark', '2025-01-17T15:00:00Z')).toBeNull();
   });
 
   test('selectFeatureProvider uses market_avg as last resort', () => {

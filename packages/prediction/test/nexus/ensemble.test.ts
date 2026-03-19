@@ -44,6 +44,9 @@ import {
   runNexusEnsemble,
 } from '../../src/nexus/ensemble/index.js';
 
+// Direct import for FINDING-005 test — fitNexusCalibration is not re-exported from index
+import { fitNexusCalibration } from '../../src/nexus/ensemble/ensemble-calibrator.js';
+
 import type {
   EnsembleTrainingRecord,
   Track12Output,
@@ -897,6 +900,125 @@ describe('T13 — Spec invariant: MIN_WEIGHT_TRACK12 = 0.20 (spec S7.4.4c)', () 
       const result = redistributeWeights(learned, t3Active, t4Active);
       expect(result.track12).toBeGreaterThanOrEqual(MIN_WEIGHT_TRACK12 - 1e-9);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T15. home/draw/away calibrators are independent (FINDING-005 — taxonomy spec S8.2)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Spec: "Three separate one-vs-rest calibrators: one for home, one for draw,
+// one for away. Each is an independent PAVA-fitted isotonic curve." (S8.2)
+//
+// The broken `fitNexusCalibration()` function assigned `homePoints` to all three
+// classes. This test uses `fitNexusCalibrationFromTriplets()` (the correct path)
+// and verifies that home and draw calibrators produce different curves when the
+// class-specific data differs. It also verifies `fitNexusCalibration()` throws.
+
+describe('T15 — home/draw/away calibrators are independent (FINDING-005, spec S8.2)', () => {
+  /**
+   * Build a CalibrationTripletBundle where home_prob varies but draw_prob is constant.
+   * After PAVA fitting, the home calibrator must be different from the draw calibrator.
+   */
+  function buildAsymmetricBundle(n: number, league: string): CalibrationTripletBundle {
+    const homeData: CalibrationDataPoint[] = [];
+    const drawData: CalibrationDataPoint[] = [];
+    const awayData: CalibrationDataPoint[] = [];
+
+    for (let i = 0; i < n; i++) {
+      const outcome = (['home', 'draw', 'away'] as const)[i % 3]!;
+      const date = `2023-${String((i % 12) + 1).padStart(2, '0')}-15T00:00:00Z`;
+
+      // home_prob varies widely (0.20 to 0.80): PAVA will produce a distinct curve
+      homeData.push({
+        rawProb: 0.20 + (i % 10) * 0.06,
+        isActual: outcome === 'home' ? 1 : 0,
+        matchUtcDate: date,
+        leagueCode: league,
+      });
+
+      // draw_prob is constant at 0.30: PAVA on constant input produces a flat line
+      drawData.push({
+        rawProb: 0.30,
+        isActual: outcome === 'draw' ? 1 : 0,
+        matchUtcDate: date,
+        leagueCode: league,
+      });
+
+      awayData.push({
+        rawProb: 0.20 + (i % 7) * 0.08,
+        isActual: outcome === 'away' ? 1 : 0,
+        matchUtcDate: date,
+        leagueCode: league,
+      });
+    }
+
+    return { homeData, drawData, awayData };
+  }
+
+  it('home calibrator differs from draw calibrator when class data differs', () => {
+    const perLeague = new Map([['PD', buildAsymmetricBundle(400, 'PD')]]);
+    const tables = fitNexusCalibrationFromTriplets(perLeague, '2024-01-01T00:00:00Z');
+
+    const table = tables.get('PD')!;
+    expect(table).toBeDefined();
+
+    const homePoints = table.calibrators.home;
+    const drawPoints = table.calibrators.draw;
+
+    // Draw calibrator trained on constant 0.30 input collapses to a single block.
+    // Home calibrator trained on varying input produces multiple distinct points.
+    // They cannot be identical when the source data is structurally different.
+    const homeJson = JSON.stringify(homePoints);
+    const drawJson = JSON.stringify(drawPoints);
+
+    expect(homeJson).not.toBe(drawJson);
+  });
+
+  it('home calibrator differs from away calibrator when class data differs', () => {
+    const perLeague = new Map([['PL', buildAsymmetricBundle(400, 'PL')]]);
+    const tables = fitNexusCalibrationFromTriplets(perLeague, '2024-01-01T00:00:00Z');
+
+    const table = tables.get('PL')!;
+    const homeJson = JSON.stringify(table.calibrators.home);
+    const awayJson = JSON.stringify(table.calibrators.away);
+
+    expect(homeJson).not.toBe(awayJson);
+  });
+
+  it('global calibrators (home/draw/away) are each independently fitted', () => {
+    // Use asymmetric data so global calibrators will differ between classes.
+    // home_prob varies (0.20..0.80); draw_prob is constant (0.30).
+    // After PAVA on the same input, the two curves will have different calProb
+    // distributions because they encode different one-vs-rest targets (isActual).
+    const perLeague = new Map([
+      ['PD', buildAsymmetricBundle(100, 'PD')],  // < 300, contributes to global only
+      ['PL', buildAsymmetricBundle(100, 'PL')],
+    ]);
+    const tables = fitNexusCalibrationFromTriplets(perLeague, '2024-01-01T00:00:00Z');
+
+    const global = tables.get('global')!;
+    expect(global).toBeDefined();
+
+    // Each class must be an independently fitted curve.
+    // The draw curve (constant rawProb=0.30) and home curve (variable rawProb) must differ.
+    expect(JSON.stringify(global.calibrators.home)).not.toBe(
+      JSON.stringify(global.calibrators.draw),
+    );
+
+    // The home and away curves must also differ from each other (different isActual targets).
+    expect(JSON.stringify(global.calibrators.home)).not.toBe(
+      JSON.stringify(global.calibrators.away),
+    );
+  });
+
+  it('fitNexusCalibration() throws NotImplementedError (FINDING-005: broken function removed)', () => {
+    // The broken fitNexusCalibration() must not be callable — it would silently
+    // assign homePoints to draw and away, violating taxonomy spec S8.2.
+    // It now throws an explicit error to prevent silent misuse.
+    expect(() =>
+      fitNexusCalibration([], '2024-01-01T00:00:00Z'),
+    ).toThrow(/fitNexusCalibration\(\) is not implemented/);
   });
 });
 

@@ -119,14 +119,17 @@ function loadOddsRecordsSync(matchId: string): OddsRecord[] {
  * Derive Track4EnsembleInput from raw odds records for a match.
  * Uses getCanonicalOddsSnapshot with 'feature' role.
  * Returns DEACTIVATED when no snapshot is available.
+ *
+ * @param kickoffUtc Scheduled kickoff time — required by MSP S2.2 to compute
+ *                   confidence as (kickoffUtc - snapshot_utc), not snapshot age.
  */
-function deriveTrack4Input(matchId: string, buildNowUtc: string): Track4EnsembleInput {
+function deriveTrack4Input(matchId: string, buildNowUtc: string, kickoffUtc: string): Track4EnsembleInput {
   const records = loadOddsRecordsSync(matchId);
   if (records.length === 0) {
     return { status: 'DEACTIVATED' };
   }
 
-  const snapshot = getCanonicalOddsSnapshot(records, buildNowUtc, 'feature');
+  const snapshot = getCanonicalOddsSnapshot(records, buildNowUtc, 'feature', kickoffUtc);
   if (snapshot === null) {
     return { status: 'DEACTIVATED' };
   }
@@ -392,7 +395,9 @@ function predictMatch(
     const track3 = null;
 
     // Step 5: Track 4 — attempt odds from raw store
-    const track4 = deriveTrack4Input(match.matchId, buildNowUtc);
+    // Pass kickoffUtc (match.startTimeUtc) per MSP S2.2: confidence is
+    // computed as (kickoffUtc - snapshot_utc), not (buildNowUtc - snapshot_utc).
+    const track4 = deriveTrack4Input(match.matchId, buildNowUtc, match.startTimeUtc);
 
     // Step 6: Meta-ensemble
     const ensembleOutput = runNexusEnsemble(

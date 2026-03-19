@@ -483,6 +483,118 @@ describe('T-10: live_shadow condition is non-substitutable', () => {
   });
 });
 
+// ── T-21: Per-league live_shadow check (not aggregate) — FINDING-004 ─────────
+//
+// Spec §S6.2: "≥ 100 predictions per production league in the live_shadow slice."
+// This is a PER-LEAGUE constraint ONLY. No aggregate check is authorized.
+// Gate must fail when one league has < 100 live_shadow even if the aggregate total ≥ 100.
+
+describe('T-21: Gate fails by per-league live_shadow check, not by aggregate total (FINDING-004)', () => {
+  it('fails on INSUFFICIENT_LIVE_SHADOW when one league has 80 but total is 230', () => {
+    // Liga A: live_shadow n=80 (< 100 threshold)
+    // Liga B: live_shadow n=150 (≥ 100)
+    // Total: 230 — well above the per-league threshold of 100
+    // Expected: gate FAILS because liga A violates the per-league minimum
+    const input: GateEvaluationInput = {
+      ...buildPassingInput(),
+      liveShadowN: 230,
+      leagueSummaries: [
+        {
+          competitionId: 'comp:football-data:PD',
+          n: 250,
+          nLiveShadow: 80,       // below 100 per-league threshold
+          matchdayCount: 12,
+          nexusRps: 0.198,
+          v3Rps: 0.210,
+        },
+        {
+          competitionId: 'comp:football-data:PL',
+          n: 240,
+          nLiveShadow: 150,      // above threshold
+          matchdayCount: 11,
+          nexusRps: 0.201,
+          v3Rps: 0.216,
+        },
+      ],
+    };
+    const result = evaluatePromotionGate(input, NOW);
+
+    expect(result.passed).toBe(false);
+    expect(result.failedConditions).toContain(GATE_CONDITION.INSUFFICIENT_LIVE_SHADOW);
+  });
+
+  it('passes live_shadow check when all leagues individually meet ≥ 100', () => {
+    // All per-league live_shadow values ≥ 100 — gate should pass live_shadow condition
+    const input: GateEvaluationInput = {
+      ...buildPassingInput(),
+      leagueSummaries: buildPassingInput().leagueSummaries.map((ls) => ({
+        ...ls,
+        nLiveShadow: 105,   // each league individually meets the 100 threshold
+      })),
+    };
+    const result = evaluatePromotionGate(input, NOW);
+
+    expect(result.failedConditions).not.toContain(GATE_CONDITION.INSUFFICIENT_LIVE_SHADOW);
+  });
+
+  it('aggregate total does not substitute individual per-league check: 0+0+300 total fails', () => {
+    // Two leagues have 0 live_shadow, one has 300. Total = 300 ≥ 100, but two leagues fail.
+    const input: GateEvaluationInput = {
+      ...buildPassingInput(),
+      liveShadowN: 300,
+      leagueSummaries: [
+        {
+          competitionId: 'comp:football-data:PD',
+          n: 250,
+          nLiveShadow: 0,    // fails per-league
+          matchdayCount: 12,
+          nexusRps: 0.198,
+          v3Rps: 0.210,
+        },
+        {
+          competitionId: 'comp:football-data:PL',
+          n: 240,
+          nLiveShadow: 0,    // fails per-league
+          matchdayCount: 11,
+          nexusRps: 0.201,
+          v3Rps: 0.216,
+        },
+        {
+          competitionId: 'comp:football-data:BL1',
+          n: 210,
+          nLiveShadow: 300,  // passes per-league
+          matchdayCount: 10,
+          nexusRps: 0.203,
+          v3Rps: 0.218,
+        },
+      ],
+    };
+    const result = evaluatePromotionGate(input, NOW);
+
+    expect(result.passed).toBe(false);
+    expect(result.failedConditions).toContain(GATE_CONDITION.INSUFFICIENT_LIVE_SHADOW);
+  });
+
+  it('INSUFFICIENT_LIVE_SHADOW appears exactly once (no duplicate) even when per-league fails', () => {
+    // The removed aggregate check could produce a duplicate condition entry. Verify it does not.
+    const input: GateEvaluationInput = {
+      ...buildPassingInput(),
+      liveShadowN: 50,
+      leagueSummaries: buildPassingInput().leagueSummaries.map((ls) => ({
+        ...ls,
+        nLiveShadow: 15,  // well below 100
+      })),
+    };
+    const result = evaluatePromotionGate(input, NOW);
+
+    const liveShadowFailures = result.failedConditions.filter(
+      (c) => c === GATE_CONDITION.INSUFFICIENT_LIVE_SHADOW,
+    );
+    // Must appear exactly once — no duplicate from a spurious aggregate check
+    expect(liveShadowFailures).toHaveLength(1);
+  });
+});
+
 // ── T-11: Gate fails — accuracy regression ────────────────────────────────────
 
 describe('T-11: Gate fails — accuracy regression beyond tolerance', () => {

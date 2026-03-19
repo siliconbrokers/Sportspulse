@@ -194,6 +194,15 @@ export type {
 } from './nexus/ensemble/index.js';
 export type { DataQualityTier } from './nexus/feature-store/index.js';
 
+// ── NEXUS startup-init exports (FINDING-008: replaces direct relative imports) ─
+// Allows server/prediction/nexus-startup-init.ts to import via @sportpulse/prediction
+// instead of bypassing the workspace boundary with relative paths.
+export { buildTrack3FeatureVector } from './nexus/track3/context-features.js';
+export { MISSING } from './nexus/feature-store/index.js';
+export type { FeatureValue } from './nexus/feature-store/index.js';
+export { appendOddsRecord } from './nexus/odds/raw-odds-store.js';
+export type { OddsRecord, OddsProvider } from './nexus/odds/types.js';
+
 // NEXUS Scorecards — Phase 4 evaluation infrastructure
 export {
   appendScorecardEntry,

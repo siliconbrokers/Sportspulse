@@ -128,15 +128,6 @@ export function evaluatePromotionGate(
     failed.push(GATE_CONDITION.INSUFFICIENT_LIVE_SHADOW);
   }
 
-  // Also check absolute live_shadow total (prompt test 10: live_shadow.n < 100 total)
-  // The spec specifies per-league; the total check is an additional guard.
-  if (input.liveShadowN < volumeReq.minLiveShadowPerLeague) {
-    // Only push if not already added via per-league check
-    if (!failed.includes(GATE_CONDITION.INSUFFICIENT_LIVE_SHADOW)) {
-      failed.push(GATE_CONDITION.INSUFFICIENT_LIVE_SHADOW);
-    }
-  }
-
   // Season phases (S6.2 + S4.4)
   if (input.seasonPhaseCount < volumeReq.minSeasonPhases) {
     failed.push(GATE_CONDITION.INSUFFICIENT_SEASON_PHASES);
