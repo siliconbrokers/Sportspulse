@@ -137,7 +137,7 @@ export const DEFAULT_CONFIG: PortalConfig = {
       accentColor: '#1a1a6e',
       isTournament: false,
       logoUrl: 'https://r2.thesportsdb.com/images/media/league/badge/mav5rx1686157960.png',
-      seasonLabel: '2026',
+      seasonLabel: '25/26',
     },
   ],
   features: { tv: true, predictions: true },

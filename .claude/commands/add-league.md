@@ -205,13 +205,27 @@ Fix any errors before reporting done.
 
 ---
 
+## Step 9b — Restart dev server
+
+After a successful build, restart the dev server automatically using the designated script:
+
+```bash
+pnpm dev:restart
+```
+
+This script (`scripts/dev-restart.sh`) kills all previous processes, waits for port cleanup, and starts fresh. The admin panel will show the new league on the next page reload.
+
+**Why this is mandatory:** the portal-config store merges new registry entries at server startup. Without a restart, the admin panel won't show the new league.
+
+---
+
 ## Step 10 — Report result
 
 Report:
 1. The 3 files edited, one line each describing the change
 2. Build and typecheck status
-3. Next steps:
-   - Deploy o reiniciar dev server
+3. Dev server restarted — new league visible in `/admin`
+4. Next steps:
    - Ir a `/admin` → activar la liga con el toggle
    - En la primera activación: el data source descarga la temporada actual (~2 requests a API-Football)
    - El motor predictivo empieza a generar predicciones shadow una vez hay partidos FINISHED
