@@ -1314,10 +1314,10 @@ async function main() {
 
   // ── Historical evaluation endpoint (H5) ────────────────────────────────────
   const historicalBacktestStore = new HistoricalBacktestStore();
-  registerHistoricalEvaluationRoute(app, historicalBacktestStore);
+  registerHistoricalEvaluationRoute(app, historicalBacktestStore, nexusShadowReader, evaluationStore);
 
   // ── Training lab endpoints (/labs/entrenamiento) ───────────────────────────
-  registerTrainingRoute(app);
+  registerTrainingRoute(app, nexusShadowReader);
 
   // ── GET /api/ui/stream-source ───────────────────────────────────────────────
   // Fetcha la página de canal en futbollibretv.su y devuelve las URLs del embed activo.

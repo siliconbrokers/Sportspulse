@@ -352,7 +352,7 @@ function AdminPanel({ token }: { token: string }) {
               <a href="/admin/ops" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
                 → Ver consumo de APIs (Ops)
               </a>
-              <a href="/labs" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
+              <a href="/labs/predicciones" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
                 → Labs · Pronósticos
               </a>
               <a href="/labs/evaluacion" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>

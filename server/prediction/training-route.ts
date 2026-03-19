@@ -16,6 +16,7 @@ import {
   getCoefficientsMetadata,
   startTraining,
 } from './training-runner.js';
+import { NexusShadowReader } from './nexus-shadow-reader.js';
 
 const COEFFICIENTS_PATH = path.join(process.cwd(), 'cache', 'logistic-coefficients.json');
 
@@ -24,7 +25,7 @@ function isEnabled(): boolean {
   return typeof val === 'string' && val.trim().length > 0;
 }
 
-export function registerTrainingRoute(app: FastifyInstance): void {
+export function registerTrainingRoute(app: FastifyInstance, nexusReader: NexusShadowReader): void {
 
   // ── GET /api/internal/training/status ──────────────────────────────────────
   app.get('/api/internal/training/status', async (_req: FastifyRequest, reply: FastifyReply) => {
@@ -94,5 +95,44 @@ export function registerTrainingRoute(app: FastifyInstance): void {
     } catch (err) {
       return reply.code(500).send({ error: 'Failed to read coefficients file.' });
     }
+  });
+
+  // ── GET /api/internal/training/nexus-info ──────────────────────────────────
+  app.get('/api/internal/training/nexus-info', async (_req: FastifyRequest, reply: FastifyReply) => {
+    reply.header('Cache-Control', 'no-store');
+
+    if (!isEnabled()) return reply.code(404).send({ error: 'Not available.' });
+
+    const all = nexusReader.findAll();
+    if (all.length === 0) {
+      return reply.send({ available: false, snapshotCount: 0 });
+    }
+
+    const latest = all[0]; // findAll() returns sorted desc
+
+    const competitionIds = [...new Set(all.map((s) => s.competition_id))];
+
+    // Extract fields from request_payload
+    const reqPayload = latest.request_payload as Record<string, unknown> | null;
+    const ensembleWeights = (reqPayload?.['weights'] as Record<string, number> | undefined) ?? null;
+    const featureSchemaVersion = (reqPayload?.['featureSchemaVersion'] as string | undefined) ?? null;
+    const datasetWindow = (reqPayload?.['datasetWindow'] as Record<string, unknown> | undefined) ?? null;
+
+    // Extract fields from response_payload
+    const resPayload = latest.response_payload as Record<string, unknown> | null;
+    const calibrationVersion = (resPayload?.['calibrationVersion'] as string | undefined) ?? null;
+
+    return reply.send({
+      available: true,
+      snapshotCount: all.length,
+      mostRecentAt: latest.generated_at,
+      competitionIds,
+      modelVersion: latest.engine_version,
+      calibrationVersion,
+      calibrationSource: latest.calibration_mode,
+      featureSchemaVersion,
+      datasetWindow,
+      ensembleWeights,
+    });
   });
 }

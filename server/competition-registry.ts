@@ -12,7 +12,7 @@
  * No debe tener hardcodeados IDs de proveedor ni colores.
  */
 
-export type SeasonKind = 'european' | 'calendar';
+export type SeasonKind = 'cross-year' | 'calendar';
 export type TournamentPhase = 'previa' | 'grupos' | 'eliminatorias';
 
 export interface CompetitionRegistryEntry {
@@ -103,7 +103,7 @@ export const COMPETITION_REGISTRY: CompetitionRegistryEntry[] = [
     accentColor:         '#f59e0b',
     logoUrl:             'https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png',
     seasonLabel:         '25/26',
-    seasonKind:          'european',
+    seasonKind:          'cross-year',
     isTournament:        false,
     expectedSeasonGames: 38,
     totalMatchdays:      38,
@@ -119,7 +119,7 @@ export const COMPETITION_REGISTRY: CompetitionRegistryEntry[] = [
     accentColor:         '#a855f7',
     logoUrl:             'https://r2.thesportsdb.com/images/media/league/badge/gasy9d1737743125.png',
     seasonLabel:         '25/26',
-    seasonKind:          'european',
+    seasonKind:          'cross-year',
     isTournament:        false,
     expectedSeasonGames: 38,
     totalMatchdays:      38,
@@ -135,7 +135,7 @@ export const COMPETITION_REGISTRY: CompetitionRegistryEntry[] = [
     accentColor:         '#ef4444',
     logoUrl:             'https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png',
     seasonLabel:         '25/26',
-    seasonKind:          'european',
+    seasonKind:          'cross-year',
     isTournament:        false,
     expectedSeasonGames: 34,
     totalMatchdays:      34,
@@ -182,7 +182,7 @@ export const COMPETITION_REGISTRY: CompetitionRegistryEntry[] = [
     accentColor:         '#1a1a6e',
     logoUrl:             'https://r2.thesportsdb.com/images/media/league/badge/mav5rx1686157960.png',
     seasonLabel:         '25/26',
-    seasonKind:          'european',
+    seasonKind:          'cross-year',
     isTournament:        false,
     expectedSeasonGames: 17,
     totalMatchdays:      17,
@@ -198,12 +198,12 @@ export const REGISTRY_BY_ID = new Map<string, CompetitionRegistryEntry>(
 
 /**
  * Devuelve el año de temporada AF dado un kickoff UTC y el tipo de calendario.
- * european: PD, PL, BL1 — la temporada 25/26 empieza en julio 2025.
+ * cross-year: PD, PL, BL1 — la temporada 25/26 empieza en julio 2025.
  * calendar: URU, AR, CLI, WC — año calendario del partido.
  */
 export function resolveAfSeason(kickoffUtc: string, seasonKind: SeasonKind): number {
   const d = new Date(kickoffUtc);
-  if (seasonKind === 'european') {
+  if (seasonKind === 'cross-year') {
     return d.getUTCMonth() < 6 ? d.getUTCFullYear() - 1 : d.getUTCFullYear();
   }
   return d.getUTCFullYear();

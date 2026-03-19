@@ -8,6 +8,8 @@
  *   B. DRAW collapse diagnosis
  *   C. Per-match table with filters
  *
+ * Engine selector: V3 | NEXUS | Comparar
+ *
  * H5 — Internal Evaluation UI
  */
 
@@ -19,9 +21,11 @@ import { ThemeToggle } from '../components/ThemeToggle.js';
 
 type Outcome = 'HOME_WIN' | 'DRAW' | 'AWAY_WIN';
 
+type EngineMode = 'v3' | 'nexus' | 'compare';
+
 type Snapshot = {
   snapshot_id: string;
-  source_type: 'HISTORICAL_BACKTEST';
+  source_type: 'HISTORICAL_BACKTEST' | 'NEXUS_SHADOW';
   competition_code: string;
   match_id: string;
   kickoff_utc: string;
@@ -126,6 +130,49 @@ type ApiResponse = {
   snapshots: Snapshot[];
 };
 
+// ── NEXUS types ────────────────────────────────────────────────────────────────
+
+interface NexusSnapshotRow {
+  match_id: string;
+  kickoff_utc: string;
+  predicted: string;
+  actual: string;
+  correct: boolean;
+  p_home: number;
+  p_draw: number;
+  p_away: number;
+}
+
+interface NexusReport {
+  accuracy: number | null;
+  brier_score: number | null;
+  log_loss: number | null;
+  total_evaluated: number;
+  snapshots: NexusSnapshotRow[];
+}
+
+interface NexusResponse {
+  source_type: 'NEXUS_SHADOW';
+  competition_code: string;
+  snapshot_count: number;
+  report: NexusReport;
+}
+
+interface OverlapInfo {
+  match_count: number;
+  v3_accuracy: number | null;
+  nexus_accuracy: number | null;
+  v3_brier: number | null;
+  nexus_brier: number | null;
+}
+
+interface CompareResponse {
+  mode: 'compare';
+  v3: object;
+  nexus: NexusResponse;
+  overlap: OverlapInfo;
+}
+
 // ── Per-row DRAW diagnostics ───────────────────────────────────────────────
 
 type DrawDiagRow = {
@@ -170,19 +217,20 @@ function computeDrawDiag(snap: Snapshot): DrawDiagRow {
 
 // ── Data fetching ─────────────────────────────────────────────────────────
 
-async function fetchHistoricalEvaluation(code = 'PD'): Promise<ApiResponse> {
+async function fetchHistoricalEvaluation(code = 'PD', engine: EngineMode = 'v3'): Promise<ApiResponse | NexusResponse | CompareResponse> {
   const url = new URL('/api/internal/historical-evaluation', window.location.origin);
   url.searchParams.set('competitionCode', code);
+  if (engine !== 'v3') url.searchParams.set('engine', engine);
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`HTTP ${res.status} — asegúrate de tener PREDICTION_INTERNAL_VIEW_ENABLED=true en .env`);
-  return res.json() as Promise<ApiResponse>;
+  return res.json() as Promise<ApiResponse | NexusResponse | CompareResponse>;
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────
 
 function fmtPct(v: number | null): string {
   if (v === null) return '—';
-  return `${(v * 100).toFixed(1)}%`;
+  return `${Math.round(v * 100)}%`;
 }
 function fmtNum(v: number | null, dp = 3): string {
   if (v === null) return '—';
@@ -195,6 +243,16 @@ function fmtDate(iso: string): string {
   } catch { return iso.slice(0, 16); }
 }
 function shortId(id: string): string {
+  return id.split(':').pop() ?? id;
+}
+function fmtResult(v: string | null): string {
+  if (v === null) return '—';
+  if (v === 'HOME_WIN') return 'Local';
+  if (v === 'DRAW') return 'Empate';
+  if (v === 'AWAY_WIN') return 'Visita';
+  return v;
+}
+function teamShort(id: string): string {
   return id.split(':').pop() ?? id;
 }
 function resultColor(r: string | null): string {
@@ -276,6 +334,18 @@ const BADGE_HBT: React.CSSProperties = {
   letterSpacing: '0.05em',
 };
 
+const BADGE_NEXUS_STYLE: React.CSSProperties = {
+  display: 'inline-block',
+  background: '#4a1d96',
+  color: '#c4b5fd',
+  border: '1px solid #7c3aed',
+  borderRadius: 4,
+  padding: '2px 7px',
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.05em',
+};
+
 // ── Small bar chart ───────────────────────────────────────────────────────
 
 function DistBar({ value, total, color, isDark }: { value: number; total: number; color: string; isDark: boolean }) {
@@ -332,15 +402,15 @@ function FilterBar({ filters, onChange, isDark }: { filters: Filters; onChange: 
       </select>
       <select style={sel} value={filters.actual} onChange={e => onChange({ ...filters, actual: e.target.value })}>
         <option value="">Todos los resultados</option>
-        <option value="HOME_WIN">HOME_WIN</option>
-        <option value="DRAW">DRAW</option>
-        <option value="AWAY_WIN">AWAY_WIN</option>
+        <option value="HOME_WIN">Local</option>
+        <option value="DRAW">Empate</option>
+        <option value="AWAY_WIN">Visita</option>
       </select>
       <select style={sel} value={filters.predicted} onChange={e => onChange({ ...filters, predicted: e.target.value })}>
         <option value="">Todas las predicciones</option>
-        <option value="HOME_WIN">pred HOME_WIN</option>
-        <option value="DRAW">pred DRAW</option>
-        <option value="AWAY_WIN">pred AWAY_WIN</option>
+        <option value="HOME_WIN">pred Local</option>
+        <option value="DRAW">pred Empate</option>
+        <option value="AWAY_WIN">pred Visita</option>
         <option value="null">pred null</option>
       </select>
       <select style={sel} value={filters.hit} onChange={e => onChange({ ...filters, hit: e.target.value })}>
@@ -386,7 +456,7 @@ function MatchTable({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: bool
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
           <thead>
             <tr>
-              {['Kickoff','Match','Actual','Pred','Hit?','Mode','p_H','p_D','p_A','xG H','xG A','Baseline','Elo H/A','365d'].map(h => (
+              {['Kickoff','Partido','Resultado','Pred.','Hit?','Mode','L','E','V','xG L','xG V','Baseline','Elo L/V','365d'].map(h => (
                 <th key={h} style={TH}>{h}</th>
               ))}
             </tr>
@@ -399,16 +469,18 @@ function MatchTable({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: bool
                 <tr key={s.snapshot_id}>
                   <td style={makeTD(isDark, i)}>{fmtDate(s.kickoff_utc)}</td>
                   <td style={makeTD(isDark, i)}>
-                    <span style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>{shortId(s.match_id)}</span>
-                    <span style={{ marginLeft: 6, color: isDark ? '#e2e8f0' : '#0f172a' }}>
+                    <span style={{ color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 11 }}>
+                      {teamShort(s.home_team_id)} vs {teamShort(s.away_team_id)}
+                    </span>
+                    <span style={{ marginLeft: 5, color: '#f59e0b', fontWeight: 600 }}>
                       {s.home_goals}–{s.away_goals}
                     </span>
                   </td>
                   <td style={{ ...makeTD(isDark, i), color: resultColor(s.actual_result), fontWeight: 600 }}>
-                    {s.actual_result.replace('_WIN','')}
+                    {fmtResult(s.actual_result)}
                   </td>
                   <td style={{ ...makeTD(isDark, i), color: resultColor(s.predicted_result) }}>
-                    {s.predicted_result ? s.predicted_result.replace('_WIN','') : '—'}
+                    {fmtResult(s.predicted_result)}
                   </td>
                   <td style={{ ...makeTD(isDark, i), textAlign: 'center' }}>
                     {s.predicted_result === null ? <span style={{ color: '#475569' }}>—</span>
@@ -419,13 +491,13 @@ function MatchTable({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: bool
                   <td style={{ ...makeTD(isDark, i), color: s.mode === 'FULL_MODE' ? '#60a5fa' : s.mode === 'LIMITED_MODE' ? '#f59e0b' : '#64748b', fontSize: 10 }}>
                     {s.mode.replace('_MODE','').replace('NOT_ELIGIBLE','N/E')}
                   </td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.p_home_win, 2)}</td>
-                  <td style={{ ...makeTD(isDark, i, true), color: s.actual_result === 'DRAW' ? '#f59e0b' : (isDark ? '#94a3b8' : '#64748b') }}>{fmtNum(s.p_draw, 2)}</td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.p_away_win, 2)}</td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.expected_goals_home, 2)}</td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.expected_goals_away, 2)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_home_win)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: s.actual_result === 'DRAW' ? '#f59e0b' : (isDark ? '#94a3b8' : '#64748b') }}>{fmtPct(s.p_draw)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_away_win)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.expected_goals_home, 1)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.expected_goals_away, 1)}</td>
                   <td style={{ ...makeTD(isDark, i), color: resultColor(s.baseline_predicted_result), fontSize: 10 }}>
-                    {s.baseline_predicted_result ? s.baseline_predicted_result.replace('_WIN','') : '—'}
+                    {fmtResult(s.baseline_predicted_result)}
                   </td>
                   <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
                     {s.elo_home_pre.toFixed(0)}/{s.elo_away_pre.toFixed(0)}
@@ -445,6 +517,143 @@ function MatchTable({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: bool
         )}
       </div>
     </>
+  );
+}
+
+// ── NEXUS snapshot table ───────────────────────────────────────────────────
+
+function NexusSnapshotTable({ snapshots, isDark }: { snapshots: NexusSnapshotRow[]; isDark: boolean }) {
+  const TH = makeTH(isDark);
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
+        <thead>
+          <tr>
+            {['Fecha', 'Partido', 'Predicción', 'Real', '¿Correcto?', 'Local', 'Empate', 'Visita'].map(h => (
+              <th key={h} style={TH}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {snapshots.map((s, i) => (
+            <tr key={`${s.match_id}-${i}`}>
+              <td style={makeTD(isDark, i)}>{fmtDate(s.kickoff_utc)}</td>
+              <td style={{ ...makeTD(isDark, i), color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>
+                {shortId(s.match_id)}
+              </td>
+              <td style={{ ...makeTD(isDark, i), color: resultColor(s.predicted) }}>
+                {fmtResult(s.predicted)}
+              </td>
+              <td style={{ ...makeTD(isDark, i), color: resultColor(s.actual), fontWeight: 600 }}>
+                {fmtResult(s.actual)}
+              </td>
+              <td style={{ ...makeTD(isDark, i), textAlign: 'center' }}>
+                {s.correct
+                  ? <span style={{ color: '#22c55e', fontWeight: 700 }}>✓</span>
+                  : <span style={{ color: '#ef4444', fontWeight: 700 }}>✗</span>
+                }
+              </td>
+              <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_home)}</td>
+              <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_draw)}</td>
+              <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_away)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {snapshots.length === 0 && (
+        <div style={{ padding: '20px 0', textAlign: 'center', color: '#475569', fontSize: 12 }}>
+          No hay snapshots NEXUS disponibles.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── NEXUS panel ───────────────────────────────────────────────────────────
+
+function NexusPanel({ data, isDark }: { data: NexusResponse; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
+  const SECTION_TITLE = makeSectionTitle(isDark);
+  const r = data.report;
+
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, marginBottom: 12 }}>
+        <div style={PANEL}>
+          <div style={{ fontSize: 10, color: '#a78bfa', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 4 }}>Accuracy</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#c4b5fd' }}>{fmtPct(r.accuracy)}</div>
+        </div>
+        <div style={PANEL}>
+          <div style={{ fontSize: 10, color: '#a78bfa', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 4 }}>Brier Score</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#c4b5fd' }}>{fmtNum(r.brier_score)}</div>
+        </div>
+        <div style={PANEL}>
+          <div style={{ fontSize: 10, color: '#a78bfa', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 4 }}>Log Loss</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#c4b5fd' }}>{fmtNum(r.log_loss)}</div>
+        </div>
+        <div style={PANEL}>
+          <div style={{ fontSize: 10, color: '#a78bfa', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 4 }}>Evaluados</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#c4b5fd' }}>{r.total_evaluated}</div>
+        </div>
+      </div>
+      <div style={PANEL}>
+        <div style={{ ...SECTION_TITLE, marginTop: 0 }}>Snapshots NEXUS</div>
+        <NexusSnapshotTable snapshots={r.snapshots} isDark={isDark} />
+      </div>
+    </>
+  );
+}
+
+// ── Compare panel ─────────────────────────────────────────────────────────
+
+function ComparePanel({ data, isDark }: { data: CompareResponse; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
+  const o = data.overlap;
+
+  return (
+    <div style={PANEL}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a', marginBottom: 12 }}>
+        Comparacion V3 vs NEXUS — {o.match_count} partidos en overlap
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+        {/* Accuracy */}
+        <div style={{ background: isDark ? '#1a1a1a' : '#f8fafc', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Accuracy</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 10, color: '#60a5fa', marginBottom: 2 }}>V3</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#60a5fa' }}>{fmtPct(o.v3_accuracy)}</div>
+            </div>
+            <div style={{ color: isDark ? '#334155' : '#cbd5e1', fontSize: 20 }}>vs</div>
+            <div style={{ textAlign: 'right' as const }}>
+              <div style={{ fontSize: 10, color: '#a78bfa', marginBottom: 2 }}>NEXUS</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#a78bfa' }}>{fmtPct(o.nexus_accuracy)}</div>
+            </div>
+          </div>
+        </div>
+        {/* Brier */}
+        <div style={{ background: isDark ? '#1a1a1a' : '#f8fafc', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Brier Score</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 10, color: '#60a5fa', marginBottom: 2 }}>V3</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#60a5fa' }}>{fmtNum(o.v3_brier)}</div>
+            </div>
+            <div style={{ color: isDark ? '#334155' : '#cbd5e1', fontSize: 20 }}>vs</div>
+            <div style={{ textAlign: 'right' as const }}>
+              <div style={{ fontSize: 10, color: '#a78bfa', marginBottom: 2 }}>NEXUS</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#a78bfa' }}>{fmtNum(o.nexus_brier)}</div>
+            </div>
+          </div>
+        </div>
+        {/* Match count */}
+        <div style={{ background: isDark ? '#1a1a1a' : '#f8fafc', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Partidos en Overlap</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>{o.match_count}</div>
+          <div style={{ fontSize: 10, color: isDark ? '#475569' : '#94a3b8', marginTop: 4 }}>evaluados en ambos motores</div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -509,7 +718,7 @@ function DrawDiagnosisPanel({ snapshots, isDark }: { snapshots: Snapshot[]; isDa
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['Kickoff','Score','Mode','Predicted','p_H','p_D','p_A','Top-1','Top-2','top1−top2','sel−draw','xG H/A'].map(h => (
+                {['Kickoff','Score','Mode','Pred.','L','E','V','Top-1','Top-2','Δtop1-2','Δsel-draw','xG L/V'].map(h => (
                   <th key={h} style={TH}>{h}</th>
                 ))}
               </tr>
@@ -523,7 +732,7 @@ function DrawDiagnosisPanel({ snapshots, isDark }: { snapshots: Snapshot[]; isDa
                   <tr key={row.snap.snapshot_id}>
                     <td style={makeTD(isDark, i)}>{fmtDate(row.snap.kickoff_utc)}</td>
                     <td style={makeTD(isDark, i)}>
-                      <span style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>{shortId(row.snap.match_id)}</span>
+                      <span style={{ color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 11 }}>{teamShort(row.snap.home_team_id)} vs {teamShort(row.snap.away_team_id)}</span>
                       <span style={{ marginLeft: 5, color: '#f59e0b', fontWeight: 600 }}>
                         {row.snap.home_goals}–{row.snap.away_goals}
                       </span>
@@ -532,21 +741,21 @@ function DrawDiagnosisPanel({ snapshots, isDark }: { snapshots: Snapshot[]; isDa
                       {row.snap.mode.replace('_MODE','').replace('NOT_ELIGIBLE','N/E')}
                     </td>
                     <td style={{ ...makeTD(isDark, i), color: resultColor(row.snap.predicted_result) }}>
-                      {row.snap.predicted_result ? row.snap.predicted_result.replace('_WIN','') : '—'}
+                      {fmtResult(row.snap.predicted_result)}
                     </td>
-                    <td style={makeTD(isDark, i, true)}>{fmtNum(row.snap.p_home_win, 3)}</td>
+                    <td style={makeTD(isDark, i, true)}>{fmtPct(row.snap.p_home_win)}</td>
                     <td style={{ ...makeTD(isDark, i, true), color: '#f59e0b', fontWeight: 600 }}>
-                      {fmtNum(row.snap.p_draw, 3)}
+                      {fmtPct(row.snap.p_draw)}
                     </td>
-                    <td style={makeTD(isDark, i, true)}>{fmtNum(row.snap.p_away_win, 3)}</td>
-                    <td style={{ ...makeTD(isDark, i), color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>{row.top1_class.replace('_WIN','')}</td>
-                    <td style={{ ...makeTD(isDark, i), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>{row.top2_class.replace('_WIN','')}</td>
+                    <td style={makeTD(isDark, i, true)}>{fmtPct(row.snap.p_away_win)}</td>
+                    <td style={{ ...makeTD(isDark, i), color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>{fmtResult(row.top1_class)}</td>
+                    <td style={{ ...makeTD(isDark, i), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>{fmtResult(row.top2_class)}</td>
                     <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(row.top1_minus_top2, 3)}</td>
                     <td style={{ ...makeTD(isDark, i, true), color: selColor, fontWeight: 700 }}>
                       {row.selected_minus_draw !== null ? fmtNum(row.selected_minus_draw, 3) : '—'}
                     </td>
                     <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
-                      {fmtNum(row.snap.expected_goals_home, 2)}/{fmtNum(row.snap.expected_goals_away, 2)}
+                      {fmtNum(row.snap.expected_goals_home, 1)}/{fmtNum(row.snap.expected_goals_away, 1)}
                     </td>
                   </tr>
                 );
@@ -841,15 +1050,35 @@ export function HistoricalEvaluationLabPage() {
   const ROOT = makeRoot(isDark);
   const PANEL = makePanel(isDark);
   const [data, setData] = useState<ApiResponse | null>(null);
+  const [nexusData, setNexusData] = useState<NexusResponse | null>(null);
+  const [compareData, setCompareData] = useState<CompareResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'summary' | 'draws' | 'table'>('summary');
+  const [engineMode, setEngineMode] = useState<EngineMode>('v3');
 
   useEffect(() => {
-    fetchHistoricalEvaluation('PD')
-      .then(d => { setData(d); setLoading(false); })
+    setLoading(true);
+    setError(null);
+    fetchHistoricalEvaluation('PD', engineMode)
+      .then(result => {
+        if (engineMode === 'v3') {
+          setData(result as ApiResponse);
+          setNexusData(null);
+          setCompareData(null);
+        } else if (engineMode === 'nexus') {
+          setNexusData(result as NexusResponse);
+          setData(null);
+          setCompareData(null);
+        } else {
+          setCompareData(result as CompareResponse);
+          setData(null);
+          setNexusData(null);
+        }
+        setLoading(false);
+      })
       .catch(e => { setError(String(e)); setLoading(false); });
-  }, []);
+  }, [engineMode]);
 
   const tabBtn = (key: typeof tab, label: string): React.CSSProperties => ({
     padding: '6px 14px',
@@ -863,15 +1092,20 @@ export function HistoricalEvaluationLabPage() {
     outline: 'none',
   });
 
+  const snapshotCount = data?.snapshot_count ?? nexusData?.snapshot_count ?? 0;
+
   return (
     <div style={ROOT}>
       {/* Header */}
       <div style={{ ...PANEL, borderColor: '#1e3a5f', background: '#0f1923', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span style={BADGE_HBT}>HISTORICAL BACKTEST</span>
+          {engineMode === 'nexus'
+            ? <span style={BADGE_NEXUS_STYLE}>NEXUS SHADOW</span>
+            : <span style={BADGE_HBT}>HISTORICAL BACKTEST</span>
+          }
           <strong style={{ color: '#60a5fa', fontSize: 14 }}>Evaluación Histórica — Lab Interno</strong>
           <span style={{ color: '#475569', fontSize: 11, marginLeft: 8 }}>
-            source_type = HISTORICAL_BACKTEST · LaLiga (PD)
+            {engineMode === 'nexus' ? 'source_type = NEXUS_SHADOW' : 'source_type = HISTORICAL_BACKTEST'} · LaLiga (PD)
           </span>
           <span style={{
             marginLeft: 'auto',
@@ -882,13 +1116,31 @@ export function HistoricalEvaluationLabPage() {
             padding: '2px 7px',
             fontWeight: 700,
           }}>
-            ⛔ NO MEZCLA con datos forward (EvaluationRecord)
+            NO MEZCLA con datos forward (EvaluationRecord)
           </span>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
-        {data && (
+
+        {/* Engine mode selector */}
+        <div className="flex gap-2 flex-wrap mt-2">
+          {(['v3', 'nexus', 'compare'] as EngineMode[]).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setEngineMode(mode)}
+              className={`px-3 py-1 rounded text-xs font-semibold border transition-colors ${
+                engineMode === mode
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-transparent text-indigo-400 border-indigo-600 hover:bg-indigo-900'
+              }`}
+            >
+              {mode === 'v3' ? 'V3' : mode === 'nexus' ? 'NEXUS' : 'Comparar'}
+            </button>
+          ))}
+        </div>
+
+        {snapshotCount > 0 && (
           <div style={{ marginTop: 6, color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
-            {data.snapshot_count} snapshots · generado {new Date(data.report.exclusion_breakdown.total_snapshots > 0 ? Date.now() : 0).toLocaleString()}
+            {snapshotCount} snapshots
           </div>
         )}
       </div>
@@ -909,7 +1161,18 @@ export function HistoricalEvaluationLabPage() {
         </div>
       )}
 
-      {data && (
+      {/* NEXUS view */}
+      {!loading && !error && engineMode === 'nexus' && nexusData && (
+        <NexusPanel data={nexusData} isDark={isDark} />
+      )}
+
+      {/* Compare view */}
+      {!loading && !error && engineMode === 'compare' && compareData && (
+        <ComparePanel data={compareData} isDark={isDark} />
+      )}
+
+      {/* V3 view */}
+      {!loading && !error && engineMode === 'v3' && data && (
         <>
           {/* Tab bar */}
           <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>

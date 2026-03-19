@@ -133,12 +133,24 @@ function fmtDate(iso: string): string {
 
 function fmtPct(v: number | null): string {
   if (v === null) return '—';
-  return `${(v * 100).toFixed(1)}%`;
+  return `${Math.round(v * 100)}%`;
 }
 
 function fmtNum(v: number | null, dp = 3): string {
   if (v === null) return '—';
   return v.toFixed(dp);
+}
+
+function fmtResult(v: string | null): string {
+  if (v === null) return '—';
+  if (v === 'HOME_WIN') return 'Local';
+  if (v === 'DRAW') return 'Empate';
+  if (v === 'AWAY_WIN') return 'Visita';
+  return v;
+}
+
+function teamShort(id: string): string {
+  return id.split(':').pop() ?? id;
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -405,20 +417,20 @@ function RecordsTable({ records, isDark }: { records: EvaluationRecord[]; isDark
         <thead>
           <tr>
             <th style={TH}>Kickoff</th>
-            <th style={TH}>Match ID</th>
+            <th style={TH}>Partido</th>
             <th style={TH}>Mode</th>
             <th style={TH}>GT</th>
-            <th style={TH}>Actual</th>
-            <th style={TH}>Predicted</th>
+            <th style={TH}>Resultado</th>
+            <th style={TH}>Pronóstico</th>
             <th style={TH}>Hit</th>
-            <th style={TH}>p_home</th>
-            <th style={TH}>p_draw</th>
-            <th style={TH}>p_away</th>
-            <th style={TH}>xG H</th>
-            <th style={TH}>xG A</th>
+            <th style={TH}>Local</th>
+            <th style={TH}>Empate</th>
+            <th style={TH}>Visita</th>
+            <th style={TH}>xG L</th>
+            <th style={TH}>xG V</th>
             <th style={TH}>UI render</th>
-            <th style={TH}>Eligible</th>
-            <th style={TH}>Excluded reason</th>
+            <th style={TH}>Elegible</th>
+            <th style={TH}>Excluido por</th>
           </tr>
         </thead>
         <tbody>
@@ -434,8 +446,13 @@ function RecordsTable({ records, isDark }: { records: EvaluationRecord[]; isDark
             return (
               <tr key={r.match_id}>
                 <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{fmtDate(r.scheduled_kickoff_utc)}</td>
-                <td style={{ ...td, fontFamily: 'monospace', color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
-                  {r.match_id.slice(-12)}
+                <td style={{ ...td, fontSize: 11 }}>
+                  <span style={{ color: isDark ? '#e2e8f0' : '#0f172a' }}>
+                    {teamShort(r.home_team_id)} vs {teamShort(r.away_team_id)}
+                  </span>
+                  <div style={{ fontSize: 9, color: isDark ? '#334155' : '#94a3b8', fontFamily: 'monospace' }}>
+                    {r.match_id.split(':').pop()}
+                  </div>
                 </td>
                 <td style={td}>
                   <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: badge.bg, color: badge.color }}>
@@ -443,17 +460,17 @@ function RecordsTable({ records, isDark }: { records: EvaluationRecord[]; isDark
                   </span>
                 </td>
                 <td style={{ ...td, color: gt.color, fontWeight: 700 }}>{gt.label}</td>
-                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{r.actual_result ?? score}</td>
-                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{r.predicted_result ?? '—'}</td>
+                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{r.actual_result ? fmtResult(r.actual_result) : score}</td>
+                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{fmtResult(r.predicted_result)}</td>
                 <td style={td}>{hitBadge(r.predicted_result, r.actual_result)}</td>
-                <td style={td}>{fmtNum(r.p_home_win, 2)}</td>
-                <td style={td}>{fmtNum(r.p_draw, 2)}</td>
-                <td style={td}>{fmtNum(r.p_away_win, 2)}</td>
-                <td style={td}>{fmtNum(r.expected_goals_home, 2)}</td>
-                <td style={td}>{fmtNum(r.expected_goals_away, 2)}</td>
+                <td style={td}>{fmtPct(r.p_home_win)}</td>
+                <td style={td}>{fmtPct(r.p_draw)}</td>
+                <td style={td}>{fmtPct(r.p_away_win)}</td>
+                <td style={td}>{fmtNum(r.expected_goals_home, 1)}</td>
+                <td style={td}>{fmtNum(r.expected_goals_away, 1)}</td>
                 <td style={{ ...td, fontSize: 9, color: isDark ? '#64748b' : '#475569' }}>{r.ui_render_result ?? '—'}</td>
                 <td style={{ ...td, color: r.evaluation_eligible ? '#4ade80' : '#f87171' }}>
-                  {r.evaluation_eligible ? 'Y' : 'N'}
+                  {r.evaluation_eligible ? 'Sí' : 'No'}
                 </td>
                 <td style={{ ...td, fontSize: 9, color: isDark ? '#94a3b8' : '#64748b' }}>{r.excluded_reason ?? '—'}</td>
               </tr>

@@ -55,7 +55,8 @@ function isPlayerTestRoute(): boolean {
 
 // PE-76 — ruta interna de diagnóstico (no expuesta en Navbar)
 function isLabsRoute(): boolean {
-  return window.location.pathname.startsWith('/labs/');
+  const p = window.location.pathname;
+  return p === '/labs' || p.startsWith('/labs/');
 }
 
 function isOpsRoute(): boolean {

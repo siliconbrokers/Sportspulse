@@ -26,6 +26,8 @@ type Snapshot = {
   request_payload: unknown;
   response_payload: unknown;
   engine_source?: 'v3' | 'nexus';
+  home_team_name?: string;
+  away_team_name?: string;
 };
 
 async function fetchSnapshots(params: { competitionId?: string; limit?: number; engine?: 'both' | 'v3' | 'nexus' }): Promise<Snapshot[]> {
@@ -54,12 +56,33 @@ function formatDate(isoStr: string): string {
 
 function fmtProb(v: number | null): string {
   if (v === null) return '—';
-  return v.toFixed(2);
+  return `${Math.round(v * 100)}%`;
 }
 
 function fmtXg(v: number | null): string {
   if (v === null) return '—';
-  return v.toFixed(2);
+  return v.toFixed(1);
+}
+
+function fmtResult(v: string | null): string {
+  if (!v) return '—';
+  if (v === 'HOME_WIN') return 'Local';
+  if (v === 'DRAW') return 'Empate';
+  if (v === 'AWAY_WIN') return 'Visita';
+  return v;
+}
+
+function getKickoffUtc(snap: Snapshot): string | null {
+  const req = snap.request_payload as Record<string, unknown> | null | undefined;
+  const v = req?.['kickoffUtc'] ?? req?.['kickoff_utc'];
+  return typeof v === 'string' ? v : null;
+}
+
+function matchLabel(snap: Snapshot): string {
+  if (snap.home_team_name && snap.away_team_name) {
+    return `${snap.home_team_name} vs ${snap.away_team_name}`;
+  }
+  return snap.match_id.split(':').pop() ?? snap.match_id;
 }
 
 function modeBadge(mode: string): { label: string; bg: string; color: string } {
@@ -134,16 +157,17 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
       <td colSpan={12} style={cellStyle}>
         {/* Summary line */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: 12, fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
+          <span style={{ fontFamily: 'monospace', color: '#64748b', fontSize: 11 }}>{snap.match_id}</span>
           <span><span style={{ color: '#64748b' }}>Mode:</span> {snap.mode}</span>
-          <span><span style={{ color: '#64748b' }}>Calibration:</span> {snap.calibration_mode ?? '—'}</span>
+          <span><span style={{ color: '#64748b' }}>Calibración:</span> {snap.calibration_mode ?? '—'}</span>
           {snap.favorite_margin !== null && (
-            <span><span style={{ color: '#64748b' }}>favorite_margin:</span> {snap.favorite_margin.toFixed(3)}</span>
+            <span><span style={{ color: '#64748b' }}>margen favorito:</span> {snap.favorite_margin.toFixed(3)}</span>
           )}
           {snap.draw_risk !== null && (
-            <span><span style={{ color: '#64748b' }}>draw_risk:</span> {snap.draw_risk.toFixed(3)}</span>
+            <span><span style={{ color: '#64748b' }}>riesgo empate:</span> {snap.draw_risk.toFixed(3)}</span>
           )}
           {snap.engine_version && (
-            <span><span style={{ color: '#64748b' }}>engine:</span> {snap.engine_version}</span>
+            <span><span style={{ color: '#64748b' }}>motor:</span> {snap.engine_version}</span>
           )}
         </div>
 
@@ -381,7 +405,7 @@ export function PredictionsLabPage() {
       {!loading && !error && snapshots.length === 0 && (
         <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#475569', background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 8, padding: '16px 20px' }}>
           Sin predicciones almacenadas. Activa{' '}
-          <code style={{ color: '#facc15' }}>PREDICTION_SHADOW_ENABLED=comp:apifootball:140</code>{' '}
+          <code style={{ color: '#facc15' }}>PREDICTION_NEXUS_SHADOW_ENABLED=comp:apifootball:140</code>{' '}
           para comenzar.
         </div>
       )}
@@ -391,18 +415,18 @@ export function PredictionsLabPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
-                <th style={thStyle}>Match ID</th>
-                <th style={thStyle}>Comp</th>
+                <th style={thStyle}>Partido</th>
+                <th style={thStyle}>Liga</th>
                 <th style={thStyle}>Motor</th>
-                <th style={thStyle}>Fecha</th>
+                <th style={thStyle}>Kickoff</th>
                 <th style={thStyle}>Mode</th>
-                <th style={thStyle}>p_home</th>
-                <th style={thStyle}>p_draw</th>
-                <th style={thStyle}>p_away</th>
-                <th style={thStyle}>Result</th>
-                <th style={thStyle}>xG H</th>
-                <th style={thStyle}>xG A</th>
-                <th style={thStyle}>Status</th>
+                <th style={thStyle}>Local</th>
+                <th style={thStyle}>Empate</th>
+                <th style={thStyle}>Visita</th>
+                <th style={thStyle}>Pronóstico</th>
+                <th style={thStyle}>xG L</th>
+                <th style={thStyle}>xG V</th>
+                <th style={thStyle}>✓</th>
               </tr>
             </thead>
             <tbody>
@@ -434,8 +458,9 @@ export function PredictionsLabPage() {
                   const key = expandKey(snap);
                   const isExpanded = expandedId === key;
                   const isEven = idx % 2 === 0;
-                  const shortId = snap.match_id.slice(-12);
                   const badge = modeBadge(snap.mode);
+                  const kickoffStr = getKickoffUtc(snap);
+                  const displayDate = kickoffStr ? formatDate(kickoffStr) : formatDate(snap.generated_at);
                   const engineSrc = snap.engine_source ?? 'v3';
                   const engineBadge = engineSrc === 'nexus'
                     ? { label: 'NEXUS', bg: 'rgba(139,92,246,0.15)', color: '#a78bfa' }
@@ -450,8 +475,8 @@ export function PredictionsLabPage() {
                         onClick={() => setExpandedId((prev) => (prev === key ? null : key))}
                         style={{ ...td, cursor: 'pointer', borderTop: dividerBorder } as React.CSSProperties}
                       >
-                        <td style={{ ...td, fontFamily: 'monospace', color: '#94a3b8', borderTop: dividerBorder }}>
-                          {shortId}
+                        <td style={{ ...td, borderTop: dividerBorder, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {matchLabel(snap)}
                         </td>
                         <td style={{ ...td, borderTop: dividerBorder }}>{snap.competition_id.split(':').pop() ?? snap.competition_id}</td>
                         <td style={{ ...td, borderTop: dividerBorder }}>
@@ -466,7 +491,7 @@ export function PredictionsLabPage() {
                             {engineBadge.label}
                           </span>
                         </td>
-                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{formatDate(snap.generated_at)}</td>
+                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{displayDate}</td>
                         <td style={{ ...td, borderTop: dividerBorder }}>
                           <span style={{
                             fontSize: 10,
@@ -482,9 +507,9 @@ export function PredictionsLabPage() {
                         <td style={{ ...td, borderTop: dividerBorder }}>{fmtProb(snap.p_home_win)}</td>
                         <td style={{ ...td, borderTop: dividerBorder }}>{fmtProb(snap.p_draw)}</td>
                         <td style={{ ...td, borderTop: dividerBorder }}>{fmtProb(snap.p_away_win)}</td>
-                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{snap.predicted_result ?? '—'}</td>
-                        <td style={{ ...td, borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_home)}</td>
-                        <td style={{ ...td, borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_away)}</td>
+                        <td style={{ ...td, fontWeight: 600, borderTop: dividerBorder }}>{fmtResult(snap.predicted_result)}</td>
+                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_home)}</td>
+                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_away)}</td>
                         <td style={{ ...td, borderTop: dividerBorder }}>{snap.generation_status === 'ok' ? '✅' : '❌'}</td>
                       </tr>
                       {isExpanded && <ExpandedRow key={`${key}__expanded`} snap={snap} />}

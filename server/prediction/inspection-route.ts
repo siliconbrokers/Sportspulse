@@ -15,6 +15,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PredictionStore } from './prediction-store.js';
 import { NexusShadowReader } from './nexus-shadow-reader.js';
+import { loadTeamsCache } from '../matchday-cache.js';
 
 // ── Response shape ─────────────────────────────────────────────────────────────
 
@@ -51,6 +52,10 @@ interface InspectionItem {
 
   // -- Engine source --
   engine_source: 'v3' | 'nexus';
+
+  // -- Human-readable team display --
+  home_team_name?: string;
+  away_team_name?: string;
 }
 
 // ── Helper: extract core probabilities from a parsed PredictionResponse ────────
@@ -109,6 +114,43 @@ function parseDegradationNotes(json: string): string[] {
   const parsed = safeParse(json, 'degradation_flags_json');
   if (!Array.isArray(parsed)) return [];
   return parsed.map((f) => (typeof f === 'string' ? f : JSON.stringify(f)));
+}
+
+// ── Team name resolution ───────────────────────────────────────────────────────
+
+/** Cache of teamId → shortName for each AF competition (in-process, never expires). */
+const teamNameCache = new Map<string, Map<string, string>>();
+
+function resolveTeamNames(items: InspectionItem[]): void {
+  for (const item of items) {
+    const req = item.request_payload as Record<string, unknown> | null | undefined;
+    if (!req) continue;
+
+    // V3 uses camelCase (homeTeamId), NEXUS stores weights — skip if missing
+    const homeId = (req['homeTeamId'] ?? req['home_team_id']) as string | undefined;
+    const awayId = (req['awayTeamId'] ?? req['away_team_id']) as string | undefined;
+    if (!homeId || !awayId) continue;
+
+    // Only AF canonical competitions have a teams cache
+    const compId = item.competition_id;
+    if (!compId.startsWith('comp:apifootball:')) continue;
+
+    if (!teamNameCache.has(compId)) {
+      const leagueId = compId.split(':').pop() ?? '';
+      const teams = loadTeamsCache('apifootball', leagueId);
+      const map = new Map<string, string>();
+      if (teams) {
+        for (const t of teams) {
+          map.set(t.teamId, t.shortName ?? t.name ?? t.teamId);
+        }
+      }
+      teamNameCache.set(compId, map);
+    }
+
+    const nameMap = teamNameCache.get(compId)!;
+    item.home_team_name = nameMap.get(homeId);
+    item.away_team_name = nameMap.get(awayId);
+  }
 }
 
 // ── isEndpointEnabled ──────────────────────────────────────────────────────────
@@ -223,6 +265,8 @@ export function registerInspectionRoute(
         .sort((a, b) => b.generated_at.localeCompare(a.generated_at))
         .slice(0, limit);
     }
+
+    resolveTeamNames(items);
 
     reply.header('Cache-Control', 'no-store');
     return reply.send({ items, count: items.length });

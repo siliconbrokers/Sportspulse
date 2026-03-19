@@ -6,6 +6,8 @@
  * - Botón "Reentrenar" con logs en tiempo real (polling)
  * - Pesos por feature y clase (importancia de features)
  *
+ * Engine selector: V3 (Logístico) | NEXUS (Ensemble)
+ *
  * Gateado por PREDICTION_INTERNAL_VIEW_ENABLED en el servidor.
  */
 
@@ -16,6 +18,8 @@ import { ThemeToggle } from '../components/ThemeToggle.js';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type JobStatus = 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+
+type TrainingEngineMode = 'v3' | 'nexus';
 
 type JobInfo = {
   status:     JobStatus;
@@ -48,6 +52,19 @@ type Coefficients = {
   regularization_lambda: number;
 };
 
+interface NexusInfo {
+  available: boolean;
+  snapshotCount: number;
+  mostRecentAt?: string;
+  competitionIds?: string[];
+  modelVersion?: string;
+  calibrationVersion?: string;
+  calibrationSource?: string;
+  featureSchemaVersion?: string;
+  datasetWindow?: Record<string, unknown>;
+  ensembleWeights?: Record<string, number>;
+}
+
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 
 async function fetchStatus(): Promise<StatusResponse> {
@@ -65,13 +82,6 @@ async function triggerRun(skipDownload: boolean): Promise<{ started: boolean; re
   if (res.status === 409) return { started: false, reason: 'already running' };
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<{ started: boolean }>;
-}
-
-function loadCoefficients(): Coefficients | null {
-  // Los coeficientes se exponen via la respuesta del status como metadata básica.
-  // Para los pesos completos, los cargamos desde el mismo endpoint de status
-  // una vez que el entrenamiento termina — aquí los pedimos en paralelo.
-  return null; // placeholder — se piden en fetchFullCoefficients
 }
 
 async function fetchFullCoefficients(): Promise<Coefficients | null> {
@@ -148,6 +158,16 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleString('es-UY', { timeZone: 'America/Montevideo' });
 }
 
+function fmtDateLocal(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString('es-UY', {
+      timeZone: 'America/Montevideo',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return iso; }
+}
+
 function fmtMs(ms: number | null): string {
   if (ms === null) return '—';
   if (ms < 1000) return `${ms}ms`;
@@ -157,6 +177,22 @@ function fmtMs(ms: number | null): string {
 
 function statusColor(s: JobStatus): string {
   return { IDLE: '#64748b', RUNNING: '#f59e0b', COMPLETED: '#22c55e', FAILED: '#ef4444' }[s];
+}
+
+// ── Competition ID humanizer ──────────────────────────────────────────────────
+
+const COMP_ID_NAMES: Record<string, string> = {
+  'comp:apifootball:140': 'LaLiga',
+  'comp:apifootball:39':  'Premier League',
+  'comp:apifootball:78':  'Bundesliga',
+  'comp:apifootball:262': 'Liga MX',
+  'comp:football-data:PD':  'LaLiga',
+  'comp:football-data:PL':  'Premier League',
+  'comp:football-data:BL1': 'Bundesliga',
+};
+
+function humanizeCompId(id: string): string {
+  return COMP_ID_NAMES[id] ?? id;
 }
 
 // ── Feature importance table ──────────────────────────────────────────────────
@@ -187,7 +223,6 @@ function FeatureTable({ coeff, isDark }: { coeff: Coefficients; isDark: boolean 
   const TH = makeTH(isDark);
   const keys = Object.keys(coeff.home.weights);
 
-  // Para cada feature, el "peso neto" es la diferencia max - min entre clases
   const rows = keys.map(k => ({
     key: k,
     label: FEATURE_LABELS[k] ?? k,
@@ -196,7 +231,6 @@ function FeatureTable({ coeff, isDark }: { coeff: Coefficients; isDark: boolean 
     away:  coeff.away.weights[k] ?? 0,
   }));
 
-  // Ordenar por magnitud máxima (importancia)
   rows.sort((a, b) => {
     const maxA = Math.max(Math.abs(a.home), Math.abs(a.draw), Math.abs(a.away));
     const maxB = Math.max(Math.abs(b.home), Math.abs(b.draw), Math.abs(b.away));
@@ -302,6 +336,76 @@ function LogViewer({ lines, status, isDark }: { lines: string[]; status: JobStat
   );
 }
 
+// ── NEXUS info panel ──────────────────────────────────────────────────────────
+
+function NexusInfoPanel({ nexusInfo, isDark }: { nexusInfo: NexusInfo; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
+  const ensembleWeights = nexusInfo.ensembleWeights;
+
+  if (!nexusInfo.available) {
+    return (
+      <div style={{ ...PANEL, borderColor: '#4a1d96' }}>
+        <div style={{ color: '#a78bfa', fontWeight: 600, marginBottom: 6 }}>No hay snapshots NEXUS disponibles</div>
+        <div style={{ color: isDark ? '#64748b' : '#475569', fontSize: 11 }}>
+          El motor NEXUS aun no tiene snapshots generados para esta competición. Activar con{' '}
+          <code style={{ color: '#c4b5fd' }}>PREDICTION_NEXUS_SHADOW_ENABLED</code> en el servidor.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Metadata grid */}
+      <div style={PANEL}>
+        <div style={SECTION_TITLE}>Información del modelo NEXUS</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            ['Snapshots en cache', String(nexusInfo.snapshotCount)],
+            ['Ultima generación', nexusInfo.mostRecentAt ? fmtDateLocal(nexusInfo.mostRecentAt) : '—'],
+            ['Model version', nexusInfo.modelVersion ?? '—'],
+            ['Calibration source', nexusInfo.calibrationSource ?? '—'],
+            ['Feature schema', nexusInfo.featureSchemaVersion ?? '—'],
+            ['Competiciones', nexusInfo.competitionIds?.map(humanizeCompId).join(', ') ?? '—'],
+          ].map(([label, value]) => (
+            <div key={label} style={{ background: isDark ? '#1a1a1a' : '#f8fafc', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px' }}>
+              <div style={{ fontSize: 10, color: '#a78bfa', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a', wordBreak: 'break-all' as const }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Ensemble weights */}
+      {ensembleWeights && Object.keys(ensembleWeights).length > 0 && (
+        <div style={PANEL}>
+          <h4 style={{ ...SECTION_TITLE, color: '#a78bfa' }}>Pesos del ensemble</h4>
+          {Object.entries(ensembleWeights).map(([k, v]) => (
+            <div key={k} className="flex items-center gap-2 mb-1">
+              <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', width: 80, flexShrink: 0 }}>{k}</span>
+              <div style={{ flex: 1, background: isDark ? '#2a2a2a' : '#e2e8f0', borderRadius: 4, height: 12, overflow: 'hidden' }}>
+                <div
+                  style={{ background: '#7c3aed', height: '100%', borderRadius: 4, width: `${(v * 100).toFixed(1)}%` }}
+                />
+              </div>
+              <span style={{ fontSize: 11, color: '#c4b5fd', width: 48, textAlign: 'right' as const, flexShrink: 0 }}>
+                {(v * 100).toFixed(1)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Read-only note */}
+      <div style={{ ...PANEL, borderColor: '#4a1d96', background: isDark ? '#130d24' : '#f5f3ff' }}>
+        <div style={{ color: '#a78bfa', fontSize: 11 }}>
+          NEXUS no requiere entrenamiento manual. Los pesos del ensemble se actualizan automáticamente mediante calibración bootstrap.
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function TrainingLabPage() {
@@ -316,6 +420,12 @@ export function TrainingLabPage() {
   const [skipDownload, setSkipDownload] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Engine mode state
+  const [trainingEngineMode, setTrainingEngineMode] = useState<TrainingEngineMode>('v3');
+  const [nexusInfo, setNexusInfo] = useState<NexusInfo | null>(null);
+  const [nexusLoading, setNexusLoading] = useState(false);
+  const [nexusError, setNexusError] = useState<string | null>(null);
+
   const loadCoeff = useCallback(async () => {
     try {
       const res = await fetch('/api/internal/training/coefficients');
@@ -329,7 +439,6 @@ export function TrainingLabPage() {
       setStatus(s);
       setError(null);
       setUnavailable(false);
-      // Load full coefficients once (not on every poll)
       if (coeff === null) void loadCoeff();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -349,11 +458,25 @@ export function TrainingLabPage() {
       pollRef.current = setInterval(() => { void load(); }, 2000);
     } else {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-      // Reload coefficients after training completes
       if (status?.job.status === 'COMPLETED') void loadCoeff();
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [status?.job.status, load, loadCoeff]);
+
+  // NEXUS info fetch
+  useEffect(() => {
+    if (trainingEngineMode !== 'nexus') return;
+    setNexusLoading(true);
+    setNexusError(null);
+    fetch('/api/internal/training/nexus-info')
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data: NexusInfo) => setNexusInfo(data))
+      .catch(err => setNexusError(String(err)))
+      .finally(() => setNexusLoading(false));
+  }, [trainingEngineMode]);
 
   const handleRun = async () => {
     setTriggering(true);
@@ -425,100 +548,151 @@ export function TrainingLabPage() {
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#f1f5f9' : '#0f172a', marginBottom: 2 }}>
-            Entrenamiento — Modelo Logístico PE
+            {trainingEngineMode === 'nexus'
+              ? 'NEXUS — Ensemble Predictivo PE'
+              : 'Entrenamiento — Modelo Logístico PE'
+            }
           </div>
           <div style={{ fontSize: 11, color: '#475569' }}>
-            Pipeline: odds (football-data.co.uk) → walk-forward → multinomial logistic + class weights
+            {trainingEngineMode === 'nexus'
+              ? 'Pipeline: NEXUS ensemble · calibración bootstrap · multi-motor'
+              : 'Pipeline: odds (football-data.co.uk) → walk-forward → multinomial logistic + class weights'
+            }
+          </div>
+
+          {/* Engine mode selector */}
+          <div className="flex gap-2 flex-wrap mt-2">
+            {(['v3', 'nexus'] as TrainingEngineMode[]).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setTrainingEngineMode(mode)}
+                className={`px-3 py-1 rounded text-xs font-semibold border transition-colors ${
+                  trainingEngineMode === mode
+                    ? (mode === 'nexus' ? 'bg-purple-700 text-white border-purple-700' : 'bg-indigo-600 text-white border-indigo-600')
+                    : (mode === 'nexus' ? 'bg-transparent text-purple-400 border-purple-600 hover:bg-purple-900' : 'bg-transparent text-indigo-400 border-indigo-600 hover:bg-indigo-900')
+                }`}
+              >
+                {mode === 'v3' ? 'V3 (Logístico)' : 'NEXUS (Ensemble)'}
+              </button>
+            ))}
           </div>
         </div>
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
 
-      {/* Panel A — Estado */}
-      <div style={PANEL}>
-        <div style={SECTION_TITLE}>Estado del pipeline</div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
-          <Stat label="Job actual" value={job.status} valueColor={statusColor(job.status)} isDark={isDark} />
-          <Stat label="Último inicio" value={fmtDate(job.startedAt)} isDark={isDark} />
-          <Stat label="Duración" value={fmtMs(job.durationMs)} isDark={isDark} />
-          {meta && <Stat label="Último entrenamiento" value={fmtDate(meta.trainedAt)} isDark={isDark} />}
-          {meta && <Stat label="Ejemplos entrenados" value={meta.trainedOnMatches.toLocaleString()} isDark={isDark} />}
-          {meta && <Stat label="Regularización λ" value={meta.regularizationLambda.toFixed(3)} isDark={isDark} />}
-        </div>
-
-        {/* Botón trigger */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => void handleRun()}
-            disabled={isRunning || triggering}
-            style={{
-              background: isRunning ? '#1e293b' : '#1d4ed8',
-              color: isRunning ? '#475569' : '#fff',
-              border: 'none',
-              borderRadius: 6,
-              padding: '7px 16px',
-              cursor: isRunning || triggering ? 'not-allowed' : 'pointer',
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
-            {isRunning ? '⏳ Entrenando...' : triggering ? 'Iniciando...' : '▶ Reentrenar'}
-          </button>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 11, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={skipDownload}
-              onChange={e => setSkipDownload(e.target.checked)}
-              disabled={isRunning}
-              style={{ accentColor: '#3b82f6' }}
-            />
-            Saltar descarga de odds (usar cache)
-          </label>
-
-          {!isRunning && (
-            <button onClick={() => void load()} style={{ background: isDark ? '#1e293b' : '#f1f5f9', color: isDark ? '#94a3b8' : '#64748b', border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
-              Actualizar
-            </button>
+      {/* NEXUS view */}
+      {trainingEngineMode === 'nexus' && (
+        <>
+          {nexusLoading && (
+            <div style={{ color: isDark ? '#64748b' : '#475569', padding: '20px 0' }}>
+              Cargando información NEXUS…
+            </div>
           )}
-        </div>
-
-        <LogViewer lines={job.lastLines} status={job.status} isDark={isDark} />
-      </div>
-
-      {/* Panel B — Comandos rápidos */}
-      <div style={PANEL}>
-        <div style={SECTION_TITLE}>CLI equivalente</div>
-        <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#7dd3fc', lineHeight: 2 }}>
-          <div># Pipeline completo</div>
-          <div style={{ color: '#86efac' }}>pnpm train</div>
-          <div style={{ marginTop: 4 }}># Solo reentrenar (odds ya descargadas)</div>
-          <div style={{ color: '#86efac' }}>pnpm train -- --skip-download</div>
-          <div style={{ marginTop: 4 }}># Backtest baseline vs ensemble</div>
-          <div style={{ color: '#86efac' }}>pnpm backtest && pnpm backtest:ensemble</div>
-        </div>
-      </div>
-
-      {/* Panel C — Feature importance */}
-      {coeff && (
-        <div style={PANEL}>
-          <div style={SECTION_TITLE}>
-            Pesos del modelo — {coeff.trained_on_matches.toLocaleString()} ejemplos · {new Date(coeff.trained_at).toLocaleDateString('es-UY', { timeZone: 'America/Montevideo' })}
-          </div>
-          <div style={{ fontSize: 10, color: '#475569', marginBottom: 8 }}>
-            Ordenado por magnitud máxima entre clases. Verde = favorece la clase. Rojo = penaliza.
-          </div>
-          <FeatureTable coeff={coeff} isDark={isDark} />
-        </div>
+          {nexusError && (
+            <div style={{ ...PANEL, borderColor: '#450a0a', background: isDark ? '#1a0000' : '#fef2f2' }}>
+              <div style={{ color: '#ef4444', marginBottom: 4 }}>Error al cargar info NEXUS</div>
+              <div style={{ color: isDark ? '#94a3b8' : '#64748b', fontFamily: 'monospace', fontSize: 11 }}>{nexusError}</div>
+              <div style={{ marginTop: 6, color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }}>
+                Verifica que <code>PREDICTION_NEXUS_SHADOW_ENABLED</code> este configurado en el servidor.
+              </div>
+            </div>
+          )}
+          {!nexusLoading && !nexusError && nexusInfo && (
+            <NexusInfoPanel nexusInfo={nexusInfo} isDark={isDark} />
+          )}
+        </>
       )}
 
-      {!coeff && meta && (
-        <div style={{ ...PANEL, borderColor: '#1e293b' }}>
-          <div style={{ color: '#475569', fontSize: 11 }}>
-            Pesos del modelo no disponibles. Activar <code style={{ color: '#f59e0b' }}>GET /api/internal/training/coefficients</code>.
+      {/* V3 view */}
+      {trainingEngineMode === 'v3' && (
+        <>
+          {/* Panel A — Estado */}
+          <div style={PANEL}>
+            <div style={SECTION_TITLE}>Estado del pipeline</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
+              <Stat label="Job actual" value={job.status} valueColor={statusColor(job.status)} isDark={isDark} />
+              <Stat label="Último inicio" value={fmtDate(job.startedAt)} isDark={isDark} />
+              <Stat label="Duración" value={fmtMs(job.durationMs)} isDark={isDark} />
+              {meta && <Stat label="Último entrenamiento" value={fmtDate(meta.trainedAt)} isDark={isDark} />}
+              {meta && <Stat label="Ejemplos entrenados" value={meta.trainedOnMatches.toLocaleString()} isDark={isDark} />}
+              {meta && <Stat label="Regularización λ" value={meta.regularizationLambda.toFixed(3)} isDark={isDark} />}
+            </div>
+
+            {/* Botón trigger */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => void handleRun()}
+                disabled={isRunning || triggering}
+                style={{
+                  background: isRunning ? '#1e293b' : '#1d4ed8',
+                  color: isRunning ? '#475569' : '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '7px 16px',
+                  cursor: isRunning || triggering ? 'not-allowed' : 'pointer',
+                  fontWeight: 600,
+                  fontSize: 12,
+                }}
+              >
+                {isRunning ? '⏳ Entrenando...' : triggering ? 'Iniciando...' : '▶ Reentrenar'}
+              </button>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 11, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={skipDownload}
+                  onChange={e => setSkipDownload(e.target.checked)}
+                  disabled={isRunning}
+                  style={{ accentColor: '#3b82f6' }}
+                />
+                Saltar descarga de odds (usar cache)
+              </label>
+
+              {!isRunning && (
+                <button onClick={() => void load()} style={{ background: isDark ? '#1e293b' : '#f1f5f9', color: isDark ? '#94a3b8' : '#64748b', border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
+                  Actualizar
+                </button>
+              )}
+            </div>
+
+            <LogViewer lines={job.lastLines} status={job.status} isDark={isDark} />
           </div>
-        </div>
+
+          {/* Panel B — Comandos rápidos */}
+          <div style={PANEL}>
+            <div style={SECTION_TITLE}>CLI equivalente</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#7dd3fc', lineHeight: 2 }}>
+              <div># Pipeline completo</div>
+              <div style={{ color: '#86efac' }}>pnpm train</div>
+              <div style={{ marginTop: 4 }}># Solo reentrenar (odds ya descargadas)</div>
+              <div style={{ color: '#86efac' }}>pnpm train -- --skip-download</div>
+              <div style={{ marginTop: 4 }}># Backtest baseline vs ensemble</div>
+              <div style={{ color: '#86efac' }}>pnpm backtest && pnpm backtest:ensemble</div>
+            </div>
+          </div>
+
+          {/* Panel C — Feature importance */}
+          {coeff && (
+            <div style={PANEL}>
+              <div style={SECTION_TITLE}>
+                Pesos del modelo — {coeff.trained_on_matches.toLocaleString()} ejemplos · {new Date(coeff.trained_at).toLocaleDateString('es-UY', { timeZone: 'America/Montevideo' })}
+              </div>
+              <div style={{ fontSize: 10, color: '#475569', marginBottom: 8 }}>
+                Ordenado por magnitud máxima entre clases. Verde = favorece la clase. Rojo = penaliza.
+              </div>
+              <FeatureTable coeff={coeff} isDark={isDark} />
+            </div>
+          )}
+
+          {!coeff && meta && (
+            <div style={{ ...PANEL, borderColor: '#1e293b' }}>
+              <div style={{ color: '#475569', fontSize: 11 }}>
+                Pesos del modelo no disponibles. Activar <code style={{ color: '#f59e0b' }}>GET /api/internal/training/coefficients</code>.
+              </div>
+            </div>
+          )}
+        </>
       )}
 
     </div>

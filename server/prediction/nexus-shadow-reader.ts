@@ -28,6 +28,7 @@ interface InspectionItemBase {
   competition_id: string;
   generated_at: string;
   engine_version: string;
+  kickoff_utc: string;
   generation_status: 'ok' | 'error';
   error_detail?: string;
 
@@ -72,6 +73,7 @@ function normalizeSnapshot(nexus: NexusShadowSnapshot): NexusUnifiedItem {
     competition_id:     nexus.competitionId,
     generated_at:       nexus.createdAtUtc,
     engine_version:     nexus.modelVersion,
+    kickoff_utc:        nexus.kickoffUtc,
     generation_status:  'ok',
 
     mode:               `nexus:${nexus.ensembleConfidence}`,

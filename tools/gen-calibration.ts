@@ -115,8 +115,8 @@ interface ResolvedComp {
   /** Slug for output filenames */
   slug: string;
   expectedSeasonGames: number;
-  /** 'european' | 'calendar' */
-  seasonKind: 'european' | 'calendar';
+  /** 'cross-year' | 'calendar' */
+  seasonKind: 'cross-year' | 'calendar';
 }
 
 /** FD codes handled natively */
@@ -153,7 +153,7 @@ function resolveComp(compId: string): ResolvedComp | null {
       name: entry?.displayName ?? `AF league ${leagueId}`,
       slug: entry?.slug ?? String(leagueId),
       expectedSeasonGames: entry?.expectedSeasonGames ?? 34,
-      seasonKind: entry?.seasonKind ?? 'european',
+      seasonKind: entry?.seasonKind ?? 'cross-year',
     };
   }
 
@@ -166,7 +166,7 @@ function resolveComp(compId: string): ResolvedComp | null {
       name: compId,
       slug: compId,
       expectedSeasonGames: FD_EXPECTED_GAMES[compId] ?? 34,
-      seasonKind: 'european',
+      seasonKind: 'cross-year',
     };
   }
 
@@ -205,12 +205,12 @@ const LEAGUES: LeagueConfig[] = [
 
 /**
  * Returns an array of season labels to use as calibration history for AF-canonical.
- * For european: ['2023-24', '2022-23']
+ * For cross-year: ['2023-24', '2022-23']
  * For calendar: ['2024', '2023']
  *
  * Also attempts to detect available dirs under the cache base.
  */
-function getAfSeasonLabels(leagueId: number, seasonKind: 'european' | 'calendar'): string[] {
+function getAfSeasonLabels(leagueId: number, seasonKind: 'cross-year' | 'calendar'): string[] {
   const base = path.join(CACHE_AF_BASE, String(leagueId));
   const histBase = path.join(HIST_AF_BASE, String(leagueId));
 
@@ -220,7 +220,7 @@ function getAfSeasonLabels(leagueId: number, seasonKind: 'european' | 'calendar'
     if (fs.existsSync(dir)) {
       for (const rawEntry of fs.readdirSync(dir)) {
         const entry = rawEntry.endsWith('.json') ? rawEntry.slice(0, -5) : rawEntry;
-        if (seasonKind === 'european' && /^\d{4}-\d{2}$/.test(entry)) existing.add(entry);
+        if (seasonKind === 'cross-year' && /^\d{4}-\d{2}$/.test(entry)) existing.add(entry);
         if (seasonKind === 'calendar' && /^\d{4}$/.test(entry)) existing.add(entry);
       }
     }
@@ -233,7 +233,7 @@ function getAfSeasonLabels(leagueId: number, seasonKind: 'european' | 'calendar'
   // Fallback: build last 3 seasons from current year
   const now = new Date();
   const year = now.getUTCFullYear();
-  if (seasonKind === 'european') {
+  if (seasonKind === 'cross-year') {
     return [
       `${year - 1}-${String(year).slice(2)}`,
       `${year - 2}-${String(year - 1).slice(2)}`,
@@ -247,10 +247,10 @@ function getAfSeasonLabels(leagueId: number, seasonKind: 'european' | 'calendar'
  * For AF-canonical, return the "current" season label (the one to backtest).
  * This is the most recent season available in cache.
  */
-function getCurrentAfSeasonLabel(leagueId: number, seasonKind: 'european' | 'calendar'): string {
+function getCurrentAfSeasonLabel(leagueId: number, seasonKind: 'cross-year' | 'calendar'): string {
   const labels = getAfSeasonLabels(leagueId, seasonKind);
   // Current = most recent; calibration = the ones before it
-  return labels[0] ?? (seasonKind === 'european' ? '2025-26' : '2026');
+  return labels[0] ?? (seasonKind === 'cross-year' ? '2025-26' : '2026');
 }
 
 // ── Data loading ──────────────────────────────────────────────────────────────

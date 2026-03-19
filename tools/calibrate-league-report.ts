@@ -72,7 +72,7 @@ interface ResolvedLeague {
   leagueId: number | null;
   slug: string;
   displayName: string;
-  seasonKind: 'european' | 'calendar';
+  seasonKind: 'cross-year' | 'calendar';
   expectedSeasonGames: number;
 }
 
@@ -86,7 +86,7 @@ function resolveLeague(compArg: string): ResolvedLeague | null {
       leagueId,
       slug: entry?.slug ?? String(leagueId),
       displayName: entry?.displayName ?? `AF league ${leagueId}`,
-      seasonKind: entry?.seasonKind ?? 'european',
+      seasonKind: entry?.seasonKind ?? 'cross-year',
       expectedSeasonGames: entry?.expectedSeasonGames ?? 34,
     };
   }
@@ -104,7 +104,7 @@ function resolveLeague(compArg: string): ResolvedLeague | null {
       leagueId: null,
       slug: compArg,
       displayName: FD_META[compArg]!.displayName,
-      seasonKind: 'european',
+      seasonKind: 'cross-year',
       expectedSeasonGames: FD_META[compArg]!.expectedSeasonGames,
     };
   }
@@ -113,7 +113,7 @@ function resolveLeague(compArg: string): ResolvedLeague | null {
 
 // ── Season labels for xG backfill ─────────────────────────────────────────────
 
-function getBackfillSeasonYears(leagueId: number, seasonKind: 'european' | 'calendar', count: number): number[] {
+function getBackfillSeasonYears(leagueId: number, seasonKind: 'cross-year' | 'calendar', count: number): number[] {
   const now = new Date();
   const year = now.getUTCFullYear();
 

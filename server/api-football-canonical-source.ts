@@ -12,7 +12,7 @@
  *   match:        match:apifootball:{fixtureId}
  *
  * Season year resolver:
- *   - European (PD/PL/BL1): month < 7 → year-1 (e.g. Mar 2026 → season 2025)
+ *   - Cross-year (PD/PL/BL1): month < 7 → year-1 (e.g. Mar 2026 → season 2025)
  *   - URU/ARG: calendar year
  *
  * Caching strategy (same pattern as FootballDataSource):
@@ -136,10 +136,10 @@ export interface AfCompetitionConfig {
   /** Human-readable display name */
   displayName: string;
   /**
-   * Season year resolver: 'european' (month < 7 → year-1) | 'calendar' (exact year).
-   * European: PD, PL, BL1. Calendar: URU, ARG.
+   * Season year resolver: 'cross-year' (month < 7 → year-1) | 'calendar' (exact year).
+   * Cross-year: PD, PL, BL1. Calendar: URU, ARG.
    */
-  seasonKind: 'european' | 'calendar';
+  seasonKind: 'cross-year' | 'calendar';
   /** Whether this competition has named sub-tournaments (Apertura/Clausura). */
   hasSubTournaments?: boolean;
   /**
@@ -186,19 +186,19 @@ function afMatchId(fixtureId: number): string {
 }
 
 /** Derives current season year from current date given a seasonKind. */
-function resolveSeasonYear(kind: 'european' | 'calendar'): number {
+function resolveSeasonYear(kind: 'cross-year' | 'calendar'): number {
   const now = new Date();
   const year  = now.getUTCFullYear();
   const month = now.getUTCMonth(); // 0-based
-  if (kind === 'european') {
+  if (kind === 'cross-year') {
     return month < 6 ? year - 1 : year; // before July → previous season
   }
   return year;
 }
 
 /** Produces a human-readable season label (e.g. "2025-26" or "2026"). */
-function seasonLabel(kind: 'european' | 'calendar', year: number): string {
-  if (kind === 'european') {
+function seasonLabel(kind: 'cross-year' | 'calendar', year: number): string {
+  if (kind === 'cross-year') {
     return `${year}-${String(year + 1).slice(2)}`;
   }
   return String(year);
