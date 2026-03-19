@@ -90,14 +90,36 @@ type EvaluationResponse = {
   records: EvaluationRecord[];
 };
 
+// ── Additional types for engine comparison ────────────────────────────────────
+
+type EngineMode = 'v3' | 'nexus' | 'compare';
+
+type OverlapMetrics = {
+  match_count: number;
+  v3_accuracy: number | null;
+  nexus_accuracy: number | null;
+  v3_brier: number | null;
+  nexus_brier: number | null;
+  v3_log_loss: number | null;
+  nexus_log_loss: number | null;
+};
+
+type CompareResponse = {
+  mode: 'compare';
+  v3: EvaluationResponse;
+  nexus: EvaluationResponse;
+  overlap: OverlapMetrics;
+};
+
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
-async function fetchEvaluation(competitionId?: string): Promise<EvaluationResponse> {
+async function fetchEvaluation(competitionId?: string, engine?: EngineMode): Promise<EvaluationResponse | CompareResponse> {
   const url = new URL('/api/internal/evaluation', window.location.origin);
   if (competitionId) url.searchParams.set('competitionId', competitionId);
+  if (engine) url.searchParams.set('engine', engine);
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json() as Promise<EvaluationResponse>;
+  return res.json() as Promise<EvaluationResponse | CompareResponse>;
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────────
@@ -182,6 +204,9 @@ function modeBadge(mode: string): { label: string; bg: string; color: string } {
     case 'FULL_MODE':     return { label: 'FULL',    bg: 'rgba(34,197,94,0.15)',  color: '#4ade80' };
     case 'LIMITED_MODE':  return { label: 'LIM',     bg: 'rgba(234,179,8,0.15)', color: '#facc15' };
     case 'NOT_ELIGIBLE':  return { label: 'N/ELIG',  bg: 'rgba(239,68,68,0.15)', color: '#f87171' };
+    case 'nexus:HIGH':    return { label: 'N:HIGH',  bg: 'rgba(139,92,246,0.15)', color: '#a78bfa' };
+    case 'nexus:MEDIUM':  return { label: 'N:MED',   bg: 'rgba(139,92,246,0.12)', color: '#c4b5fd' };
+    case 'nexus:LOW':     return { label: 'N:LOW',   bg: 'rgba(139,92,246,0.08)', color: '#ddd6fe' };
     default:              return { label: mode,      bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' };
   }
 }
@@ -440,6 +465,120 @@ function RecordsTable({ records, isDark }: { records: EvaluationRecord[]; isDark
   );
 }
 
+// ── Overlap Panel ─────────────────────────────────────────────────────────────
+
+function OverlapPanel({ overlap, isDark }: { overlap: OverlapMetrics; isDark: boolean }) {
+  const PANEL = makePanel(isDark);
+  const TH = makeTH(isDark);
+
+  function deltaColor(delta: number | null, lowerIsBetter: boolean): string {
+    if (delta === null) return isDark ? '#94a3b8' : '#64748b';
+    const improved = lowerIsBetter ? delta < 0 : delta > 0;
+    return improved ? '#4ade80' : '#f87171';
+  }
+
+  function fmtDelta(v: number | null, scale = 100, suffix = '%'): string {
+    if (v === null) return '—';
+    const sign = v >= 0 ? '+' : '';
+    return `${sign}${(v * scale).toFixed(1)}${suffix}`;
+  }
+
+  function fmtDeltaRaw(v: number | null): string {
+    if (v === null) return '—';
+    const sign = v >= 0 ? '+' : '';
+    return `${sign}${v.toFixed(3)}`;
+  }
+
+  const accDelta = overlap.v3_accuracy !== null && overlap.nexus_accuracy !== null
+    ? overlap.nexus_accuracy - overlap.v3_accuracy
+    : null;
+  const brierDelta = overlap.v3_brier !== null && overlap.nexus_brier !== null
+    ? overlap.nexus_brier - overlap.v3_brier
+    : null;
+  const llDelta = overlap.v3_log_loss !== null && overlap.nexus_log_loss !== null
+    ? overlap.nexus_log_loss - overlap.v3_log_loss
+    : null;
+
+  const rows: Array<{
+    label: string;
+    v3Val: string;
+    nexusVal: string;
+    delta: number | null;
+    lowerIsBetter: boolean;
+    deltaStr: string;
+  }> = [
+    {
+      label: 'Accuracy',
+      v3Val: fmtPct(overlap.v3_accuracy),
+      nexusVal: fmtPct(overlap.nexus_accuracy),
+      delta: accDelta,
+      lowerIsBetter: false,
+      deltaStr: fmtDelta(accDelta),
+    },
+    {
+      label: 'Brier score',
+      v3Val: fmtNum(overlap.v3_brier),
+      nexusVal: fmtNum(overlap.nexus_brier),
+      delta: brierDelta,
+      lowerIsBetter: true,
+      deltaStr: fmtDeltaRaw(brierDelta),
+    },
+    {
+      label: 'Log Loss',
+      v3Val: fmtNum(overlap.v3_log_loss),
+      nexusVal: fmtNum(overlap.nexus_log_loss),
+      delta: llDelta,
+      lowerIsBetter: true,
+      deltaStr: fmtDeltaRaw(llDelta),
+    },
+  ];
+
+  return (
+    <div style={PANEL}>
+      <div style={{ ...SECTION_TITLE, marginTop: 0 }}>
+        Comparacion — {overlap.match_count} partidos evaluados en ambos motores
+      </div>
+      {overlap.match_count === 0 ? (
+        <div style={{ fontSize: 12, color: isDark ? '#64748b' : '#475569' }}>
+          Sin partidos en overlap todavia — se necesita ground truth en ambos motores para el mismo partido.
+        </div>
+      ) : (
+        <>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ borderCollapse: 'collapse', fontSize: 12, minWidth: 380 }}>
+              <thead>
+                <tr>
+                  <th style={{ ...TH, minWidth: 120 }}>Metrica</th>
+                  <th style={{ ...TH, textAlign: 'right' }}>V3</th>
+                  <th style={{ ...TH, textAlign: 'right' }}>NEXUS</th>
+                  <th style={{ ...TH, textAlign: 'right' }}>Delta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.label}>
+                    <td style={{ ...makeTD(isDark, false), color: isDark ? '#94a3b8' : '#64748b' }}>{row.label}</td>
+                    <td style={{ ...makeTD(isDark, false), textAlign: 'right' }}>{row.v3Val}</td>
+                    <td style={{ ...makeTD(isDark, false), textAlign: 'right' }}>{row.nexusVal}</td>
+                    <td style={{ ...makeTD(isDark, false), textAlign: 'right', fontWeight: 700, color: deltaColor(row.delta, row.lowerIsBetter) }}>
+                      {row.deltaStr}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize: 10, color: isDark ? '#475569' : '#94a3b8', marginTop: 8 }}>
+            Delta = NEXUS - V3. Verde si NEXUS mejora (accuracy up, Brier/LogLoss down).
+            Solo partidos donde ambos motores emitieron prediccion y el resultado es conocido.
+            V3 puede abstenerse (TOO_CLOSE) en casos donde NEXUS predice.
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function EvaluationLabPage() {
@@ -448,16 +587,24 @@ export function EvaluationLabPage() {
   const ROOT = makeRoot(isDark);
   const PANEL = makePanel(isDark);
   const [data, setData] = useState<EvaluationResponse | null>(null);
+  const [compareData, setCompareData] = useState<CompareResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [engineMode, setEngineMode] = useState<EngineMode>('v3');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchEvaluation('comp:apifootball:140');
-      setData(result);
+      const result = await fetchEvaluation('comp:apifootball:140', engineMode);
+      if (engineMode === 'compare') {
+        setCompareData(result as CompareResponse);
+        setData(null);
+      } else {
+        setData(result as EvaluationResponse);
+        setCompareData(null);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('HTTP 404')) {
@@ -468,7 +615,7 @@ export function EvaluationLabPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [engineMode]);
 
   useEffect(() => {
     void load();
@@ -479,6 +626,7 @@ export function EvaluationLabPage() {
     alignItems: 'center',
     gap: 12,
     marginBottom: 16,
+    flexWrap: 'wrap',
   };
 
   const title: React.CSSProperties = {
@@ -499,6 +647,22 @@ export function EvaluationLabPage() {
     cursor: 'pointer',
   };
 
+  const engineToggleBase: React.CSSProperties = {
+    fontSize: 11,
+    borderRadius: 4,
+    padding: '3px 10px',
+    cursor: 'pointer',
+    border: isDark ? '1px solid #2a3a4a' : '1px solid #cbd5e1',
+  };
+
+  function engineToggleStyle(active: boolean): React.CSSProperties {
+    return {
+      ...engineToggleBase,
+      background: active ? '#1e3a5f' : (isDark ? '#1a1a1a' : '#f1f5f9'),
+      color: active ? '#60a5fa' : (isDark ? '#64748b' : '#475569'),
+    };
+  }
+
   if (unavailable) {
     return (
       <div style={ROOT}>
@@ -506,24 +670,37 @@ export function EvaluationLabPage() {
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
         <div style={headerRow}>
-          <h1 style={title}>Labs — Evaluación PE</h1>
+          <h1 style={title}>Labs — Evaluacion PE</h1>
         </div>
         <div style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', ...PANEL }}>
-          No disponible — <code style={{ color: '#f87171' }}>PREDICTION_INTERNAL_VIEW_ENABLED</code> no está configurado.
+          No disponible — <code style={{ color: '#f87171' }}>PREDICTION_INTERNAL_VIEW_ENABLED</code> no esta configurado.
         </div>
       </div>
     );
   }
 
+  const activeData = engineMode === 'compare' ? null : data;
+
   return (
     <div style={ROOT}>
       <div style={headerRow}>
-        <h1 style={title}>Labs — Evaluación PE</h1>
-        {data && (
+        <h1 style={title}>Labs — Evaluacion PE</h1>
+        {activeData && (
           <span style={{ fontSize: 11, color: '#475569' }}>
-            Calculado: {fmtDate(data.computed_at)} · {data.total_records} registros
+            Calculado: {fmtDate(activeData.computed_at)} · {activeData.total_records} registros
           </span>
         )}
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {(['v3', 'nexus', 'compare'] as const).map((opt) => (
+            <button
+              key={opt}
+              style={engineToggleStyle(engineMode === opt)}
+              onClick={() => setEngineMode(opt)}
+            >
+              {opt === 'v3' ? 'V3' : opt === 'nexus' ? 'NEXUS' : 'Comparar'}
+            </button>
+          ))}
+        </div>
         <button style={refreshBtn} onClick={() => { void load(); }} disabled={loading}>
           {loading ? 'Cargando...' : 'Refresh'}
         </button>
@@ -536,24 +713,28 @@ export function EvaluationLabPage() {
         </div>
       )}
 
-      {loading && !data && (
+      {loading && !data && !compareData && (
         <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#475569', ...PANEL }}>Cargando...</div>
       )}
 
-      {data && (
+      {engineMode === 'compare' && compareData && (
+        <OverlapPanel overlap={compareData.overlap} isDark={isDark} />
+      )}
+
+      {activeData && (
         <>
           <div style={PANEL}>
-            <CoverageFunnelPanel funnel={data.coverage_funnel} isDark={isDark} />
+            <CoverageFunnelPanel funnel={activeData.coverage_funnel} isDark={isDark} />
           </div>
           <div style={PANEL}>
-            <PerformancePanel perf={data.performance} isDark={isDark} />
+            <PerformancePanel perf={activeData.performance} isDark={isDark} />
           </div>
           <div style={PANEL}>
-            <OperationalPanel op={data.operational} isDark={isDark} />
+            <OperationalPanel op={activeData.operational} isDark={isDark} />
           </div>
-          <div style={SECTION_TITLE}>Registros por partido ({data.records.length})</div>
+          <div style={SECTION_TITLE}>Registros por partido ({activeData.records.length})</div>
           <div style={PANEL}>
-            <RecordsTable records={data.records} isDark={isDark} />
+            <RecordsTable records={activeData.records} isDark={isDark} />
           </div>
         </>
       )}

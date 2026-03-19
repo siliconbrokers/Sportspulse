@@ -14,6 +14,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PredictionStore } from './prediction-store.js';
+import { NexusShadowReader } from './nexus-shadow-reader.js';
 
 // ── Response shape ─────────────────────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ interface InspectionItem {
   // -- Full payloads --
   request_payload: unknown;
   response_payload: unknown;
+
+  // -- Engine source --
+  engine_source: 'v3' | 'nexus';
 }
 
 // ── Helper: extract core probabilities from a parsed PredictionResponse ────────
@@ -114,9 +118,55 @@ function isEndpointEnabled(): boolean {
   return typeof val === 'string' && val.trim().length > 0;
 }
 
+// ── Helper: build V3 InspectionItem from PredictionStore snapshot ─────────────
+
+function buildV3Item(snap: ReturnType<PredictionStore['findAll']>[number]): InspectionItem {
+  const requestPayload = safeParse(snap.request_payload_json, `request_payload[${snap.match_id}]`);
+  const responsePayload = safeParse(snap.response_payload_json, `response_payload[${snap.match_id}]`);
+
+  const coreFields = responsePayload !== null
+    ? extractCoreFields(responsePayload)
+    : {
+        p_home_win: null,
+        p_draw: null,
+        p_away_win: null,
+        predicted_result: null,
+        expected_goals_home: null,
+        expected_goals_away: null,
+        favorite_margin: null,
+        draw_risk: null,
+      };
+
+  const item: InspectionItem = {
+    match_id:           snap.match_id,
+    competition_id:     snap.competition_id,
+    generated_at:       snap.generated_at,
+    engine_version:     snap.engine_version,
+    generation_status:  snap.generation_status,
+    mode:               snap.mode,
+    calibration_mode:   snap.calibration_mode,
+    reasons:            parseReasons(snap.reasons_json),
+    degradation_notes:  parseDegradationNotes(snap.degradation_flags_json),
+    request_payload:    requestPayload,
+    response_payload:   responsePayload,
+    engine_source:      'v3',
+    ...coreFields,
+  };
+
+  if (snap.error_detail !== undefined) {
+    item.error_detail = snap.error_detail;
+  }
+
+  return item;
+}
+
 // ── registerInspectionRoute ───────────────────────────────────────────────────
 
-export function registerInspectionRoute(app: FastifyInstance, store: PredictionStore): void {
+export function registerInspectionRoute(
+  app: FastifyInstance,
+  store: PredictionStore,
+  nexusReader: NexusShadowReader,
+): void {
   app.get('/api/internal/predictions', async (req: FastifyRequest, reply: FastifyReply) => {
     // Gate: endpoint is off if no competition is in the internal view list
     if (!isEndpointEnabled()) {
@@ -129,56 +179,50 @@ export function registerInspectionRoute(app: FastifyInstance, store: PredictionS
     const rawLimit = parseInt(q['limit'] ?? '20', 10);
     const limit = isNaN(rawLimit) ? 20 : Math.min(100, Math.max(1, rawLimit));
 
-    // Resolve which snapshots to return
+    // Parse engine filter (default: both)
+    const engine = (q['engine'] ?? 'both') as 'v3' | 'nexus' | 'both';
+
     const { matchId, competitionId } = q;
-    let snapshots;
-    if (matchId) {
-      snapshots = store.findByMatch(matchId).slice(0, limit);
-    } else if (competitionId) {
-      snapshots = store.findByCompetition(competitionId, limit);
-    } else {
-      snapshots = store.findAll(limit);
+
+    // ── Build V3 items ──────────────────────────────────────────────────────
+    let v3Items: InspectionItem[] = [];
+    if (engine === 'v3' || engine === 'both') {
+      let snapshots;
+      if (matchId) {
+        snapshots = store.findByMatch(matchId).slice(0, limit);
+      } else if (competitionId) {
+        snapshots = store.findByCompetition(competitionId, limit);
+      } else {
+        snapshots = store.findAll(limit);
+      }
+      v3Items = snapshots.map(buildV3Item);
     }
 
-    // Build response items
-    const items: InspectionItem[] = snapshots.map((snap) => {
-      const requestPayload = safeParse(snap.request_payload_json, `request_payload[${snap.match_id}]`);
-      const responsePayload = safeParse(snap.response_payload_json, `response_payload[${snap.match_id}]`);
-
-      const coreFields = responsePayload !== null
-        ? extractCoreFields(responsePayload)
-        : {
-            p_home_win: null,
-            p_draw: null,
-            p_away_win: null,
-            predicted_result: null,
-            expected_goals_home: null,
-            expected_goals_away: null,
-            favorite_margin: null,
-            draw_risk: null,
-          };
-
-      const item: InspectionItem = {
-        match_id:           snap.match_id,
-        competition_id:     snap.competition_id,
-        generated_at:       snap.generated_at,
-        engine_version:     snap.engine_version,
-        generation_status:  snap.generation_status,
-        mode:               snap.mode,
-        calibration_mode:   snap.calibration_mode,
-        reasons:            parseReasons(snap.reasons_json),
-        degradation_notes:  parseDegradationNotes(snap.degradation_flags_json),
-        request_payload:    requestPayload,
-        response_payload:   responsePayload,
-        ...coreFields,
-      };
-
-      if (snap.error_detail !== undefined) {
-        item.error_detail = snap.error_detail;
+    // ── Build NEXUS items ───────────────────────────────────────────────────
+    let nexusItems: InspectionItem[] = [];
+    if (engine === 'nexus' || engine === 'both') {
+      if (matchId) {
+        const found = nexusReader.findByMatch(matchId);
+        nexusItems = found ? [found] : [];
+      } else if (competitionId) {
+        nexusItems = nexusReader.findByCompetition(competitionId);
+      } else {
+        nexusItems = nexusReader.findAll();
       }
+    }
 
-      return item;
-    });
+    // ── Merge and sort ──────────────────────────────────────────────────────
+    let items: InspectionItem[];
+    if (engine === 'v3') {
+      items = v3Items;
+    } else if (engine === 'nexus') {
+      items = nexusItems;
+    } else {
+      // both: merge, sort by generated_at desc, then apply limit
+      items = [...v3Items, ...nexusItems]
+        .sort((a, b) => b.generated_at.localeCompare(a.generated_at))
+        .slice(0, limit);
+    }
 
     reply.header('Cache-Control', 'no-store');
     return reply.send({ items, count: items.length });

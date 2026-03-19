@@ -31,6 +31,7 @@ import { registerExperimentalPredictionRoute } from './prediction/experimental-r
 import { EvaluationStore } from './prediction/evaluation-store.js';
 import { captureResults } from './prediction/result-capture.js';
 import { registerEvaluationRoute } from './prediction/evaluation-route.js';
+import { NexusShadowReader } from './prediction/nexus-shadow-reader.js';
 import { HistoricalBacktestStore } from './prediction/historical-backtest-store.js';
 import { registerHistoricalEvaluationRoute } from './prediction/historical-evaluation-route.js';
 import { registerTrainingRoute } from './prediction/training-route.js';
@@ -1302,13 +1303,14 @@ async function main() {
   });
 
   // ── Internal predictions inspection endpoint (PE-75) ──────────────────────
-  registerInspectionRoute(app, predictionStore);
+  const nexusShadowReader = new NexusShadowReader();
+  registerInspectionRoute(app, predictionStore, nexusShadowReader);
 
   // ── Experimental prediction endpoint (PE-78) ───────────────────────────────
   registerExperimentalPredictionRoute(app, predictionStore, evaluationStore);
 
   // ── Evaluation endpoint (OE-5) ─────────────────────────────────────────────
-  registerEvaluationRoute(app, evaluationStore);
+  registerEvaluationRoute(app, evaluationStore, nexusShadowReader);
 
   // ── Historical evaluation endpoint (H5) ────────────────────────────────────
   const historicalBacktestStore = new HistoricalBacktestStore();

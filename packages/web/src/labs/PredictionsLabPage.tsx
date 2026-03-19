@@ -25,12 +25,14 @@ type Snapshot = {
   draw_risk: number | null;
   request_payload: unknown;
   response_payload: unknown;
+  engine_source?: 'v3' | 'nexus';
 };
 
-async function fetchSnapshots(params: { competitionId?: string; limit?: number }): Promise<Snapshot[]> {
+async function fetchSnapshots(params: { competitionId?: string; limit?: number; engine?: 'both' | 'v3' | 'nexus' }): Promise<Snapshot[]> {
   const url = new URL('/api/internal/predictions', window.location.origin);
   if (params.competitionId) url.searchParams.set('competitionId', params.competitionId);
   if (params.limit) url.searchParams.set('limit', String(params.limit));
+  if (params.engine) url.searchParams.set('engine', params.engine);
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json() as { items: Snapshot[]; count: number };
@@ -129,7 +131,7 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
 
   return (
     <tr>
-      <td colSpan={11} style={cellStyle}>
+      <td colSpan={12} style={cellStyle}>
         {/* Summary line */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: 12, fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
           <span><span style={{ color: '#64748b' }}>Mode:</span> {snap.mode}</span>
@@ -233,12 +235,13 @@ export function PredictionsLabPage() {
   const [error, setError] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [engineFilter, setEngineFilter] = useState<'both' | 'v3' | 'nexus'>('both');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const items = await fetchSnapshots({ limit: 20 });
+      const items = await fetchSnapshots({ limit: 20, engine: engineFilter });
       setSnapshots(items);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -250,11 +253,10 @@ export function PredictionsLabPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [engineFilter]);
 
-  // Probe availability once on mount
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const root: React.CSSProperties = {
@@ -329,10 +331,37 @@ export function PredictionsLabPage() {
     );
   }
 
+  const engineToggleBase: React.CSSProperties = {
+    fontSize: 11,
+    borderRadius: 4,
+    padding: '3px 10px',
+    cursor: 'pointer',
+    border: isDark ? '1px solid #2a3a4a' : '1px solid #cbd5e1',
+  };
+
+  function engineToggleStyle(active: boolean): React.CSSProperties {
+    return {
+      ...engineToggleBase,
+      background: active ? '#1e3a5f' : (isDark ? '#1a1a1a' : '#f1f5f9'),
+      color: active ? '#60a5fa' : (isDark ? '#64748b' : '#475569'),
+    };
+  }
+
   return (
     <div style={root}>
-      <div style={headerRow}>
+      <div style={{ ...headerRow, flexWrap: 'wrap' }}>
         <h1 style={title}>Labs — Predicciones</h1>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {(['both', 'v3', 'nexus'] as const).map((opt) => (
+            <button
+              key={opt}
+              style={engineToggleStyle(engineFilter === opt)}
+              onClick={() => setEngineFilter(opt)}
+            >
+              {opt === 'both' ? 'Todos' : opt === 'v3' ? 'V3' : 'NEXUS'}
+            </button>
+          ))}
+        </div>
         <button
           style={refreshBtn}
           onClick={() => { void load(); }}
@@ -364,6 +393,7 @@ export function PredictionsLabPage() {
               <tr>
                 <th style={thStyle}>Match ID</th>
                 <th style={thStyle}>Comp</th>
+                <th style={thStyle}>Motor</th>
                 <th style={thStyle}>Fecha</th>
                 <th style={thStyle}>Mode</th>
                 <th style={thStyle}>p_home</th>
@@ -376,50 +406,92 @@ export function PredictionsLabPage() {
               </tr>
             </thead>
             <tbody>
-              {snapshots.map((snap, idx) => {
-                const key = expandKey(snap);
-                const isExpanded = expandedId === key;
-                const isEven = idx % 2 === 0;
-                const shortId = snap.match_id.slice(-12);
-                const badge = modeBadge(snap.mode);
-                const td = tdStyle(isEven);
+              {(() => {
+                // In compare mode (both), group by match_id to show pairs consecutively
+                let ordered: Array<{ snap: Snapshot; isDivider: boolean }>;
+                if (engineFilter === 'both') {
+                  const byMatchId = new Map<string, Snapshot[]>();
+                  for (const snap of snapshots) {
+                    const group = byMatchId.get(snap.match_id) ?? [];
+                    group.push(snap);
+                    byMatchId.set(snap.match_id, group);
+                  }
+                  ordered = [];
+                  for (const group of byMatchId.values()) {
+                    const sorted = [...group].sort((a, b) => {
+                      const order = { v3: 0, nexus: 1 };
+                      return (order[a.engine_source ?? 'v3'] ?? 0) - (order[b.engine_source ?? 'v3'] ?? 0);
+                    });
+                    sorted.forEach((snap, i) => {
+                      ordered.push({ snap, isDivider: i > 0 && group.length > 1 });
+                    });
+                  }
+                } else {
+                  ordered = snapshots.map((snap) => ({ snap, isDivider: false }));
+                }
 
-                return (
-                  <>
-                    <tr
-                      key={key}
-                      onClick={() => setExpandedId((prev) => (prev === key ? null : key))}
-                      style={{ ...td, cursor: 'pointer' } as React.CSSProperties}
-                    >
-                      <td style={{ ...td, fontFamily: 'monospace', color: '#94a3b8' }}>
-                        {shortId}
-                      </td>
-                      <td style={td}>{snap.competition_id.split(':').pop() ?? snap.competition_id}</td>
-                      <td style={{ ...td, color: '#94a3b8' }}>{formatDate(snap.generated_at)}</td>
-                      <td style={td}>
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          background: badge.bg,
-                          color: badge.color,
-                        }}>
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td style={td}>{fmtProb(snap.p_home_win)}</td>
-                      <td style={td}>{fmtProb(snap.p_draw)}</td>
-                      <td style={td}>{fmtProb(snap.p_away_win)}</td>
-                      <td style={{ ...td, color: '#94a3b8' }}>{snap.predicted_result ?? '—'}</td>
-                      <td style={td}>{fmtXg(snap.expected_goals_home)}</td>
-                      <td style={td}>{fmtXg(snap.expected_goals_away)}</td>
-                      <td style={td}>{snap.generation_status === 'ok' ? '✅' : '❌'}</td>
-                    </tr>
-                    {isExpanded && <ExpandedRow key={`${key}__expanded`} snap={snap} />}
-                  </>
-                );
-              })}
+                return ordered.map(({ snap, isDivider }, idx) => {
+                  const key = expandKey(snap);
+                  const isExpanded = expandedId === key;
+                  const isEven = idx % 2 === 0;
+                  const shortId = snap.match_id.slice(-12);
+                  const badge = modeBadge(snap.mode);
+                  const engineSrc = snap.engine_source ?? 'v3';
+                  const engineBadge = engineSrc === 'nexus'
+                    ? { label: 'NEXUS', bg: 'rgba(139,92,246,0.15)', color: '#a78bfa' }
+                    : { label: 'V3',    bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa' };
+                  const td = tdStyle(isEven);
+                  const dividerBorder = isDivider ? '1px dashed #2a2a2a' : undefined;
+
+                  return (
+                    <>
+                      <tr
+                        key={key}
+                        onClick={() => setExpandedId((prev) => (prev === key ? null : key))}
+                        style={{ ...td, cursor: 'pointer', borderTop: dividerBorder } as React.CSSProperties}
+                      >
+                        <td style={{ ...td, fontFamily: 'monospace', color: '#94a3b8', borderTop: dividerBorder }}>
+                          {shortId}
+                        </td>
+                        <td style={{ ...td, borderTop: dividerBorder }}>{snap.competition_id.split(':').pop() ?? snap.competition_id}</td>
+                        <td style={{ ...td, borderTop: dividerBorder }}>
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: engineBadge.bg,
+                            color: engineBadge.color,
+                          }}>
+                            {engineBadge.label}
+                          </span>
+                        </td>
+                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{formatDate(snap.generated_at)}</td>
+                        <td style={{ ...td, borderTop: dividerBorder }}>
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: badge.bg,
+                            color: badge.color,
+                          }}>
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td style={{ ...td, borderTop: dividerBorder }}>{fmtProb(snap.p_home_win)}</td>
+                        <td style={{ ...td, borderTop: dividerBorder }}>{fmtProb(snap.p_draw)}</td>
+                        <td style={{ ...td, borderTop: dividerBorder }}>{fmtProb(snap.p_away_win)}</td>
+                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{snap.predicted_result ?? '—'}</td>
+                        <td style={{ ...td, borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_home)}</td>
+                        <td style={{ ...td, borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_away)}</td>
+                        <td style={{ ...td, borderTop: dividerBorder }}>{snap.generation_status === 'ok' ? '✅' : '❌'}</td>
+                      </tr>
+                      {isExpanded && <ExpandedRow key={`${key}__expanded`} snap={snap} />}
+                    </>
+                  );
+                });
+              })()}
             </tbody>
           </table>
         </div>
