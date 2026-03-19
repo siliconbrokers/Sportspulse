@@ -896,18 +896,40 @@ describe('F-005 — §7.6 isKnownOfficialSenior11v11 catalog', () => {
 
   // ── OFFICIAL_SENIOR_11V11_COMPETITION_IDS set structure ─────────────────
 
-  it('catalog set contains exactly the 9 expected entries', () => {
-    // §7.6: catalog is frozen for MVP v1 scope — exactly these IDs
+  it('catalog set contains exactly the 19 expected entries', () => {
+    // §7.6: catalog covers all ID representations for all supported competitions.
+    // Updated from 9→19 entries as new competitions and apifootball namespaced
+    // IDs were added: apifootball aliases for PD/PL/BL1/URU, Liga Argentina
+    // (4406 / comp:sportsdb-ar:4406 / comp:apifootball:128), Copa Libertadores
+    // (comp:apifootball:13), Copa del Mundo 2026 (comp:apifootball:1), and
+    // OpenLigaDB alias for Bundesliga (comp:openligadb:bl1).
     const expectedIds = [
+      // LaLiga
       'PD',
       'comp:football-data:PD',
+      'comp:apifootball:140',
+      // Premier League
       'PL',
       'comp:football-data:PL',
+      'comp:apifootball:39',
+      // Bundesliga
       'BL1',
       'comp:football-data:BL1',
+      'comp:openligadb:bl1',
+      'comp:apifootball:78',
+      // Liga Uruguaya
       '4432',
       'TheSportsDB:4432',
       'comp:thesportsdb:4432',
+      'comp:apifootball:268',
+      // Liga Argentina
+      '4406',
+      'comp:sportsdb-ar:4406',
+      'comp:apifootball:128',
+      // Copa Libertadores
+      'comp:apifootball:13',
+      // Copa del Mundo 2026
+      'comp:apifootball:1',
     ];
     expect(OFFICIAL_SENIOR_11V11_COMPETITION_IDS.size).toBe(expectedIds.length);
     for (const id of expectedIds) {
