@@ -123,12 +123,24 @@ export class ApifootballLiveOverlay {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private _started = false;
 
+  /** Numeric league IDs extracted from trackedCompetitionIds (e.g. "comp:apifootball:140" → 140). */
+  private readonly trackedLeagueIds: Set<number>;
+
   constructor(
     private readonly apiKey: string,
     private readonly trackedCompetitionIds: string[] = [],
     /** Optional: returns minutes until the next scheduled match, or null if unknown. */
     private readonly minutesUntilNextMatch?: () => number | null,
-  ) {}
+  ) {
+    this.trackedLeagueIds = new Set(
+      trackedCompetitionIds
+        .map((id) => {
+          const match = /^comp:apifootball:(\d+)$/.exec(id);
+          return match ? parseInt(match[1], 10) : null;
+        })
+        .filter((n): n is number => n !== null),
+    );
+  }
 
   start(): void {
     if (this._started) return;
@@ -245,13 +257,18 @@ export class ApifootballLiveOverlay {
 
         this.cache   = newCache;
         this.rawList = newRaw;
-        this.hasLive = newRaw.length > 0;
+        // hasLive is true only when a TRACKED competition has a live match.
+        // Untracked leagues (worldwide) must not drive our polling cadence.
+        const trackedLive = this.trackedLeagueIds.size > 0
+          ? newRaw.filter((r) => this.trackedLeagueIds.has(r.leagueId))
+          : newRaw;
+        this.hasLive = trackedLive.length > 0;
 
         if (this.hasLive) {
           const stats = getBudgetStats();
           console.log(
-            `[LiveOverlay] ${newRaw.length} partidos en vivo ` +
-            `(req hoy: ${stats.requestsToday}/${stats.limit})`,
+            `[LiveOverlay] ${trackedLive.length} partidos en vivo en ligas tracked ` +
+            `(total respuesta: ${newRaw.length}, req hoy: ${stats.requestsToday}/${stats.limit})`,
           );
         }
       } catch (err) {

@@ -17,6 +17,8 @@ import {
   isQuotaExhausted as isAfQuotaExhausted,
   markQuotaExhausted as markAfQuotaExhausted,
   consumeRequest as consumeAfRequest,
+  getGlobalProviderClient,
+  QuotaExhaustedError,
 } from '@sportpulse/canonical';
 
 const AF_BASE       = 'https://v3.football.api-sports.io';
@@ -177,10 +179,34 @@ export class ApiFootballCLIOverlay {
   // ── HTTP ──────────────────────────────────────────────────────────────────
 
   private async apiGet<T extends object>(endpoint: string): Promise<T> {
-    const res = await fetch(`${AF_BASE}${endpoint}`, {
-      headers: { 'x-apisports-key': this.apiKey },
-      signal: AbortSignal.timeout(10_000),
-    });
+    const url = `${AF_BASE}${endpoint}`;
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      try {
+        res = await client.fetch(url, {
+          headers: { 'x-apisports-key': this.apiKey },
+          signal: AbortSignal.timeout(10_000),
+          providerKey: 'api-football',
+          consumerType: 'PORTAL_RUNTIME',
+          priorityTier: 'product-critical',
+          moduleKey: 'af-cli-overlay',
+          operationKey: 'fixtures-live-cli',
+        });
+      } catch (err) {
+        if (err instanceof QuotaExhaustedError) {
+          markAfQuotaExhausted();
+          throw new Error(`CLIOverlay quota exhausted`);
+        }
+        throw err;
+      }
+    } else {
+      res = await fetch(url, {
+        headers: { 'x-apisports-key': this.apiKey },
+        signal: AbortSignal.timeout(10_000),
+      });
+      consumeAfRequest();
+    }
     if (!res.ok) throw new Error(`CLIOverlay HTTP ${res.status}: ${endpoint}`);
     const data = await res.json() as T;
     const dataAny = data as { errors?: { requests?: unknown } };
@@ -188,7 +214,6 @@ export class ApiFootballCLIOverlay {
       markAfQuotaExhausted();
       throw new Error(`CLIOverlay quota: ${dataAny.errors.requests}`);
     }
-    consumeAfRequest();
     return data;
   }
 }

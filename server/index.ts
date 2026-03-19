@@ -838,6 +838,30 @@ async function main() {
     return all;
   }
 
+  /**
+   * Computes the refresh tier interval for a legacy source (FD/TheSportsDB/OLG/WC/CLI)
+   * based on its cached match data. Mirrors the AF tier logic but reads from dataSource.
+   */
+  function computeLegacyTierMs(compId: string, nowMs: number): number {
+    const seasonId = dataSource.getSeasonId(compId);
+    if (!seasonId) return LEGACY_TIER_IDLE_MS;
+    const matches = dataSource.getMatches(seasonId);
+    if (matches.some((m) => m.status === 'IN_PROGRESS')) return 2 * 60_000;
+    const hasImminent = matches.some((m) => {
+      if (m.status !== 'SCHEDULED') return false;
+      const kickoff = m.startTimeUtc ? new Date(m.startTimeUtc).getTime() : 0;
+      return kickoff > nowMs && kickoff - nowMs < 30 * 60_000;
+    });
+    if (hasImminent) return LEGACY_TIER_IMMINENT_MS;
+    const todayUtc = new Date(nowMs).toISOString().slice(0, 10);
+    const hasToday = matches.some((m) => {
+      if (!m.startTimeUtc || m.status === 'POSTPONED' || m.status === 'CANCELED') return false;
+      return m.startTimeUtc.slice(0, 10) === todayUtc;
+    });
+    if (hasToday) return LEGACY_TIER_ACTIVE_DAY_MS;
+    return LEGACY_TIER_IDLE_MS;
+  }
+
   function fmtDelay(ms: number): string {
     if (ms < MIN_MS)  return `${Math.round(ms / 1000)}s`;
     if (ms < HR_MS)   return `${Math.round(ms / MIN_MS)}min`;
@@ -854,6 +878,12 @@ async function main() {
   /** Timestamp of last successful fetch per compId — used for tier-based scheduling. */
   const compLastFetchedMs = new Map<string, number>();
 
+  /** Timestamp of last successful fetch for legacy FD/TheSportsDB/OLG sources. */
+  const legacyLastFetchedMs = new Map<string, number>();
+  const LEGACY_TIER_IDLE_MS       = 6 * 3600_000;  // 6h — no matches today
+  const LEGACY_TIER_ACTIVE_DAY_MS = 1 * 3600_000;  // 1h — matches today
+  const LEGACY_TIER_IMMINENT_MS   = 5 * 60_000;    // 5min — kickoff < 30 min
+
   async function runRefresh(): Promise<void> {
     if (refreshInProgress) {
       console.warn('[Scheduler] Refresh already in progress — skipping cycle');
@@ -868,6 +898,7 @@ async function main() {
   }
 
   async function runRefreshInner(): Promise<void> {
+    const nowMs = Date.now();
     if (AF_CANONICAL_ENABLED && afCanonicalSource) {
       // Skip entire AF refresh cycle when quota is exhausted — avoids 7 noisy error logs per cycle
       if (isAfQuotaExhausted()) {
@@ -883,7 +914,6 @@ async function main() {
         return;
       }
 
-      const nowMs = Date.now();
       const liveLeagueIds = liveOverlay.getLiveLeagueIds();
 
       // Tier intervals (ms)
@@ -953,63 +983,95 @@ async function main() {
         }
       }
     } else {
-      // Legacy mode: refresh FD, TheSportsDB, OpenLigaDB
+      // Legacy mode: refresh FD, TheSportsDB, OpenLigaDB — with tier-based guards
       const enabledFdCodes = FD_COMPETITION_CODES.filter((c) =>
         isCompetitionEnabled(`comp:football-data:${c}`),
       );
-      for (let i = 0; i < enabledFdCodes.length; i++) {
-        const code = enabledFdCodes[i];
+      let didFetch = false;
+      for (const code of enabledFdCodes) {
+        const compId = `comp:football-data:${code}`;
+        const tierMs = computeLegacyTierMs(compId, nowMs);
+        const lastFetched = legacyLastFetchedMs.get(compId) ?? 0;
+        if (nowMs - lastFetched < tierMs) {
+          console.log(`[Scheduler] Legacy ${code} within tier (${Math.round((nowMs - lastFetched) / 60_000)}min < ${Math.round(tierMs / 60_000)}min) — skip`);
+          continue;
+        }
+        if (didFetch) await new Promise<void>((r) => setTimeout(r, 7000));
         try {
           await fdSource.fetchCompetition(code);
+          legacyLastFetchedMs.set(compId, Date.now());
           snapshotService.invalidateAll();
+          didFetch = true;
         } catch (err) {
           console.error(`Refresh failed for ${code}:`, err);
         }
-        if (i < enabledFdCodes.length - 1) {
-          await new Promise<void>((r) => setTimeout(r, 7000));
-        }
       }
       if (isCompetitionEnabled(UY_COMPETITION_ID)) {
-        try {
-          await sportsDbSource.fetchSeason();
-          snapshotService.invalidateAll();
-        } catch (err) {
-          console.error('Refresh failed for Liga Uruguaya:', err);
+        const tierMs = computeLegacyTierMs(UY_COMPETITION_ID, nowMs);
+        const lastFetched = legacyLastFetchedMs.get(UY_COMPETITION_ID) ?? 0;
+        if (nowMs - lastFetched >= tierMs) {
+          try {
+            await sportsDbSource.fetchSeason();
+            legacyLastFetchedMs.set(UY_COMPETITION_ID, Date.now());
+            snapshotService.invalidateAll();
+          } catch (err) {
+            console.error('Refresh failed for Liga Uruguaya:', err);
+          }
         }
       }
       if (isCompetitionEnabled(AR_COMPETITION_ID)) {
-        try {
-          await sportsDbArSource.fetchSeason();
-          snapshotService.invalidateAll();
-        } catch (err) {
-          console.error('Refresh failed for Liga Argentina:', err);
+        const tierMs = computeLegacyTierMs(AR_COMPETITION_ID, nowMs);
+        const lastFetched = legacyLastFetchedMs.get(AR_COMPETITION_ID) ?? 0;
+        if (nowMs - lastFetched >= tierMs) {
+          try {
+            await sportsDbArSource.fetchSeason();
+            legacyLastFetchedMs.set(AR_COMPETITION_ID, Date.now());
+            snapshotService.invalidateAll();
+          } catch (err) {
+            console.error('Refresh failed for Liga Argentina:', err);
+          }
         }
       }
       if (isCompetitionEnabled(OLG_COMPETITION_ID)) {
-        try {
-          await openLigaDbSource.fetchSeason();
-          snapshotService.invalidateAll();
-        } catch (err) {
-          console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
+        const tierMs = computeLegacyTierMs(OLG_COMPETITION_ID, nowMs);
+        const lastFetched = legacyLastFetchedMs.get(OLG_COMPETITION_ID) ?? 0;
+        if (nowMs - lastFetched >= tierMs) {
+          try {
+            await openLigaDbSource.fetchSeason();
+            legacyLastFetchedMs.set(OLG_COMPETITION_ID, Date.now());
+            snapshotService.invalidateAll();
+          } catch (err) {
+            console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
+          }
         }
       }
     }
     if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(WC_COMPETITION_ID)) {
-      await new Promise<void>((r) => setTimeout(r, 7000));
-      try {
-        await wcSource.fetchTournament();
-        snapshotService.invalidateAll();
-      } catch (err) {
-        console.error('Refresh failed for Copa del Mundo 2026:', err);
+      const tierMs = computeLegacyTierMs(WC_COMPETITION_ID, nowMs);
+      const lastFetched = legacyLastFetchedMs.get(WC_COMPETITION_ID) ?? 0;
+      if (nowMs - lastFetched >= tierMs) {
+        await new Promise<void>((r) => setTimeout(r, 7000));
+        try {
+          await wcSource.fetchTournament();
+          legacyLastFetchedMs.set(WC_COMPETITION_ID, Date.now());
+          snapshotService.invalidateAll();
+        } catch (err) {
+          console.error('Refresh failed for Copa del Mundo 2026:', err);
+        }
       }
     }
     if (!AF_CANONICAL_ENABLED && isCompetitionEnabled(CLI_COMPETITION_ID)) {
-      await new Promise<void>((r) => setTimeout(r, 7000));
-      try {
-        await cliSource.fetchTournament();
-        snapshotService.invalidateAll();
-      } catch (err) {
-        console.error('Refresh failed for Copa Libertadores 2026:', err);
+      const tierMs = computeLegacyTierMs(CLI_COMPETITION_ID, nowMs);
+      const lastFetched = legacyLastFetchedMs.get(CLI_COMPETITION_ID) ?? 0;
+      if (nowMs - lastFetched >= tierMs) {
+        await new Promise<void>((r) => setTimeout(r, 7000));
+        try {
+          await cliSource.fetchTournament();
+          legacyLastFetchedMs.set(CLI_COMPETITION_ID, Date.now());
+          snapshotService.invalidateAll();
+        } catch (err) {
+          console.error('Refresh failed for Copa Libertadores 2026:', err);
+        }
       }
     }
     // Shadow prediction pipeline — fire-and-forget, fault-isolated
