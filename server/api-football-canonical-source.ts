@@ -37,6 +37,8 @@ import {
   isQuotaExhausted as isAfQuotaExhausted,
   consumeRequest as consumeAfRequest,
   markQuotaExhausted as markAfQuotaExhausted,
+  getGlobalProviderClient,
+  QuotaExhaustedError,
 } from '@sportpulse/canonical';
 import {
   checkMatchdayCache,
@@ -455,7 +457,7 @@ export class ApiFootballCanonicalSource implements DataSource {
       } else {
         // Fetch from API
         try {
-          const raw = await this.apiGet<AfTeamEntry>(`/teams?league=${leagueId}&season=${seasonYear}`);
+          const raw = await this.apiGet<AfTeamEntry>(`/teams?league=${leagueId}&season=${seasonYear}`, 'teams-by-league');
           teams = raw.map((entry) => this.mapTeam(entry));
           teamsFetchedAt = nowMs;
           persistTeamsCache(AF_PROVIDER_KEY, String(leagueId), teams);
@@ -491,7 +493,7 @@ export class ApiFootballCanonicalSource implements DataSource {
     if (!fullSeasonFetched || matches.length === 0) {
       // Full-season fetch: all fixtures for the league/season
       try {
-        const rawFixtures = await this.apiGet<AfFixture>(`/fixtures?league=${leagueId}&season=${seasonYear}`);
+        const rawFixtures = await this.apiGet<AfFixture>(`/fixtures?league=${leagueId}&season=${seasonYear}`, 'fixtures-full-season');
         matches = this.mapFixtures(rawFixtures, resolvedSeasonId, teamLookup, hasSubTournaments);
         console.log(`[AfCanonical] full-season fetch league=${leagueId}: ${matches.length} fixtures`);
 
@@ -536,6 +538,7 @@ export class ApiFootballCanonicalSource implements DataSource {
         try {
           const rawWindow = await this.apiGet<AfFixture>(
             `/fixtures?league=${leagueId}&season=${seasonYear}&from=${pastDate}&to=${futureDate}`,
+            'fixtures-window',
           );
           if (rawWindow.length > 0) {
             const windowMatches = this.mapFixtures(rawWindow, resolvedSeasonId, teamLookup, hasSubTournaments);
@@ -574,6 +577,7 @@ export class ApiFootballCanonicalSource implements DataSource {
       try {
         const rawStandings = await this.apiGet<{ league: { standings: AfStandingRow[][] } }>(
           `/standings?league=${leagueId}&season=${seasonYear}`,
+          'standings-by-league',
         );
         const allGroups = rawStandings[0]?.league?.standings ?? [];
         const selectedGroup = this.selectStandingsGroup(allGroups);
@@ -634,6 +638,7 @@ export class ApiFootballCanonicalSource implements DataSource {
       }
       const raw = await this.apiGet<AfScorerEntry>(
         `/players/topscorers?league=${leagueId}&season=${seasonYear}`,
+        'top-scorers',
       );
       const data: TopScorerEntry[] = raw.slice(0, 20).map((entry, idx) => {
         const stats = entry.statistics[0];
@@ -668,17 +673,42 @@ export class ApiFootballCanonicalSource implements DataSource {
     return this.cache.get(compId);
   }
 
-  private async apiGet<T>(path: string): Promise<T[]> {
+  private async apiGet<T>(path: string, operationKey = 'unknown'): Promise<T[]> {
     // Budget guard — never call provider if quota is exhausted
     if (isAfQuotaExhausted()) {
       throw new Error(`[AfCanonical] Quota exhausted — skipping ${path}`);
     }
 
     const url = `${BASE_URL}${path}`;
-    const res = await fetch(url, {
-      headers: { 'x-apisports-key': this.apiKey },
-      signal: AbortSignal.timeout(15_000),
-    });
+    let res: Response;
+
+    const client = getGlobalProviderClient();
+    if (client) {
+      try {
+        res = await client.fetch(url, {
+          headers: { 'x-apisports-key': this.apiKey },
+          signal: AbortSignal.timeout(15_000),
+          providerKey: 'api-football',
+          consumerType: 'CANONICAL_INGESTION',
+          priorityTier: 'deferrable',
+          moduleKey: 'af-canonical-source',
+          operationKey,
+          metadata: { endpointTemplate: path.split('?')[0] },
+        });
+      } catch (err) {
+        if (err instanceof QuotaExhaustedError) {
+          markAfQuotaExhausted();
+          throw new Error(`[AfCanonical] Quota exhausted ${path}`);
+        }
+        throw err;
+      }
+    } else {
+      res = await fetch(url, {
+        headers: { 'x-apisports-key': this.apiKey },
+        signal: AbortSignal.timeout(15_000),
+      });
+    }
+
     if (!res.ok) {
       throw new Error(`[AfCanonical] HTTP ${res.status} for ${url}`);
     }
@@ -695,7 +725,7 @@ export class ApiFootballCanonicalSource implements DataSource {
       throw new Error(`[AfCanonical] API error for ${url}: ${JSON.stringify(body.errors)}`);
     }
 
-    consumeAfRequest();
+    if (!client) consumeAfRequest();
 
     if (!body.response) {
       throw new Error(`[AfCanonical] No response field for ${url}`);
