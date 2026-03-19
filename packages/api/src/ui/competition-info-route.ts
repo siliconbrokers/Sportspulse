@@ -39,8 +39,9 @@ export function competitionInfoRoute(deps: AppDependencies): FastifyPluginAsync 
           return;
         }
 
+        const rawSubTournament = query.subTournamentKey ?? query.subTournament;
         const subTournamentKey =
-          typeof query.subTournament === 'string' ? query.subTournament : undefined;
+          typeof rawSubTournament === 'string' ? rawSubTournament : undefined;
 
         const subTournaments = deps.dataSource.getSubTournaments?.(competitionId) ?? [];
         const activeSubTournament =

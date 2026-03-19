@@ -16,6 +16,7 @@ export interface TeamQueryParams {
   dateLocal?: string;
   matchday?: number;
   timezone: string;
+  subTournamentKey?: string;
 }
 
 export function parseDashboardQuery(query: Record<string, unknown>): DashboardQueryParams {
@@ -75,8 +76,9 @@ export function parseTeamQuery(query: Record<string, unknown>): TeamQueryParams 
   }
 
   const timezone = asString(query.timezone) || 'Europe/Madrid';
+  const subTournamentKey = asString(query.subTournament ?? query.subTournamentKey);
 
-  return { competitionId, teamId, dateLocal, matchday, timezone };
+  return { competitionId, teamId, dateLocal, matchday, timezone, subTournamentKey };
 }
 
 export class QueryValidationError extends Error {

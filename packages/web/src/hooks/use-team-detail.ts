@@ -14,6 +14,8 @@ export function useTeamDetail(
   timezone: string,
   /** Fecha local YYYY-MM-DD — alternativa a matchday para partidos de torneo sin jornada */
   dateLocal?: string | null,
+  /** Sub-tournament key (e.g. 'CLAUSURA') — required for Liga MX to scope the correct opponent */
+  subTournamentKey?: string | null,
 ): UseTeamDetailResult {
   const [data, setData] = useState<TeamDetailDTO | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,9 @@ export function useTeamDetail(
       params.set('matchday', String(matchday));
     } else if (dateLocal) {
       params.set('dateLocal', dateLocal);
+    }
+    if (subTournamentKey) {
+      params.set('subTournamentKey', subTournamentKey);
     }
 
     fetch(`/api/ui/team?${params}`)
@@ -66,7 +71,7 @@ export function useTeamDetail(
     return () => {
       cancelled = true;
     };
-  }, [competitionId, teamId, matchday, dateLocal, timezone, trigger]);
+  }, [competitionId, teamId, matchday, dateLocal, timezone, subTournamentKey, trigger]);
 
   // Polling adaptativo: 60s cuando el partido está IN_PROGRESS
   useEffect(() => {

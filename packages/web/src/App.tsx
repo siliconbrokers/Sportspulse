@@ -25,6 +25,7 @@ import { HistoricalEvaluationLabPage } from './labs/HistoricalEvaluationLabPage.
 import { TrainingLabPage } from './labs/TrainingLabPage.js';
 import { getCompMeta } from './utils/competition-meta.js';
 import { SubTournamentSelector } from './components/SubTournamentSelector.js';
+import { LiguillaSectionView } from './components/LiguillaSectionView.js';
 import { usePortalConfig } from './hooks/use-portal-config.js';
 import type { PortalConfig } from './hooks/use-portal-config.js';
 import { AdminPage } from './admin/AdminPage.js';
@@ -214,6 +215,9 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
     !!subTournamentKey &&
     compInfo?.subTournaments?.some((s) => s.key === subTournamentKey && !s.hasData) === true;
 
+  // True cuando se está viendo la fase Liguilla (playoffs)
+  const isLiguilla = !!subTournamentKey?.startsWith('LIGUILLA_');
+
   return (
     <div
       style={{
@@ -268,6 +272,12 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
               )}
               {selectedSubTournamentEmpty ? (
                 <SubTournamentEmptyState />
+              ) : isLiguilla ? (
+                <LiguillaSectionView
+                  competitionId={resolvedCompetitionId}
+                  subTournamentKey={subTournamentKey!}
+                  viewMode="pronosticos"
+                />
               ) : (
                 <>
                   {/* Carousel de jornada — solo en ligas */}
@@ -315,6 +325,14 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
             {selectedSubTournamentEmpty ? (
               <div style={{ padding: isMobile ? '16px 12px' : '24px 20px', maxWidth: 1100, margin: '0 auto' }}>
                 <SubTournamentEmptyState />
+              </div>
+            ) : isLiguilla ? (
+              <div style={{ padding: isMobile ? '8px 12px' : '12px 20px', maxWidth: 1100, margin: '0 auto' }}>
+                <LiguillaSectionView
+                  competitionId={resolvedCompetitionId}
+                  subTournamentKey={subTournamentKey!}
+                  viewMode="partidos"
+                />
               </div>
             ) : (
               <>
@@ -376,14 +394,16 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
                 </div>
               )}
 
-              {/* Aviso cuando se selecciona sub-torneo inactivo — la tabla de AF siempre refleja el torneo actual */}
+              {/* Aviso cuando se selecciona sub-torneo inactivo o Liguilla */}
               {(compInfo?.subTournaments?.length ?? 0) > 1 &&
                subTournamentKey &&
                compInfo?.activeSubTournament &&
                subTournamentKey !== compInfo.activeSubTournament && (
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginBottom: isMobile ? 10 : 12, lineHeight: 1.4 }}>
-                  Las posiciones mostradas corresponden al torneo activo.
-                  Tabla histórica del {subTournamentKey === 'APERTURA' ? 'Apertura' : 'Clausura'} no disponible.
+                  {isLiguilla
+                    ? `La Liguilla es una fase eliminatoria — tabla de posiciones del ${subTournamentKey === 'LIGUILLA_CLAUSURA' ? 'Clausura' : 'Apertura'}.`
+                    : `Las posiciones mostradas corresponden al torneo activo. Tabla histórica del ${subTournamentKey === 'APERTURA' ? 'Apertura' : 'Clausura'} no disponible.`
+                  }
                 </div>
               )}
 

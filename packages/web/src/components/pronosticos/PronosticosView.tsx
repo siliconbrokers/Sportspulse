@@ -77,7 +77,14 @@ export function PronosticosView({ competitionId, matchday, subTournamentKey }: P
   const isTablet = breakpoint === 'tablet';
   const [focusTeamId, setFocusTeamId] = useState<string | null>(null);
   const [focusMatchId, setFocusMatchId] = useState<string | null>(null);
-  const { data: teamDetail } = useTeamDetail(competitionId, focusTeamId, matchday, 'America/Montevideo');
+  const { data: teamDetail } = useTeamDetail(
+    competitionId,
+    focusTeamId,
+    matchday,
+    'America/Montevideo',
+    undefined,           // dateLocal — not used here
+    subTournamentKey,    // scope correct sub-tournament for opponent lookup
+  );
 
   // Todos los partidos de la jornada (filtrado por sub-torneo si aplica)
   const { data: snapshot, loading: snapshotLoading } = useDashboardSnapshot(

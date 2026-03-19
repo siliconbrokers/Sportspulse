@@ -209,6 +209,8 @@ function seasonLabel(kind: 'cross-year' | 'calendar', year: number): string {
 /**
  * Detects the sub-tournament key from AF round string or match date.
  * AF round strings often contain "Apertura" or "Clausura" explicitly.
+ * Playoff rounds (Quarter-finals, Semi-finals, Final, Play-In) are assigned
+ * to LIGUILLA_CLAUSURA or LIGUILLA_APERTURA based on the match date.
  * Falls back to date heuristic using aperturaSeason convention:
  *   H1 (default/AR): Apertura = Jan-Jun, Clausura = Jul-Dec
  *   H2 (MX):         Clausura = Jan-May, Apertura = Jul-Dec
@@ -222,6 +224,17 @@ function detectSubTournament(
   if (r.includes('APERTURA')) return 'APERTURA';
   if (r.includes('CLAUSURA')) return 'CLAUSURA';
   if (r.includes('INTERMEDIO')) return 'INTERMEDIO';
+  // Playoff/Liguilla rounds: assign to LIGUILLA_<parent> based on date
+  const isPlayoff =
+    r.includes('QUARTER-FINALS') ||
+    r.includes('SEMI-FINALS') ||
+    r === 'FINAL' ||
+    r.includes('PLAY-IN');
+  if (isPlayoff) {
+    const isFirstHalf = new Date(utcDate).getUTCMonth() < 6;
+    const parent = (aperturaSeason === 'H1') === isFirstHalf ? 'APERTURA' : 'CLAUSURA';
+    return `LIGUILLA_${parent}`;
+  }
   const isFirstHalf = new Date(utcDate).getUTCMonth() < 6; // 0-based
   return (aperturaSeason === 'H1') === isFirstHalf ? 'APERTURA' : 'CLAUSURA';
 }
@@ -232,10 +245,24 @@ function activeSubTournamentByDate(aperturaSeason: 'H1' | 'H2' = 'H1'): string {
   return (aperturaSeason === 'H1') === isFirstHalf ? 'APERTURA' : 'CLAUSURA';
 }
 
-/** Extracts the matchday number from an AF round string like "Regular Season - 5" or "Clausura - 3". */
+/**
+ * Extracts the matchday number from an AF round string.
+ * Regular rounds: "Clausura - 3" → 3, "Regular Season - 17" → 17.
+ * Playoff rounds get fixed matchday numbers so they sort after the regular season:
+ *   Play-In (Semi-finals / Final) → 18
+ *   Quarter-finals                → 19
+ *   Semi-finals                   → 20
+ *   Final                         → 21
+ */
 function parseRoundNumber(round: string): number | undefined {
   const m = round.match(/[-–]\s*(\d+)$/);
-  return m ? parseInt(m[1], 10) : undefined;
+  if (m) return parseInt(m[1], 10);
+  const r = round.toUpperCase();
+  if (r.includes('PLAY-IN')) return 18;
+  if (r.includes('QUARTER-FINALS')) return 19;
+  if (r.includes('SEMI-FINALS')) return 20;
+  if (r === 'FINAL') return 21;
+  return undefined;
 }
 
 // ── CachedData ────────────────────────────────────────────────────────────────
@@ -294,11 +321,14 @@ export class ApiFootballCanonicalSource implements DataSource {
     const now = Date.now();
     const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
     const active = this.resolveActiveSubTournament(compId);
-    // Active tournament first, then the other
-    const keys: Array<{ key: string; label: string }> = active === 'APERTURA'
-      ? [{ key: 'APERTURA', label: 'Apertura' }, { key: 'CLAUSURA', label: 'Clausura' }]
-      : [{ key: 'CLAUSURA', label: 'Clausura' }, { key: 'APERTURA', label: 'Apertura' }];
-    return keys
+
+    // Regular season tabs (CLAUSURA / APERTURA)
+    const regularOrder: Array<{ key: string; label: string }> =
+      active === 'APERTURA' || active === 'LIGUILLA_APERTURA'
+        ? [{ key: 'APERTURA', label: 'Apertura' }, { key: 'CLAUSURA', label: 'Clausura' }]
+        : [{ key: 'CLAUSURA', label: 'Clausura' }, { key: 'APERTURA', label: 'Apertura' }];
+
+    const result: SubTournamentInfo[] = regularOrder
       .map(({ key, label }) => {
         const matches = entry.matches.filter((m) => m.subTournamentKey === key);
         const hasFinished = matches.some((m) => m.status === 'FINISHED');
@@ -308,6 +338,25 @@ export class ApiFootballCanonicalSource implements DataSource {
         return { key, label, isActive: key === active, hasData: hasFinished || hasSoon };
       })
       .filter((s) => s.hasData || s.isActive);
+
+    // Liguilla tabs: show when playoff matches exist in the cache
+    const liguillaCandidates: Array<{ key: string; label: string }> = [
+      { key: 'LIGUILLA_CLAUSURA', label: 'Liguilla' },
+      { key: 'LIGUILLA_APERTURA', label: 'Liguilla' },
+    ];
+    for (const { key, label } of liguillaCandidates) {
+      const matches = entry.matches.filter((m) => m.subTournamentKey === key);
+      if (matches.length === 0) continue;
+      const hasFinished = matches.some((m) => m.status === 'FINISHED');
+      const hasSoon = matches.some(
+        (m) => m.startTimeUtc && new Date(m.startTimeUtc).getTime() - now < sixtyDaysMs,
+      );
+      if (hasFinished || hasSoon || key === active) {
+        result.push({ key, label, isActive: key === active, hasData: hasFinished || hasSoon });
+      }
+    }
+
+    return result;
   }
 
   getActiveSubTournament(compId: string): string | undefined {
@@ -372,9 +421,14 @@ export class ApiFootballCanonicalSource implements DataSource {
   getStandings(compId: string, subTournamentKey?: string): StandingEntry[] {
     const cfg = AF_COMPETITION_CONFIGS[compId];
     if (cfg?.hasSubTournaments) {
+      // Liguilla is an elimination phase — no standings table. Fall back to the
+      // regular season standings of the parent tournament (CLAUSURA or APERTURA).
+      const effectiveKey = subTournamentKey?.startsWith('LIGUILLA_')
+        ? subTournamentKey.replace('LIGUILLA_', '')
+        : subTournamentKey;
       // Compute standings from match results so each sub-tournament has its own table.
       // Relying on AF's /standings endpoint returns the same table regardless of sub-tournament.
-      const matches = this.getSubTournamentMatches(compId, subTournamentKey);
+      const matches = this.getSubTournamentMatches(compId, effectiveKey);
       return this.computeStandingsFromMatches(compId, matches);
     }
     return this.getCached(compId)?.standings ?? [];
