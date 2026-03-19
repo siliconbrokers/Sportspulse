@@ -787,10 +787,12 @@ async function main() {
     if (matches.some((m) => m.status === 'IN_PROGRESS')) return 2 * MIN_MS;
 
     // 2. Kickoff has passed but match not yet finished (might be live with API lag,
-    //    in extra time, suspended, or heavily delayed)
+    //    in extra time, suspended, or heavily delayed).
+    //    Exclude POSTPONED/CANCELED — they'll never become FINISHED and would
+    //    permanently lock the scheduler into 2-min polling.
     const pastNotDone = matches.filter(
-      (m) => m.status !== 'FINISHED' && m.startTimeUtc &&
-             new Date(m.startTimeUtc).getTime() < nowMs,
+      (m) => m.status !== 'FINISHED' && m.status !== 'POSTPONED' && m.status !== 'CANCELED' &&
+             m.startTimeUtc && new Date(m.startTimeUtc).getTime() < nowMs,
     );
     if (pastNotDone.length > 0) {
       const maxAgeMin = Math.max(
@@ -914,7 +916,7 @@ async function main() {
           });
 
           const hasToday = matches.some((m) => {
-            if (!m.startTimeUtc) return false;
+            if (!m.startTimeUtc || m.status === 'POSTPONED' || m.status === 'CANCELED') return false;
             return m.startTimeUtc.slice(0, 10) === todayUtc;
           });
 
@@ -1112,8 +1114,8 @@ async function main() {
     const delayMs = computeRefreshDelayMs(matches, Date.now());
     const live     = matches.filter((m) => m.status === 'IN_PROGRESS').length;
     const pending  = matches.filter(
-      (m) => m.status !== 'FINISHED' && m.startTimeUtc &&
-             new Date(m.startTimeUtc).getTime() < Date.now(),
+      (m) => m.status !== 'FINISHED' && m.status !== 'POSTPONED' && m.status !== 'CANCELED' &&
+             m.startTimeUtc && new Date(m.startTimeUtc).getTime() < Date.now(),
     ).length;
     console.log(
       `[Scheduler] Next refresh in ${fmtDelay(delayMs)}` +
