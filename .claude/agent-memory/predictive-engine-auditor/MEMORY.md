@@ -99,3 +99,34 @@ Archivos: `packages/prediction/src/validation/walk-forward.ts`, `metrics.ts`, `s
 4. Imprimir baselines de referencia en stdout
 5. Declarar calibración como combinada, no por clase
 6. Añadir desglose de métricas cold-start (n_current_at_time < 10) vs steady-state
+
+## NEXUS (PE v2) Audit — 2026-03-19 — PARTIALLY_CONFORMANT
+Artefacto: `docs/audits/PE-audit-2026-03-19.md`
+Specs auditadas: 6 documentos en `docs/specs/prediction/engine-v2/`
+
+### Findings OPEN (8 total: 3 HIGH, 3 MEDIUM, 2 LOW)
+- **F-001 [HIGH]:** `PREDICTION_NEXUS_SHADOW_ENABLED` en code vs `NEXUS_SHADOW_ENABLED` en spec (master S8.2). Fix: renombrar env var en `nexus-shadow-runner.ts:75`.
+- **F-002 [HIGH]:** `NexusShadowSnapshot` missing 4 of 8 fingerprint fields (NEXUS-0 S9.2): `featureSchemaVersion`, `datasetWindow`, `modelVersion`, `calibrationVersion`.
+- **F-003 [HIGH]:** `computeOddsConfidence()` uses `buildNowUtc`-relative age instead of kickoff-relative distance (MSP S2.2). Must accept `kickoffUtc` as parameter.
+- **F-004 [MEDIUM]:** Spurious aggregate `liveShadowN < 100` check in `gate-evaluator.ts:131-138` not defined in spec §S6.2. Remove it.
+- **F-005 [MEDIUM]:** `fitNexusCalibration()` assigns same PAVA curve to all three classes (broken one-vs-rest). Use `fitNexusCalibrationFromTriplets()` instead or fix/delete.
+- **F-006 [MEDIUM]:** `isNeutralVenue` hardcoded to `false` in shadow runner (spec prohibits defaulting — taxonomy S3.2).
+- **F-007 [LOW]:** Bootstrap `learnedAt` hardcoded to '2026-03-18T00:00:00.000Z' — use `new Date().toISOString()`.
+- **F-008 [LOW]:** `nexus-startup-init.ts` imports via relative paths into packages/ instead of using `@sportpulse/prediction` alias.
+
+### NEXUS: Lo que SÍ está correcto (core math)
+- Dixon-Coles factors exact (all 4 cells), per-liga rho with DEFAULT_RHO fallback
+- MIN_WEIGHT_TRACK12=0.20 (spec governs over prompt's 0.35) — enforced in all redistribution paths
+- Anti-lookahead: strict less-than in all three enforcement points (feature store, calibration, scorecard)
+- MISSING = Symbol('MISSING') — correct sentinel
+- Append-only raw odds store with atomic write
+- De-vigging: proportional normalization only, Pinnacle-only benchmark — correct
+- Scorecard disjoint invariant: throws on overlap — correct
+- RPS formula: exact match with evaluation spec S2.1
+- Promotion gate: all thresholds match spec (600/200/100 volume, 0.005/0.03/0.02 performance tolerances)
+- Operating modes: Track3 inactive → LIMITED_MODE — correct
+
+### NEXUS: Recurring patterns to watch
+- **Server runner vs. package boundary**: `nexus-shadow-runner.ts` correctly imports via `@sportpulse/prediction`; `nexus-startup-init.ts` does not. Check this distinction in future modules.
+- **Two calibration entry points**: `fitNexusCalibration()` (broken) and `fitNexusCalibrationFromTriplets()` (correct). Always use the triplets variant.
+- **Confidence reference point**: Track 4 odds confidence = distance to KICKOFF (not to buildNowUtc). This is a subtle distinction the spec makes explicit in MSP S2.2.

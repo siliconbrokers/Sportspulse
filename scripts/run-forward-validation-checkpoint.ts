@@ -18,8 +18,11 @@ import type { ForwardValidationRecord } from '../server/prediction/forward-valid
 
 // ── Checkpoint definitions (frozen) ────────────────────────────────────────
 
-const CHECKPOINT_1_THRESHOLD = 10;  // EARLY_SANITY
-const CHECKPOINT_2_THRESHOLD = 30;  // FIRST_SERIOUS_READ
+const CHECKPOINT_1_THRESHOLD = 50;  // EARLY_SANITY (total completados)
+const CHECKPOINT_2_THRESHOLD = 100; // DECISION_GATE — same as NEXUS minLiveShadowPerLeague
+// Unified condition: ≥100 completed forward records PER LEAGUE (PD, PL, BL1)
+// Mirrors NEXUS gate: minLiveShadowPerLeague=100 (evaluation-and-promotion spec §S6.2)
+const FORWARD_PER_LEAGUE_THRESHOLD = 100;
 
 // ── Decision thresholds at Checkpoint 2 ────────────────────────────────────
 
@@ -175,7 +178,7 @@ function computeDecision(
   denominator: number,
 ): string {
   if (denominator < CHECKPOINT_2_THRESHOLD) {
-    return 'FORWARD_CTI_INCONCLUSIVE — denominator < 30';
+    return 'FORWARD_CTI_INCONCLUSIVE — denominator < 100';
   }
 
   if (baseline.homeHitRate === null || cti.homeHitRate === null) {
@@ -370,6 +373,18 @@ interface CheckpointRow {
   decision: string;
 }
 
+// Per-league completed count (mirrors NEXUS minLiveShadowPerLeague condition)
+const perLeagueCompleted: Record<string, number> = {};
+for (const code of fvCompetitions) {
+  const trimmed = code.trim();
+  perLeagueCompleted[trimmed] = completedBaseline.filter(
+    (r) => r.competition_code === trimmed && r.evaluation_eligible,
+  ).length;
+}
+const allLeagueMet = fvCompetitions.every(
+  (c) => (perLeagueCompleted[c.trim()] ?? 0) >= FORWARD_PER_LEAGUE_THRESHOLD,
+);
+
 const checkpoints: CheckpointRow[] = [
   {
     name: 'Checkpoint 1',
@@ -383,19 +398,26 @@ const checkpoints: CheckpointRow[] = [
   },
   {
     name: 'Checkpoint 2',
-    label: 'FIRST_SERIOUS_READ',
+    label: 'DECISION_GATE',
     threshold: CHECKPOINT_2_THRESHOLD,
-    reached: denominator >= CHECKPOINT_2_THRESHOLD,
-    decision:
-      denominator >= CHECKPOINT_2_THRESHOLD
-        ? computeDecision(baselineMetrics, ctiMetrics, denominator)
-        : 'NOT_REACHED',
+    reached: allLeagueMet,
+    decision: allLeagueMet
+      ? computeDecision(baselineMetrics, ctiMetrics, denominator)
+      : 'NOT_REACHED',
   },
 ];
 
 for (const cp of checkpoints) {
-  const status = cp.reached ? 'REACHED' : `PENDING (need ${cp.threshold - denominator} more)`;
-  console.log(`  ${cp.name} (${cp.label}, n≥${cp.threshold}): ${status}`);
+  const status = cp.reached ? 'REACHED' : `PENDING`;
+  console.log(`  ${cp.name} (${cp.label}, n≥${cp.threshold}/liga): ${status}`);
+  if (cp.name === 'Checkpoint 2') {
+    for (const code of fvCompetitions) {
+      const c = code.trim();
+      const n = perLeagueCompleted[c] ?? 0;
+      const ok = n >= FORWARD_PER_LEAGUE_THRESHOLD;
+      console.log(`    ${c.padEnd(6)}: ${String(n).padStart(3)} / ${FORWARD_PER_LEAGUE_THRESHOLD}  ${ok ? '✓' : `✗ (faltan ${FORWARD_PER_LEAGUE_THRESHOLD - n})`}`);
+    }
+  }
   console.log(`    Decision: ${cp.decision}`);
   console.log('');
 }

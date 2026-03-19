@@ -54,6 +54,7 @@ const AF_LEAGUE_IDS: Record<string, number> = {
   'comp:apifootball:78':     78,
   'comp:apifootball:268':   268,
   'comp:apifootball:128':   128,
+  'comp:apifootball:262':   262,  // Liga MX
 };
 
 // ── Disk cache types ───────────────────────────────────────────────────────────

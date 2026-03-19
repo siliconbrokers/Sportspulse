@@ -142,6 +142,12 @@ export interface AfCompetitionConfig {
   seasonKind: 'european' | 'calendar';
   /** Whether this competition has named sub-tournaments (Apertura/Clausura). */
   hasSubTournaments?: boolean;
+  /**
+   * Which calendar half maps to "Apertura".
+   * H1 = Apertura runs Jan–Jun (Argentina, default).
+   * H2 = Apertura runs Jul–Dec (Liga MX style).
+   */
+  aperturaSeason?: 'H1' | 'H2';
   /** Known total matchdays (fallback for getTotalMatchdays). */
   totalMatchdays?: number;
 }
@@ -156,6 +162,7 @@ export const AF_COMPETITION_CONFIGS: Record<string, AfCompetitionConfig> = Objec
       seasonKind:        e.seasonKind,
       totalMatchdays:    e.totalMatchdays,
       hasSubTournaments: e.hasSubTournaments,
+      aperturaSeason:    e.aperturaSeason,
     } satisfies AfCompetitionConfig,
   ]),
 );
@@ -202,21 +209,27 @@ function seasonLabel(kind: 'european' | 'calendar', year: number): string {
 /**
  * Detects the sub-tournament key from AF round string or match date.
  * AF round strings often contain "Apertura" or "Clausura" explicitly.
- * Falls back to date heuristic: H1 (Jan-Jun) = APERTURA, H2 (Jul-Dec) = CLAUSURA.
+ * Falls back to date heuristic using aperturaSeason convention:
+ *   H1 (default/AR): Apertura = Jan-Jun, Clausura = Jul-Dec
+ *   H2 (MX):         Clausura = Jan-May, Apertura = Jul-Dec
  */
-function detectSubTournament(round: string, utcDate: string): string | null {
+function detectSubTournament(
+  round: string,
+  utcDate: string,
+  aperturaSeason: 'H1' | 'H2' = 'H1',
+): string | null {
   const r = round.toUpperCase();
   if (r.includes('APERTURA')) return 'APERTURA';
   if (r.includes('CLAUSURA')) return 'CLAUSURA';
   if (r.includes('INTERMEDIO')) return 'INTERMEDIO';
-  // Date-based fallback — Argentine calendar: Apertura = Jan-Jun, Clausura = Jul-Dec
-  const month = new Date(utcDate).getUTCMonth(); // 0-based
-  return month < 6 ? 'APERTURA' : 'CLAUSURA';
+  const isFirstHalf = new Date(utcDate).getUTCMonth() < 6; // 0-based
+  return (aperturaSeason === 'H1') === isFirstHalf ? 'APERTURA' : 'CLAUSURA';
 }
 
-/** Returns the active sub-tournament key based on today's UTC date. */
-function activeSubTournamentByDate(): string {
-  return new Date().getUTCMonth() < 6 ? 'APERTURA' : 'CLAUSURA';
+/** Returns the active sub-tournament key based on today's UTC date and the league's calendar convention. */
+function activeSubTournamentByDate(aperturaSeason: 'H1' | 'H2' = 'H1'): string {
+  const isFirstHalf = new Date().getUTCMonth() < 6;
+  return (aperturaSeason === 'H1') === isFirstHalf ? 'APERTURA' : 'CLAUSURA';
 }
 
 /** Extracts the matchday number from an AF round string like "Regular Season - 5" or "Clausura - 3". */
@@ -266,10 +279,12 @@ export class ApiFootballCanonicalSource implements DataSource {
   getMatches(seasId: string, subTournamentKey?: string): Match[] {
     for (const [compId, entry] of this.cache.entries()) {
       if (entry.seasonId !== seasId) continue;
-      const hasSubT = AF_COMPETITION_CONFIGS[compId]?.hasSubTournaments ?? false;
+      const cfg = AF_COMPETITION_CONFIGS[compId];
+      const hasSubT = cfg?.hasSubTournaments ?? false;
       if (!hasSubT) return entry.matches;
       // When no key given, default to active sub-tournament (per DataSource contract)
-      const key = subTournamentKey ?? activeSubTournamentByDate();
+      const aperturaSeason = cfg?.aperturaSeason ?? 'H1';
+      const key = subTournamentKey ?? activeSubTournamentByDate(aperturaSeason);
       return entry.matches.filter((m) => m.subTournamentKey === key);
     }
     return [];
@@ -277,10 +292,12 @@ export class ApiFootballCanonicalSource implements DataSource {
 
   getSubTournaments(compId: string): SubTournamentInfo[] {
     const entry = this.getCached(compId);
-    if (!entry || !AF_COMPETITION_CONFIGS[compId]?.hasSubTournaments) return [];
+    const cfg = AF_COMPETITION_CONFIGS[compId];
+    if (!entry || !cfg?.hasSubTournaments) return [];
+    const aperturaSeason = cfg?.aperturaSeason ?? 'H1';
     const now = Date.now();
     const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
-    const active = activeSubTournamentByDate();
+    const active = activeSubTournamentByDate(aperturaSeason);
     // Active tournament first, then the other
     const keys: Array<{ key: string; label: string }> = active === 'APERTURA'
       ? [{ key: 'APERTURA', label: 'Apertura' }, { key: 'CLAUSURA', label: 'Clausura' }]
@@ -298,16 +315,18 @@ export class ApiFootballCanonicalSource implements DataSource {
   }
 
   getActiveSubTournament(compId: string): string | undefined {
-    if (!AF_COMPETITION_CONFIGS[compId]?.hasSubTournaments) return undefined;
-    return activeSubTournamentByDate();
+    const cfg = AF_COMPETITION_CONFIGS[compId];
+    if (!cfg?.hasSubTournaments) return undefined;
+    return activeSubTournamentByDate(cfg.aperturaSeason ?? 'H1');
   }
 
   /** Returns matches filtered to the relevant sub-tournament (if any). */
   private getSubTournamentMatches(compId: string, subTournamentKey?: string): Match[] {
     const cached = this.getCached(compId);
     if (!cached) return [];
-    if (!AF_COMPETITION_CONFIGS[compId]?.hasSubTournaments) return cached.matches;
-    const key = subTournamentKey ?? activeSubTournamentByDate();
+    const cfg = AF_COMPETITION_CONFIGS[compId];
+    if (!cfg?.hasSubTournaments) return cached.matches;
+    const key = subTournamentKey ?? activeSubTournamentByDate(cfg.aperturaSeason ?? 'H1');
     return cached.matches.filter((m) => m.subTournamentKey === key);
   }
 
@@ -408,7 +427,7 @@ export class ApiFootballCanonicalSource implements DataSource {
       return;
     }
 
-    const { leagueId, seasonKind, hasSubTournaments } = cfg;
+    const { leagueId, seasonKind, hasSubTournaments, aperturaSeason = 'H1' } = cfg;
     const prevCache = this.cache.get(compId);
     const nowMs     = Date.now();
     const nowUtc    = new Date(nowMs).toISOString();
@@ -494,7 +513,7 @@ export class ApiFootballCanonicalSource implements DataSource {
       // Full-season fetch: all fixtures for the league/season
       try {
         const rawFixtures = await this.apiGet<AfFixture>(`/fixtures?league=${leagueId}&season=${seasonYear}`, 'fixtures-full-season');
-        matches = this.mapFixtures(rawFixtures, resolvedSeasonId, teamLookup, hasSubTournaments);
+        matches = this.mapFixtures(rawFixtures, resolvedSeasonId, teamLookup, hasSubTournaments, aperturaSeason);
         console.log(`[AfCanonical] full-season fetch league=${leagueId}: ${matches.length} fixtures`);
 
         // Persist by matchday
@@ -541,7 +560,7 @@ export class ApiFootballCanonicalSource implements DataSource {
             'fixtures-window',
           );
           if (rawWindow.length > 0) {
-            const windowMatches = this.mapFixtures(rawWindow, resolvedSeasonId, teamLookup, hasSubTournaments);
+            const windowMatches = this.mapFixtures(rawWindow, resolvedSeasonId, teamLookup, hasSubTournaments, aperturaSeason);
             // Merge: update existing entries, add new ones
             const matchMap = new Map(matches.map((m) => [m.matchId, m]));
             for (const wm of windowMatches) {
@@ -752,6 +771,7 @@ export class ApiFootballCanonicalSource implements DataSource {
     seasonId:          string,
     teamLookup:        Map<number, string>,
     hasSubTournaments: boolean | undefined,
+    aperturaSeason:    'H1' | 'H2' = 'H1',
   ): Match[] {
     return fixtures.map((f): Match => {
       const statusShort = f.fixture.status.short;
@@ -768,7 +788,7 @@ export class ApiFootballCanonicalSource implements DataSource {
 
       // Sub-tournament
       const subTournamentKey = hasSubTournaments
-        ? detectSubTournament(f.league.round, utcDate)
+        ? detectSubTournament(f.league.round, utcDate, aperturaSeason)
         : null;
 
       // Winner (for tournament bracket use)

@@ -46,6 +46,13 @@ export interface CompetitionRegistryEntry {
   totalMatchdays?: number;
   /** True if season splits into named sub-tournaments (Apertura/Clausura) */
   hasSubTournaments?: boolean;
+  /**
+   * Which calendar half maps to "Apertura".
+   * H1 = Apertura runs Jan–Jun (Argentina style, default).
+   * H2 = Apertura runs Jul–Dec (Liga MX style — Clausura is Jan–May).
+   * Only relevant when hasSubTournaments=true.
+   */
+  aperturaSeason?: 'H1' | 'H2';
   /** Tournament phases (determines tab visibility). Only for isTournament=true. */
   phases?: TournamentPhase[];
   /** ISO date of tournament start — used for pre-tournament banner */
@@ -163,6 +170,24 @@ export const COMPETITION_REGISTRY: CompetitionRegistryEntry[] = [
     isTournament:     true,
     phases:           ['grupos', 'eliminatorias'],
     startDate:        '2026-06-11',
+  },
+  {
+    id:                  'comp:apifootball:262',
+    leagueId:            262,
+    slug:                'MX',
+    displayName:         'Liga MX',
+    shortName:           'Liga MX',
+    normalizedLeague:    'LIGA_MX',
+    newsKey:             null,
+    accentColor:         '#1a1a6e',
+    logoUrl:             'https://r2.thesportsdb.com/images/media/league/badge/mav5rx1686157960.png',
+    seasonLabel:         '2026',
+    seasonKind:          'calendar',
+    isTournament:        false,
+    expectedSeasonGames: 17,
+    totalMatchdays:      17,
+    hasSubTournaments:   true,
+    aperturaSeason:      'H2',
   },
 ];
 

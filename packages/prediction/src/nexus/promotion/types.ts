@@ -37,7 +37,7 @@ export interface VolumeRequirements {
   minTotalPredictions: number;
   /** Minimum predictions per production league (PD, PL, BL1). */
   minPerLeague: number;
-  /** Minimum live_shadow predictions per production league. */
+  /** Minimum live_shadow predictions per production league (non-substitutable). */
   minLiveShadowPerLeague: number;
   /** Minimum distinct season phases covered per evaluation. */
   minSeasonPhases: number;
@@ -117,7 +117,7 @@ export const DEFAULT_PERFORMANCE_REQUIREMENTS: PerformanceRequirements = {
   accuracyTolerancePp: 0.02,
   logLossMaxIncrease: 0.02,
   perLeagueRpsNoRegressionDelta: 0.005,
-  matchdayConsistencyMinFraction: 0.70,
+  matchdayConsistencyMinFraction: 0.7,
   liveShadowRpsMaxDelta: 0.005,
 };
 
@@ -377,11 +377,11 @@ export interface SwapState {
  * The controller is evaluative — it returns actions, never executes them.
  */
 export type SwapActionType =
-  | 'ACTIVATE_NEXUS'    // Promote NEXUS to production
-  | 'DEMOTE_NEXUS'      // Revert to V3 due to demotion trigger
-  | 'DEPRECATE_V3'      // Deactivate V3 shadow runner after observation
-  | 'NO_ACTION'         // No change recommended
-  | 'BLOCKED';          // Action requested but preconditions not met
+  | 'ACTIVATE_NEXUS' // Promote NEXUS to production
+  | 'DEMOTE_NEXUS' // Revert to V3 due to demotion trigger
+  | 'DEPRECATE_V3' // Deactivate V3 shadow runner after observation
+  | 'NO_ACTION' // No change recommended
+  | 'BLOCKED'; // Action requested but preconditions not met
 
 /**
  * A recommended swap action with explanation.
