@@ -211,6 +211,18 @@ If build fails: show errors, do NOT mark calibration as complete.
 
 ## Step 5 — Reporte final
 
+Parse the `[CALIBRATION_SUMMARY]` JSON line from the pipeline output. Use it plus the bias output (PASO 2) to build the report.
+
+**Thresholds de interpretación de bias** (|pred_avg - real_rate|):
+- `✓ pequeño` = < 0.03 — corrección leve, tabla agrega poco valor
+- `⚠ moderado` = 0.03–0.08 — corrección útil, tabla recomendable
+- `❌ grande` = > 0.08 — sobre-predicción significativa, tabla necesaria
+
+**Veredicto de confiabilidad** — derivar así:
+- `ALTA`: tuples ≥ 300 AND bias HOME o AWAY ≥ 0.03 (hay problema real que la tabla corrige) AND tabla generada
+- `MEDIA`: tuples 100–299 OR bias todo < 0.03 (tabla generada pero corrección es leve)
+- `NO EVALUABLE`: tuples < 100 o backtest N/A Y temporada en curso (tabla puede usarse, pero sin validación externa aún)
+
 Show:
 ```
 Calibración V3 completada para {displayName}
@@ -218,11 +230,21 @@ Calibración V3 completada para {displayName}
 Tabla generada:     cache/calibration/v3-iso-calibration-{slug}.json
 Estrategia:         {per-liga | global}
 xG augmentation:    {activo | no disponible}
-Samples de cal.:    {N} partidos de calibración
-Δacc vs sin cal:    {+X.Xpp}
-Δacc vs global:     {+X.Xpp} (solo si per-liga)
+Samples de cal.:    {N} partidos ({T} temporadas)
+Bias corregido:     HOME {+X.XXX} {✓/⚠/❌}  DRAW {+X.XXX} {✓/⚠/❌}  AWAY {+X.XXX} {✓/⚠/❌}
 
-Wiring en calibration-selector.ts: ✓
+Backtest:
+  {Si evaluable > 0:}
+  Δacc vs sin cal:    {+X.Xpp}
+  Δacc vs global:     {+X.Xpp} (solo si per-liga)
+  {Si evaluable = 0:}
+  No disponible — temporada {testSeasonLabel} aún en curso.
+  Estará disponible cuando avancen los partidos de la temporada actual.
+
+Confiabilidad de la tabla: {ALTA | MEDIA | NO EVALUABLE}
+  {1 línea explicando el veredicto, ej: "622 tuples + bias HOME ❌ grande — corrección necesaria y bien respaldada"}
+
+Wiring en v3-shadow-runner.ts: ✓
 
 Build: ✓ sin errores
 
