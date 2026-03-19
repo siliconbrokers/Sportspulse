@@ -289,9 +289,23 @@ function AdminPanel({ token }: { token: string }) {
           <div>
             <div style={S.title}>SportPulse</div>
             <div style={S.subtitle}>Configuración del portal</div>
-            <a href="/admin/ops" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
-              → Ver consumo de APIs (Ops)
-            </a>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+              <a href="/admin/ops" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
+                → Ver consumo de APIs (Ops)
+              </a>
+              <a href="/labs" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
+                → Labs · Pronósticos
+              </a>
+              <a href="/labs/evaluacion" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
+                → Labs · Evaluación
+              </a>
+              <a href="/labs/evaluacion-historica" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
+                → Labs · Evaluación histórica
+              </a>
+              <a href="/labs/entrenamiento" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>
+                → Labs · Entrenamiento
+              </a>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {saveState === 'saving' && <span style={S.feedback('saving')}>Guardando…</span>}
