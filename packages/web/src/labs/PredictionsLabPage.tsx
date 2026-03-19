@@ -1,6 +1,6 @@
 // PE-76 — Internal diagnostics page for Predictive Engine snapshots
 // Route: /labs/predicciones — not linked in Navbar, internal only
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../hooks/use-theme.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
 
@@ -469,9 +469,8 @@ export function PredictionsLabPage() {
                   const dividerBorder = isDivider ? '1px dashed #2a2a2a' : undefined;
 
                   return (
-                    <>
+                    <React.Fragment key={key}>
                       <tr
-                        key={key}
                         onClick={() => setExpandedId((prev) => (prev === key ? null : key))}
                         style={{ ...td, cursor: 'pointer', borderTop: dividerBorder } as React.CSSProperties}
                       >
@@ -513,7 +512,7 @@ export function PredictionsLabPage() {
                         <td style={{ ...td, borderTop: dividerBorder }}>{snap.generation_status === 'ok' ? '✅' : '❌'}</td>
                       </tr>
                       {isExpanded && <ExpandedRow key={`${key}__expanded`} snap={snap} />}
-                    </>
+                    </React.Fragment>
                   );
                 });
               })()}

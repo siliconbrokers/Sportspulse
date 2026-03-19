@@ -148,8 +148,8 @@ export function registerHistoricalEvaluationRoute(
           brier_score: nexusReport.brier_score,
           log_loss: nexusReport.log_loss,
           total_evaluated: nexusReport.total_evaluated,
+          snapshots: nexusReport.snapshots,
         },
-        snapshots: nexusReport.snapshots,
       });
     }
 
