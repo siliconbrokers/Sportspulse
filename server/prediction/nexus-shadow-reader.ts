@@ -96,6 +96,9 @@ function normalizeSnapshot(nexus: NexusShadowSnapshot): NexusUnifiedItem {
     draw_risk:           null,
 
     request_payload: {
+      homeTeamId:           nexus.homeTeamId,
+      awayTeamId:           nexus.awayTeamId,
+      kickoffUtc:           nexus.kickoffUtc,
       weights:              nexus.weights,
       featureSchemaVersion: nexus.featureSchemaVersion,
       datasetWindow:        nexus.datasetWindow,

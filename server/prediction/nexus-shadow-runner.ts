@@ -56,6 +56,8 @@ import type { NexusModelWeights } from './nexus-model-loader.js';
 export interface NexusShadowSnapshot {
   matchId: string;
   competitionId: string;
+  homeTeamId: string;
+  awayTeamId: string;
   /** buildNowUtc: semantic time anchor — the "now" when the prediction was made. */
   buildNowUtc: string;
   kickoffUtc: string;
@@ -353,6 +355,8 @@ async function runNexusPrediction(
   return {
     matchId,
     competitionId,
+    homeTeamId,
+    awayTeamId,
     buildNowUtc,
     kickoffUtc,
     // NEXUS-0 §S9.2 prediction fingerprint fields (FINDING-002 fix)

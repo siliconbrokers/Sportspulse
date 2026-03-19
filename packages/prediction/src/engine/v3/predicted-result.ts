@@ -9,7 +9,7 @@
 import { TOO_CLOSE_THRESHOLD, DRAW_FLOOR, DRAW_MARGIN, DRAW_FLOOR_ENABLED } from './constants.js';
 
 export interface PredictedResultOutput {
-  predicted_result: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | null;
+  predicted_result: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN';
   /** |p_max − p_second| */
   favorite_margin: number;
 }
@@ -59,11 +59,12 @@ export function computePredictedResult(
 
   const effectiveTooCloseThreshold = overrides?.TOO_CLOSE_THRESHOLD ?? TOO_CLOSE_THRESHOLD;
 
-  // ── TOO_CLOSE: modelo sin señal → abstener ────────────────────────────
-  // Tiene precedencia sobre el DRAW floor: si el partido es genuinamente
-  // indeciso (diferencia < umbral), no forzar una predicción.
+  // ── TOO_CLOSE: diferencia pequeña pero aún retorna argmax ───────────────
+  // La cercanía queda señalada por favorite_margin < TOO_CLOSE_THRESHOLD.
+  // predicted_result nunca es null cuando hay probs — null queda reservado
+  // exclusivamente para NOT_ELIGIBLE (sin probs).
   if (margin < effectiveTooCloseThreshold) {
-    return { predicted_result: null, favorite_margin: margin };
+    return { predicted_result: probs[0].key, favorite_margin: margin };
   }
 
   // ── DRAW floor rule ────────────────────────────────────────────────────

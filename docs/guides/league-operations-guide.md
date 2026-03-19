@@ -125,8 +125,9 @@ pnpm tsx tools/train-logistic.ts --include-comp comp:apifootball:262
 Una vez calibrada y verificada, activar en `.env`:
 
 ```env
+# Runner principal de shadow (PredictionService/V3)
+PREDICTION_MAIN_SHADOW_ENABLED=comp:apifootball:140,comp:apifootball:39,...,{nuevaLiga}
 # V3 shadow — genera predicciones pre-kickoff para las ligas listadas
-PREDICTION_SHADOW_ENABLED=comp:apifootball:140,comp:apifootball:39,...,{nuevaLiga}
 PREDICTION_V3_SHADOW_ENABLED=comp:apifootball:140,...,{nuevaLiga}
 
 # NEXUS shadow — corre en paralelo a V3

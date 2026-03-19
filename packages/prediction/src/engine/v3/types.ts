@@ -371,10 +371,9 @@ export type V3Warning =
   | 'NO_PRIOR'
   | 'FALLBACK_BASELINE'
   // T3 warnings (§MKT-T3-00):
-  | 'XG_PARTIAL_COVERAGE'    // xG provided but covers < XG_PARTIAL_COVERAGE_THRESHOLD of matches
-  | 'MARKET_ODDS_INVALID'    // marketOdds provided but sum != 1.0
-  | 'ABSENCE_DATA_STALE'     // reserved for future: injuries fetched > 24h ago
-  ;
+  | 'XG_PARTIAL_COVERAGE' // xG provided but covers < XG_PARTIAL_COVERAGE_THRESHOLD of matches
+  | 'MARKET_ODDS_INVALID' // marketOdds provided but sum != 1.0
+  | 'ABSENCE_DATA_STALE'; // reserved for future: injuries fetched > 24h ago
 
 // ── Output (§17) ───────────────────────────────────────────────────────────
 
@@ -399,9 +398,9 @@ export interface V3PredictionOutput {
   lambda_home: number | null;
   lambda_away: number | null;
 
-  // Resultado predicho (null si TOO_CLOSE o NOT_ELIGIBLE)
+  // Resultado predicho (null solo si NOT_ELIGIBLE; argmax si TOO_CLOSE — ver favorite_margin)
   predicted_result: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | null;
-  /** |p_max − p_second| — null si NOT_ELIGIBLE */
+  /** |p_max − p_second| — null si NOT_ELIGIBLE; < TOO_CLOSE_THRESHOLD indica partido parejo */
   favorite_margin: number | null;
 
   // Texto editorial
@@ -580,11 +579,11 @@ export interface V3Explanation {
 
 /** Señales de forma de gol de un equipo en sus últimos partidos. */
 export interface GoalFormStats {
-  goals_scored_form:   number;
+  goals_scored_form: number;
   goals_conceded_form: number;
-  clean_sheet_rate:    number;
-  scoring_rate:        number;
-  n_matches:           number;
+  clean_sheet_rate: number;
+  scoring_rate: number;
+  n_matches: number;
 }
 
 // ── Poisson Matrix result (§13) ────────────────────────────────────────────
@@ -601,11 +600,16 @@ export interface PoissonMatrixResult {
 // ── Markets (§T1 — derived from Poisson matrix) ────────────────────────────
 
 export interface OverUnderMarkets {
-  over_0_5: number; under_0_5: number;
-  over_1_5: number; under_1_5: number;
-  over_2_5: number; under_2_5: number;
-  over_3_5: number; under_3_5: number;
-  over_4_5: number; under_4_5: number;
+  over_0_5: number;
+  under_0_5: number;
+  over_1_5: number;
+  under_1_5: number;
+  over_2_5: number;
+  under_2_5: number;
+  over_3_5: number;
+  under_3_5: number;
+  over_4_5: number;
+  under_4_5: number;
 }
 
 export interface BTTSMarket {

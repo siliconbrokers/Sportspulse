@@ -25,6 +25,7 @@ interface InspectionItem {
   competition_id: string;
   generated_at: string;
   engine_version: string;
+  kickoff_utc: string | null;
   generation_status: 'ok' | 'error';
   error_detail?: string;
 
@@ -67,8 +68,6 @@ function extractCoreFields(response: unknown): Pick<
   | 'favorite_margin' | 'draw_risk'
 > {
   const r = response as Record<string, unknown> | null | undefined;
-  const predictions = r?.['predictions'] as Record<string, unknown> | null | undefined;
-  const core = predictions?.['core'] as Record<string, unknown> | null | undefined;
 
   function num(v: unknown): number | null {
     return typeof v === 'number' ? v : null;
@@ -77,15 +76,34 @@ function extractCoreFields(response: unknown): Pick<
     return typeof v === 'string' ? v : null;
   }
 
+  // New format (PE v1.3+): nested predictions.core + internals
+  // Old format (flat): prob_home_win, prob_draw, prob_away_win, lambda_home, lambda_away
+  // Both formats must be supported for backward compatibility with snapshots on disk.
+  const core = (r?.['predictions'] as Record<string, unknown> | undefined)?.['core'] as Record<string, unknown> | undefined;
+  const internals = (r?.['internals'] as Record<string, unknown> | undefined);
+
+  const ph = num(core?.['p_home_win'] ?? r?.['prob_home_win']);
+  const pd = num(core?.['p_draw'] ?? r?.['prob_draw']);
+  const pa = num(core?.['p_away_win'] ?? r?.['prob_away_win']);
+  let predicted = str(core?.['predicted_result'] ?? r?.['predicted_result']);
+
+  // Some snapshots (e.g. NO_PRIOR) store null predicted_result despite having probs.
+  // Derive via argmax to ensure the lab always shows a result.
+  if (predicted === null && ph !== null && pd !== null && pa !== null) {
+    if (ph >= pd && ph >= pa) predicted = 'HOME_WIN';
+    else if (pd >= ph && pd >= pa) predicted = 'DRAW';
+    else predicted = 'AWAY_WIN';
+  }
+
   return {
-    p_home_win:           num(core?.['p_home_win']),
-    p_draw:               num(core?.['p_draw']),
-    p_away_win:           num(core?.['p_away_win']),
-    predicted_result:     str(core?.['predicted_result']),
-    expected_goals_home:  num(core?.['expected_goals_home']),
-    expected_goals_away:  num(core?.['expected_goals_away']),
-    favorite_margin:      num(core?.['favorite_margin']),
-    draw_risk:            num(core?.['draw_risk']),
+    p_home_win:           ph,
+    p_draw:               pd,
+    p_away_win:           pa,
+    predicted_result:     predicted,
+    expected_goals_home:  num(internals?.['lambda_home'] ?? r?.['lambda_home']),
+    expected_goals_away:  num(internals?.['lambda_away'] ?? r?.['lambda_away']),
+    favorite_margin:      num(core?.['favorite_margin'] ?? r?.['favorite_margin']),
+    draw_risk:            num(core?.['draw_risk'] ?? null),
   };
 }
 
@@ -141,7 +159,7 @@ function resolveTeamNames(items: InspectionItem[]): void {
       const map = new Map<string, string>();
       if (teams) {
         for (const t of teams) {
-          map.set(t.teamId, t.shortName ?? t.name ?? t.teamId);
+          map.set(t.teamId, t.name ?? t.shortName ?? t.teamId);
         }
       }
       teamNameCache.set(compId, map);
@@ -179,11 +197,15 @@ function buildV3Item(snap: ReturnType<PredictionStore['findAll']>[number]): Insp
         draw_risk: null,
       };
 
+  const req = requestPayload as Record<string, unknown> | null | undefined;
+  const kickoffUtc = (req?.['kickoffUtc'] ?? req?.['kickoff_utc'] ?? null) as string | null;
+
   const item: InspectionItem = {
     match_id:           snap.match_id,
     competition_id:     snap.competition_id,
     generated_at:       snap.generated_at,
     engine_version:     snap.engine_version,
+    kickoff_utc:        kickoffUtc,
     generation_status:  snap.generation_status,
     mode:               snap.mode,
     calibration_mode:   snap.calibration_mode,
@@ -217,9 +239,9 @@ export function registerInspectionRoute(
 
     const q = req.query as Record<string, string>;
 
-    // Parse limit (default 20, clamp 1..100)
-    const rawLimit = parseInt(q['limit'] ?? '20', 10);
-    const limit = isNaN(rawLimit) ? 20 : Math.min(100, Math.max(1, rawLimit));
+    // Parse limit (default 100, clamp 1..2000)
+    const rawLimit = parseInt(q['limit'] ?? '100', 10);
+    const limit = isNaN(rawLimit) ? 100 : Math.min(2000, Math.max(1, rawLimit));
 
     // Parse engine filter (default: both)
     const engine = (q['engine'] ?? 'both') as 'v3' | 'nexus' | 'both';
@@ -247,23 +269,29 @@ export function registerInspectionRoute(
         const found = nexusReader.findByMatch(matchId);
         nexusItems = found ? [found] : [];
       } else if (competitionId) {
-        nexusItems = nexusReader.findByCompetition(competitionId);
+        nexusItems = nexusReader.findByCompetition(competitionId, limit);
       } else {
-        nexusItems = nexusReader.findAll();
+        nexusItems = nexusReader.findAll(limit);
       }
+    }
+
+    // ── Sort by kickoff_utc desc (fallback generated_at) ───────────────────
+    function sortByKickoff(arr: InspectionItem[]): InspectionItem[] {
+      return arr.sort((a, b) => {
+        const ka = a.kickoff_utc ?? a.generated_at;
+        const kb = b.kickoff_utc ?? b.generated_at;
+        return kb.localeCompare(ka);
+      });
     }
 
     // ── Merge and sort ──────────────────────────────────────────────────────
     let items: InspectionItem[];
     if (engine === 'v3') {
-      items = v3Items;
+      items = sortByKickoff(v3Items);
     } else if (engine === 'nexus') {
-      items = nexusItems;
+      items = sortByKickoff(nexusItems).slice(0, limit);
     } else {
-      // both: merge, sort by generated_at desc, then apply limit
-      items = [...v3Items, ...nexusItems]
-        .sort((a, b) => b.generated_at.localeCompare(a.generated_at))
-        .slice(0, limit);
+      items = sortByKickoff([...v3Items, ...nexusItems]).slice(0, limit);
     }
 
     resolveTeamNames(items);

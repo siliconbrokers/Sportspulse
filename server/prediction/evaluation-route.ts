@@ -266,6 +266,8 @@ export function registerEvaluationRoute(
       const snap: NexusShadowSnapshot & { predicted_result: string } = {
         matchId:              item.match_id,
         competitionId:        item.competition_id,
+        homeTeamId:           (item.request_payload as Record<string, unknown>)?.['homeTeamId'] as string ?? '',
+        awayTeamId:           (item.request_payload as Record<string, unknown>)?.['awayTeamId'] as string ?? '',
         buildNowUtc:          item.generated_at, // createdAtUtc is the best proxy available here
         kickoffUtc:           groundTruth?.scheduled_kickoff_utc ?? '',
         featureSchemaVersion: reqPayload?.featureSchemaVersion ?? '',

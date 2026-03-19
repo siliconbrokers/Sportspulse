@@ -2,7 +2,7 @@
  * PE-74: Feature flags for the Predictive Engine.
  * Configured via env vars — parsed once at module load.
  *
- * PREDICTION_SHADOW_ENABLED        — competition IDs in shadow execution mode
+ * PREDICTION_MAIN_SHADOW_ENABLED    — competition IDs for main shadow runner (PredictionService/V3)
  * PREDICTION_INTERNAL_VIEW_ENABLED — competition IDs with internal inspection view
  * PREDICTION_EXPERIMENTAL_ENABLED  — competition IDs with experimental UI
  */
@@ -17,7 +17,7 @@ function parseCompetitionList(envVar: string | undefined): ReadonlySet<string> {
   );
 }
 
-const shadowEnabled = parseCompetitionList(process.env.PREDICTION_SHADOW_ENABLED);
+const shadowEnabled = parseCompetitionList(process.env.PREDICTION_MAIN_SHADOW_ENABLED);
 const internalViewEnabled = parseCompetitionList(process.env.PREDICTION_INTERNAL_VIEW_ENABLED);
 const experimentalEnabled = parseCompetitionList(process.env.PREDICTION_EXPERIMENTAL_ENABLED);
 const v3ShadowEnabled = parseCompetitionList(process.env.PREDICTION_V3_SHADOW_ENABLED);

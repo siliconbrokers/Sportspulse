@@ -244,17 +244,37 @@ describe('V3 Engine — Venue split activo', () => {
   it('con venue split activo en ambos → home_advantage_applied = false', () => {
     // Necesitamos ≥ MIN_GAMES_VENUE partidos en cada venue para cada equipo
     const homeAsHomeMatches = makeMatches(
-      HOME, true, MIN_GAMES_VENUE + 1, 2, 1, '2025-08-01T15:00:00Z',
+      HOME,
+      true,
+      MIN_GAMES_VENUE + 1,
+      2,
+      1,
+      '2025-08-01T15:00:00Z',
     );
     const awayAsAwayMatches = makeMatches(
-      AWAY, false, MIN_GAMES_VENUE + 1, 1, 2, '2025-08-15T15:00:00Z',
+      AWAY,
+      false,
+      MIN_GAMES_VENUE + 1,
+      1,
+      2,
+      '2025-08-15T15:00:00Z',
     );
     // Agregar también algunos partidos para el otro equipo para que no sea NOT_ELIGIBLE
     const homeAsAwayMatches = makeMatches(
-      HOME, false, MIN_GAMES_VENUE, 1, 1, '2025-09-01T15:00:00Z',
+      HOME,
+      false,
+      MIN_GAMES_VENUE,
+      1,
+      1,
+      '2025-09-01T15:00:00Z',
     );
     const awayAsHomeMatches = makeMatches(
-      AWAY, true, MIN_GAMES_VENUE, 1, 1, '2025-09-15T15:00:00Z',
+      AWAY,
+      true,
+      MIN_GAMES_VENUE,
+      1,
+      1,
+      '2025-09-15T15:00:00Z',
     );
 
     const input: V3EngineInput = {
@@ -371,7 +391,9 @@ describe('V3 Engine — Recency neutro', () => {
 
   it('con suficientes partidos y señales → applied=true', () => {
     const signals = Array.from({ length: 10 }, (_, i) => ({
-      utcDate: new Date(new Date('2026-01-01T15:00:00Z').getTime() + i * 7 * 86400000).toISOString(),
+      utcDate: new Date(
+        new Date('2026-01-01T15:00:00Z').getTime() + i * 7 * 86400000,
+      ).toISOString(),
       attack_signal: 1.5,
       defense_signal: 1.0,
     }));
@@ -449,38 +471,43 @@ describe('V3 Engine — Lambda clipping', () => {
   });
 });
 
-// ── Test 10: predicted_result null cuando TOO_CLOSE ───────────────────────
+// ── Test 10: predicted_result argmax cuando TOO_CLOSE ─────────────────────
+// predicted_result nunca es null cuando hay probs — la cercanía se señala
+// con favorite_margin < TOO_CLOSE_THRESHOLD.
 
-describe('V3 Engine — predicted_result null cuando TOO_CLOSE', () => {
-  it('computePredictedResult: probs exactamente iguales → predicted_result null', () => {
+describe('V3 Engine — predicted_result argmax cuando TOO_CLOSE', () => {
+  it('computePredictedResult: probs exactamente iguales → predicted_result argmax (no null)', () => {
     // 33.3% / 33.3% / 33.3% — diferencia es 0 < TOO_CLOSE_THRESHOLD
+    // Antes retornaba null; ahora retorna el argmax (HOME_WIN por orden de array)
     const result = computePredictedResult(1 / 3, 1 / 3, 1 / 3);
-    expect(result.predicted_result).toBeNull();
+    expect(result.predicted_result).not.toBeNull();
+    expect(result.favorite_margin).toBeLessThan(TOO_CLOSE_THRESHOLD);
   });
 
-  it('computePredictedResult: probs con diferencia justo bajo el umbral → null', () => {
+  it('computePredictedResult: probs con diferencia justo bajo el umbral → argmax, no null', () => {
     const delta = TOO_CLOSE_THRESHOLD - 0.001;
     const result = computePredictedResult(0.36 + delta / 2, 0.36, 0.28 - delta / 2);
     // La diferencia max−second debería ser < TOO_CLOSE_THRESHOLD
     if (result.favorite_margin < TOO_CLOSE_THRESHOLD) {
-      expect(result.predicted_result).toBeNull();
+      expect(result.predicted_result).not.toBeNull();
+      expect(result.predicted_result).toBe('HOME_WIN');
     }
   });
 
-  it('computePredictedResult: probs con diferencia sobre el umbral → no null', () => {
+  it('computePredictedResult: probs con diferencia sobre el umbral → HOME_WIN', () => {
     // HOME gana claramente
-    const result = computePredictedResult(0.60, 0.25, 0.15);
+    const result = computePredictedResult(0.6, 0.25, 0.15);
     expect(result.predicted_result).not.toBeNull();
     expect(result.predicted_result).toBe('HOME_WIN');
   });
 
   it('computePredictedResult: DRAW gana claramente', () => {
-    const result = computePredictedResult(0.20, 0.60, 0.20);
+    const result = computePredictedResult(0.2, 0.6, 0.2);
     expect(result.predicted_result).toBe('DRAW');
   });
 
   it('computePredictedResult: AWAY_WIN claramente', () => {
-    const result = computePredictedResult(0.15, 0.25, 0.60);
+    const result = computePredictedResult(0.15, 0.25, 0.6);
     expect(result.predicted_result).toBe('AWAY_WIN');
   });
 
@@ -526,7 +553,7 @@ describe('V3 Constants — valores del spec §19', () => {
   it('BETA_RECENT = 0.20', async () => {
     // Optimizado 0.45→0.15→0.20 (con calibración activa, 0.20 mejora DRAW recall +0.6pp sobre 0.15)
     const { BETA_RECENT } = await import('../src/engine/v3/constants.js');
-    expect(BETA_RECENT).toBe(0.20);
+    expect(BETA_RECENT).toBe(0.2);
   });
 });
 
@@ -581,7 +608,7 @@ describe('V3 Engine — Integración', () => {
 
   it('computeConfidence: >= 20 juegos con favoriteMargin < 0.12 → MEDIUM (margin downgrade)', () => {
     // Partido equilibrado: margen 0.10 < MARGIN_FOR_HIGH_CONFIDENCE → HIGH se degrada a MEDIUM
-    expect(computeConfidence(20, 22, 'PREV_SEASON', 'PREV_SEASON', 0.10)).toBe('MEDIUM');
+    expect(computeConfidence(20, 22, 'PREV_SEASON', 'PREV_SEASON', 0.1)).toBe('MEDIUM');
   });
 
   it('computeConfidence: >= 20 juegos con favoriteMargin >= 0.12 → HIGH', () => {
@@ -649,7 +676,7 @@ describe('V3 Engine — Integración', () => {
     const inputWithoutLeague = makeInput(15, 15);
     // Sin leagueCode: usa DC_RHO global
 
-    const outWithLeague    = runV3Engine(inputWithLeague);
+    const outWithLeague = runV3Engine(inputWithLeague);
     const outWithoutLeague = runV3Engine(inputWithoutLeague);
 
     if (

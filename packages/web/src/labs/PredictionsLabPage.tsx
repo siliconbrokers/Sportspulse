@@ -9,6 +9,7 @@ type Snapshot = {
   competition_id: string;
   generated_at: string;
   engine_version: string;
+  kickoff_utc: string | null;
   generation_status: 'ok' | 'error';
   error_detail?: string;
   mode: string;
@@ -73,9 +74,7 @@ function fmtResult(v: string | null): string {
 }
 
 function getKickoffUtc(snap: Snapshot): string | null {
-  const req = snap.request_payload as Record<string, unknown> | null | undefined;
-  const v = req?.['kickoffUtc'] ?? req?.['kickoff_utc'];
-  return typeof v === 'string' ? v : null;
+  return snap.kickoff_utc ?? null;
 }
 
 function matchLabel(snap: Snapshot): string {
@@ -260,12 +259,18 @@ export function PredictionsLabPage() {
   const [unavailable, setUnavailable] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [engineFilter, setEngineFilter] = useState<'both' | 'v3' | 'nexus'>('both');
+  const [compFilter, setCompFilter] = useState<string>('');
+  const [limitValue, setLimitValue] = useState<number>(200);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const items = await fetchSnapshots({ limit: 20, engine: engineFilter });
+      const items = await fetchSnapshots({
+        limit: limitValue,
+        engine: engineFilter,
+        competitionId: compFilter || undefined,
+      });
       setSnapshots(items);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -277,7 +282,7 @@ export function PredictionsLabPage() {
     } finally {
       setLoading(false);
     }
-  }, [engineFilter]);
+  }, [engineFilter, compFilter, limitValue]);
 
   useEffect(() => {
     void load();
@@ -371,6 +376,26 @@ export function PredictionsLabPage() {
     };
   }
 
+  const selectStyle: React.CSSProperties = {
+    fontSize: 11,
+    borderRadius: 4,
+    padding: '3px 8px',
+    border: isDark ? '1px solid #2a3a4a' : '1px solid #cbd5e1',
+    background: isDark ? '#1a1a1a' : '#f1f5f9',
+    color: isDark ? '#94a3b8' : '#475569',
+    cursor: 'pointer',
+  };
+
+  const compOptions: Array<{ value: string; label: string }> = [
+    { value: '', label: 'Todas las ligas' },
+    { value: 'comp:apifootball:140', label: 'LaLiga' },
+    { value: 'comp:apifootball:39', label: 'Premier' },
+    { value: 'comp:apifootball:78', label: 'Bundesliga' },
+    { value: 'comp:apifootball:268', label: 'Uruguay' },
+    { value: 'comp:apifootball:128', label: 'Argentina' },
+    { value: 'comp:apifootball:262', label: 'Liga MX' },
+  ];
+
   return (
     <div style={root}>
       <div style={{ ...headerRow, flexWrap: 'wrap' }}>
@@ -386,6 +411,24 @@ export function PredictionsLabPage() {
             </button>
           ))}
         </div>
+        <select
+          style={selectStyle}
+          value={compFilter}
+          onChange={(e) => setCompFilter(e.target.value)}
+        >
+          {compOptions.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <select
+          style={selectStyle}
+          value={limitValue}
+          onChange={(e) => setLimitValue(Number(e.target.value))}
+        >
+          {[50, 100, 200, 500, 1000].map((n) => (
+            <option key={n} value={n}>{n} registros</option>
+          ))}
+        </select>
         <button
           style={refreshBtn}
           onClick={() => { void load(); }}
@@ -410,6 +453,29 @@ export function PredictionsLabPage() {
         </div>
       )}
 
+      {snapshots.length > 0 && (() => {
+        const kickoffs = snapshots
+          .map((s) => s.kickoff_utc)
+          .filter((k): k is string => k !== null && k !== '');
+        const oldest = kickoffs.length > 0
+          ? kickoffs.reduce((a, b) => (a < b ? a : b)).slice(0, 10)
+          : null;
+        const newest = kickoffs.length > 0
+          ? kickoffs.reduce((a, b) => (a > b ? a : b)).slice(0, 10)
+          : null;
+        return (
+          <div style={{ marginBottom: 8, fontSize: 11, color: isDark ? '#475569' : '#94a3b8', flexWrap: 'wrap', display: 'flex', gap: 4 }}>
+            <span>{snapshots.length} predicciones</span>
+            {oldest && newest && (
+              <>
+                <span style={{ color: isDark ? '#2d3748' : '#cbd5e1' }}>·</span>
+                <span>kickoff {oldest} → {newest}</span>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       {snapshots.length > 0 && (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -426,7 +492,7 @@ export function PredictionsLabPage() {
                 <th style={thStyle}>Pronóstico</th>
                 <th style={thStyle}>xG L</th>
                 <th style={thStyle}>xG V</th>
-                <th style={thStyle}>✓</th>
+                <th style={thStyle}>Gen</th>
               </tr>
             </thead>
             <tbody>
@@ -509,7 +575,7 @@ export function PredictionsLabPage() {
                         <td style={{ ...td, fontWeight: 600, borderTop: dividerBorder }}>{fmtResult(snap.predicted_result)}</td>
                         <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_home)}</td>
                         <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_away)}</td>
-                        <td style={{ ...td, borderTop: dividerBorder }}>{snap.generation_status === 'ok' ? '✅' : '❌'}</td>
+                        <td style={{ ...td, borderTop: dividerBorder, color: snap.generation_status === 'ok' ? '#4ade80' : '#f87171', fontSize: 10, fontWeight: 600 }}>{snap.generation_status === 'ok' ? 'OK' : 'ERR'}</td>
                       </tr>
                       {isExpanded && <ExpandedRow key={`${key}__expanded`} snap={snap} />}
                     </React.Fragment>
