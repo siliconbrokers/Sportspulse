@@ -4,6 +4,8 @@
  * Auth: token ADMIN_SECRET via POST /api/admin/auth
  */
 import { useState, useEffect, useCallback } from 'react';
+import { useTheme } from '../hooks/use-theme.js';
+import { ThemeToggle } from '../components/ThemeToggle.js';
 
 interface CompetitionConfig {
   id: string;
@@ -208,6 +210,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
 function AdminPanel({ token }: { token: string }) {
+  const { theme, toggleTheme } = useTheme();
   const [config, setConfig] = useState<PortalConfig | null>(null);
   const [loadError, setLoadError] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -300,6 +303,7 @@ function AdminPanel({ token }: { token: string }) {
             >
               ← Portal
             </a>
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
         </div>
 

@@ -10,6 +10,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTheme } from '../hooks/use-theme.js';
+import { ThemeToggle } from '../components/ThemeToggle.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -296,6 +298,7 @@ function LogViewer({ lines, status }: { lines: string[]; status: JobStatus }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function TrainingLabPage() {
+  const { theme, toggleTheme } = useTheme();
   const [status, setStatus]           = useState<StatusResponse | null>(null);
   const [coeff, setCoeff]             = useState<Coefficients | null>(null);
   const [loading, setLoading]         = useState(true);
@@ -359,12 +362,22 @@ export function TrainingLabPage() {
   // ── Render states ──────────────────────────────────────────────────────────
 
   if (loading) {
-    return <div style={ROOT}><div style={{ color: '#64748b', padding: 24 }}>Cargando...</div></div>;
+    return (
+      <div style={ROOT}>
+        <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
+        <div style={{ color: '#64748b', padding: 24 }}>Cargando...</div>
+      </div>
+    );
   }
 
   if (unavailable) {
     return (
       <div style={ROOT}>
+        <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
         <div style={{ ...PANEL, borderColor: '#451a03', background: '#1a0a00' }}>
           <div style={{ color: '#f97316', fontWeight: 600, marginBottom: 6 }}>Lab no disponible</div>
           <div style={{ color: '#94a3b8' }}>Activar con <code style={{ color: '#f59e0b' }}>PREDICTION_INTERNAL_VIEW_ENABLED=true</code> en el servidor.</div>
@@ -376,6 +389,9 @@ export function TrainingLabPage() {
   if (error) {
     return (
       <div style={ROOT}>
+        <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
         <div style={{ ...PANEL, borderColor: '#450a0a', background: '#1a0000' }}>
           <div style={{ color: '#ef4444', marginBottom: 4 }}>Error al cargar</div>
           <div style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: 11 }}>{error}</div>
@@ -395,13 +411,16 @@ export function TrainingLabPage() {
     <div style={ROOT}>
 
       {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', marginBottom: 2 }}>
-          Entrenamiento — Modelo Logístico PE
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', marginBottom: 2 }}>
+            Entrenamiento — Modelo Logístico PE
+          </div>
+          <div style={{ fontSize: 11, color: '#475569' }}>
+            Pipeline: odds (football-data.co.uk) → walk-forward → multinomial logistic + class weights
+          </div>
         </div>
-        <div style={{ fontSize: 11, color: '#475569' }}>
-          Pipeline: odds (football-data.co.uk) → walk-forward → multinomial logistic + class weights
-        </div>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
 
       {/* Panel A — Estado */}

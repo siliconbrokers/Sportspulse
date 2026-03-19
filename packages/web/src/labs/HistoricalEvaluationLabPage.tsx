@@ -12,6 +12,8 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTheme } from '../hooks/use-theme.js';
+import { ThemeToggle } from '../components/ThemeToggle.js';
 
 // ── Types (mirror server HistoricalBacktestSnapshot + HistoricalEvaluationReport) ──
 
@@ -818,6 +820,7 @@ function SummaryPanel({ report }: { report: EvaluationReport }) {
 // ── Main page ─────────────────────────────────────────────────────────────
 
 export function HistoricalEvaluationLabPage() {
+  const { theme, toggleTheme } = useTheme();
   const [data, setData] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -862,6 +865,7 @@ export function HistoricalEvaluationLabPage() {
           }}>
             ⛔ NO MEZCLA con datos forward (EvaluationRecord)
           </span>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
         {data && (
           <div style={{ marginTop: 6, color: '#64748b', fontSize: 10 }}>

@@ -1,6 +1,8 @@
 // PE-76 — Internal diagnostics page for Predictive Engine snapshots
 // Route: /labs/predicciones — not linked in Navbar, internal only
 import { useState, useEffect, useCallback } from 'react';
+import { useTheme } from '../hooks/use-theme.js';
+import { ThemeToggle } from '../components/ThemeToggle.js';
 
 type Snapshot = {
   match_id: string;
@@ -222,6 +224,7 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
 }
 
 export function PredictionsLabPage() {
+  const { theme, toggleTheme } = useTheme();
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -310,6 +313,9 @@ export function PredictionsLabPage() {
   if (unavailable) {
     return (
       <div style={root}>
+        <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
         <div style={headerRow}>
           <h1 style={title}>Labs — Predicciones</h1>
         </div>
@@ -331,6 +337,7 @@ export function PredictionsLabPage() {
         >
           {loading ? 'Cargando...' : 'Refresh'}
         </button>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
 
       {error && (

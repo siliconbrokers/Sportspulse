@@ -1,6 +1,8 @@
 // OE-6 — Internal evaluation inspection page
 // Route: /labs/evaluacion — not linked in Navbar, internal only
 import { useState, useEffect, useCallback } from 'react';
+import { useTheme } from '../hooks/use-theme.js';
+import { ThemeToggle } from '../components/ThemeToggle.js';
 
 // ── Types (mirror server EvaluationRecord + EvaluationMetrics) ────────────────
 
@@ -429,6 +431,7 @@ function RecordsTable({ records }: { records: EvaluationRecord[] }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function EvaluationLabPage() {
+  const { theme, toggleTheme } = useTheme();
   const [data, setData] = useState<EvaluationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -484,6 +487,9 @@ export function EvaluationLabPage() {
   if (unavailable) {
     return (
       <div style={ROOT}>
+        <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
         <div style={headerRow}>
           <h1 style={title}>Labs — Evaluación PE</h1>
         </div>
@@ -506,6 +512,7 @@ export function EvaluationLabPage() {
         <button style={refreshBtn} onClick={() => { void load(); }} disabled={loading}>
           {loading ? 'Cargando...' : 'Refresh'}
         </button>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
 
       {error && (

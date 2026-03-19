@@ -5,6 +5,8 @@
  * Styles: CSS-in-JS with sp-* variables (no Tailwind).
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTheme } from '../hooks/use-theme.js';
+import { ThemeToggle } from '../components/ThemeToggle.js';
 import { ProviderSummaryGrid } from './ProviderSummaryGrid.js';
 import { ProviderDetailPanel } from './ProviderDetailPanel.js';
 import { ApiEventsTable } from './ApiEventsTable.js';
@@ -94,6 +96,7 @@ export function OpsApiUsagePage() {
 // ─── Inner (only rendered when token exists) ─────────────────────────────────
 
 function OpsInner({ token }: { token: string }) {
+  const { theme, toggleTheme } = useTheme();
   const [todayData, setTodayData] = useState<TodayResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -239,6 +242,7 @@ function OpsInner({ token }: { token: string }) {
             >
               ← Back Office
             </a>
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
         </div>
 
