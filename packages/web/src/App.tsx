@@ -174,11 +174,10 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
     setSubTournamentKey(undefined); // se resolverá al activo según compInfo
   }, [resolvedCompetitionId]);
 
-  // Cuando carga compInfo y hay sub-torneos: seleccionar el activo por defecto
+  // Cuando carga compInfo y hay sub-torneo activo: seleccionar por defecto
   useEffect(() => {
-    if (!compInfo?.subTournaments?.length) return;
     if (subTournamentKey) return; // ya hay selección explícita
-    const active = compInfo.activeSubTournament;
+    const active = compInfo?.activeSubTournament;
     if (active) setSubTournamentKey(active);
   }, [compInfo, subTournamentKey]);
 
@@ -366,6 +365,17 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
                     selected={subTournamentKey ?? null}
                     onChange={(key) => { setSubTournamentKey(key); }}
                   />
+                </div>
+              )}
+
+              {/* Aviso cuando se selecciona sub-torneo inactivo — la tabla de AF siempre refleja el torneo actual */}
+              {(compInfo?.subTournaments?.length ?? 0) > 1 &&
+               subTournamentKey &&
+               compInfo?.activeSubTournament &&
+               subTournamentKey !== compInfo.activeSubTournament && (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginBottom: isMobile ? 10 : 12, lineHeight: 1.4 }}>
+                  Las posiciones mostradas corresponden al torneo activo.
+                  Tabla histórica del {subTournamentKey === 'APERTURA' ? 'Apertura' : 'Clausura'} no disponible.
                 </div>
               )}
 

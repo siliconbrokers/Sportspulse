@@ -574,9 +574,13 @@ export class ApiFootballCanonicalSource implements DataSource {
 
       const allWindowFresh =
         windowMatchdays.length > 0 &&
-        windowMatchdays.every((md) =>
-          checkMatchdayCache(AF_PROVIDER_KEY, String(leagueId), season, md).hit,
-        );
+        windowMatchdays.every((md) => {
+          // For sub-tournament leagues, use the sub-tournament key from in-memory matches
+          const stKey = hasSubTournaments
+            ? (matches.find((m) => m.matchday === md)?.subTournamentKey ?? undefined)
+            : undefined;
+          return checkMatchdayCache(AF_PROVIDER_KEY, String(leagueId), season, md, stKey ?? undefined).hit;
+        });
 
       if (allWindowFresh) {
         console.log(
@@ -941,24 +945,26 @@ export class ApiFootballCanonicalSource implements DataSource {
 
   /** Persists matches grouped by matchday to disk cache. */
   private async persistMatchesByMatchday(matches: Match[], leagueId: string, season: string): Promise<void> {
-    const byMatchday = new Map<number, Match[]>();
+    // Group by (matchday, subTournamentKey) pair — each sub-tournament gets its own cache file
+    const byKey = new Map<string, { md: number; stKey: string | undefined; mdMatches: Match[] }>();
     for (const m of matches) {
       const md = m.matchday ?? 0;
-      const arr = byMatchday.get(md) ?? [];
-      arr.push(m);
-      byMatchday.set(md, arr);
+      const stKey = m.subTournamentKey ?? undefined;
+      const key = `${md}:${stKey ?? ''}`;
+      const existing = byKey.get(key) ?? { md, stKey, mdMatches: [] };
+      existing.mdMatches.push(m);
+      byKey.set(key, existing);
     }
-    for (const [md, mdMatches] of byMatchday) {
+    for (const { md, stKey, mdMatches } of byKey.values()) {
       try {
-        // Check if cache already exists and merge
-        const existing = checkMatchdayCache(AF_PROVIDER_KEY, leagueId, season, md);
+        const existing = checkMatchdayCache(AF_PROVIDER_KEY, leagueId, season, md, stKey);
         const base: Match[] = existing.hit ? existing.matches : [];
 
         // Merge: existing + new (new wins on duplicate matchId)
         const merged = new Map(base.map((m) => [m.matchId, m]));
         for (const m of mdMatches) merged.set(m.matchId, m);
 
-        persistMatchdayCache(AF_PROVIDER_KEY, leagueId, season, md, [...merged.values()]);
+        persistMatchdayCache(AF_PROVIDER_KEY, leagueId, season, md, [...merged.values()], undefined, stKey);
       } catch {
         // Non-fatal — memory cache is still up to date
       }

@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-SERVER-MATCHDAY-CACHE
 title: "Matchday Cache Technical Specification"
 artifact_class: spec
 status: active
-version: 1.0.0
+version: 1.1.0
 project: sportpulse
 domain: server
 slug: matchday-cache
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-19
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,8 +17,8 @@ canonical_path: docs/specs/pipeline/spec.sportpulse.server.matchday-cache.md
 ---
 # **Matchday Local File Cache Specification**
 
-**Version:** 1.0  
- **Status:** Final  
+**Version:** 1.1
+ **Status:** Final
  **Scope:** Persistencia local en archivo para datos de jornadas consumidos desde APIs externas  
  **Audience:** Backend, Frontend, QA, Ops  
  **Type:** Closed technical specification
@@ -127,9 +127,12 @@ The cache must be stored using the following directory structure:
     /{competitionId}
       /{season}
         matchday-{NN}.json
+        matchday-{NN}-{SUB_TOURNAMENT_KEY}.json  ← v1.1: used when hasSubTournaments=true
 Examples
 /cache/footballData/PD/2025-26/matchday-18.json
 /cache/footballDb/UY1/2025/matchday-04.json
+/cache/apifootball/262/2025-26/matchday-07-CLAUSURA.json
+/cache/apifootball/262/2025-26/matchday-07-APERTURA.json
 Rules
 provider, competitionId, and season are directory segments
 
@@ -138,6 +141,8 @@ matchday is the file unit
 matchday file naming must be deterministic
 
 zero-padding for matchday is allowed but must be consistent across the implementation
+
+**Sub-tournament suffix (v1.1):** When a competition uses sub-tournaments (e.g. Apertura/Clausura), both sub-tournaments share the same round numbers (1-17 for Liga MX). Without a suffix, round 7 of Apertura and round 7 of Clausura would use the same file, causing data collision. When `subTournamentKey` is provided to `buildCachePath()`, the suffix `-{KEY}` is appended to the filename before `.json`. The key must be the uppercase identifier used in `CompetitionRegistry.aperturaSeason` context (e.g. `APERTURA`, `CLAUSURA`). Leagues without sub-tournaments use the original format without suffix.
 
 8. File Format
 Every cache file must be valid JSON and must contain exactly two top-level keys:
@@ -571,6 +576,25 @@ The implementation emits required cache logs.
 AC-10
 The system never reuses a cache file belonging to a different provider, competition, season, or matchday.
 
+AC-11 (v1.1)
+When a competition has `hasSubTournaments=true`, the system uses separate cache files per sub-tournament key (e.g. `matchday-07-CLAUSURA.json` and `matchday-07-APERTURA.json`). A cache file for sub-tournament A must never be returned when querying sub-tournament B.
+
+---
+
+## 23. Changelog
+
+### v1.1.0 — 2026-03-19
+**Sub-tournament suffix extension**
+- Added optional `subTournamentKey` parameter to `buildCachePath()`, `checkMatchdayCache()`, and `persistMatchdayCache()`.
+- When provided, the suffix `-{KEY}` is appended to the filename before `.json`.
+- `persistMatchesByMatchday()` in `api-football-canonical-source.ts` groups by `(matchday, subTournamentKey)` pair.
+- **Motivation:** Liga MX Apertura and Clausura both use rounds 1-17. Without the suffix, writing Clausura round 7 would overwrite Apertura round 7 (which had TTL=1y as a FINISHED matchday), making all Clausura rounds 1-11 return stale Apertura data.
+- Added AC-11 acceptance criterion.
+- Added QA-10 test case.
+
+### v1.0.0 — 2026-03-15
+Initial specification.
+
 22. QA Test Matrix
 Test ID	Scenario	Expected Result
 QA-01	File does not exist	API call occurs, file is created, response returned
@@ -583,6 +607,8 @@ QA-07	API returns finalized matchday	Cache written with finished
 QA-08	API returns in-progress matchday	Cache written with live or mixed
 QA-09	Atomic write interrupted before rename	Old final file remains valid
 QA-10	matchesCount differs from actual array length	File treated as invalid/incomplete
+QA-11 (v1.1)	League with hasSubTournaments=true, querying CLAUSURA round 7	Returns matchday-07-CLAUSURA.json, not matchday-07-APERTURA.json or matchday-07.json
+QA-12 (v1.1)	League without sub-tournaments	buildCachePath produces matchday-07.json (no suffix)
 23. Implementation Constraints
 The implementing agent/programmer must respect these constraints:
 

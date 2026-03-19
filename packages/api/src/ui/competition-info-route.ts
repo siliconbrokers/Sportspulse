@@ -23,13 +23,18 @@ export function competitionInfoRoute(deps: AppDependencies): FastifyPluginAsync 
 
         const seasonId = deps.dataSource.getSeasonId(competitionId);
 
-        // Datos aún no cargados (startup en progreso) — devolver defaults sin cachear
+        // Datos aún no cargados (startup en progreso) — devolver defaults sin cachear.
+        // Incluir activeSubTournament/subTournaments igual (desde fallback estático) para que
+        // el frontend pueda pre-seleccionar el sub-torneo activo sin esperar a que cargue la data.
         if (!seasonId) {
+          const activeSubTournament = deps.dataSource.getActiveSubTournament?.(competitionId);
+          const subTournaments = deps.dataSource.getSubTournaments?.(competitionId) ?? [];
           reply.header('Cache-Control', 'no-cache').send({
             currentMatchday: null,
             lastPlayedMatchday: null,
             nextMatchday: null,
             totalMatchdays: 38,
+            ...(activeSubTournament != null ? { activeSubTournament, subTournaments } : {}),
           });
           return;
         }

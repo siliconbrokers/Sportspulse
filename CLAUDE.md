@@ -483,11 +483,13 @@ All phases (0-9) complete + Phase 10 (UI Polish) complete + News + Video Highlig
 - `server/football-data-source.ts` — football-data.org adapter
 - `server/the-sports-db-source.ts` — TheSportsDB adapter (Liga Uruguaya)
 - `server/routing-data-source.ts` — composite routing by competitionId
-- `server/matchday-cache.ts` — file-based JSON cache per matchday (spec: `docs/specs/pipeline/spec.sportpulse.server.matchday-cache.md` v1.0)
+- `server/matchday-cache.ts` — file-based JSON cache per matchday (spec: `docs/specs/pipeline/spec.sportpulse.server.matchday-cache.md` v1.1)
   - Cache dir: `/cache/{provider}/{competitionId}/{season}/matchday-{NN}.json` (runtime, not versioned)
+  - **Sub-tournament suffix (v1.1):** leagues with `hasSubTournaments=true` use `matchday-{NN}-{KEY}.json` (e.g. `matchday-07-CLAUSURA.json`). `buildCachePath()` accepts optional `subTournamentKey`; `persistMatchesByMatchday()` groups by `(matchday, subTournamentKey)` pair to avoid Apertura/Clausura sharing the same filename.
   - Atomic write (.tmp → rename), TTL by status (finished=1y, live=60s, scheduled=6h, mixed=5min)
   - Integrated in both data sources via `checkMatchdayCache` / `persistMatchdayCache`
   - Bug fix (2026-03): window fetch was overwriting matchday cache files with partial data when a matchday spans multiple days; fix: merge with baseMatches per matchday before persisting
+  - Bug fix (2026-03-19): Apertura/Clausura cache key conflict — rounds 1-17 existed in both sub-tournaments with the same filename. Fix: sub-tournament suffix in path. Old-format files (no suffix) deleted and re-populated automatically on next fetch.
   - Optimization: in incremental window fetch, if `checkMatchdayCache()` returns a hit with status=finished and all matches are FINISHED → skip processing (continue), reuse cached data
 
 ## Architecture (Layered Pipeline)
@@ -628,3 +630,6 @@ YOUTUBE_API_KEY=...       # YouTube Data API v3 (video highlights)
 - Standings legend emojis replaced with colored squares using exact `zone.color` values.
 - Pronósticos missing matches: window fetch was caching partial matchday data; merge fix ensures full match list.
 - LiveCarousel score alignment: gap:7 + fixed crest height aligns score column vertically with team rows.
+- Liga MX sub-tournament cache key conflict (2026-03-19): Apertura and Clausura rounds share the same 1-17 round numbers. Old code produced `matchday-07.json` for both, causing Clausura rounds 1-11 to read Apertura historical data (TTL=1y). Fix: `buildCachePath()` appends `-{KEY}` suffix when `subTournamentKey` is provided → `matchday-07-CLAUSURA.json`. `persistMatchesByMatchday()` groups by `(matchday, subTournamentKey)` pair.
+- Liga MX cold-start not defaulting to Clausura (2026-03-19): `competition-info-route.ts` early return (when `seasonId=null`) was returning without `activeSubTournament`. Fix: call `getActiveSubTournament()` (uses static fallback via `resolveActiveSubTournament`) even in the early return path.
+- Liga MX `useEffect #2` guard blocking auto-selection (2026-03-19): guard `!compInfo?.subTournaments?.length` in App.tsx prevented CLAUSURA from being set during cold-start when `subTournaments=[]`. Fix: removed the guard — now sets `subTournamentKey` from `activeSubTournament` whenever present.

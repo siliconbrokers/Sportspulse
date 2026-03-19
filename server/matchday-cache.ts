@@ -1,8 +1,13 @@
 /**
  * Matchday Local File Cache
- * Implements: matchday-cache-technical-spec.md v1.0
+ * Implements: matchday-cache-technical-spec.md v1.1
  *
  * File format: /cache/{provider}/{competitionId}/{season}/matchday-{NN}.json
+ * Sub-tournament variant (v1.1): matchday-{NN}-{KEY}.json
+ *   Used when hasSubTournaments=true (e.g. Liga MX Apertura/Clausura).
+ *   Both Apertura and Clausura share round numbers 1-17, so without the suffix
+ *   they would overwrite each other. buildCachePath() appends the suffix when
+ *   subTournamentKey is provided.
  * Each file is atomic-written (tmp → rename) and validated on read.
  */
 
@@ -54,9 +59,11 @@ export function buildCachePath(
   competitionId: string,
   season: string,
   matchday: number,
+  subTournamentKey?: string,
 ): string {
   const md = String(matchday).padStart(2, '0');
-  return path.join(CACHE_BASE, provider, competitionId, season, `matchday-${md}.json`);
+  const suffix = subTournamentKey ? `-${subTournamentKey}` : '';
+  return path.join(CACHE_BASE, provider, competitionId, season, `matchday-${md}${suffix}.json`);
 }
 
 // ── Status resolution (§11) ───────────────────────────────────────────────────
@@ -278,8 +285,9 @@ export function checkMatchdayCache(
   competitionId: string,
   season: string,
   matchday: number,
+  subTournamentKey?: string,
 ): { hit: true; matches: Match[] } | { hit: false } {
-  const cachePath = buildCachePath(provider, competitionId, season, matchday);
+  const cachePath = buildCachePath(provider, competitionId, season, matchday, subTournamentKey);
 
   const raw = readCacheFile(cachePath);
 
@@ -508,8 +516,9 @@ export function persistMatchdayCache(
   matchday: number,
   matches: Match[],
   nowUtc?: string,
+  subTournamentKey?: string,
 ): void {
-  const cachePath = buildCachePath(provider, competitionId, season, matchday);
+  const cachePath = buildCachePath(provider, competitionId, season, matchday, subTournamentKey);
   const status = resolveGlobalStatus(matches, nowUtc);
   try {
     writeCacheFile(cachePath, provider, competitionId, season, matchday, matches, nowUtc);

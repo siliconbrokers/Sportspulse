@@ -94,6 +94,11 @@ Auto-infer as much as possible from the search results. Then ask the user ONLY f
 - **expectedSeasonGames** — games per team per season. Show proposed value with reasoning (ej: "17 games × 2 torneos = 34 total season games").
 - **totalMatchdays** — if known and not a tournament. Show proposed value or "omitted".
 - **hasSubTournaments** — `true` if Apertura/Clausura style. Show proposed value.
+- **aperturaSeason** — ONLY if `hasSubTournaments=true`. Which half-year maps to "Apertura"?
+  - `H1` = Apertura runs Jan–Jun (Argentina, Uruguay style — default)
+  - `H2` = Apertura runs Jul–Dec (Liga MX, Colombia style)
+  - Show proposed value. If wrong, the sub-tournament selector will auto-select the wrong tournament.
+  - **CRITICAL**: this field is mandatory for any league with `hasSubTournaments=true`. Getting it wrong causes the calendar detection to return the wrong active sub-tournament.
 
 Present all inferred values in a compact block and ask:
 > ¿Corregís algo? Si está todo bien, escribí "ok".
@@ -120,6 +125,7 @@ Liga a agregar:
   expectedSeasonGames: {expectedSeasonGames}
   totalMatchdays:   {totalMatchdays or 'omitted'}
   hasSubTournaments: {hasSubTournaments or 'false'}
+  aperturaSeason:    {aperturaSeason or 'omitted (no sub-tournaments)'}
 
 Archivos a editar:
   1. server/competition-registry.ts
@@ -159,6 +165,7 @@ Entry shape:
 Add optional fields only if provided:
 - `totalMatchdays: {N},`
 - `hasSubTournaments: true,`
+- `aperturaSeason: '{H1|H2}',` (MANDATORY when hasSubTournaments=true. H1=Apertura Jan-Jun, H2=Apertura Jul-Dec)
 - `phases: ['{phase1}', '{phase2}'],` (only if isTournament=true)
 - `startDate: '{date}',`
 

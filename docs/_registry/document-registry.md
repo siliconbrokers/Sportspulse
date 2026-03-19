@@ -40,7 +40,7 @@
 | SPEC-SPORTPULSE-SCORING-POLICY | Scoring Policy | spec | active | 1.0.0 | docs/specs/pipeline/spec.sportpulse.scoring.policy.md |
 | SPEC-SPORTPULSE-SNAPSHOT-ENGINE | Snapshot Engine Specification | spec | active | 1.0.0 | docs/specs/pipeline/spec.sportpulse.snapshot.engine.md |
 | SPEC-SPORTPULSE-SNAPSHOT-DASHBOARD-DTO | Dashboard Snapshot DTO | spec | active | 1.2.0 | docs/specs/pipeline/spec.sportpulse.snapshot.dashboard-dto.md |
-| SPEC-SPORTPULSE-SERVER-MATCHDAY-CACHE | Matchday Cache Technical Specification | spec | active | 1.0.0 | docs/specs/pipeline/spec.sportpulse.server.matchday-cache.md |
+| SPEC-SPORTPULSE-SERVER-MATCHDAY-CACHE | Matchday Cache Technical Specification | spec | active | 1.1.0 | docs/specs/pipeline/spec.sportpulse.server.matchday-cache.md |
 
 ### API (`docs/specs/api/`)
 
@@ -81,6 +81,12 @@
 | SPEC-SPORTPULSE-PREDICTION-MATCH-DETAIL-PREDICTION-MODULE | Match Detail Persistent Prediction Module | spec | active | 1.0.0 | docs/specs/prediction/spec.sportpulse.prediction.match-detail-prediction-module.md |
 | SPEC-SPORTPULSE-PREDICTION-TRACK-A-OBSERVATION-AUTOMATION | Track A Backend Observation Automation | spec | active | 1.0.0 | docs/specs/prediction/spec.sportpulse.prediction.track-a-observation-automation.md |
 | ADR-SPORTPULSE-PREDICTION-PE-V2-PRODUCTION-AUTHORIZATION | PE V2 Production Authorization | adr | superseded | 1.0.0 | docs/specs/prediction/adr.sportpulse.prediction.pe-v2-production-authorization.md |
+| SPEC-SPORTPULSE-PREDICTION-ENGINE-V2-MASTER | Prediction Engine V2 (NEXUS) Master Spec | spec | draft | 0.1.0 | docs/specs/prediction/engine-v2/spec.sportpulse.prediction-engine-v2.master.md |
+| SPEC-SPORTPULSE-PREDICTION-ENGINE-V2-ENTITY-IDENTITY | Prediction Engine V2 Entity Identity and Resolution | spec | draft | 0.1.0 | docs/specs/prediction/engine-v2/spec.sportpulse.prediction-engine-v2.entity-identity-and-resolution.md |
+| SPEC-SPORTPULSE-PREDICTION-ENGINE-V2-EVALUATION-AND-PROMOTION | Prediction Engine V2 Evaluation and Promotion | spec | draft | 0.1.0 | docs/specs/prediction/engine-v2/spec.sportpulse.prediction-engine-v2.evaluation-and-promotion.md |
+| SPEC-SPORTPULSE-PREDICTION-ENGINE-V2-MARKET-SIGNAL-POLICY | Prediction Engine V2 Market Signal Policy | spec | draft | 0.1.0 | docs/specs/prediction/engine-v2/spec.sportpulse.prediction-engine-v2.market-signal-policy.md |
+| SPEC-SPORTPULSE-PREDICTION-ENGINE-V2-MODEL-TAXONOMY-AND-ENSEMBLE | Prediction Engine V2 Model Taxonomy and Ensemble | spec | draft | 0.1.0 | docs/specs/prediction/engine-v2/spec.sportpulse.prediction-engine-v2.model-taxonomy-and-ensemble.md |
+| SPEC-SPORTPULSE-PREDICTION-ENGINE-V2-NEXUS-0 | Prediction Engine V2 NEXUS-0 Temporal Feature Store | spec | draft | 0.1.0 | docs/specs/prediction/engine-v2/spec.sportpulse.prediction-engine-v2.nexus-0-temporal-feature-store.md |
 | SPEC-SPORTPULSE-RADAR-V2-CORE | Radar v2 Core Spec | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-core.md |
 | SPEC-SPORTPULSE-RADAR-V2-RENDERING | Radar v2 Editorial Rendering Policy | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-editorial-rendering-policy.md |
 | SPEC-SPORTPULSE-RADAR-V2-IMPLEMENTATION | Radar v2 Implementation Guide | spec | draft | 2.0.0 | docs/specs/prediction/radar/Version 2/spec.sportpulse.radar-v2-implementation-guide.md |

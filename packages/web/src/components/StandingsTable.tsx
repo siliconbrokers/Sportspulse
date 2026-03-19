@@ -47,6 +47,10 @@ const AR_ZONES: Zone[] = [
   { from: 2,  to: 4,  type: 'uel',        emoji: '🟠', label: 'Sudamericana',  color: '#22d3ee' },
   { from: 25, to: 28, type: 'relegation', emoji: '🔴', label: 'Descenso',      color: '#ef4444' },
 ];
+// Liga MX — top 8 clasifican a Liguilla (playoffs). Sin descenso directo por puntos (sistema Promedios).
+const MX_ZONES: Zone[] = [
+  { from: 1, to: 8, type: 'playoff', emoji: '🟡', label: 'Liguilla', color: '#f59e0b' },
+];
 
 const ZONE_CONFIGS: Record<string, Zone[]> = {
   // API-Football canonical IDs
@@ -55,6 +59,7 @@ const ZONE_CONFIGS: Record<string, Zone[]> = {
   'comp:apifootball:78':  BL1_ZONES,
   'comp:apifootball:268': URU_ZONES,
   'comp:apifootball:128': AR_ZONES,
+  'comp:apifootball:262': MX_ZONES,
   // Legacy IDs (kept for backward compat)
   'comp:football-data:PD':  PD_ZONES,
   'comp:football-data:PL':  PL_ZONES,
