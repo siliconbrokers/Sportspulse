@@ -362,6 +362,37 @@ Show this checklist after reporting. Tell the user to run these verifications **
 
 ---
 
+## Step 11 — Calibración del motor predictivo (opcional)
+
+After reporting the result and checklist, ask:
+
+> ¿Querés calibrar el motor predictivo para **{displayName}**?
+
+If the user says NO or ignores: close the wizard with this note:
+> "Liga activada sin calibración PE. Cuando haya suficiente histórico (recomendado: al menos una temporada completa), podés correr `/calibrate-league` para calibrar el motor."
+
+If the user says YES, ask:
+
+```
+¿Qué motor querés calibrar?
+
+1. Solo V3 (producción)
+2. Solo NEXUS (shadow)
+3. V3 + NEXUS
+4. Ninguno por ahora
+```
+
+If the user chooses 1–3: invoke `/calibrate-league` passing the already-known compId and displayName as context. Do NOT ask for the league again — it's already confirmed.
+
+If the user chooses 4: close with the same note as "NO" above.
+
+**Important notes:**
+- Not every league needs calibration. Skip this step (choose 4) for: Copa Libertadores, Copa del Mundo, and any tournament league (`isTournament=true`).
+- Leagues without AF source cannot be calibrated with xG augmentation — `/calibrate-league` will handle this gracefully.
+- NEXUS calibration (options 2 and 3) is Iteración 2 — the skill will inform the user if NEXUS is selected.
+
+---
+
 ## Constraints
 
 - Do NOT add news feeds or YouTube channels (separate workflow, out of scope)

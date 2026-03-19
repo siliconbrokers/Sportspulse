@@ -16,8 +16,11 @@
  *   --xg                    Cargar xG desde disco (cache/xg/) e inyectarlo en el engine.
  *                           Matching por proximidad (fecha + score) para resolver la diferencia
  *                           de IDs entre football-data.org (backtest) y API-Football (xG cache).
+ *   --comp {id}             Correr backtest solo para una liga. Soporta:
+ *                           - comp:apifootball:{leagueId}  → provider AF-canonical
+ *                           - PD / PL / BL1               → provider football-data (compat)
  *
- * Uso: npx tsx --tsconfig tsconfig.server.json tools/backtest-v3.ts [--ensemble] [--market-weight 0.20] [--xg]
+ * Uso: npx tsx --tsconfig tsconfig.server.json tools/backtest-v3.ts [--ensemble] [--market-weight 0.20] [--xg] [--comp {id}]
  */
 
 import * as fs from 'fs';
@@ -31,6 +34,7 @@ import {
 } from '../packages/prediction/src/metrics/calibration-metrics.js';
 import type { CalibrationTable } from '../packages/prediction/src/engine/v3/types.js';
 import { buildOddsIndex, lookupOdds, type OddsIndex } from './odds-lookup.js';
+import { COMPETITION_REGISTRY } from '../server/competition-registry.js';
 
 // ── CLI flags ─────────────────────────────────────────────────────────────────
 
@@ -59,6 +63,58 @@ const DRAW_MARGIN_OVERRIDE: number | undefined = (() => {
   }
   return undefined;
 })();
+
+const COMP_ARG: string | undefined = (() => {
+  const idx = process.argv.indexOf('--comp');
+  return idx !== -1 ? (process.argv[idx + 1] ?? undefined) : undefined;
+})();
+
+// ── Provider resolution (mirrors gen-calibration.ts) ─────────────────────────
+
+type ProviderKind = 'football-data' | 'apifootball';
+
+interface ResolvedComp {
+  provider: ProviderKind;
+  code: string;
+  afLeagueId: number | undefined;
+  name: string;
+  slug: string;
+  expectedSeasonGames: number;
+  seasonKind: 'european' | 'calendar';
+}
+
+const FD_CODES_SET = new Set(['PD', 'PL', 'BL1', 'SA', 'FL1']);
+const FD_CODE_TO_AF: Record<string, number> = { PD: 140, PL: 39, BL1: 78, SA: 135, FL1: 61 };
+const FD_EXPECTED: Record<string, number> = { PD: 38, PL: 38, BL1: 34, SA: 38, FL1: 34 };
+
+function resolveComp(compId: string): ResolvedComp | null {
+  const afMatch = compId.match(/^comp:apifootball:(\d+)$/);
+  if (afMatch) {
+    const leagueId = parseInt(afMatch[1]!, 10);
+    const entry = COMPETITION_REGISTRY.find((e) => e.leagueId === leagueId);
+    return {
+      provider: 'apifootball',
+      code: String(leagueId),
+      afLeagueId: leagueId,
+      name: entry?.displayName ?? `AF league ${leagueId}`,
+      slug: entry?.slug ?? String(leagueId),
+      expectedSeasonGames: entry?.expectedSeasonGames ?? 34,
+      seasonKind: entry?.seasonKind ?? 'european',
+    };
+  }
+  if (FD_CODES_SET.has(compId)) {
+    return {
+      provider: 'football-data',
+      code: compId,
+      afLeagueId: FD_CODE_TO_AF[compId],
+      name: compId,
+      slug: compId,
+      expectedSeasonGames: FD_EXPECTED[compId] ?? 34,
+      seasonKind: 'european',
+    };
+  }
+  return null;
+}
 
 /** Carga coeficientes logísticos desde cache/logistic-coefficients.json. */
 function loadLogisticCoefficients(): LogisticCoefficients | undefined {
@@ -262,7 +318,84 @@ interface LeagueConfig {
   expectedSeasonGames: number;
 }
 
-const CACHE_BASE = path.join(process.cwd(), 'cache', 'football-data');
+const CACHE_BASE    = path.join(process.cwd(), 'cache', 'football-data');
+const CACHE_AF_BASE = path.join(process.cwd(), 'cache', 'apifootball');
+const HIST_AF_BASE  = path.join(process.cwd(), 'cache', 'historical', 'apifootball');
+const HIST_FD_BASE  = path.join(process.cwd(), 'cache', 'historical', 'football-data');
+
+/** Get available season labels for an AF-canonical league (sorted newest first). */
+function getAfSeasonLabels(leagueId: number, seasonKind: 'european' | 'calendar'): string[] {
+  const base     = path.join(CACHE_AF_BASE, String(leagueId));
+  const histBase = path.join(HIST_AF_BASE, String(leagueId));
+  const existing = new Set<string>();
+  for (const dir of [base, histBase]) {
+    if (fs.existsSync(dir)) {
+      for (const entry of fs.readdirSync(dir)) {
+        if (seasonKind === 'european' && /^\d{4}-\d{2}$/.test(entry)) existing.add(entry);
+        if (seasonKind === 'calendar'  && /^\d{4}$/.test(entry))       existing.add(entry);
+      }
+    }
+  }
+  if (existing.size > 0) return [...existing].sort().reverse();
+  const year = new Date().getUTCFullYear();
+  if (seasonKind === 'european') {
+    return [`${year - 1}-${String(year).slice(2)}`, `${year - 2}-${String(year - 1).slice(2)}`];
+  }
+  return [String(year - 1), String(year - 2)];
+}
+
+/** Load historical matches from AF-canonical cache. */
+function loadHistoricalAF(leagueId: number, seasonLabel: string): V3MatchRecord[] {
+  const histFile = path.join(HIST_AF_BASE, String(leagueId), `${seasonLabel}.json`);
+  if (fs.existsSync(histFile)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(histFile, 'utf-8'));
+      const matches: V3MatchRecord[] = raw?.matches ?? [];
+      if (matches.length > 0) return matches;
+    } catch { /* fall through */ }
+  }
+  // Fallback: reconstruct from matchday files
+  const seasonDir = path.join(CACHE_AF_BASE, String(leagueId), seasonLabel);
+  if (!fs.existsSync(seasonDir)) return [];
+  const mdMap = loadMatchdayFilesFromDir(seasonDir);
+  const records: V3MatchRecord[] = [];
+  for (const matches of mdMap.values()) {
+    for (const m of matches) {
+      if (m.status === 'FINISHED' && m.scoreHome !== null && m.scoreAway !== null) {
+        const rec = toV3Record(m);
+        if (rec) records.push(rec);
+      }
+    }
+  }
+  return records;
+}
+
+/** Generic matchday file loader from a directory path (used for both FD and AF). */
+function loadMatchdayFilesFromDir(dir: string): Map<number, CachedMatch[]> {
+  const result = new Map<number, CachedMatch[]>();
+  if (!fs.existsSync(dir)) return result;
+  const files = fs.readdirSync(dir).filter(f => f.match(/^matchday-\d+\.json$/)).sort();
+  for (const file of files) {
+    const num = parseInt(file.match(/(\d+)/)?.[1] ?? '0', 10);
+    if (!num) continue;
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8'));
+      const matches: CachedMatch[] = raw?.data?.matches ?? raw?.matches ?? [];
+      result.set(num, matches);
+    } catch { /* skip */ }
+  }
+  return result;
+}
+
+/** Load historical from FD cache. */
+function loadHistoricalFD(code: string, year: number): V3MatchRecord[] {
+  const file = path.join(HIST_FD_BASE, code, `${year}.json`);
+  if (!fs.existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    return raw?.matches ?? [];
+  } catch { return []; }
+}
 
 interface LeagueConfigFull extends LeagueConfig {
   prevSeasonFile: string;
@@ -293,22 +426,11 @@ function loadPrevSeason(file: string): V3MatchRecord[] {
   } catch { return []; }
 }
 
-/** Carga datos del cache histórico (formato FinishedMatchRecord, compatible con V3MatchRecord). */
-function loadHistoricalCache(code: string, year: number): V3MatchRecord[] {
-  const file = path.join(process.cwd(), 'cache', 'historical', 'football-data', code, `${year}.json`);
-  if (!fs.existsSync(file)) return [];
-  try {
-    const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    const matches: V3MatchRecord[] = raw?.matches ?? [];
-    return matches;
-  } catch { return []; }
-}
-
 /** Combina 2023-24 y 2024-25 como prevSeason — replica comportamiento de producción. */
 function buildPrevSeasonMatches(code: string, prevSeasonFile: string): V3MatchRecord[] {
-  const fromFetch = loadPrevSeason(prevSeasonFile);       // 2024-25 (fetched via API)
-  const from2024  = loadHistoricalCache(code, 2024);      // 2024-25 del cache histórico
-  const from2023  = loadHistoricalCache(code, 2023);      // 2023-24 del cache histórico
+  const fromFetch = loadPrevSeason(prevSeasonFile);   // 2024-25 (fetched via API)
+  const from2024  = loadHistoricalFD(code, 2024);     // 2024-25 del cache histórico
+  const from2023  = loadHistoricalFD(code, 2023);     // 2023-24 del cache histórico
   // Preferir datos del cache histórico (formato canónico de producción);
   // si no hay, usar los fetched
   const prev2425 = from2024.length > 0 ? from2024 : fromFetch;
@@ -318,25 +440,7 @@ function buildPrevSeasonMatches(code: string, prevSeasonFile: string): V3MatchRe
 // ── Carga de archivos de cache ──────────────────────────────────────────────
 
 function loadMatchdayFiles(leagueDir: string): Map<number, CachedMatch[]> {
-  const result = new Map<number, CachedMatch[]>();
-  if (!fs.existsSync(leagueDir)) return result;
-
-  const files = fs.readdirSync(leagueDir)
-    .filter(f => f.match(/^matchday-\d+\.json$/))
-    .sort();
-
-  for (const file of files) {
-    const num = parseInt(file.match(/(\d+)/)?.[1] ?? '0', 10);
-    if (!num) continue;
-    try {
-      const raw = JSON.parse(fs.readFileSync(path.join(leagueDir, file), 'utf-8'));
-      const matches: CachedMatch[] = raw?.data?.matches ?? [];
-      result.set(num, matches);
-    } catch {
-      // skip corrupt files
-    }
-  }
-  return result;
+  return loadMatchdayFilesFromDir(leagueDir);
 }
 
 // ── Mapeo cache → V3MatchRecord ────────────────────────────────────────────
@@ -614,6 +718,146 @@ function printLeagueReport(name: string, evals: MatchEval[]): void {
   }
 }
 
+// ── AF-canonical backtest ────────────────────────────────────────────────────
+
+/**
+ * Backtest for an AF-canonical league (does not use odds or FD historical cache).
+ * Uses the most recent available season as test set; prior seasons as prevSeason.
+ */
+function backtestLeagueAF(
+  comp: ResolvedComp,
+  logisticCoefficients?: LogisticCoefficients,
+): MatchEval[] {
+  const seasonLabels = getAfSeasonLabels(comp.afLeagueId!, comp.seasonKind);
+  if (seasonLabels.length === 0) {
+    console.log(`  [WARN] Sin temporadas disponibles para ${comp.name}`);
+    return [];
+  }
+
+  const currentLabel = seasonLabels[0]!;
+  const seasonDir = path.join(CACHE_AF_BASE, comp.code, currentLabel);
+  const allMatchdays = loadMatchdayFilesFromDir(seasonDir);
+  if (allMatchdays.size === 0) return [];
+
+  // prevSeason = all seasons before current
+  const prevSeasonMatches: V3MatchRecord[] = [];
+  for (const label of seasonLabels.slice(1)) {
+    prevSeasonMatches.push(...loadHistoricalAF(comp.afLeagueId!, label));
+  }
+
+  // Calibration table for this league (per-liga preferred, else global)
+  const calibrationTable = getCalibrationTable(comp.slug);
+
+  const sortedMatchdays = [...allMatchdays.keys()].sort((a, b) => a - b);
+  const evals: MatchEval[] = [];
+
+  for (const md of sortedMatchdays) {
+    const testMatches = (allMatchdays.get(md) ?? [])
+      .filter(m => m.status === 'FINISHED' && m.scoreHome !== null && m.scoreAway !== null && m.startTimeUtc);
+    if (testMatches.length === 0) continue;
+
+    const trainingRecords: V3MatchRecord[] = [];
+    for (const prevMd of sortedMatchdays) {
+      if (prevMd >= md) break;
+      for (const m of (allMatchdays.get(prevMd) ?? [])) {
+        const rec = toV3Record(m);
+        if (rec) trainingRecords.push(rec);
+      }
+    }
+
+    for (const match of testMatches) {
+      const actual = actualOutcome(match);
+      if (!actual) continue;
+
+      const input: V3EngineInput = {
+        homeTeamId: match.homeTeamId,
+        awayTeamId: match.awayTeamId,
+        kickoffUtc: match.startTimeUtc,
+        buildNowUtc: match.startTimeUtc,
+        currentSeasonMatches: trainingRecords,
+        prevSeasonMatches,
+        expectedSeasonGames: comp.expectedSeasonGames,
+        leagueCode: comp.slug,
+        ...(calibrationTable ? { calibrationTable } : {}),
+        _overrideConstants: {
+          ...(USE_ENSEMBLE ? { ENSEMBLE_ENABLED: true } : {}),
+          ...(MARKET_WEIGHT_OVERRIDE !== undefined ? { MARKET_WEIGHT: MARKET_WEIGHT_OVERRIDE } : {}),
+          ...(DRAW_MARGIN_OVERRIDE !== undefined ? { DRAW_MARGIN: DRAW_MARGIN_OVERRIDE } : {}),
+        },
+        ...(USE_ENSEMBLE ? { logisticCoefficients } : {}),
+      };
+
+      let predicted: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' | 'TOO_CLOSE' | null = null;
+      let eligibility = 'NOT_ELIGIBLE';
+      let confidence = 'INSUFFICIENT';
+      let p_home: number | null = null;
+      let p_draw: number | null = null;
+      let p_away: number | null = null;
+
+      try {
+        const out = runV3Engine(input);
+        eligibility = out.eligibility;
+        confidence = out.confidence;
+        p_home = out.prob_home_win;
+        p_draw = out.prob_draw;
+        p_away = out.prob_away_win;
+        if (out.predicted_result !== null && out.predicted_result !== undefined) {
+          predicted = out.predicted_result as typeof predicted;
+        } else if (out.eligibility !== 'NOT_ELIGIBLE') {
+          predicted = 'TOO_CLOSE';
+        }
+      } catch {
+        eligibility = 'ERROR';
+      }
+
+      evals.push({ actual, predicted, eligibility, confidence, p_home, p_draw, p_away });
+    }
+  }
+
+  return evals;
+}
+
+// ── Main helpers ─────────────────────────────────────────────────────────────
+
+function printSummary(evalsAll: MatchEval[], leagueCount: number): void {
+  const pctFn = pct;
+  console.log(`\n${'═'.repeat(72)}`);
+  console.log(`  TOTAL (${leagueCount} liga${leagueCount > 1 ? 's' : ''})`);
+  console.log('═'.repeat(72));
+
+  const totalEv = evalsAll.filter(e =>
+    e.eligibility !== 'NOT_ELIGIBLE' &&
+    e.eligibility !== 'ERROR' &&
+    e.predicted !== null &&
+    e.predicted !== 'TOO_CLOSE'
+  );
+  const totalHits = totalEv.filter(e => e.predicted === e.actual).length;
+  const totalNotElig = evalsAll.filter(e => e.eligibility === 'NOT_ELIGIBLE' || e.eligibility === 'ERROR').length;
+  const totalTooClose = evalsAll.filter(e => e.predicted === 'TOO_CLOSE').length;
+
+  console.log(`  Total partidos     : ${evalsAll.length}`);
+  console.log(`  NOT_ELIGIBLE       : ${totalNotElig} (${pctFn(totalNotElig, evalsAll.length)})`);
+  console.log(`  TOO_CLOSE          : ${totalTooClose}`);
+  console.log(`  Accuracy global    : ${totalHits}/${totalEv.length} = ${pctFn(totalHits, totalEv.length)}`);
+
+  const totalDraw = totalEv.filter(e => e.actual === 'DRAW').length;
+  const totalPredDraw = totalEv.filter(e => e.predicted === 'DRAW').length;
+  const totalHitDraw = totalEv.filter(e => e.predicted === 'DRAW' && e.actual === 'DRAW').length;
+  console.log(`  DRAW recall        : ${totalHitDraw}/${totalDraw} = ${pctFn(totalHitDraw, totalDraw)}`);
+  console.log(`  DRAW predichos     : ${totalPredDraw} / ${totalEv.length} = ${pctFn(totalPredDraw, totalEv.length)}`);
+
+  const globalProbRecords = toPredictionRecords(evalsAll);
+  if (globalProbRecords.length > 0) {
+    const gpm = computeProbabilityMetrics(globalProbRecords);
+    console.log(`\n  Métricas de probabilidad global (§23.2) — n=${globalProbRecords.length}:`);
+    console.log(`    log_loss           : ${gpm.log_loss.toFixed(4)}  (lower is better)`);
+    console.log(`    brier_score        : ${gpm.brier_score.toFixed(4)}  (lower is better)`);
+    console.log(`    rps                : ${gpm.rps.toFixed(4)}  (lower is better; baseline≈0.222)`);
+  }
+  console.log('═'.repeat(72));
+  console.log();
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────
 
 const modeLabel = USE_ENSEMBLE
@@ -643,6 +887,62 @@ if (USE_ENSEMBLE) {
     console.log(`[ENSEMBLE] Calibración: v3-iso-calibration-ensemble.json (estrategia MIXTA)\n`);
   }
 }
+
+// ── SINGLE COMP MODE ─────────────────────────────────────────────────────────
+if (COMP_ARG) {
+  const comp = resolveComp(COMP_ARG);
+  if (!comp) {
+    console.error(`\n  ERROR: No se pudo resolver --comp "${COMP_ARG}".`);
+    console.error(`  Formatos válidos: comp:apifootball:{leagueId}  o  PD / PL / BL1 / SA / FL1`);
+    process.exit(1);
+  }
+
+  console.log(`[COMP] Modo single-liga: ${comp.name} (provider=${comp.provider}, code=${comp.code})\n`);
+
+  let evals: MatchEval[];
+  if (comp.provider === 'apifootball') {
+    evals = backtestLeagueAF(comp, logisticCoefficients);
+  } else {
+    // FD path: find matching league config or construct one
+    const fdLeague = LEAGUES.find((l) => path.basename(path.dirname(l.dir)) === comp.code)
+      ?? {
+          name: comp.name,
+          dir: path.join(CACHE_BASE, comp.code, '2025-26'),
+          expectedSeasonGames: comp.expectedSeasonGames,
+          prevSeasonFile: path.join(CACHE_BASE, comp.code, '2024-25', 'prev-season.json'),
+        };
+
+    // Odds index scoped to this league
+    const singleOddsIndex = buildOddsIndex([comp.code]);
+    console.log(`[ODDS] Índice cargado: ${singleOddsIndex.size} registros\n`);
+
+    // xG for this league
+    let xgForLeague: XgRecord[] | undefined;
+    if (USE_XG && comp.afLeagueId !== undefined) {
+      const rawXg = loadRawXgFiles(comp.code);
+      const allMatchdays = loadMatchdayFiles(fdLeague.dir);
+      const backtestMatchesFlat: { utcDate: string; homeTeamId: string; awayTeamId: string; homeGoals: number; awayGoals: number }[] = [];
+      for (const matches of allMatchdays.values()) {
+        for (const m of matches) {
+          if (m.status === 'FINISHED' && m.scoreHome !== null && m.scoreAway !== null && m.startTimeUtc) {
+            backtestMatchesFlat.push({ utcDate: m.startTimeUtc, homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId, homeGoals: m.scoreHome, awayGoals: m.scoreAway });
+          }
+        }
+      }
+      const resolved = resolveXgWithFdIds(rawXg, backtestMatchesFlat);
+      console.log(`[XG] ${comp.code}: ${rawXg.length} archivos → ${resolved.matchedCount} matched\n`);
+      xgForLeague = resolved.records;
+    }
+
+    evals = backtestLeague(fdLeague, singleOddsIndex, logisticCoefficients, xgForLeague);
+  }
+
+  printLeagueReport(comp.name, evals);
+  printSummary(evals, 1);
+  process.exit(0);
+}
+
+// ── DEFAULT: all production leagues ─────────────────────────────────────────
 
 // Cargar índice de odds (football-data.co.uk) para market features
 const oddsIndex = buildOddsIndex(ALL_LEAGUES_FLAG ? ['PD', 'PL', 'BL1', 'SA', 'FL1'] : ['PD', 'PL', 'BL1']);
@@ -701,41 +1001,4 @@ for (const league of LEAGUES) {
   printLeagueReport(league.name, evals);
 }
 
-// ── Total global ─────────────────────────────────────────────────────────
-
-console.log(`\n${'═'.repeat(72)}`);
-console.log(`  TOTAL (${LEAGUES.length} ligas)`);
-console.log('═'.repeat(72));
-
-const totalEv = allEvals.filter(e =>
-  e.eligibility !== 'NOT_ELIGIBLE' &&
-  e.eligibility !== 'ERROR' &&
-  e.predicted !== null &&
-  e.predicted !== 'TOO_CLOSE'
-);
-const totalHits = totalEv.filter(e => e.predicted === e.actual).length;
-const totalNotElig = allEvals.filter(e => e.eligibility === 'NOT_ELIGIBLE' || e.eligibility === 'ERROR').length;
-const totalTooClose = allEvals.filter(e => e.predicted === 'TOO_CLOSE').length;
-
-console.log(`  Total partidos     : ${allEvals.length}`);
-console.log(`  NOT_ELIGIBLE       : ${totalNotElig} (${pct(totalNotElig, allEvals.length)})`);
-console.log(`  TOO_CLOSE          : ${totalTooClose}`);
-console.log(`  Accuracy global    : ${totalHits}/${totalEv.length} = ${pct(totalHits, totalEv.length)}`);
-
-const totalDraw = totalEv.filter(e => e.actual === 'DRAW').length;
-const totalPredDraw = totalEv.filter(e => e.predicted === 'DRAW').length;
-const totalHitDraw = totalEv.filter(e => e.predicted === 'DRAW' && e.actual === 'DRAW').length;
-console.log(`  DRAW recall        : ${totalHitDraw}/${totalDraw} = ${pct(totalHitDraw, totalDraw)}`);
-console.log(`  DRAW predichos     : ${totalPredDraw} / ${totalEv.length} = ${pct(totalPredDraw, totalEv.length)}`);
-
-// Métricas de probabilidad global §23.2
-const globalProbRecords = toPredictionRecords(allEvals);
-if (globalProbRecords.length > 0) {
-  const gpm = computeProbabilityMetrics(globalProbRecords);
-  console.log(`\n  Métricas de probabilidad global (§23.2) — n=${globalProbRecords.length}:`);
-  console.log(`    log_loss           : ${gpm.log_loss.toFixed(4)}  (lower is better)`);
-  console.log(`    brier_score        : ${gpm.brier_score.toFixed(4)}  (lower is better)`);
-  console.log(`    rps                : ${gpm.rps.toFixed(4)}  (lower is better; baseline≈0.222)`);
-}
-console.log('═'.repeat(72));
-console.log();
+printSummary(allEvals, LEAGUES.length);

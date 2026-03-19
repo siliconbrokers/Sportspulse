@@ -49,15 +49,20 @@ describe('DetailPanel', () => {
     expect(screen.getAllByText('FC Barcelona').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders match estimate with probabilities when form data available', () => {
+  it('renders match estimate block when match is IN_PROGRESS with prediction', () => {
+    // PRE_MATCH no longer renders a match-estimate block — prediction for upcoming matches
+    // is handled by PredictionExperimentalSection (fetches /api/ui/predictions/experimental).
+    // match-estimate is rendered for IN_PLAY, PENDING_CONFIRMATION, and FINISHED states only.
     const basePrediction = {
       type: 'winner' as const,
-      label: 'Ganador: FC Barcelona',
-      value: { winner: 'HOME' as const, probHome: 0.55, probDraw: 0.25, probAway: 0.20 },
+      label: 'FC Barcelona',
+      value: { winner: 'DRAW' as const, probHome: 0.30, probDraw: 0.40, probAway: 0.30 },
       confidence: 'high' as const,
       generatedAt: '2026-03-04T11:00:00Z',
     };
-    const withForm: TeamDetailDTO = {
+    // Use a recent kickoff so uiState resolves to IN_PLAY
+    const recentKickoff = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+    const withPrediction: TeamDetailDTO = {
       ...detail,
       team: {
         ...detail.team,
@@ -66,32 +71,43 @@ describe('DetailPanel', () => {
       },
       nextMatch: {
         ...detail.nextMatch!,
-        opponentRecentForm: ['L', 'L', 'D', 'W', 'L'],
-        opponentAwayGoalStats: { goalsFor: 10, goalsAgainst: 15, goalDifference: -5, points: 10, playedGames: 8, lambdaAttack: 1.2, lambdaDefense: 1.9 },
+        kickoffUtc: recentKickoff,
+        matchStatus: 'IN_PROGRESS',
         prediction: basePrediction,
       },
     };
-    render(<DetailPanel detail={withForm} onClose={() => {}} />);
+    render(<DetailPanel detail={withPrediction} onClose={() => {}} />);
     expect(screen.getByTestId('match-estimate')).toBeInTheDocument();
-    expect(screen.getByText('Empate')).toBeInTheDocument();
+    // IN_PLAY renders the prediction label inside match-estimate
+    expect(screen.getByTestId('match-estimate').textContent).toContain('FC Barcelona');
   });
 
-  it('renders match estimate based on form only when no venue stats', () => {
+  it('does not render match-estimate in PRE_MATCH (prediction handled by PredictionExperimentalSection)', () => {
+    // Prediction for scheduled matches moved to PredictionExperimentalSection which
+    // fetches from /api/ui/predictions/experimental and auto-hides when not available.
     const basePrediction = {
       type: 'winner' as const,
-      label: 'Ganador: FC Barcelona',
+      label: 'FC Barcelona',
       value: { winner: 'HOME' as const, probHome: 0.45, probDraw: 0.30, probAway: 0.25 },
       confidence: 'medium' as const,
       generatedAt: '2026-03-04T11:00:00Z',
     };
+    // Use a future kickoff so matchStatus SCHEDULED resolves to PRE_MATCH (not FINISHED heuristic)
+    const futureKickoff = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
     const withForm: TeamDetailDTO = {
       ...detail,
       team: { ...detail.team, recentForm: ['W', 'D', 'L', 'W', 'D'] },
-      nextMatch: { ...detail.nextMatch!, venue: 'AWAY', opponentRecentForm: ['D', 'W', 'L', 'D', 'W'], prediction: basePrediction },
+      nextMatch: {
+        ...detail.nextMatch!,
+        kickoffUtc: futureKickoff,
+        matchStatus: 'SCHEDULED',
+        opponentRecentForm: ['D', 'W', 'L', 'D', 'W'],
+        prediction: basePrediction,
+      },
     };
     render(<DetailPanel detail={withForm} onClose={() => {}} />);
-    expect(screen.getByTestId('match-estimate')).toBeInTheDocument();
-    expect(screen.getByText('Empate')).toBeInTheDocument();
+    // PRE_MATCH does not render match-estimate block
+    expect(screen.queryByTestId('match-estimate')).toBeNull();
   });
 
   it('calls onClose when Escape is pressed', () => {

@@ -55,19 +55,25 @@ describe('PredictionDetailModule — visibility', () => {
     expect(screen.queryByTestId('match-estimate')).toBeNull();
   });
 
-  it('con prediction → renderiza módulo', () => {
+  it('con prediction → no renderiza match-estimate en PRE_MATCH (prediction va a PredictionExperimentalSection)', () => {
+    // PRE_MATCH mueve el pronóstico a PredictionExperimentalSection (fetch a /api/ui/predictions/experimental).
+    // El bloque match-estimate solo existe en IN_PLAY, PENDING_CONFIRMATION y FINISHED.
     render(<DetailPanel detail={makeDetail('SCHEDULED', basePrediction)} onClose={() => {}} />);
+    expect(screen.queryByTestId('match-estimate')).toBeNull();
+  });
+
+  it('con prediction en IN_PROGRESS → renderiza módulo', () => {
+    render(<DetailPanel detail={makeDetail('IN_PROGRESS', basePrediction)} onClose={() => {}} />);
     expect(screen.getByTestId('match-estimate')).toBeTruthy();
   });
 });
 
 describe('PredictionDetailModule — badges por estado', () => {
-  it('SCHEDULED con predicción → muestra probabilidades', () => {
+  it('SCHEDULED con predicción → no hay match-estimate (PRE_MATCH usa PredictionExperimentalSection)', () => {
+    // En PRE_MATCH el componente no renderiza el bloque match-estimate inline.
+    // La predicción se delega a PredictionExperimentalSection (fetch experimental).
     render(<DetailPanel detail={makeDetail('SCHEDULED', basePrediction, { status: 'pending' })} onClose={() => {}} />);
-    const el = screen.getByTestId('match-estimate');
-    // El bloque de pronóstico muestra las probabilidades del partido.
-    expect(el.textContent).toContain('55%');
-    expect(el.textContent).toContain('Empate');
+    expect(screen.queryByTestId('match-estimate')).toBeNull();
   });
 
   it('IN_PROGRESS → badge "Pendiente" (en vivo, pendiente de evaluación)', () => {
@@ -102,19 +108,21 @@ describe('PredictionDetailModule — resultado final', () => {
     expect(screen.getByTestId('match-estimate').textContent).not.toContain('2 – 1');
   });
 
-  it('SCHEDULED → no muestra resultado final', () => {
+  it('SCHEDULED → no existe bloque match-estimate (PRE_MATCH no tiene resultado final)', () => {
+    // En PRE_MATCH no hay match-estimate, por lo que tampoco hay "Resultado final".
+    // Esto es consistente con el comportamiento actual del componente.
     render(<DetailPanel detail={makeDetail('SCHEDULED', basePrediction, { status: 'pending' })} onClose={() => {}} />);
-    expect(screen.getByTestId('match-estimate').textContent).not.toContain('Resultado final');
+    expect(screen.queryByTestId('match-estimate')).toBeNull();
   });
 });
 
 describe('PredictionDetailModule — label de predicción', () => {
-  it('muestra las probabilidades del partido (home, draw, away)', () => {
-    render(<DetailPanel detail={makeDetail('SCHEDULED', basePrediction)} onClose={() => {}} />);
-    // El componente muestra barras de probabilidad con "Empate" en el centro.
-    // Los nombres de equipo se eliminaron del bloque de pronóstico (§6.4 spec correcciones UI)
-    // ya que son redundantes con la cabecera del partido.
+  it('muestra el label de predicción en IN_PROGRESS', () => {
+    // PRE_MATCH (SCHEDULED) ya no muestra match-estimate inline; usa PredictionExperimentalSection.
+    // El bloque match-estimate en IN_PLAY muestra el label de la predicción.
+    render(<DetailPanel detail={makeDetail('IN_PROGRESS', basePrediction)} onClose={() => {}} />);
     const el = screen.getByTestId('match-estimate');
-    expect(el.textContent).toContain('Empate');
+    // El label del basePrediction es 'FC Barcelona'
+    expect(el.textContent).toContain('FC Barcelona');
   });
 });
