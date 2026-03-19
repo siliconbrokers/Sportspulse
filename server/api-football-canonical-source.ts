@@ -279,12 +279,9 @@ export class ApiFootballCanonicalSource implements DataSource {
   getMatches(seasId: string, subTournamentKey?: string): Match[] {
     for (const [compId, entry] of this.cache.entries()) {
       if (entry.seasonId !== seasId) continue;
-      const cfg = AF_COMPETITION_CONFIGS[compId];
-      const hasSubT = cfg?.hasSubTournaments ?? false;
+      const hasSubT = AF_COMPETITION_CONFIGS[compId]?.hasSubTournaments ?? false;
       if (!hasSubT) return entry.matches;
-      // When no key given, default to active sub-tournament (per DataSource contract)
-      const aperturaSeason = cfg?.aperturaSeason ?? 'H1';
-      const key = subTournamentKey ?? activeSubTournamentByDate(aperturaSeason);
+      const key = subTournamentKey ?? this.resolveActiveSubTournament(compId);
       return entry.matches.filter((m) => m.subTournamentKey === key);
     }
     return [];
@@ -294,10 +291,9 @@ export class ApiFootballCanonicalSource implements DataSource {
     const entry = this.getCached(compId);
     const cfg = AF_COMPETITION_CONFIGS[compId];
     if (!entry || !cfg?.hasSubTournaments) return [];
-    const aperturaSeason = cfg?.aperturaSeason ?? 'H1';
     const now = Date.now();
     const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
-    const active = activeSubTournamentByDate(aperturaSeason);
+    const active = this.resolveActiveSubTournament(compId);
     // Active tournament first, then the other
     const keys: Array<{ key: string; label: string }> = active === 'APERTURA'
       ? [{ key: 'APERTURA', label: 'Apertura' }, { key: 'CLAUSURA', label: 'Clausura' }]
@@ -317,7 +313,7 @@ export class ApiFootballCanonicalSource implements DataSource {
   getActiveSubTournament(compId: string): string | undefined {
     const cfg = AF_COMPETITION_CONFIGS[compId];
     if (!cfg?.hasSubTournaments) return undefined;
-    return activeSubTournamentByDate(cfg.aperturaSeason ?? 'H1');
+    return this.resolveActiveSubTournament(compId);
   }
 
   /** Returns matches filtered to the relevant sub-tournament (if any). */
@@ -326,8 +322,42 @@ export class ApiFootballCanonicalSource implements DataSource {
     if (!cached) return [];
     const cfg = AF_COMPETITION_CONFIGS[compId];
     if (!cfg?.hasSubTournaments) return cached.matches;
-    const key = subTournamentKey ?? activeSubTournamentByDate(cfg.aperturaSeason ?? 'H1');
+    const key = subTournamentKey ?? this.resolveActiveSubTournament(compId);
     return cached.matches.filter((m) => m.subTournamentKey === key);
+  }
+
+  /**
+   * Derives the currently active sub-tournament from match data.
+   *
+   * Counts matches per subTournamentKey in a ±90-day window around today.
+   * The key with the most matches in that window is the active tournament.
+   * Falls back to the static date heuristic (aperturaSeason) when no match
+   * data is available (cold start / empty cache).
+   *
+   * This is data-driven: it works for any league regardless of naming convention
+   * or calendar layout (Argentina, Liga MX, future leagues).
+   */
+  private resolveActiveSubTournament(compId: string): string {
+    const cfg = AF_COMPETITION_CONFIGS[compId];
+    const aperturaSeason = cfg?.aperturaSeason ?? 'H1';
+    const cached = this.getCached(compId);
+    if (!cached || cached.matches.length === 0) {
+      return activeSubTournamentByDate(aperturaSeason); // cold-start fallback
+    }
+    const now = Date.now();
+    const PAST_MS   = 30 * 24 * 60 * 60 * 1000; // 30 days back
+    const FUTURE_MS = 60 * 24 * 60 * 60 * 1000; // 60 days ahead
+    const counts = new Map<string, number>();
+    for (const m of cached.matches) {
+      if (!m.subTournamentKey || !m.startTimeUtc) continue;
+      const t = new Date(m.startTimeUtc).getTime();
+      if (t < now - PAST_MS || t > now + FUTURE_MS) continue;
+      counts.set(m.subTournamentKey, (counts.get(m.subTournamentKey) ?? 0) + 1);
+    }
+    if (counts.size === 0) {
+      return activeSubTournamentByDate(aperturaSeason); // no matches in window
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
   }
 
   getSeasonId(compId: string): string | undefined {
