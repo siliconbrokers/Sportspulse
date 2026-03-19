@@ -4,8 +4,14 @@
  *
  * PREDICTION_MAIN_SHADOW_ENABLED    — competition IDs for main shadow runner (PredictionService/V3)
  * PREDICTION_INTERNAL_VIEW_ENABLED — competition IDs with internal inspection view
- * PREDICTION_EXPERIMENTAL_ENABLED  — competition IDs with experimental UI
+ * PREDICTION_EXPERIMENTAL_ENABLED  — competition IDs with experimental UI (legacy explicit list)
+ *
+ * Note: experimental UI is also auto-enabled for any competition that is active
+ * (mode !== 'disabled') in the portal config — so manually maintaining
+ * PREDICTION_EXPERIMENTAL_ENABLED is no longer required for new leagues.
  */
+
+import { isCompetitionActive } from '../portal-config-store.js';
 
 function parseCompetitionList(envVar: string | undefined): ReadonlySet<string> {
   if (!envVar) return new Set();
@@ -32,9 +38,19 @@ export function isInternalViewEnabled(competitionId: string): boolean {
   return internalViewEnabled.has(competitionId);
 }
 
-/** Returns true if experimental UI is enabled for this competition. */
+/**
+ * Returns true if experimental UI is enabled for this competition.
+ *
+ * A competition gets experimental predictions if:
+ *   1. It is in the PREDICTION_EXPERIMENTAL_ENABLED env var (backward compat), OR
+ *   2. It is active (mode: 'portal' | 'shadow') in the portal config.
+ *
+ * This means adding a league to the portal automatically enables predictions UI
+ * without needing to manually update PREDICTION_EXPERIMENTAL_ENABLED.
+ */
 export function isExperimentalEnabled(competitionId: string): boolean {
-  return experimentalEnabled.has(competitionId);
+  if (experimentalEnabled.has(competitionId)) return true;
+  return isCompetitionActive(competitionId);
 }
 
 /**
