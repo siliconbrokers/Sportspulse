@@ -215,6 +215,77 @@ If all ✅ → continue automatically without asking
 
 ---
 
+## Step 3.6 — Competition Rules Research
+
+**Purpose:** Determine the zone structure (classification/relegation rules) for the standings table visual indicators, and flag any architectural incompatibilities before editing files.
+
+**Do NOT ask the user for this information.** Use WebSearch automatically.
+
+### 3.6.1 — WebSearch competition rules
+
+Run two searches in parallel:
+
+1. `"{displayName}" wikipedia standings zones classification promotion relegation football`
+2. `"{displayName}" {country} football league table Libertadores Sudamericana descenso`
+
+Focus on: positions for continental competition (Copa Libertadores, Copa Sudamericana, UEFA Champions/Europa/Conference League), playoff/liguilla spots, relegation zone. Prefer Wikipedia or official federation sources (CBF, CONMEBOL, UEFA, etc.).
+
+### 3.6.2 — Extract zone structure
+
+From search results, build a zone table using these standard colors:
+
+| Zone type | Standard color | Applies to |
+|-----------|---------------|-----------|
+| Copa Libertadores / Champions League | `#00E0FF` | `type: 'ucl'` |
+| Copa Sudamericana / Europa League | `#F97316` | `type: 'uel'` |
+| Conference League / UEL Playoff | `#14b8a6` | `type: 'uecl'` |
+| Playoff / Liguilla | `#FBBF24` | `type: 'playoff'` |
+| Relegation / Descenso | `#EF4444` | `type: 'relegation'` |
+
+If no zones apply (pure knockout, Copa del Mundo) → zones = [] (expected for `isTournament=true`).
+
+### 3.6.3 — Architectural compatibility check
+
+Evaluate the format:
+
+| Criterion | Status |
+|-----------|--------|
+| Round-robin league table | ✅ Compatible |
+| League + sub-tournament (Apertura/Clausura) | ✅ Soportado (hasSubTournaments) |
+| Standalone knockout (no standings) | ✅ Omitir zona (isTournament=true) |
+| Group stage + knockout hybrid | ⚠️ Verificar si AF devuelve standings de grupos |
+| Format desconocido o multi-fase complejo | ❌ Requiere trabajo adicional |
+
+If ❌: show blocking message, describe what additional work would be needed, and ask user how to proceed (implement new feature / proceed without standings / abort).
+
+### 3.6.4 — Show results and confirm
+
+Show:
+
+```
+Reglas del campeonato — {displayName}
+─────────────────────────────────────────────────────
+Formato:        {round-robin | liga+playoff | torneo eliminación | híbrido}
+Compatibilidad: ✅ compatible | ⚠️ requiere config | ❌ bloqueante
+
+Zonas detectadas:
+  pos 1–N:    {label} ({type}) — {color}
+  pos N+1–M:  {label} ({type}) — {color}
+  pos K–T:    Descenso (relegation) — #EF4444
+  [o: Sin zonas — torneo eliminación]
+
+Fuente: {Wikipedia/federation URL o "fuente no encontrada"}
+```
+
+Ask:
+> ¿Las zonas son correctas? Si querés ajustar algo, indicalo. Si está bien escribí "ok".
+
+If the user corrects zones, update before proceeding to Step 4.
+
+If no zones found and it's NOT a tournament: note "⚠️ No se encontraron zonas. La tabla de posiciones no tendrá indicadores de color. Podés agregarlos luego en `packages/web/src/components/StandingsTable.tsx`."
+
+---
+
 ## Step 4 — Collect remaining metadata
 
 **The fields `hasSubTournaments`, `aperturaSeason`, and `isTournament` come from Step 3.5 detection — do NOT ask the user about them.** Show them as detected facts. The user may override only if the detection result is clearly wrong (e.g. they say "that's wrong, fix it").
@@ -351,6 +422,58 @@ Add `phases` and `startDate` if applicable.
 
 ---
 
+## Step 4.6 — Zone Wiring in StandingsTable.tsx
+
+Based on the zones confirmed in Step 3.6, add visual indicators to the standings table.
+
+**Skip this step entirely if:** `isTournament=true` OR Step 3.6 confirmed empty zones (no classification/relegation for this league).
+
+### 4.6.1 — Read StandingsTable.tsx
+
+Read `packages/web/src/components/StandingsTable.tsx`. Locate `ZONE_CONFIGS` (around line 55) and the last zone constant defined before it (e.g. `const MX_ZONES`).
+
+### 4.6.2 — Generate zone constant
+
+Using the confirmed zones from Step 3.6, generate a new constant. Use the `SLUG` from Step 4 (uppercased, e.g. `BR` for Brasileirão, `CO` for Colombia):
+
+```typescript
+// {displayName} — {brief description, e.g. "pos 1-6 Libertadores, 7-12 Sudamericana, 17-20 descenso"}
+const {SLUG}_ZONES: Zone[] = [
+  { from: 1,  to: N,  type: 'ucl',        emoji: '🔵', label: '{label}', color: '#00E0FF' },
+  { from: N+1,to: M,  type: 'uel',        emoji: '🟠', label: '{label}', color: '#F97316' },
+  { from: K,  to: T,  type: 'relegation', emoji: '🔴', label: 'Descenso', color: '#EF4444' },
+];
+```
+
+Emit only the zone entries that apply. Omit entries for zones that don't exist for this league.
+
+Type mapping:
+- Continental A (Libertadores, Champions League): `'ucl'`
+- Continental B (Sudamericana, Europa League): `'uel'`
+- Continental C (Conference League): `'uecl'`
+- Playoff / Liguilla: `'playoff'`
+- Relegation / Descenso: `'relegation'`
+
+Emoji convention: 🔵 ucl · 🟠 uel · 🟢 uecl · 🟡 playoff · 🔴 relegation
+
+### 4.6.3 — Apply the edit
+
+Two edits to `StandingsTable.tsx`:
+
+1. **Add zone constant** — insert `const {SLUG}_ZONES: Zone[] = [...]` after the last existing zone constant, just before `const ZONE_CONFIGS`.
+
+2. **Add ZONE_CONFIGS entry** — inside the `// API-Football canonical IDs` block:
+```typescript
+  'comp:apifootball:{leagueId}': {SLUG}_ZONES,
+```
+
+Show the diff before applying. If zones are non-trivial (3+ zones or unusual structure), ask:
+> ¿Confirmás la configuración de zonas para {displayName}? (s/n)
+
+For empty zones, skip both edits and note: "Sin zonas configuradas — la tabla se mostrará sin indicadores de color."
+
+---
+
 ## Step 9 — Verify
 
 ```bash
@@ -453,3 +576,5 @@ If the user chooses 4: close with the same note as "NO" above.
 - Do NOT ask the user about `hasSubTournaments`, `aperturaSeason`, or `isTournament` — always auto-detect from AF fixtures in Step 3.5. Users frequently don't know the answer or answer incorrectly.
 - Do NOT skip Step 3.5 even if the league "looks simple". The AF round names are the only reliable source of truth for format detection.
 - If Step 3.5 detection fails (no APIFOOTBALL_KEY, no fixtures), mark the three fields as "no detectado" and ask the user only as a last resort — with explicit warning that a wrong answer will cause data bugs.
+- Do NOT skip Step 3.6 even for "simple" leagues. Zone research via WebSearch takes 30 seconds and prevents visual bugs in the standings table.
+- Do NOT skip Step 4.6 for non-tournament leagues that have zones. The `ZONE_CONFIGS` in `StandingsTable.tsx` is the only place to configure zone indicators — they won't appear otherwise.
