@@ -60,6 +60,7 @@ const SPORT_KEYS: Record<string, string> = {
   'comp:apifootball:78':    'soccer_germany_bundesliga',
   'comp:apifootball:268':   'soccer_uruguay_primera_division',
   'comp:apifootball:128':   'soccer_argentina_primera_division',
+  'comp:apifootball:71':    'soccer_brazil_campeonato',        // Brasileirão Série A
 };
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
