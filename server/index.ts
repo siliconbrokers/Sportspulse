@@ -917,10 +917,12 @@ async function main() {
       const liveLeagueIds = liveOverlay.getLiveLeagueIds();
 
       // Tier intervals (ms)
-      const TIER_LIVE_FAST  =  2 * 60_000;   // 2 min — partido en vivo ahora
-      const TIER_IMMINENT   =  5 * 60_000;   // 5 min — kickoff en < 30 min
-      const TIER_ACTIVE_DAY = 60 * 60_000;   // 1h — cache disk cubre 6h de todos modos
-      const TIER_IDLE       =  6 * 3600_000; // 6h — alineado con TTL SCHEDULED del disk cache
+      const TIER_LIVE_FAST   =   2 * 60_000;  // 2 min  — partido en vivo ahora
+      const TIER_IMMINENT    =   5 * 60_000;  // 5 min  — kickoff en < 30 min
+      const TIER_ACTIVE_DAY  =  60 * 60_000;  // 1h     — partidos pendientes hoy
+      const TIER_POST_MATCH  =   2 * 3600_000; // 2h    — todos los partidos de hoy terminaron
+      const WAKE_BEFORE_MS   =  60 * 60_000;  // 60 min antes del próximo kickoff
+      const TIER_MAX_IDLE_MS = 12 * 3600_000; // cap máximo cuando no hay partidos futuros
 
       const todayUtc = new Date(nowMs).toISOString().slice(0, 10); // YYYY-MM-DD UTC
 
@@ -945,14 +947,39 @@ async function main() {
             return kickoff > nowMs && kickoff - nowMs < 30 * 60_000;
           });
 
-          const hasToday = matches.some((m) => {
-            if (!m.startTimeUtc || m.status === 'POSTPONED' || m.status === 'CANCELED') return false;
+          // Partidos pendientes hoy (SCHEDULED o IN_PROGRESS) — necesitan monitoreo activo
+          const hasPendingToday = matches.some((m) => {
+            if (!m.startTimeUtc) return false;
+            if (m.status === 'FINISHED' || m.status === 'POSTPONED' || m.status === 'CANCELED') return false;
             return m.startTimeUtc.slice(0, 10) === todayUtc;
           });
 
-          if (hasImminent) tierMs = TIER_IMMINENT;
-          else if (hasToday) tierMs = TIER_ACTIVE_DAY;
-          else tierMs = TIER_IDLE;
+          // Partidos que terminaron hoy — grace window para capturar correcciones de score
+          const hasFinishedToday = matches.some((m) => {
+            if (!m.startTimeUtc || m.status !== 'FINISHED') return false;
+            return m.startTimeUtc.slice(0, 10) === todayUtc;
+          });
+
+          if (hasImminent) {
+            tierMs = TIER_IMMINENT;
+          } else if (hasPendingToday) {
+            tierMs = TIER_ACTIVE_DAY;
+          } else if (hasFinishedToday) {
+            tierMs = TIER_POST_MATCH;
+          } else {
+            // Sin partidos hoy — dormir hasta 60 min antes del próximo kickoff
+            const nextKickoffMs = matches
+              .filter((m) => m.status === 'SCHEDULED' && m.startTimeUtc &&
+                             new Date(m.startTimeUtc).getTime() > nowMs)
+              .map((m) => new Date(m.startTimeUtc!).getTime())
+              .sort((a, b) => a - b)[0];
+            if (nextKickoffMs !== undefined) {
+              tierMs = Math.max(nextKickoffMs - nowMs - WAKE_BEFORE_MS, TIER_ACTIVE_DAY);
+              tierMs = Math.min(tierMs, TIER_MAX_IDLE_MS);
+            } else {
+              tierMs = TIER_MAX_IDLE_MS; // sin partidos futuros conocidos
+            }
+          }
         }
 
         const lastFetched = compLastFetchedMs.get(compId) ?? 0;
