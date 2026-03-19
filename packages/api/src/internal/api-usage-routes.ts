@@ -36,9 +36,16 @@ export interface IApiUsageLedger {
     percentUsed: number;
     warningLevel: QuotaWarningLevel;
   };
+  getMonthTotal(providerKey: ProviderKey, yearMonth: string): number;
   getRecentEvents(providerKey: ProviderKey, limit?: number): ApiUsageEvent[];
-  getProviderTopOps(providerKey: ProviderKey, limit: number): { operationKey: string; count: number; totalUnits: number }[];
-  getProviderTopConsumers(providerKey: ProviderKey, limit: number): { consumerId: string; count: number; totalUnits: number }[];
+  getProviderTopOps(
+    providerKey: ProviderKey,
+    limit: number,
+  ): { operationKey: string; count: number; totalUnits: number }[];
+  getProviderTopConsumers(
+    providerKey: ProviderKey,
+    limit: number,
+  ): { consumerId: string; count: number; totalUnits: number }[];
 }
 
 // ── Private helpers ────────────────────────────────────────────────────────
@@ -61,15 +68,14 @@ function calcDiscrepancy(
 
 // ── Route registration ─────────────────────────────────────────────────────
 
-export function registerApiUsageRoutes(
-  fastify: FastifyInstance,
-  ledger: IApiUsageLedger,
-): void {
+export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsageLedger): void {
   // GET /api/internal/ops/api-usage/today
   // Returns daily summary for all providers
   fastify.get('/api/internal/ops/api-usage/today', async (_req, reply) => {
     const rollups = ledger.getAllTodayRollups();
     const configs = ledger.getQuotaConfig().getAll();
+    const nowUtc = new Date().toISOString();
+    const yearMonth = nowUtc.slice(0, 7); // 'YYYY-MM'
 
     const providers = configs.map((quota) => {
       const providerRollups = rollups.filter((r) => r.providerKey === quota.providerKey);
@@ -80,6 +86,7 @@ export function registerApiUsageRoutes(
       }));
 
       const dailyLimit = quota.dailyLimit;
+      const monthlyLimit = quota.monthlyLimit ?? 0;
       const estimatedRemaining = dailyLimit > 0 ? Math.max(0, dailyLimit - usedUnits) : null;
 
       // Get latest provider-reported remaining from rollups (most recent lastSeenAtUtc)
@@ -100,15 +107,43 @@ export function registerApiUsageRoutes(
       // Preferir provider-reported data cuando está disponible — el ledger local
       // puede ser incompleto (solo cubre requests desde que esta instancia arrancó)
       const providerLimit = providerReportedLimit ?? dailyLimit;
-      const effectiveUsedUnits = (providerReportedRemaining !== null && providerLimit > 0)
-        ? providerLimit - providerReportedRemaining
-        : usedUnits;
+      const effectiveUsedUnits =
+        providerReportedRemaining !== null && providerLimit > 0
+          ? providerLimit - providerReportedRemaining
+          : usedUnits;
       const effectivePctUsed = dailyLimit > 0 ? (effectiveUsedUnits / dailyLimit) * 100 : 0;
       const dataSource: 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED' =
         providerReportedRemaining !== null ? 'PROVIDER_REPORTED' : 'LEDGER_OBSERVED';
 
+      // Monthly quota tracking (for providers like The Odds API with monthly limits)
+      let monthlyUsed: number | null = null;
+      let monthlyWarningLevel: 'NORMAL' | 'WARNING' | 'CRITICAL' | 'EXHAUSTED' | null = null;
+      if (monthlyLimit > 0) {
+        const ledgerMonthly = ledger.getMonthTotal(quota.providerKey, yearMonth);
+        // Prefer provider-reported remaining when available (most accurate)
+        monthlyUsed =
+          providerReportedRemaining !== null
+            ? Math.max(monthlyLimit - providerReportedRemaining, ledgerMonthly)
+            : ledgerMonthly;
+        const monthlyPct = (monthlyUsed / monthlyLimit) * 100;
+        if (providerReportedRemaining !== null && providerReportedRemaining <= 0) {
+          monthlyWarningLevel = 'EXHAUSTED';
+        } else if (monthlyPct >= quota.hardStopThresholdPct) {
+          monthlyWarningLevel = 'EXHAUSTED';
+        } else if (monthlyPct >= quota.criticalThresholdPct) {
+          monthlyWarningLevel = 'CRITICAL';
+        } else if (monthlyPct >= quota.warningThresholdPct) {
+          monthlyWarningLevel = 'WARNING';
+        } else {
+          monthlyWarningLevel = 'NORMAL';
+        }
+      }
+
       let warningLevel: 'NORMAL' | 'WARNING' | 'CRITICAL' | 'EXHAUSTED' = 'NORMAL';
-      if (dailyLimit > 0) {
+      if (monthlyWarningLevel !== null) {
+        // Monthly-quota providers: use monthly warning level
+        warningLevel = monthlyWarningLevel;
+      } else if (dailyLimit > 0) {
         if (effectivePctUsed >= quota.hardStopThresholdPct) warningLevel = 'EXHAUSTED';
         else if (effectivePctUsed >= quota.criticalThresholdPct) warningLevel = 'CRITICAL';
         else if (effectivePctUsed >= quota.warningThresholdPct) warningLevel = 'WARNING';
@@ -118,16 +153,18 @@ export function registerApiUsageRoutes(
         providerKey: quota.providerKey,
         displayName: quota.displayName,
         dailyLimit: dailyLimit > 0 ? dailyLimit : null,
-        usedUnitsObserved: usedUnits,        // lo que el ledger local registró (puede ser parcial)
-        effectiveUsedUnits,                   // basado en provider-reported cuando disponible
+        monthlyLimit: monthlyLimit > 0 ? monthlyLimit : null,
+        monthlyUsed,
+        usedUnitsObserved: usedUnits, // lo que el ledger local registró (puede ser parcial)
+        effectiveUsedUnits, // basado en provider-reported cuando disponible
         estimatedRemaining,
         providerReportedRemaining,
         providerReportedLimit,
         discrepancyStatus,
-        warningLevel,                         // calculado desde effectiveUsedUnits
+        warningLevel, // calculado desde monthly o daily según corresponda
         lastSeenAtUtc: latestRollup?.lastSeenAtUtc ?? null,
         byConsumerType,
-        dataSource,                           // 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED'
+        dataSource, // 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED'
       };
     });
 
@@ -161,16 +198,22 @@ export function registerApiUsageRoutes(
       const rollup = summary.rollup;
       const dailyLimit = summary.quota?.dailyLimit ?? 0;
       const usedUnitsObserved = rollup?.usedUnits ?? 0;
-      const estimatedRemaining = dailyLimit > 0 ? Math.max(0, dailyLimit - usedUnitsObserved) : null;
+      const estimatedRemaining =
+        dailyLimit > 0 ? Math.max(0, dailyLimit - usedUnitsObserved) : null;
       const providerReportedRemaining = rollup?.lastRemoteRemaining ?? null;
       const providerReportedLimit = rollup?.lastRemoteLimit ?? null;
-      const discrepancyStatus = calcDiscrepancy(estimatedRemaining, providerReportedRemaining, dailyLimit);
+      const discrepancyStatus = calcDiscrepancy(
+        estimatedRemaining,
+        providerReportedRemaining,
+        dailyLimit,
+      );
 
       // Override warningLevel with provider-reported data when available (same logic as /today)
       const providerLimit = providerReportedLimit ?? dailyLimit;
-      const effectiveUsedUnits = (providerReportedRemaining !== null && providerLimit > 0)
-        ? providerLimit - providerReportedRemaining
-        : usedUnitsObserved;
+      const effectiveUsedUnits =
+        providerReportedRemaining !== null && providerLimit > 0
+          ? providerLimit - providerReportedRemaining
+          : usedUnitsObserved;
       const effectivePctUsed = dailyLimit > 0 ? (effectiveUsedUnits / dailyLimit) * 100 : 0;
       const dataSource: 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED' =
         providerReportedRemaining !== null ? 'PROVIDER_REPORTED' : 'LEDGER_OBSERVED';
@@ -203,9 +246,21 @@ export function registerApiUsageRoutes(
   // GET /api/internal/ops/api-usage/events?provider=X&limit=50&consumerType=Y&rateLimited=true&success=false
   // Returns recent filtered events. provider is optional — omit to fetch from all known providers.
   fastify.get<{
-    Querystring: { provider?: string; limit?: string; consumerType?: string; rateLimited?: string; success?: string };
+    Querystring: {
+      provider?: string;
+      limit?: string;
+      consumerType?: string;
+      rateLimited?: string;
+      success?: string;
+    };
   }>('/api/internal/ops/api-usage/events', async (req, reply) => {
-    const { provider, limit: limitStr, consumerType, rateLimited: rateLimitedStr, success: successStr } = req.query;
+    const {
+      provider,
+      limit: limitStr,
+      consumerType,
+      rateLimited: rateLimitedStr,
+      success: successStr,
+    } = req.query;
     const limit = Math.min(parseInt(limitStr ?? '50', 10) || 50, 200);
 
     const configs = ledger.getQuotaConfig().getAll();
@@ -221,9 +276,7 @@ export function registerApiUsageRoutes(
       events = ledger.getRecentEvents(provider as ProviderKey, limit);
     } else {
       // Aggregate across all known providers
-      const allEvents = configs.flatMap((c) =>
-        ledger.getRecentEvents(c.providerKey, limit),
-      );
+      const allEvents = configs.flatMap((c) => ledger.getRecentEvents(c.providerKey, limit));
       // Sort by startedAtUtc descending and take top `limit`
       allEvents.sort((a, b) => b.startedAtUtc.localeCompare(a.startedAtUtc));
       events = allEvents.slice(0, limit);

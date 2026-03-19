@@ -88,6 +88,14 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
       );
     `,
   },
+  {
+    version: 2,
+    sql: `
+      ALTER TABLE provider_quota_config ADD COLUMN monthly_limit INTEGER NOT NULL DEFAULT 0;
+      UPDATE provider_quota_config SET monthly_limit = 500, updated_at_utc = datetime('now')
+        WHERE provider_key = 'the-odds-api';
+    `,
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

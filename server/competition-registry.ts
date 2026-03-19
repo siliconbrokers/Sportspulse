@@ -189,6 +189,22 @@ export const COMPETITION_REGISTRY: CompetitionRegistryEntry[] = [
     hasSubTournaments:   true,
     aperturaSeason:      'H2',
   },
+  {
+    id:                  'comp:apifootball:71',
+    leagueId:            71,
+    slug:                'BR',
+    displayName:         'Brasileirão Série A',
+    shortName:           'Serie A',
+    normalizedLeague:    'BRASILEIRAO',
+    newsKey:             null,
+    accentColor:         '#009c3b',
+    logoUrl:             'https://r2.thesportsdb.com/images/media/league/badge/lywv7t1766787179.png',
+    seasonLabel:         '2026',
+    seasonKind:          'calendar',
+    isTournament:        false,
+    expectedSeasonGames: 38,
+    totalMatchdays:      38,
+  },
 ];
 
 /** O(1) lookup por competition ID */

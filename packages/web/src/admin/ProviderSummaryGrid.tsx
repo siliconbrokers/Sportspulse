@@ -64,18 +64,26 @@ function ProviderCard({
 }) {
   const color = LEVEL_COLOR[item.warningLevel] ?? '#22c55e';
 
+  // Monthly-quota providers (e.g. The Odds API: 500 req/month)
+  const isMonthly = (item.monthlyLimit ?? 0) > 0;
+
   // Use effectiveUsedUnits (provider-reported truth) when available; fall back to ledger observation.
-  const displayUsed = item.effectiveUsedUnits ?? item.usedUnitsObserved;
+  const displayUsed = isMonthly
+    ? (item.monthlyUsed ?? item.usedUnitsObserved)
+    : (item.effectiveUsedUnits ?? item.usedUnitsObserved);
+  const activeLimit = isMonthly ? item.monthlyLimit : item.dailyLimit;
   const pct =
-    item.dailyLimit && item.dailyLimit > 0
-      ? Math.min(100, (displayUsed / item.dailyLimit) * 100)
+    activeLimit && activeLimit > 0
+      ? Math.min(100, (displayUsed / activeLimit) * 100)
       : null;
 
   // Remaining: prefer provider-reported value when available.
   const hasProviderRemaining = item.providerReportedRemaining !== null;
   const remainingValue = hasProviderRemaining
     ? item.providerReportedRemaining
-    : item.estimatedRemaining;
+    : (isMonthly && item.monthlyLimit
+        ? Math.max(0, item.monthlyLimit - displayUsed)
+        : item.estimatedRemaining);
   const remainingLabel = hasProviderRemaining ? 'restantes (provider)' : 'restantes (est.)';
 
   const dsKey = item.dataSource ?? null;
@@ -138,7 +146,7 @@ function ProviderCard({
       </div>
 
       {/* Usage figures */}
-      {item.dailyLimit !== null ? (
+      {activeLimit !== null ? (
         <>
           {/* Used / limit */}
           <div style={{ fontSize: 13, color: 'var(--sp-text-40)' }}>
@@ -146,8 +154,8 @@ function ProviderCard({
               {fmtNum(displayUsed)}
             </span>
             {' / '}
-            {fmtNum(item.dailyLimit)}
-            {' usadas'}
+            {fmtNum(activeLimit)}
+            {isMonthly ? ' usadas este mes' : ' usadas'}
             {pct !== null && (
               <span style={{ marginLeft: 6, color, fontWeight: 600 }}>
                 {pct.toFixed(0)}%
@@ -212,6 +220,11 @@ function ProviderCard({
       ) : (
         <div style={{ fontSize: 12, color: 'var(--sp-text-40)', fontStyle: 'italic' }}>
           Sin límite configurado — {fmtNum(displayUsed)} unidades usadas
+        </div>
+      )}
+      {isMonthly && (
+        <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>
+          Cuota mensual · reset el 1° del mes
         </div>
       )}
 

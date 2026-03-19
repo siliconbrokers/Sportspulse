@@ -55,6 +55,7 @@ const DEFAULTS: ProviderQuotaDefinition[] = [
     displayName: 'The Odds API',
     unitType: 'REQUEST',
     dailyLimit: 0,
+    monthlyLimit: 500,
     timezone: 'UTC',
     warningThresholdPct: 75,
     criticalThresholdPct: 90,
@@ -62,7 +63,7 @@ const DEFAULTS: ProviderQuotaDefinition[] = [
     allowNoncriticalWhenLowQuota: true,
     brakeLiveThreshold: 0,
     isActive: true,
-    notes: 'Free tier: 500 req/month. Daily limit not enforced (monthly).',
+    notes: 'Free tier: 500 req/month. Quota tracked monthly, not daily.',
   },
   {
     providerKey: 'thesportsdb',
@@ -99,6 +100,7 @@ interface QuotaRow {
   display_name: string;
   unit_type: string;
   daily_limit: number;
+  monthly_limit: number;
   timezone: string;
   warning_threshold_pct: number;
   critical_threshold_pct: number;
@@ -117,6 +119,7 @@ function rowToDefinition(row: QuotaRow): ProviderQuotaDefinition {
     displayName: row.display_name,
     unitType: row.unit_type as ProviderQuotaDefinition['unitType'],
     dailyLimit: row.daily_limit,
+    monthlyLimit: row.monthly_limit ?? 0,
     timezone: row.timezone,
     warningThresholdPct: row.warning_threshold_pct,
     criticalThresholdPct: row.critical_threshold_pct,
@@ -137,29 +140,40 @@ export class QuotaConfigStore {
   }
 
   private seedDefaults(): void {
-    const exists = this.db
-      .prepare('SELECT COUNT(*) as cnt FROM provider_quota_config')
-      .get() as { cnt: number };
+    const exists = this.db.prepare('SELECT COUNT(*) as cnt FROM provider_quota_config').get() as {
+      cnt: number;
+    };
 
     if (exists.cnt > 0) return;
 
     const now = new Date().toISOString();
     const insert = this.db.prepare(`
       INSERT OR IGNORE INTO provider_quota_config (
-        provider_key, display_name, unit_type, daily_limit, timezone,
+        provider_key, display_name, unit_type, daily_limit, monthly_limit, timezone,
         warning_threshold_pct, critical_threshold_pct, hard_stop_threshold_pct,
         allow_noncritical_when_low, brake_live_threshold, is_active, notes,
         created_at_utc, updated_at_utc
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const seedAll = this.db.transaction(() => {
       for (const d of DEFAULTS) {
         insert.run(
-          d.providerKey, d.displayName, d.unitType, d.dailyLimit, d.timezone,
-          d.warningThresholdPct, d.criticalThresholdPct, d.hardStopThresholdPct,
-          d.allowNoncriticalWhenLowQuota ? 1 : 0, d.brakeLiveThreshold,
-          d.isActive ? 1 : 0, d.notes, now, now,
+          d.providerKey,
+          d.displayName,
+          d.unitType,
+          d.dailyLimit,
+          d.monthlyLimit ?? 0,
+          d.timezone,
+          d.warningThresholdPct,
+          d.criticalThresholdPct,
+          d.hardStopThresholdPct,
+          d.allowNoncriticalWhenLowQuota ? 1 : 0,
+          d.brakeLiveThreshold,
+          d.isActive ? 1 : 0,
+          d.notes,
+          now,
+          now,
         );
       }
     });

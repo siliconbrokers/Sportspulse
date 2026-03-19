@@ -11,6 +11,8 @@ export interface ProviderSummaryItem {
   providerKey: string;
   displayName: string;
   dailyLimit: number | null;
+  monthlyLimit: number | null;
+  monthlyUsed: number | null;
   usedUnitsObserved: number;
   effectiveUsedUnits?: number;
   dataSource?: 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED';
@@ -82,9 +84,12 @@ export async function fetchProviderDetail(
   token: string,
   providerKey: string,
 ): Promise<ProviderDetailResponse> {
-  const res = await fetch(`/api/internal/ops/api-usage/providers/${encodeURIComponent(providerKey)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await fetch(
+    `/api/internal/ops/api-usage/providers/${encodeURIComponent(providerKey)}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<ProviderDetailResponse>;
 }
@@ -124,7 +129,10 @@ export function useApiUsageToday(
   const [error, setError] = useState<string | null>(null);
   const counterRef = useRef(0);
 
-  const refetch = () => { counterRef.current += 1; setLoading(true); };
+  const refetch = () => {
+    counterRef.current += 1;
+    setLoading(true);
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -132,21 +140,30 @@ export function useApiUsageToday(
     setLoading(true);
     setError(null);
     fetchApiUsageToday(token)
-      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
+      .then((d) => {
+        if (!cancelled) {
+          setData(d);
+          setLoading(false);
+        }
+      })
       .catch((e: unknown) => {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Error desconocido');
           setLoading(false);
         }
       });
-    return () => { cancelled = true; };
-  // counterRef.current used as trigger for manual refetch
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+    };
+    // counterRef.current used as trigger for manual refetch
   }, [token, counterRef.current]);
 
   useEffect(() => {
     if (!token || !autoRefreshMs) return;
-    const id = setInterval(() => { counterRef.current += 1; setLoading(true); }, autoRefreshMs);
+    const id = setInterval(() => {
+      counterRef.current += 1;
+      setLoading(true);
+    }, autoRefreshMs);
     return () => clearInterval(id);
   }, [token, autoRefreshMs]);
 

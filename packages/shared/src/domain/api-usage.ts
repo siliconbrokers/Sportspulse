@@ -24,7 +24,7 @@ export type ConsumerType =
   | 'BACKFILL_JOB'
   | 'MANUAL_SCRIPT'
   | 'DEV_EXPERIMENT'
-  | 'RECONCILIATION'  // closes the gap between ledger-observed and provider-reported quota
+  | 'RECONCILIATION' // closes the gap between ledger-observed and provider-reported quota
   | 'UNKNOWN';
 
 // ── Priority tiers ────────────────────────────────────────────────────────────
@@ -36,15 +36,15 @@ export type PriorityTier = 'product-critical' | 'deferrable' | 'non-critical';
 export interface ApiUsageEvent {
   id: string;
   providerKey: ProviderKey;
-  usageDateLocal: string;         // YYYY-MM-DD in provider timezone
+  usageDateLocal: string; // YYYY-MM-DD in provider timezone
   unitType: 'REQUEST' | 'CREDIT' | 'TOKEN' | 'OTHER';
-  usageUnits: number;             // default 1
+  usageUnits: number; // default 1
   consumerType: ConsumerType;
   consumerId: string | null;
   moduleKey: string;
   operationKey: string;
   requestMethod: 'GET' | 'POST';
-  endpointTemplate: string;       // URL path, no secret query params
+  endpointTemplate: string; // URL path, no secret query params
   statusCode: number | null;
   success: boolean;
   rateLimited: boolean;
@@ -58,7 +58,7 @@ export interface ApiUsageEvent {
   errorCode: string | null;
   errorClass: string | null;
   requestId: string | null;
-  metadataJson: string | null;    // JSON, no secrets
+  metadataJson: string | null; // JSON, no secrets
   createdAtUtc: string;
 }
 
@@ -85,13 +85,14 @@ export interface ProviderQuotaDefinition {
   providerKey: ProviderKey;
   displayName: string;
   unitType: 'REQUEST' | 'CREDIT' | 'TOKEN' | 'OTHER';
-  dailyLimit: number;             // 0 = unlimited
-  timezone: string;               // e.g. 'UTC'
-  warningThresholdPct: number;    // e.g. 75
-  criticalThresholdPct: number;   // e.g. 90
-  hardStopThresholdPct: number;   // e.g. 95
+  dailyLimit: number; // 0 = unlimited
+  monthlyLimit?: number; // 0 / undefined = no monthly quota enforced
+  timezone: string; // e.g. 'UTC'
+  warningThresholdPct: number; // e.g. 75
+  criticalThresholdPct: number; // e.g. 90
+  hardStopThresholdPct: number; // e.g. 95
   allowNoncriticalWhenLowQuota: boolean;
-  brakeLiveThreshold: number;     // AF-specific: throttle threshold (0 = disabled)
+  brakeLiveThreshold: number; // AF-specific: throttle threshold (0 = disabled)
   isActive: boolean;
   notes: string | null;
 }

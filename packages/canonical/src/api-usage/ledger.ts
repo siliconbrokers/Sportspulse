@@ -293,7 +293,8 @@ export class ApiUsageLedger {
       merged.rateLimitedCount += row.rate_limited_count;
       merged.cacheHitCount += row.cache_hit_count;
       if (row.last_remote_limit !== null) merged.lastRemoteLimit = row.last_remote_limit;
-      if (row.last_remote_remaining !== null) merged.lastRemoteRemaining = row.last_remote_remaining;
+      if (row.last_remote_remaining !== null)
+        merged.lastRemoteRemaining = row.last_remote_remaining;
       if (row.last_remote_reset_at_utc) merged.lastRemoteResetAtUtc = row.last_remote_reset_at_utc;
       if (!merged.lastSeenAtUtc || row.last_seen_at_utc > merged.lastSeenAtUtc) {
         merged.lastSeenAtUtc = row.last_seen_at_utc;
@@ -362,26 +363,42 @@ export class ApiUsageLedger {
     return { rollup, quota, percentUsed, warningLevel };
   }
 
+  /**
+   * Returns total used units for a provider in a given calendar month.
+   * @param providerKey Provider to query
+   * @param yearMonth   'YYYY-MM' format
+   */
+  getMonthTotal(providerKey: ProviderKey, yearMonth: string): number {
+    const result = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(used_units), 0) as total
+         FROM api_usage_daily_rollups
+         WHERE provider_key = ? AND usage_date_local LIKE ?`,
+      )
+      .get(providerKey, `${yearMonth}-%`) as { total: number };
+    return result.total;
+  }
+
   getProviderTopOps(
     providerKey: ProviderKey,
     limit: number,
   ): { operationKey: string; count: number; totalUnits: number }[] {
-    return this.stmtGetProviderTopOps.all(
-      providerKey,
-      currentDayUtc(),
-      limit,
-    ) as { operationKey: string; count: number; totalUnits: number }[];
+    return this.stmtGetProviderTopOps.all(providerKey, currentDayUtc(), limit) as {
+      operationKey: string;
+      count: number;
+      totalUnits: number;
+    }[];
   }
 
   getProviderTopConsumers(
     providerKey: ProviderKey,
     limit: number,
   ): { consumerId: string; count: number; totalUnits: number }[] {
-    return this.stmtGetProviderTopConsumers.all(
-      providerKey,
-      currentDayUtc(),
-      limit,
-    ) as { consumerId: string; count: number; totalUnits: number }[];
+    return this.stmtGetProviderTopConsumers.all(providerKey, currentDayUtc(), limit) as {
+      consumerId: string;
+      count: number;
+      totalUnits: number;
+    }[];
   }
 
   // ── Quota checks ──────────────────────────────────────────────────────────
@@ -421,7 +438,9 @@ export class ApiUsageLedger {
    * Used by reconcileFromProviderHeaders to compute the gap without double-counting.
    */
   getTodayObservedUnits(providerKey: ProviderKey): number {
-    const result = this.stmtGetTodayObservedUnits.get(providerKey, currentDayUtc()) as { total: number };
+    const result = this.stmtGetTodayObservedUnits.get(providerKey, currentDayUtc()) as {
+      total: number;
+    };
     return result.total;
   }
 

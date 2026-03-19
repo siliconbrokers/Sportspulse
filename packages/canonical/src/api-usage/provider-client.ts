@@ -46,10 +46,7 @@ export class InstrumentedProviderClient {
    *
    * @throws QuotaExhaustedError if quota is exhausted for a provider with dailyLimit > 0
    */
-  async fetch(
-    url: string,
-    init: RequestInit & ProviderCallContext,
-  ): Promise<Response> {
+  async fetch(url: string, init: RequestInit & ProviderCallContext): Promise<Response> {
     const {
       providerKey,
       consumerType,
@@ -99,11 +96,13 @@ export class InstrumentedProviderClient {
         'x-ratelimit-requests-limit',
         'x-ratelimit-limit',
         'x-quota-limit',
+        'x-requests-used', // The Odds API: total used this month (proxy for limit context)
       ]);
       remoteRemaining = parseHeaderInt(response.headers, [
         'x-ratelimit-requests-remaining',
         'x-ratelimit-remaining',
         'x-quota-remaining',
+        'x-requests-remaining', // The Odds API: remaining this month
       ]);
       const resetHeader =
         response.headers.get('x-ratelimit-reset') ?? response.headers.get('x-quota-reset');

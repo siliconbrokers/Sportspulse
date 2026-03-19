@@ -148,6 +148,18 @@ export const DEFAULT_CONFIG: PortalConfig = {
       logoUrl: 'https://r2.thesportsdb.com/images/media/league/badge/mav5rx1686157960.png',
       seasonLabel: '25/26',
     },
+    {
+      id: 'comp:apifootball:71',
+      slug: 'BR',
+      displayName: 'Brasileirão Série A',
+      mode: 'portal',
+      normalizedLeague: 'BRASILEIRAO',
+      newsKey: null,
+      accentColor: '#009c3b',
+      isTournament: false,
+      logoUrl: 'https://r2.thesportsdb.com/images/media/league/badge/lywv7t1766787179.png',
+      seasonLabel: '2026',
+    },
   ],
   features: { tv: true, predictions: true },
 };
