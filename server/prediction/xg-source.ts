@@ -22,6 +22,8 @@ import {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
+  getGlobalProviderClient,
+  QuotaExhaustedError,
 } from '@sportpulse/canonical';
 import type { XgRecord } from '@sportpulse/prediction';
 import { normTeamName } from './injury-source.js';
@@ -244,8 +246,22 @@ async function fetchFixtureList(
 
   let data: AfFixturesResponse;
   try {
-    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
-    consumeRequest();
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: { 'x-apisports-key': apiKey },
+        providerKey: 'api-football',
+        consumerType: 'PREDICTION_TRAINING',
+        priorityTier: 'deferrable',
+        moduleKey: 'xg-source',
+        operationKey: 'fixtures-list-by-league',
+        metadata: { endpointTemplate: '/fixtures' },
+      });
+    } else {
+      res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      consumeRequest();
+    }
 
     if (!res.ok) {
       console.warn(`[XgSource] HTTP ${res.status} fetching fixture list for league ${leagueId}`);
@@ -254,6 +270,10 @@ async function fetchFixtureList(
 
     data = await res.json() as AfFixturesResponse;
   } catch (err: unknown) {
+    if (err instanceof QuotaExhaustedError) {
+      markQuotaExhausted();
+      return mem?.fixtures ?? [];
+    }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[XgSource] fetch error for fixture list (league ${leagueId}): ${msg}`);
     return mem?.fixtures ?? [];
@@ -298,8 +318,22 @@ async function fetchXgForFixture(
 
   let data: AfStatsResponse;
   try {
-    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
-    consumeRequest();
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: { 'x-apisports-key': apiKey },
+        providerKey: 'api-football',
+        consumerType: 'PREDICTION_TRAINING',
+        priorityTier: 'deferrable',
+        moduleKey: 'xg-source',
+        operationKey: 'fixtures-statistics',
+        metadata: { endpointTemplate: '/fixtures/statistics' },
+      });
+    } else {
+      res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      consumeRequest();
+    }
 
     if (!res.ok) {
       console.warn(`[XgSource] HTTP ${res.status} for fixture stats ${fixtureId}`);
@@ -308,6 +342,10 @@ async function fetchXgForFixture(
 
     data = await res.json() as AfStatsResponse;
   } catch (err: unknown) {
+    if (err instanceof QuotaExhaustedError) {
+      markQuotaExhausted();
+      return null;
+    }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[XgSource] fetch error for fixture ${fixtureId}: ${msg}`);
     return null;

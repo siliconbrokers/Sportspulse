@@ -18,6 +18,8 @@ import {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
+  getGlobalProviderClient,
+  QuotaExhaustedError,
 } from '@sportpulse/canonical';
 import type { InjuryRecord, AbsenceType, PlayerPosition } from '@sportpulse/prediction';
 
@@ -270,8 +272,22 @@ async function fetchPlayerMinutes(
 
   const url = `https://v3.football.api-sports.io/players?id=${playerId}&season=${season}&league=${leagueId}`;
   try {
-    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
-    consumeRequest();
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: { 'x-apisports-key': apiKey },
+        providerKey: 'api-football',
+        consumerType: 'PREDICTION_TRAINING',
+        priorityTier: 'deferrable',
+        moduleKey: 'injury-source',
+        operationKey: 'players-by-id',
+        metadata: { endpointTemplate: '/players' },
+      });
+    } else {
+      res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      consumeRequest();
+    }
     if (!res.ok) {
       writePlayerStatsCache(playerId, season, leagueId, null, null);
       return { minutesPlayed: null, gamesPlayed: null };
@@ -292,7 +308,10 @@ async function fetchPlayerMinutes(
     const gamesPlayed = stats?.games?.appearences ?? null;
     writePlayerStatsCache(playerId, season, leagueId, minutesPlayed, gamesPlayed);
     return { minutesPlayed, gamesPlayed };
-  } catch {
+  } catch (err: unknown) {
+    if (err instanceof QuotaExhaustedError) {
+      markQuotaExhausted();
+    }
     writePlayerStatsCache(playerId, season, leagueId, null, null);
     return { minutesPlayed: null, gamesPlayed: null };
   }
@@ -351,10 +370,22 @@ async function fetchInjuriesForDate(
 
   let data: AfInjuryResponse;
   try {
-    const res = await fetch(url, {
-      headers: { 'x-apisports-key': apiKey },
-    });
-    consumeRequest();
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: { 'x-apisports-key': apiKey },
+        providerKey: 'api-football',
+        consumerType: 'PREDICTION_TRAINING',
+        priorityTier: 'deferrable',
+        moduleKey: 'injury-source',
+        operationKey: 'injuries-by-league-date',
+        metadata: { endpointTemplate: '/injuries' },
+      });
+    } else {
+      res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      consumeRequest();
+    }
 
     if (!res.ok) {
       console.warn(`[InjurySource] HTTP ${res.status} for ${competitionId} ${dateIso}`);
@@ -364,6 +395,11 @@ async function fetchInjuriesForDate(
 
     data = await res.json() as AfInjuryResponse;
   } catch (err: unknown) {
+    if (err instanceof QuotaExhaustedError) {
+      markQuotaExhausted();
+      setCache(leagueId, season, dateIso, []);
+      return [];
+    }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[InjurySource] fetch error for ${competitionId} ${dateIso}: ${msg}`);
     setCache(leagueId, season, dateIso, []);

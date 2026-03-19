@@ -14,6 +14,8 @@ import {
   consumeRequest,
   isQuotaExhausted,
   markQuotaExhausted,
+  getGlobalProviderClient,
+  QuotaExhaustedError,
 } from '@sportpulse/canonical';
 import { normTeamName } from './injury-source.js';
 
@@ -135,14 +137,32 @@ export async function buildTeamBridge(
   const url = `https://v3.football.api-sports.io/teams?league=${leagueId}&season=${season}`;
   let data: AfTeamsResponse;
   try {
-    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
-    consumeRequest();
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: { 'x-apisports-key': apiKey },
+        providerKey: 'api-football',
+        consumerType: 'PREDICTION_TRAINING',
+        priorityTier: 'deferrable',
+        moduleKey: 'af-team-id-bridge',
+        operationKey: 'teams-by-league',
+        metadata: { endpointTemplate: '/teams' },
+      });
+    } else {
+      res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      consumeRequest();
+    }
     if (!res.ok) {
       console.warn(`[AfTeamIdBridge] HTTP ${res.status} league=${leagueId} season=${season}`);
       return empty;
     }
     data = await res.json() as AfTeamsResponse;
   } catch (err) {
+    if (err instanceof QuotaExhaustedError) {
+      markQuotaExhausted();
+      return empty;
+    }
     console.warn(`[AfTeamIdBridge] fetch error: ${err}`);
     return empty;
   }

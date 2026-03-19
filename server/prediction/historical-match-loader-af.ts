@@ -21,6 +21,8 @@ import {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
+  getGlobalProviderClient,
+  QuotaExhaustedError,
 } from '@sportpulse/canonical';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -141,10 +143,25 @@ export async function loadAfHistoricalMatches(
 
   let fixtures: AfFixtureLite[];
   try {
-    const res = await fetch(url, {
-      headers: { 'x-apisports-key': apiKey },
-      signal: AbortSignal.timeout(15_000),
-    });
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: { 'x-apisports-key': apiKey },
+        signal: AbortSignal.timeout(15_000),
+        providerKey: 'api-football',
+        consumerType: 'PREDICTION_TRAINING',
+        priorityTier: 'deferrable',
+        moduleKey: 'historical-match-loader-af',
+        operationKey: 'fixtures-historical-by-league',
+        metadata: { endpointTemplate: '/fixtures' },
+      });
+    } else {
+      res = await fetch(url, {
+        headers: { 'x-apisports-key': apiKey },
+        signal: AbortSignal.timeout(15_000),
+      });
+    }
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
@@ -157,9 +174,14 @@ export async function loadAfHistoricalMatches(
       return [];
     }
 
-    consumeRequest();
+    if (!client) consumeRequest();
     fixtures = body.response ?? [];
   } catch (err) {
+    if (err instanceof QuotaExhaustedError) {
+      markQuotaExhausted();
+      console.warn(`[AfHistoricalLoader] Quota exhausted ${leagueId}/${year}`);
+      return [];
+    }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[AfHistoricalLoader] API FETCH FAILED ${leagueId}/${year}: ${msg}`);
     return [];

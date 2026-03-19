@@ -21,6 +21,8 @@ import {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
+  getGlobalProviderClient,
+  QuotaExhaustedError,
 } from '@sportpulse/canonical';
 import type { ConfirmedLineupRecord, PlayerPosition } from '@sportpulse/prediction';
 import { normTeamName } from './injury-source.js';
@@ -258,8 +260,22 @@ async function fetchFixturesForDate(
 
   let data: AfFixturesResponse;
   try {
-    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
-    consumeRequest();
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: { 'x-apisports-key': apiKey },
+        providerKey: 'api-football',
+        consumerType: 'PREDICTION_TRAINING',
+        priorityTier: 'deferrable',
+        moduleKey: 'lineup-source',
+        operationKey: 'fixtures-by-date',
+        metadata: { endpointTemplate: '/fixtures' },
+      });
+    } else {
+      res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      consumeRequest();
+    }
 
     if (!res.ok) {
       console.warn(`[LineupSource] HTTP ${res.status} fetching fixtures for league ${leagueId} ${date}`);
@@ -269,6 +285,11 @@ async function fetchFixturesForDate(
 
     data = await res.json() as AfFixturesResponse;
   } catch (err: unknown) {
+    if (err instanceof QuotaExhaustedError) {
+      markQuotaExhausted();
+      setCachedFixtures(leagueId, date, []);
+      return [];
+    }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[LineupSource] fetch error (fixtures): ${msg}`);
     setCachedFixtures(leagueId, date, []);
@@ -310,8 +331,22 @@ async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineu
 
   let data: AfLineupsResponse;
   try {
-    const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
-    consumeRequest();
+    const client = getGlobalProviderClient();
+    let res: Response;
+    if (client) {
+      res = await client.fetch(url, {
+        headers: { 'x-apisports-key': apiKey },
+        providerKey: 'api-football',
+        consumerType: 'PREDICTION_TRAINING',
+        priorityTier: 'deferrable',
+        moduleKey: 'lineup-source',
+        operationKey: 'fixtures-lineups',
+        metadata: { endpointTemplate: '/fixtures/lineups' },
+      });
+    } else {
+      res = await fetch(url, { headers: { 'x-apisports-key': apiKey } });
+      consumeRequest();
+    }
 
     if (!res.ok) {
       console.warn(`[LineupSource] HTTP ${res.status} fetching lineups for fixture ${fixtureId}`);
@@ -321,6 +356,11 @@ async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineu
 
     data = await res.json() as AfLineupsResponse;
   } catch (err: unknown) {
+    if (err instanceof QuotaExhaustedError) {
+      markQuotaExhausted();
+      setCachedLineups(fixtureId, []);
+      return [];
+    }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[LineupSource] fetch error (lineups): ${msg}`);
     setCachedLineups(fixtureId, []);
