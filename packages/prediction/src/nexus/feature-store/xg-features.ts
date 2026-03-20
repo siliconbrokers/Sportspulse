@@ -51,6 +51,8 @@ export const AF_LEAGUE_IDS: Readonly<Record<string, number>> = {
   ARG: 128, // Liga Argentina
   MX: 262, // Liga MX
   BR: 71, // Brasileirão Série A
+  CL: 265, // Primera División Chile
+  PT: 94, // Primeira Liga (Portugal)
 } as const;
 
 /**
@@ -67,6 +69,8 @@ export const AF_LEAGUE_ID_TO_CODE: Readonly<Record<number, string>> = {
   128: 'ARG',
   262: 'MX',
   71: 'BR',
+  265: 'CL',
+  94: 'PT',
 } as const;
 
 // ── Cache file shape ──────────────────────────────────────────────────────

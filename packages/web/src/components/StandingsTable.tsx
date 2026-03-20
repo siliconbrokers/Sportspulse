@@ -51,11 +51,33 @@ const AR_ZONES: Zone[] = [
 const MX_ZONES: Zone[] = [
   { from: 1, to: 8, type: 'playoff', emoji: '🟡', label: 'Liguilla', color: '#f59e0b' },
 ];
+// Chile Primera División — pos 1-2 Libertadores, 3 playoff Libertadores, 4-6 Sudamericana, 15-16 descenso
+const CL_ZONES: Zone[] = [
+  { from: 1,  to: 2,  type: 'ucl',        emoji: '🔵', label: 'Copa Libertadores',    color: '#00E0FF' },
+  { from: 3,  to: 3,  type: 'playoff',    emoji: '🟡', label: 'Playoff Libertadores', color: '#FBBF24' },
+  { from: 4,  to: 6,  type: 'uel',        emoji: '🟠', label: 'Copa Sudamericana',    color: '#F97316' },
+  { from: 15, to: 16, type: 'relegation', emoji: '🔴', label: 'Descenso',             color: '#EF4444' },
+];
 // Brasileirão Série A — pos 1-6 Libertadores, 7-12 Sudamericana, 17-20 descenso
 const BR_ZONES: Zone[] = [
   { from: 1,  to: 6,  type: 'ucl',        emoji: '🔵', label: 'Copa Libertadores', color: '#00E0FF' },
   { from: 7,  to: 12, type: 'uel',        emoji: '🟠', label: 'Copa Sudamericana', color: '#F97316' },
   { from: 17, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+];
+// Primeira Liga (Portugal) — pos 1-2 Champions, 3 Europa, 4 Conference, 16 playoff, 17-18 descenso
+const PT_ZONES: Zone[] = [
+  { from: 1,  to: 2,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
+  { from: 3,  to: 3,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
+  { from: 4,  to: 4,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
+  { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: '#FBBF24' },
+  { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+];
+// Serie A (Italy) — pos 1-4 Champions, 5 Europa, 6 Conference, 18-20 descenso
+const SA_ZONES: Zone[] = [
+  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
+  { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
+  { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
+  { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
 ];
 
 const ZONE_CONFIGS: Record<string, Zone[]> = {
@@ -67,6 +89,9 @@ const ZONE_CONFIGS: Record<string, Zone[]> = {
   'comp:apifootball:128': AR_ZONES,
   'comp:apifootball:262': MX_ZONES,
   'comp:apifootball:71':  BR_ZONES,
+  'comp:apifootball:135': SA_ZONES,
+  'comp:apifootball:94':  PT_ZONES,
+  'comp:apifootball:265': CL_ZONES,
   // Legacy IDs (kept for backward compat)
   'comp:football-data:PD':  PD_ZONES,
   'comp:football-data:PL':  PL_ZONES,

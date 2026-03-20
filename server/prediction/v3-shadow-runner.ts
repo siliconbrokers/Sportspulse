@@ -255,6 +255,9 @@ function deriveLeagueCode(competitionId: string): string | undefined {
   if (competitionId === 'comp:apifootball:140')   return 'PD';   // LaLiga (AF canonical)
   if (competitionId === 'comp:apifootball:39')    return 'PL';   // Premier League (AF canonical)
   if (competitionId === 'comp:apifootball:78')    return 'BL1';  // Bundesliga (AF canonical)
+  if (competitionId === 'comp:apifootball:135')   return 'SA';   // Serie A Italy (AF canonical)
+  if (competitionId === 'comp:apifootball:265')   return 'CL';   // Primera División Chile (AF canonical)
+  if (competitionId === 'comp:apifootball:94')    return 'PT';   // Primeira Liga Portugal (AF canonical)
   return undefined;
 }
 

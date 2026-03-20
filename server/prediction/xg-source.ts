@@ -56,6 +56,9 @@ const AF_LEAGUE_IDS: Record<string, number> = {
   'comp:apifootball:128':   128,
   'comp:apifootball:262':   262,  // Liga MX
   'comp:apifootball:71':     71,  // Brasileirão Série A
+  'comp:apifootball:135':   135,  // Serie A (Italy)
+  'comp:apifootball:94':     94,  // Primeira Liga (Portugal)
+  'comp:apifootball:265':   265,  // Primera División (Chile)
 };
 
 // ── Disk cache types ───────────────────────────────────────────────────────────
