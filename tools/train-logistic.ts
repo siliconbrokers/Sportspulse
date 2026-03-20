@@ -156,8 +156,12 @@ function loadAfMatchdayFiles(competitionId: string, season: string): Map<number,
  * Cache path: cache/historical/apifootball/{leagueId}/{year}.json
  */
 function loadAfHistoricalCache(leagueId: number, year: number): V3MatchRecord[] {
-  const file = path.join(AF_HIST_BASE, String(leagueId), `${year}.json`);
-  if (!fs.existsSync(file)) return [];
+  const calendarFile = path.join(AF_HIST_BASE, String(leagueId), `${year}.json`);
+  const europeanFile = path.join(AF_HIST_BASE, String(leagueId), `${year - 1}-${String(year).slice(-2)}.json`);
+  const file = fs.existsSync(calendarFile) ? calendarFile
+             : fs.existsSync(europeanFile) ? europeanFile
+             : null;
+  if (!file) return [];
   try {
     const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
     const matches: Array<{
@@ -357,14 +361,14 @@ function extractHistoricalExamples(
 function extractTrainingExamplesAf(
   compId: string,
   leagueId: number,
-  seasonKind: 'european' | 'calendar',
+  seasonKind: 'european' | 'calendar' | 'cross-year',
   expectedSeasonGames: number,
   leagueCode: string,
   oddsIndex: OddsIndex,
 ): TrainingExample[] {
   const now = new Date().toISOString();
   const seasonYear = resolveAfSeason(now, seasonKind);
-  const season = seasonKind === 'european'
+  const season = seasonKind !== 'calendar'
     ? `${seasonYear}-${String(seasonYear + 1).slice(2)}`
     : String(seasonYear);
 
