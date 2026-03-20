@@ -42,6 +42,7 @@ export interface PortalFeatureConfig {
 export interface PortalConfig {
   competitions: CompetitionConfig[];
   features: PortalFeatureConfig;
+  schedulerEnabled: boolean;  // default: true
 }
 
 interface AuditEntry {
@@ -82,6 +83,7 @@ function buildDefault(): PortalConfig {
   return {
     competitions: CATALOG_DEFAULTS.map((c) => ({ ...c, updatedAt: now, updatedBy: 'system' })),
     features: { ...FEATURE_DEFAULTS, updatedAt: now, updatedBy: 'system' },
+    schedulerEnabled: true,
   };
 }
 
@@ -109,6 +111,11 @@ function readConfig(): PortalConfig {
     // Migration-on-read: detect old boolean `enabled` format and convert to `mode`
     for (const comp of parsed.competitions as unknown as Record<string, unknown>[]) {
       migrateCompEntry(comp);
+    }
+
+    // Migration: schedulerEnabled introduced later — default true if absent
+    if (parsed.schedulerEnabled === undefined) {
+      parsed.schedulerEnabled = true;
     }
 
     // Merge catalog: if a new competition was added to code, inject it as portal
@@ -214,6 +221,7 @@ export function isFeatureEnabled(key: 'tv' | 'predictions'): boolean {
 export interface PortalConfigPatch {
   competitions?: { id: string; mode?: CompetitionMode; enabled?: boolean }[];
   features?: { tv?: boolean; predictions?: boolean };
+  schedulerEnabled?: boolean;
 }
 
 export function updateConfig(patch: PortalConfigPatch, updatedBy: string): void {
@@ -254,9 +262,18 @@ export function updateConfig(patch: PortalConfigPatch, updatedBy: string): void 
     }
   }
 
+  if (patch.schedulerEnabled !== undefined && config.schedulerEnabled !== patch.schedulerEnabled) {
+    audit.push({ at: now, by: updatedBy, field: 'schedulerEnabled', from: config.schedulerEnabled, to: patch.schedulerEnabled });
+    config.schedulerEnabled = patch.schedulerEnabled;
+  }
+
   writeConfig(config);
   appendAudit(audit);
   invalidateCache();
+}
+
+export function isSchedulerEnabled(): boolean {
+  return getConfig().schedulerEnabled !== false; // default true
 }
 
 /**

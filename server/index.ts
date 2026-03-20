@@ -64,7 +64,7 @@ import {
 } from '@sportpulse/canonical';
 import { COMPETITION_REGISTRY, REGISTRY_BY_ID } from './competition-registry.js';
 import type { MatchCoreInput } from './incidents/types.js';
-import { isCompetitionActive, getActiveCompetitions, getFullConfig, isFeatureEnabled } from './portal-config-store.js';
+import { isCompetitionActive, getActiveCompetitions, getFullConfig, isFeatureEnabled, isSchedulerEnabled } from './portal-config-store.js';
 import { registerAdminRoutes } from './admin-router.js';
 import { fetchStreamEmbedUrls } from './stream-embed/stream-embed-service.js';
 import type { IUpcomingService, UpcomingMatchDTO } from '@sportpulse/api';
@@ -902,6 +902,11 @@ async function main() {
   }
 
   async function runRefreshInner(): Promise<void> {
+    // Early return if the scheduler has been paused from the admin panel
+    if (!isSchedulerEnabled()) {
+      console.log('[Scheduler] Pausado desde admin — skipping refresh cycle');
+      return;
+    }
     const nowMs = Date.now();
     if (AF_CANONICAL_ENABLED && afCanonicalSource) {
       // Skip entire AF refresh cycle when quota is exhausted — avoids 7 noisy error logs per cycle

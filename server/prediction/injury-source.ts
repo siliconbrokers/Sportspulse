@@ -22,26 +22,24 @@ import {
   QuotaExhaustedError,
 } from '@sportpulse/canonical';
 import type { InjuryRecord, AbsenceType, PlayerPosition } from '@sportpulse/prediction';
+import { COMPETITION_REGISTRY } from '../competition-registry.js';
 
 // SP-V4-12: Same value as packages/prediction/src/engine/v3/constants.ts MIN_IMPORTANCE_THRESHOLD
 // Players with importance < 0.3 are squad depth and excluded from the absence model.
 const MIN_IMPORTANCE_THRESHOLD = 0.3;
 
 // ── League ID mapping ─────────────────────────────────────────────────────────
+// Derived automatically from COMPETITION_REGISTRY — no manual updates needed when leagues are added.
 
 const AF_LEAGUE_IDS: Record<string, number> = {
-  // Legacy IDs
+  // Legacy IDs (pre-canonical AF migration — kept for backwards compatibility)
   'comp:football-data:PD':  140,  // LaLiga
   'comp:football-data:PL':   39,  // Premier League
   'comp:openligadb:bl1':     78,  // Bundesliga
   'comp:thesportsdb:4432':  268,  // Liga Uruguaya
   'comp:sportsdb-ar:4406':  128,  // Liga Argentina
-  // API-Football canonical IDs (AF_CANONICAL_ENABLED=true)
-  'comp:apifootball:140':   140,
-  'comp:apifootball:39':     39,
-  'comp:apifootball:78':     78,
-  'comp:apifootball:268':   268,
-  'comp:apifootball:128':   128,
+  // All registered competitions (auto-derived — source of truth: competition-registry.ts)
+  ...Object.fromEntries(COMPETITION_REGISTRY.map((e) => [e.id, e.leagueId])),
 };
 
 // ── Cache ─────────────────────────────────────────────────────────────────────

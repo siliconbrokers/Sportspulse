@@ -27,6 +27,7 @@ interface PortalConfig {
     updatedAt: string;
     updatedBy: string;
   };
+  schedulerEnabled: boolean;
 }
 
 type SaveState = 'idle' | 'saving' | 'ok' | 'error';
@@ -292,7 +293,7 @@ function AdminPanel({ token }: { token: string }) {
 
   useEffect(() => { void loadConfig(); }, [loadConfig]);
 
-  async function patch(update: { competitions?: { id: string; mode: CompetitionMode }[]; features?: { tv?: boolean; predictions?: boolean } }) {
+  async function patch(update: { competitions?: { id: string; mode: CompetitionMode }[]; features?: { tv?: boolean; predictions?: boolean }; schedulerEnabled?: boolean }) {
     setSaveState('saving');
     try {
       const res = await fetch('/api/admin/config', {
@@ -317,6 +318,10 @@ function AdminPanel({ token }: { token: string }) {
 
   function toggleFeature(key: 'tv' | 'predictions', value: boolean) {
     void patch({ features: { [key]: value } });
+  }
+
+  function toggleScheduler(value: boolean) {
+    void patch({ schedulerEnabled: value });
   }
 
   if (loadError) {
@@ -378,6 +383,41 @@ function AdminPanel({ token }: { token: string }) {
             </a>
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
+        </div>
+
+        {/* ── Sección C — Sistema ── */}
+        <div style={{ ...S.sectionTitle, marginTop: 20 }}>Sistema</div>
+        <div
+          style={{
+            ...S.row,
+            borderBottom: 'none',
+            borderRadius: 8,
+            padding: '12px 14px',
+            border: config.schedulerEnabled !== false
+              ? '1px solid var(--sp-border-8)'
+              : '1.5px solid #f59e0b',
+            background: config.schedulerEnabled !== false
+              ? 'transparent'
+              : 'rgba(245,158,11,0.06)',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
+            <div style={{ ...S.label, fontWeight: 700 }}>Scheduler de datos</div>
+            {config.schedulerEnabled !== false ? (
+              <div style={{ ...S.slug, marginTop: 3, color: '#22c55e', fontWeight: 500 }}>
+                Activo — fetches automaticos segun estado de partidos
+              </div>
+            ) : (
+              <div style={{ ...S.slug, marginTop: 3, color: '#f59e0b', fontWeight: 600 }}>
+                Pausado — el servidor no esta actualizando datos de API
+              </div>
+            )}
+          </div>
+          <Toggle
+            value={config.schedulerEnabled !== false}
+            onChange={(v) => toggleScheduler(v)}
+            disabled={isSaving}
+          />
         </div>
 
         {/* ── Sección A — Competiciones ── */}

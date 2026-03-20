@@ -51,8 +51,9 @@ export function registerAdminRoutes(app: FastifyInstance, snapshotStore: Snapsho
     const patch = request.body as {
       competitions?: { id: string; mode?: 'portal' | 'shadow' | 'disabled'; enabled?: boolean }[];
       features?: { tv?: boolean; predictions?: boolean };
+      schedulerEnabled?: boolean;
     };
-    if (!patch || (patch.competitions === undefined && patch.features === undefined)) {
+    if (!patch || (patch.competitions === undefined && patch.features === undefined && patch.schedulerEnabled === undefined)) {
       return reply.status(400).send({ error: 'Empty patch' });
     }
 

@@ -6,7 +6,7 @@
  *   GET https://v3.football.api-sports.io/fixtures/lineups?fixture={fixtureId}
  *
  * Cuándo están disponibles: las alineaciones se publican ~60 minutos antes del kickoff.
- * El servicio no fetchea si minutesToKickoff > 90 (sin requests innecesarios).
+ * El servicio no fetchea si minutesToKickoff > 45 (fetch a 45min da margen si AF demora).
  *
  * Budget: usa af-budget.ts para coordinar con los demás consumidores de APIFOOTBALL_KEY.
  * Cache: en memoria — fixtures list TTL 1h por (leagueId+date), lineups TTL 2h por fixtureId.
@@ -26,22 +26,20 @@ import {
 } from '@sportpulse/canonical';
 import type { ConfirmedLineupRecord, PlayerPosition } from '@sportpulse/prediction';
 import { normTeamName } from './injury-source.js';
+import { COMPETITION_REGISTRY } from '../competition-registry.js';
 
-// ── League ID mapping (same as injury-source.ts) ──────────────────────────────
+// ── League ID mapping ─────────────────────────────────────────────────────────
+// Derived automatically from COMPETITION_REGISTRY — no manual updates needed when leagues are added.
 
 const AF_LEAGUE_IDS: Record<string, number> = {
-  // Legacy IDs
+  // Legacy IDs (pre-canonical AF migration — kept for backwards compatibility)
   'comp:football-data:PD':  140,  // LaLiga
   'comp:football-data:PL':   39,  // Premier League
   'comp:openligadb:bl1':     78,  // Bundesliga
   'comp:thesportsdb:4432':  268,  // Liga Uruguaya
   'comp:sportsdb-ar:4406':  128,  // Liga Argentina
-  // API-Football canonical IDs (AF_CANONICAL_ENABLED=true)
-  'comp:apifootball:140':   140,
-  'comp:apifootball:39':     39,
-  'comp:apifootball:78':     78,
-  'comp:apifootball:268':   268,
-  'comp:apifootball:128':   128,
+  // All registered competitions (auto-derived — source of truth: competition-registry.ts)
+  ...Object.fromEntries(COMPETITION_REGISTRY.map((e) => [e.id, e.leagueId])),
 };
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
@@ -435,9 +433,9 @@ export class LineupSource {
       const leagueId = AF_LEAGUE_IDS[competitionId];
       if (leagueId === undefined) return [];
 
-      // Guard: only fetch if kickoff is within 90 minutes
+      // Guard: only fetch if kickoff is within 45 minutes (AF publishes ~60min before, 45min gives buffer)
       const minutesToKickoff = (new Date(kickoffUtc).getTime() - Date.now()) / 60_000;
-      if (minutesToKickoff > 90) return [];
+      if (minutesToKickoff > 45) return [];
 
       // Derive date (UTC — matches the API's date param)
       const dateIso = kickoffUtc.slice(0, 10);
