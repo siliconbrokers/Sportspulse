@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../hooks/use-theme.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
+import { usePredictionLeagues } from './use-prediction-leagues.js';
 
 // ── Types (mirror server EvaluationRecord + EvaluationMetrics) ────────────────
 
@@ -603,6 +604,8 @@ export function EvaluationLabPage() {
   const isDark = theme === 'dark';
   const ROOT = makeRoot(isDark);
   const PANEL = makePanel(isDark);
+  const leagues = usePredictionLeagues();
+  const [compFilter, setCompFilter] = useState('');
   const [data, setData] = useState<EvaluationResponse | null>(null);
   const [compareData, setCompareData] = useState<CompareResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -614,7 +617,7 @@ export function EvaluationLabPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchEvaluation('comp:apifootball:140', engineMode);
+      const result = await fetchEvaluation(compFilter || undefined, engineMode);
       if (engineMode === 'compare') {
         setCompareData(result as CompareResponse);
         setData(null);
@@ -632,7 +635,7 @@ export function EvaluationLabPage() {
     } finally {
       setLoading(false);
     }
-  }, [engineMode]);
+  }, [engineMode, compFilter]);
 
   useEffect(() => {
     void load();
@@ -718,6 +721,16 @@ export function EvaluationLabPage() {
             </button>
           ))}
         </div>
+        <select
+          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', background: isDark ? '#1a1a1a' : '#fff', color: isDark ? '#e2e8f0' : '#0f172a', cursor: 'pointer' }}
+          value={compFilter}
+          onChange={(e) => setCompFilter(e.target.value)}
+        >
+          <option value="">Todas las ligas</option>
+          {leagues.map((l) => (
+            <option key={l.id} value={l.id}>{l.displayName}</option>
+          ))}
+        </select>
         <button style={refreshBtn} onClick={() => { void load(); }} disabled={loading}>
           {loading ? 'Cargando...' : 'Refresh'}
         </button>

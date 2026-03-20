@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme } from '../hooks/use-theme.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
+import { usePredictionLeagues } from './use-prediction-leagues.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -181,18 +182,15 @@ function statusColor(s: JobStatus): string {
 
 // ── Competition ID humanizer ──────────────────────────────────────────────────
 
-const COMP_ID_NAMES: Record<string, string> = {
-  'comp:apifootball:140': 'LaLiga',
-  'comp:apifootball:39':  'Premier League',
-  'comp:apifootball:78':  'Bundesliga',
-  'comp:apifootball:262': 'Liga MX',
+// Static fallback map for comp IDs not covered by portal-config (e.g. football-data prefixed IDs).
+const COMP_ID_NAMES_FALLBACK: Record<string, string> = {
   'comp:football-data:PD':  'LaLiga',
   'comp:football-data:PL':  'Premier League',
   'comp:football-data:BL1': 'Bundesliga',
 };
 
-function humanizeCompId(id: string): string {
-  return COMP_ID_NAMES[id] ?? id;
+function humanizeCompId(id: string, extraNames: Record<string, string> = {}): string {
+  return extraNames[id] ?? COMP_ID_NAMES_FALLBACK[id] ?? id;
 }
 
 // ── Feature importance table ──────────────────────────────────────────────────
@@ -338,7 +336,7 @@ function LogViewer({ lines, status, isDark }: { lines: string[]; status: JobStat
 
 // ── NEXUS info panel ──────────────────────────────────────────────────────────
 
-function NexusInfoPanel({ nexusInfo, isDark }: { nexusInfo: NexusInfo; isDark: boolean }) {
+function NexusInfoPanel({ nexusInfo, isDark, compDisplayNames = {} }: { nexusInfo: NexusInfo; isDark: boolean; compDisplayNames?: Record<string, string> }) {
   const PANEL = makePanel(isDark);
   const ensembleWeights = nexusInfo.ensembleWeights;
 
@@ -366,7 +364,7 @@ function NexusInfoPanel({ nexusInfo, isDark }: { nexusInfo: NexusInfo; isDark: b
             ['Model version', nexusInfo.modelVersion ?? '—'],
             ['Calibration source', nexusInfo.calibrationSource ?? '—'],
             ['Feature schema', nexusInfo.featureSchemaVersion ?? '—'],
-            ['Competiciones', nexusInfo.competitionIds?.map(humanizeCompId).join(', ') ?? '—'],
+            ['Competiciones', nexusInfo.competitionIds?.map((id) => humanizeCompId(id, compDisplayNames)).join(', ') ?? '—'],
           ].map(([label, value]) => (
             <div key={label} style={{ background: isDark ? '#1a1a1a' : '#f8fafc', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px' }}>
               <div style={{ fontSize: 10, color: '#a78bfa', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
@@ -411,6 +409,10 @@ function NexusInfoPanel({ nexusInfo, isDark }: { nexusInfo: NexusInfo; isDark: b
 export function TrainingLabPage() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
+  const predictionLeagues = usePredictionLeagues();
+  const compDisplayNames = Object.fromEntries(
+    predictionLeagues.map((l) => [l.id, l.displayName]),
+  );
   const [status, setStatus]           = useState<StatusResponse | null>(null);
   const [coeff, setCoeff]             = useState<Coefficients | null>(null);
   const [loading, setLoading]         = useState(true);
@@ -598,7 +600,7 @@ export function TrainingLabPage() {
             </div>
           )}
           {!nexusLoading && !nexusError && nexusInfo && (
-            <NexusInfoPanel nexusInfo={nexusInfo} isDark={isDark} />
+            <NexusInfoPanel nexusInfo={nexusInfo} isDark={isDark} compDisplayNames={compDisplayNames} />
           )}
         </>
       )}

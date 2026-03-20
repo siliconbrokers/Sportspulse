@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../hooks/use-theme.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
+import { usePredictionLeagues } from './use-prediction-leagues.js';
 
 type Snapshot = {
   match_id: string;
@@ -386,14 +387,10 @@ export function PredictionsLabPage() {
     cursor: 'pointer',
   };
 
+  const leagues = usePredictionLeagues();
   const compOptions: Array<{ value: string; label: string }> = [
     { value: '', label: 'Todas las ligas' },
-    { value: 'comp:apifootball:140', label: 'LaLiga' },
-    { value: 'comp:apifootball:39', label: 'Premier' },
-    { value: 'comp:apifootball:78', label: 'Bundesliga' },
-    { value: 'comp:apifootball:268', label: 'Uruguay' },
-    { value: 'comp:apifootball:128', label: 'Argentina' },
-    { value: 'comp:apifootball:262', label: 'Liga MX' },
+    ...leagues.map((l) => ({ value: l.id, label: l.displayName })),
   ];
 
   return (

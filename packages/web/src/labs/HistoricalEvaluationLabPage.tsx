@@ -16,6 +16,7 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '../hooks/use-theme.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
+import { usePredictionLeagues } from './use-prediction-leagues.js';
 
 // ── Types (mirror server HistoricalBacktestSnapshot + HistoricalEvaluationReport) ──
 
@@ -1049,6 +1050,8 @@ export function HistoricalEvaluationLabPage() {
   const isDark = theme === 'dark';
   const ROOT = makeRoot(isDark);
   const PANEL = makePanel(isDark);
+  const leagues = usePredictionLeagues();
+  const [compCode, setCompCode] = useState('PD');
   const [data, setData] = useState<ApiResponse | null>(null);
   const [nexusData, setNexusData] = useState<NexusResponse | null>(null);
   const [compareData, setCompareData] = useState<CompareResponse | null>(null);
@@ -1060,7 +1063,7 @@ export function HistoricalEvaluationLabPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetchHistoricalEvaluation('PD', engineMode)
+    fetchHistoricalEvaluation(compCode, engineMode)
       .then(result => {
         if (engineMode === 'v3') {
           setData(result as ApiResponse);
@@ -1078,7 +1081,7 @@ export function HistoricalEvaluationLabPage() {
         setLoading(false);
       })
       .catch(e => { setError(String(e)); setLoading(false); });
-  }, [engineMode]);
+  }, [engineMode, compCode]);
 
   const tabBtn = (key: typeof tab, label: string): React.CSSProperties => ({
     padding: '6px 14px',
@@ -1105,7 +1108,7 @@ export function HistoricalEvaluationLabPage() {
           }
           <strong style={{ color: '#60a5fa', fontSize: 14 }}>Evaluación Histórica — Lab Interno</strong>
           <span style={{ color: '#475569', fontSize: 11, marginLeft: 8 }}>
-            {engineMode === 'nexus' ? 'source_type = NEXUS_SHADOW' : 'source_type = HISTORICAL_BACKTEST'} · LaLiga (PD)
+            {`source_type = ${engineMode === 'nexus' ? 'NEXUS_SHADOW' : 'HISTORICAL_BACKTEST'} · ${leagues.find(l => l.slug.toUpperCase() === compCode)?.displayName ?? compCode}`}
           </span>
           <span style={{
             marginLeft: 'auto',
@@ -1122,7 +1125,7 @@ export function HistoricalEvaluationLabPage() {
         </div>
 
         {/* Engine mode selector */}
-        <div className="flex gap-2 flex-wrap mt-2">
+        <div className="flex gap-2 flex-wrap mt-2" style={{ alignItems: 'center' }}>
           {(['v3', 'nexus', 'compare'] as EngineMode[]).map(mode => (
             <button
               key={mode}
@@ -1136,6 +1139,18 @@ export function HistoricalEvaluationLabPage() {
               {mode === 'v3' ? 'V3' : mode === 'nexus' ? 'NEXUS' : 'Comparar'}
             </button>
           ))}
+          <select
+            style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', background: isDark ? '#1a1a1a' : '#fff', color: isDark ? '#e2e8f0' : '#0f172a', cursor: 'pointer' }}
+            value={compCode}
+            onChange={(e) => setCompCode(e.target.value)}
+          >
+            {leagues.length === 0
+              ? <option value="PD">LaLiga (PD)</option>
+              : leagues.map((l) => (
+                  <option key={l.id} value={l.slug.toUpperCase()}>{l.displayName}</option>
+                ))
+            }
+          </select>
         </div>
 
         {snapshotCount > 0 && (
