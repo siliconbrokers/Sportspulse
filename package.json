@@ -2,7 +2,7 @@
   "name": "sportpulse",
   "private": true,
   "scripts": {
-    "start": "tsx server/index.ts",
+    "start": "npx dotenv-cli -e .env.production -- tsx server/index.ts",
     "dev:api": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json server/index.ts",
     "dev:web": "pnpm --filter @sportpulse/web dev",
     "dev": "concurrently -n api,web -c blue,green \"pnpm dev:api\" \"pnpm dev:web\"",
@@ -29,7 +29,9 @@
     "train:track3": "dotenv -e .env -- tsx --tsconfig tsconfig.server.json tools/train-track3.ts",
     "validate:registry": "pnpm tsx scripts/validate-doc-registry.ts",
     "smoke-test": "tsx scripts/smoke-test.ts",
-    "eval:nexus-gate": "dotenv -e .env -- tsx tools/eval-nexus-gate.ts"
+    "eval:nexus-gate": "dotenv -e .env -- tsx tools/eval-nexus-gate.ts",
+    "odds:backfill": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json tools/backfill-historical-odds.ts",
+    "odds:analyze": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json tools/analyze-blend-accuracy.ts"
   },
   "lint-staged": {
     "packages/*/src/**/*.ts": [
