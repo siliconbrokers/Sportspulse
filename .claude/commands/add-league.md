@@ -16,6 +16,8 @@ Adding a league requires exactly 3 file edits. Everything else auto-derives from
 |------|-----------------|
 | `server/competition-registry.ts` | Data source, shadow runner, portal-config catalog, incident source |
 | `server/prediction/xg-source.ts` | xG backfill for prediction engine |
+| `server/prediction/match-input-adapter.ts` | Competition profile for prediction engine (required for badge/pronósticos) |
+| `.env` `PREDICTION_V3_SHADOW_ENABLED` + `PREDICTION_NEXUS_SHADOW_ENABLED` | Enables shadow predictions for the league |
 | `packages/web/src/hooks/use-portal-config.ts` | Frontend default config fallback |
 
 The league is NOT auto-activated. The admin activates it via the back office toggle after the code is deployed.
@@ -401,6 +403,37 @@ Read the file first. Locate the `AF_LEAGUE_IDS` constant. Add a new entry after 
 ```typescript
   'comp:apifootball:{leagueId}':   {leagueId},  // {displayName}
 ```
+
+---
+
+## Step 7b — Edit server/prediction/match-input-adapter.ts
+
+**Skip this step if `isTournament=true`** (tournaments like Copa Libertadores use a different profile).
+
+Read the file. Locate the `KNOWN_PROFILES` object, inside the `// API-Football canonical IDs` block. Add after the last `comp:apifootball:*` domestic league line:
+
+```typescript
+  'comp:apifootball:{leagueId}':   DOMESTIC_LEAGUE_PROFILE,  // {displayName}
+```
+
+**Why this matters:** Without this entry, `deriveCompetitionProfile()` returns `{ ok: false }` and the prediction engine silently skips all matches for this league — no badge, no pronósticos, no shadow predictions.
+
+---
+
+## Step 7c — Update .env (PREDICTION_V3_SHADOW_ENABLED and PREDICTION_NEXUS_SHADOW_ENABLED)
+
+**Skip this step if `isTournament=true`.**
+
+Read the current `.env` file. Append `comp:apifootball:{leagueId}` to both variables:
+
+```
+PREDICTION_V3_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
+PREDICTION_NEXUS_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
+```
+
+**Why this matters:** Even with `match-input-adapter.ts` fixed, `isV3ShadowEnabled()` and the NEXUS runner gate on these env vars. A league not listed here will never receive shadow predictions.
+
+Note: `.env` is local-only and gitignored. The equivalent for production is the Render environment variables panel — remind the user to update it before deploying.
 
 ---
 

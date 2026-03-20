@@ -88,6 +88,8 @@ const KNOWN_PROFILES: Record<string, CompetitionProfile> = {
   'comp:apifootball:78':    DOMESTIC_LEAGUE_PROFILE,  // Bundesliga
   'comp:apifootball:268':   DOMESTIC_LEAGUE_PROFILE,  // Liga Uruguaya
   'comp:apifootball:128':   DOMESTIC_LEAGUE_PROFILE,  // Liga Argentina
+  'comp:apifootball:262':   DOMESTIC_LEAGUE_PROFILE,  // Liga MX
+  'comp:apifootball:71':    DOMESTIC_LEAGUE_PROFILE,  // Brasileirão Série A
   // International tournaments (AF_CANONICAL_ENABLED=true)
   'comp:apifootball:13': {
     competition_profile_version: '1.0',
