@@ -12,6 +12,10 @@ export interface LiveTimeChip {
 
 const TZ = 'America/Montevideo';
 
+function toLocalDateKey(utc: string): string {
+  return new Date(utc).toLocaleDateString('en-CA', { timeZone: TZ });
+}
+
 function fmtTime(utc: string): string {
   return new Intl.DateTimeFormat('es-UY', {
     timeZone: TZ,
@@ -80,10 +84,17 @@ export function computeLiveTimeChip(
     const mins = Math.ceil(hours * 60);
     return { icon: '⏳', label: `Hoy · ${time} (en ${mins} min)`, level: 'HOT' };
   }
-  if (hours < 24) {
+
+  // Comparar por fecha local en timezone del portal — nunca por horas brutas.
+  // Un partido a las 22:00 mañana hora local puede estar a < 24h en UTC pero es "Mañana".
+  const kickoffDateKey = toLocalDateKey(kickoffUtc);
+  const todayKey = toLocalDateKey(new Date().toISOString());
+  const tomorrowKey = toLocalDateKey(new Date(Date.now() + 86_400_000).toISOString());
+
+  if (kickoffDateKey === todayKey) {
     return { icon: '⏳', label: `Hoy · ${time}`, level: 'HOT' };
   }
-  if (hours < 48) {
+  if (kickoffDateKey === tomorrowKey) {
     return { icon: '⏳', label: `Mañana · ${time}`, level: 'OK' };
   }
   return { icon: '📅', label: `${fmtDate(kickoffUtc)} · ${time}`, level: 'INFO' };
