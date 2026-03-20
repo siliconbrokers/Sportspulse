@@ -41,7 +41,21 @@ export class EventosService {
       };
     }
 
-    const rawEvents = await this.source.getEvents();
+    let rawEvents: Awaited<ReturnType<IEventSource['getEvents']>>;
+    try {
+      rawEvents = await this.source.getEvents();
+    } catch (err) {
+      if (this.cache) {
+        console.warn('[Eventos] source.getEvents() failed — serving stale cache', { err: String(err) });
+        return {
+          events: this.cache.events,
+          fetchedAtUtc: this.cache.fetchedAtUtc,
+          debugMode: this.config.debugMode,
+        };
+      }
+      console.error('[Eventos] source.getEvents() failed and no cache available', { err: String(err) });
+      return { events: [], fetchedAtUtc: new Date().toISOString(), debugMode: this.config.debugMode };
+    }
     const referenceDate = new Date();
 
     const parsed = rawEvents.map((raw, i) => {

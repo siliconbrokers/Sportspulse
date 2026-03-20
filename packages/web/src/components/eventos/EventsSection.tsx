@@ -363,8 +363,8 @@ export function EventsSection({ activeTab, onTabChange, enabledCompetitionIds }:
         </div>
       )}
 
-      {/* Error */}
-      {!loading && error && (
+      {/* Error total — solo si no hay eventos canónicos ni de stream */}
+      {!loading && error && tabEvents.length === 0 && (
         <div style={{
           padding: '32px 0', textAlign: 'center',
           color: 'var(--sp-text-30)', fontSize: 13,
@@ -373,7 +373,7 @@ export function EventsSection({ activeTab, onTabChange, enabledCompetitionIds }:
         </div>
       )}
 
-      {/* Grid de eventos */}
+      {/* Vacío — sin error */}
       {!loading && !error && tabEvents.length === 0 && (
         <div style={{
           padding: '48px 20px', textAlign: 'center',
@@ -397,7 +397,7 @@ export function EventsSection({ activeTab, onTabChange, enabledCompetitionIds }:
         </div>
       )}
 
-      {!loading && !error && tabEvents.length > 0 && (
+      {!loading && tabEvents.length > 0 && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,

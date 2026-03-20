@@ -600,6 +600,7 @@ async function main() {
       const now    = Date.now();
       const cutoff = now + windowHours * 60 * 60 * 1000;
       const results: UpcomingMatchDTO[] = [];
+      const seenMatchIds = new Set<string>();
 
       // Recalcular en cada llamada para reflejar cambios en portal-config en runtime.
       // ALL_COMP_IDS es estático (calculado en startup), por lo que si el admin habilita/deshabilita
@@ -633,6 +634,8 @@ async function main() {
             kickoffMs > now && kickoffMs <= cutoff;
 
           if (!isLive && !isUpcoming) continue;
+          if (seenMatchIds.has(m.matchId)) continue;
+          seenMatchIds.add(m.matchId);
 
           const home = teamMap.get(m.homeTeamId);
           const away = teamMap.get(m.awayTeamId);
