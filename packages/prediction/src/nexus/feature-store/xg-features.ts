@@ -50,6 +50,7 @@ export const AF_LEAGUE_IDS: Readonly<Record<string, number>> = {
   URU: 268, // Fútbol Uruguayo
   ARG: 128, // Liga Argentina
   MX: 262, // Liga MX
+  BR: 71, // Brasileirão Série A
 } as const;
 
 /**
@@ -65,6 +66,7 @@ export const AF_LEAGUE_ID_TO_CODE: Readonly<Record<number, string>> = {
   268: 'URU',
   128: 'ARG',
   262: 'MX',
+  71: 'BR',
 } as const;
 
 // ── Cache file shape ──────────────────────────────────────────────────────

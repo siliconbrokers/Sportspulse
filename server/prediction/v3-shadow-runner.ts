@@ -113,6 +113,7 @@ const PER_LEAGUE_TABLE_CODES: Record<string, string> = {
   'comp:football-data:PD': 'PD',
   'comp:apifootball:140':  'PD',
   'comp:apifootball:262':  'MX',  // Liga MX — per-liga table (313 tuples, intermediate tier)
+  'comp:apifootball:71':   'BR',  // Brasileirão — per-liga table (698 tuples, intermediate tier)
 };
 
 interface CalTableEntry {
