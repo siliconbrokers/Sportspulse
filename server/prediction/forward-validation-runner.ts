@@ -177,6 +177,10 @@ function extractProbs(response: unknown): {
   expected_goals_home: number | null;
   expected_goals_away: number | null;
   predicted_result: string | null;
+  blend_applied: boolean | null;
+  blend_market_prob_home: number | null;
+  blend_market_prob_draw: number | null;
+  blend_market_prob_away: number | null;
 } {
   const r = response as Record<string, unknown> | null | undefined;
   const mode =
@@ -209,6 +213,14 @@ function extractProbs(response: unknown): {
       typeof core?.['expected_goals_away'] === 'number' ? core['expected_goals_away'] : null,
     predicted_result:
       typeof core?.['predicted_result'] === 'string' ? (core['predicted_result'] as string) : null,
+    blend_applied:
+      typeof internals?.['market_blend_applied'] === 'boolean' ? internals['market_blend_applied'] : null,
+    blend_market_prob_home:
+      typeof internals?.['market_prob_home'] === 'number' ? internals['market_prob_home'] : null,
+    blend_market_prob_draw:
+      typeof internals?.['market_prob_draw'] === 'number' ? internals['market_prob_draw'] : null,
+    blend_market_prob_away:
+      typeof internals?.['market_prob_away'] === 'number' ? internals['market_prob_away'] : null,
   };
 }
 
@@ -258,6 +270,10 @@ function buildDiagnosticRecord(
     result_captured_at: null,
     evaluation_eligible: false,
     excluded_reason: excludedReason,
+    blend_applied: null,
+    blend_market_prob_home: null,
+    blend_market_prob_draw: null,
+    blend_market_prob_away: null,
   };
 }
 
@@ -551,6 +567,10 @@ export class ForwardValidationRunner {
                 result_captured_at: null,
                 evaluation_eligible: isEligible,
                 excluded_reason: isEligible ? null : `mode=${probs.mode}`,
+                blend_applied: probs.blend_applied,
+                blend_market_prob_home: probs.blend_market_prob_home,
+                blend_market_prob_draw: probs.blend_market_prob_draw,
+                blend_market_prob_away: probs.blend_market_prob_away,
               };
               this.store.save(baselineRecord);
               frozen++;
@@ -590,6 +610,10 @@ export class ForwardValidationRunner {
                     : ctiP === null
                       ? 'missing_lambda'
                       : null,
+                blend_applied: probs.blend_applied,
+                blend_market_prob_home: probs.blend_market_prob_home,
+                blend_market_prob_draw: probs.blend_market_prob_draw,
+                blend_market_prob_away: probs.blend_market_prob_away,
               };
               this.store.save(ctiRecord);
               frozen++;

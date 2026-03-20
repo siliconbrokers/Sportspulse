@@ -12,12 +12,27 @@
  *   - V3 usa runV3Engine, estadísticas de goles, shrinkage, H2H, rest, recency
  *   - V3 NO usa Elo en ningún paso
  *
+ * Fuentes de datos soportadas:
+ *   - football-data.org (FD): ligas europeas clásicas (PD, PL, BL1, SA, FL1, DED, PPL)
+ *                             Lee desde football-data API con FOOTBALL_DATA_TOKEN
+ *   - TheSportsDB (SDB):      URU — liga Uruguaya
+ *                             Lee desde TheSportsDB API con SPORTSDB_API_KEY
+ *   - API-Football canonical (AF): ligas AF (CL, AR, BR, MX y sus IDs numéricos)
+ *                             Lee desde cache/historical/apifootball/{leagueId}/{year}.json
+ *                             Generado por: tools/calibrate-league-report.ts o descarga directa
+ *
  * Uso:
  *   pnpm backtest:v3:historical PD 2025
  *   pnpm backtest:v3:historical PD,PL,BL1 2025
  *   pnpm backtest:v3:historical URU 2024   # Liga Uruguaya via TheSportsDB
+ *   pnpm backtest:v3:historical CL 2024   # Primera División Chile via AF canonical
+ *   pnpm backtest:v3:historical AR 2024   # Liga Argentina via AF canonical
  *
- * Salida: cache/predictions/historical-backtest-v3.json (por competencia+temporada)
+ * Salida: cache/predictions/historical-backtest-v3-{comp}-{year}.json
+ *
+ * Este archivo es leído por:
+ *   - tools/backfill-historical-odds.ts  → descarga odds históricas para las fechas de los partidos
+ *   - tools/analyze-blend-accuracy.ts   → compara accuracy modelo solo vs blend con mercado
  */
 
 import 'dotenv/config';
@@ -38,6 +53,30 @@ import * as path from 'node:path';
 const SPORTSDB_COMPS: Record<string, { leagueId: string; name: string; expectedSeasonGames?: number }> = {
   URU: { leagueId: '4432', name: 'Uruguayan Primera Division', expectedSeasonGames: 15 },
 };
+
+/** AF canonical leagues with calendar-year seasons (read from cache/historical/apifootball/). */
+const AF_COMPS: Record<string, { leagueId: number; name: string; expectedSeasonGames?: number }> = {
+  CL:  { leagueId: 265, name: 'Primera División Chile',    expectedSeasonGames: 30 },
+  AR:  { leagueId: 128, name: 'Liga Argentina',            expectedSeasonGames: 19 },
+  BR:  { leagueId: 71,  name: 'Brasileirão Série A',       expectedSeasonGames: 38 },
+  MX:  { leagueId: 262, name: 'Liga MX',                   expectedSeasonGames: 17 },
+  '265': { leagueId: 265, name: 'Primera División Chile',  expectedSeasonGames: 30 },
+  '128': { leagueId: 128, name: 'Liga Argentina',          expectedSeasonGames: 19 },
+  '71':  { leagueId: 71,  name: 'Brasileirão Série A',     expectedSeasonGames: 38 },
+  '262': { leagueId: 262, name: 'Liga MX',                 expectedSeasonGames: 17 },
+};
+
+const HIST_AF_BASE = path.resolve(process.cwd(), 'cache/historical/apifootball');
+
+function loadHistoricalAF(leagueId: number, year: number): FinishedMatchRecord[] {
+  const file = path.join(HIST_AF_BASE, String(leagueId), `${year}.json`);
+  if (!fs.existsSync(file)) return [];
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    // Stored as { season, matches: V3MatchRecord[] } — shape identical to FinishedMatchRecord
+    return (raw?.matches as FinishedMatchRecord[]) ?? [];
+  } catch { return []; }
+}
 
 // Expected season games per FD competition (used for adaptive eligibility threshold)
 const FD_EXPECTED_SEASON_GAMES: Record<string, number> = {
@@ -291,7 +330,8 @@ async function main() {
   console.log(`Competencias: ${comps.join(', ')}   Temporada: ${seasonYear}`);
 
   for (const comp of comps) {
-    const sdbConfig = SPORTSDB_COMPS[comp];
+    const afConfig   = AF_COMPS[comp];
+    const sdbConfig  = afConfig == null ? SPORTSDB_COMPS[comp] : undefined;
     const isSportsDB = sdbConfig != null;
 
     const boundary     = seasonBoundaryIso(comp, seasonYear);
@@ -308,7 +348,11 @@ async function main() {
     let allPrevRaw:    FinishedMatchRecord[];
 
     try {
-      if (isSportsDB) {
+      if (afConfig != null) {
+        // AF canonical: read from cache/historical/apifootball/{leagueId}/{year}.json
+        allCurrentRaw = loadHistoricalAF(afConfig.leagueId, seasonYear);
+        allPrevRaw    = loadHistoricalAF(afConfig.leagueId, seasonYear - 1);
+      } else if (isSportsDB) {
         if (!sdbConfig) continue;
         // Current season
         allCurrentRaw = await loadHistoricalMatchesSportsDB(sdbConfig.leagueId, seasonYear, { apiKey: sportsdbKey });
@@ -344,9 +388,11 @@ async function main() {
       continue;
     }
 
-    const expectedSeasonGames = isSportsDB
-      ? sdbConfig?.expectedSeasonGames
-      : FD_EXPECTED_SEASON_GAMES[comp];
+    const expectedSeasonGames = afConfig != null
+      ? afConfig.expectedSeasonGames
+      : isSportsDB
+        ? sdbConfig?.expectedSeasonGames
+        : FD_EXPECTED_SEASON_GAMES[comp];
 
     await runBacktestForComp(comp, seasonYear, currentSeason, prevSeason, expectedSeasonGames);
   }

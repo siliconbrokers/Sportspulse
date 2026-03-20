@@ -197,6 +197,81 @@ Show the diff before applying and ask for confirmation.
 
 ---
 
+### 3.5 — Odds backfill para blend accuracy (automático)
+
+**Este paso corre siempre después del wiring, sin preguntar al usuario.**
+
+El motor V3 en runtime ya mezcla odds en vivo (AfOddsService / OddsService). Este paso genera los snapshots de backtest y descarga odds históricas para poder medir la mejora de accuracy que produce el blend. El resultado alimenta el reporte final (Step 5).
+
+#### 3.5.1 — Verificar soporte The Odds API
+
+Verificar que el slug o leagueId de la liga aparezca en `COMP_CODE_TO_SPORT_KEY` en `server/prediction/historical-odds-store.ts`.
+
+```bash
+grep -n "'${SLUG}'\|'${LEAGUE_ID}'" server/prediction/historical-odds-store.ts
+```
+
+- Si **no aparece**: mostrar `⚠️ Liga sin soporte en The Odds API — blend accuracy no disponible.` y saltar al Step 4 directamente.
+- Si **aparece**: continuar.
+
+#### 3.5.2 — Generar backtest snapshots V3
+
+Usar `scripts/run-backtest-v3-historical.ts` para las dos temporadas más recientes completadas.
+
+Para ligas AF canonical (calendar-year), usar `{year}` y `{year-1}`:
+
+```bash
+SLUG="{slug}"  # e.g. CL, AR, BR
+YEAR_1=$(($(date +%Y) - 1))
+YEAR_2=$(($(date +%Y) - 2))
+
+npx tsx --tsconfig tsconfig.server.json scripts/run-backtest-v3-historical.ts ${SLUG} ${YEAR_1}
+npx tsx --tsconfig tsconfig.server.json scripts/run-backtest-v3-historical.ts ${SLUG} ${YEAR_2}
+```
+
+Para ligas european (cross-year, e.g. PD/PL/BL1), el script usa automáticamente las temporadas correctas desde el año proporcionado.
+
+**Notas:**
+- El script leyó de `cache/historical/apifootball/{leagueId}/` (AF canonical) o football-data.org.
+- Si el archivo `cache/predictions/historical-backtest-v3-{slug}-{year}.json` ya existe, no regenerar — saltar.
+- Si el script falla (sin datos históricos), mostrar aviso y saltar al Step 4.
+
+#### 3.5.3 — Backfill de odds históricas
+
+```bash
+npx tsx --tsconfig tsconfig.server.json tools/backfill-historical-odds.ts --comp ${SLUG}
+```
+
+Este comando:
+- Lee `cache/predictions/historical-backtest-v3-{slug}-*.json` para obtener las fechas de los partidos elegibles
+- Descarga odds históricas desde The Odds API (resume-safe — saltea fechas ya cacheadas)
+- Registra cada llamada en el ledger (`cache/api-usage.db`) para actualizar el contador en /admin/ops
+
+**Cuota:** ~1 request por ventana de 5 días de partidos. Para 2 temporadas de 30 matchdays = ~12 requests típicamente.
+
+Si el quota del mes está agotado (`THE_ODDS_API_KEY` retorna 429): mostrar aviso, saltar este paso, y anotar en el reporte final que blend accuracy no está disponible.
+
+#### 3.5.4 — Análisis de blend accuracy
+
+```bash
+npx tsx --tsconfig tsconfig.server.json tools/analyze-blend-accuracy.ts --comp ${SLUG}
+```
+
+Capturar el output. La tabla tiene la forma:
+```
+Comp    Total  OddsFound  Coverage  ModelAcc  BlendAcc   Δacc
+CL        432        415     96.1%     22.2%     52.2%  +30.0
+```
+
+Extraer: `Total`, `OddsFound`, `Coverage`, `ModelAcc`, `BlendAcc`, `Δacc` para incluirlos en el reporte final.
+
+**Interpretación de Δacc:**
+- Δacc > +5pp → blend aporta valor significativo — confirma que The Odds API está activo en runtime
+- Δacc 0–5pp → blend marginal — la liga puede no tener odds líquidas
+- Δacc < 0 → blend degrada — revisar calidad de odds o MARKET_WEIGHT
+
+---
+
 ## Step 4 — Verificación
 
 Run build and tests:
@@ -233,7 +308,7 @@ xG augmentation:    {activo | no disponible}
 Samples de cal.:    {N} partidos ({T} temporadas)
 Bias corregido:     HOME {+X.XXX} {✓/⚠/❌}  DRAW {+X.XXX} {✓/⚠/❌}  AWAY {+X.XXX} {✓/⚠/❌}
 
-Backtest:
+Backtest isotónico:
   {Si evaluable > 0:}
   Δacc vs sin cal:    {+X.Xpp}
   Δacc vs global:     {+X.Xpp} (solo si per-liga)
@@ -241,10 +316,20 @@ Backtest:
   No disponible — temporada {testSeasonLabel} aún en curso.
   Estará disponible cuando avancen los partidos de la temporada actual.
 
+Blend accuracy (modelo + odds de mercado):
+  {Si odds disponibles:}
+  Backtest snapshots: {N} partidos ({YEAR_2}, {YEAR_1})
+  Odds coverage:      {Coverage}% ({OddsFound}/{Total} partidos)
+  Accuracy modelo:    {ModelAcc}%
+  Accuracy blend:     {BlendAcc}%  (MARKET_WEIGHT=0.65)
+  Δacc blend:         {+Xpp}  {✓ blend aporta valor | ⚠ blend marginal | ❌ blend degrada}
+  {Si odds no disponibles:}
+  No disponible — {razón: liga sin soporte en The Odds API | quota agotada | sin histórico}
+
 Confiabilidad de la tabla: {ALTA | MEDIA | NO EVALUABLE}
   {1 línea explicando el veredicto, ej: "622 tuples + bias HOME ❌ grande — corrección necesaria y bien respaldada"}
 
-Wiring en v3-shadow-runner.ts: ✓
+Wiring en calibration-selector.ts: ✓
 
 Build: ✓ sin errores
 
@@ -364,3 +449,8 @@ Para activar shadow: PREDICTION_NEXUS_SHADOW_ENABLED debe incluir {compId}
 - xG backfill uses `--resume` — it never re-downloads already-cached fixtures
 - NEXUS calibration is out of scope (Iteración 2) — if user insists, inform it's pending
 - The global calibration table (`v3-iso-calibration.json`) must NOT be overwritten when running `--comp` for a single league
+- Step 3.5 (odds backfill) runs automatically without user confirmation — it is always part of the V3 pipeline
+- If `historical-backtest-v3-{slug}-{year}.json` already exists for a season, do NOT regenerate it — skip that year silently
+- `backfill-historical-odds.ts` is resume-safe — never re-downloads dates already in `cache/historical-odds/`
+- Odds backfill consumes The Odds API quota (~1 req per 5 days of matches). Check remaining before running: `cat cache/historical-odds/soccer_*/$(ls cache/historical-odds/soccer_*/ 2>/dev/null | sort | tail -1) 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('remaining:', d.get('remaining', 'N/A'))"` — if remaining < 200, skip and note in report
+- `run-backtest-v3-historical.ts` supports AF canonical leagues (AF_COMPS) via `cache/historical/apifootball/{leagueId}/{year}.json`. If the historical archive doesn't exist for that year, the script outputs 0 snapshots — this is not an error, just means no data yet

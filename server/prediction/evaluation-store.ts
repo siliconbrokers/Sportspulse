@@ -110,6 +110,14 @@ export interface EvaluationRecord {
   edge_draw: number | null;
   edge_away: number | null;
 
+  // Blend context: odds that were actually used during prediction generation.
+  // Distinct from market_prob_* above (those are post-freeze for edge calculation).
+  // blend_applied=true means the prediction probabilities already incorporate market odds.
+  blend_applied: boolean | null;
+  blend_market_prob_home: number | null;
+  blend_market_prob_draw: number | null;
+  blend_market_prob_away: number | null;
+
   // Track A runtime observation (filled via observation log or manual inspection)
   ui_render_result:
     | 'NO_RENDER'
@@ -161,6 +169,10 @@ function extractPredictionFields(snapshot: PredictionSnapshot): {
   expected_goals_home: number | null;
   expected_goals_away: number | null;
   reasons: string[];
+  blend_applied: boolean | null;
+  blend_market_prob_home: number | null;
+  blend_market_prob_draw: number | null;
+  blend_market_prob_away: number | null;
 } {
   try {
     const response = JSON.parse(snapshot.response_payload_json) as Record<string, unknown>;
@@ -177,6 +189,7 @@ function extractPredictionFields(snapshot: PredictionSnapshot): {
     const isV3 = snapshot.engine_id === 'v3_unified' || typeof response['prob_home_win'] === 'number';
     if (isV3) {
       const expl = response['explanation'] as Record<string, unknown> | undefined;
+      const internals = response['internals'] as Record<string, unknown> | undefined;
       return {
         predicted_result:    str(response['predicted_result']),
         p_home_win:          num(response['prob_home_win']),
@@ -185,6 +198,10 @@ function extractPredictionFields(snapshot: PredictionSnapshot): {
         expected_goals_home: num(expl?.['effective_attack_home']) ?? num(response['lambda_home']),
         expected_goals_away: num(expl?.['effective_attack_away']) ?? num(response['lambda_away']),
         reasons,
+        blend_applied:           typeof internals?.['market_blend_applied'] === 'boolean' ? internals['market_blend_applied'] : null,
+        blend_market_prob_home:  num(internals?.['market_prob_home']),
+        blend_market_prob_draw:  num(internals?.['market_prob_draw']),
+        blend_market_prob_away:  num(internals?.['market_prob_away']),
       };
     }
 
@@ -199,11 +216,16 @@ function extractPredictionFields(snapshot: PredictionSnapshot): {
       expected_goals_home: num(core?.['expected_goals_home']),
       expected_goals_away: num(core?.['expected_goals_away']),
       reasons,
+      blend_applied: null,
+      blend_market_prob_home: null,
+      blend_market_prob_draw: null,
+      blend_market_prob_away: null,
     };
   } catch {
     return {
       predicted_result: null, p_home_win: null, p_draw: null, p_away_win: null,
       expected_goals_home: null, expected_goals_away: null, reasons: [],
+      blend_applied: null, blend_market_prob_home: null, blend_market_prob_draw: null, blend_market_prob_away: null,
     };
   }
 }
@@ -330,6 +352,11 @@ export class EvaluationStore {
       edge_home: null,
       edge_draw: null,
       edge_away: null,
+
+      blend_applied: null,
+      blend_market_prob_home: null,
+      blend_market_prob_draw: null,
+      blend_market_prob_away: null,
 
       ui_render_result: null,
       ui_clear_or_confusing: null,
@@ -633,6 +660,10 @@ export class EvaluationStore {
       edge_home:                 null,
       edge_draw:                 null,
       edge_away:                 null,
+      blend_applied:             r['blend_applied'] as boolean | null ?? null,
+      blend_market_prob_home:    r['blend_market_prob_home'] as number | null ?? null,
+      blend_market_prob_draw:    r['blend_market_prob_draw'] as number | null ?? null,
+      blend_market_prob_away:    r['blend_market_prob_away'] as number | null ?? null,
       ui_render_result:          r['ui_render_result'] as EvaluationRecord['ui_render_result'] ?? null,
       ui_clear_or_confusing:     r['ui_clear_or_confusing'] as 'CLEAR' | 'CONFUSING' | null ?? null,
       runtime_issue:             r['runtime_issue'] as EvaluationRecord['runtime_issue'] ?? null,
@@ -680,6 +711,10 @@ export class EvaluationStore {
       edge_home:                 null,
       edge_draw:                 null,
       edge_away:                 null,
+      blend_applied:             r['blend_applied'] as boolean | null ?? null,
+      blend_market_prob_home:    r['blend_market_prob_home'] as number | null ?? null,
+      blend_market_prob_draw:    r['blend_market_prob_draw'] as number | null ?? null,
+      blend_market_prob_away:    r['blend_market_prob_away'] as number | null ?? null,
       ui_render_result: r['ui_render_result'] as EvaluationRecord['ui_render_result'] ?? null,
       ui_clear_or_confusing: r['ui_clear_or_confusing'] as 'CLEAR' | 'CONFUSING' | null ?? null,
       runtime_issue: r['runtime_issue'] as EvaluationRecord['runtime_issue'] ?? null,

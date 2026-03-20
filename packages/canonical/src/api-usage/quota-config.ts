@@ -55,7 +55,7 @@ const DEFAULTS: ProviderQuotaDefinition[] = [
     displayName: 'The Odds API',
     unitType: 'REQUEST',
     dailyLimit: 0,
-    monthlyLimit: 500,
+    monthlyLimit: 20000,
     timezone: 'UTC',
     warningThresholdPct: 75,
     criticalThresholdPct: 90,
@@ -63,7 +63,7 @@ const DEFAULTS: ProviderQuotaDefinition[] = [
     allowNoncriticalWhenLowQuota: true,
     brakeLiveThreshold: 0,
     isActive: true,
-    notes: 'Free tier: 500 req/month. Quota tracked monthly, not daily.',
+    notes: 'Paid plan: 20000 req/month. Resets 1st of each month at 00:00 UTC.',
   },
   {
     providerKey: 'thesportsdb',

@@ -64,7 +64,7 @@ function ProviderCard({
 }) {
   const color = LEVEL_COLOR[item.warningLevel] ?? '#22c55e';
 
-  // Monthly-quota providers (e.g. The Odds API: 500 req/month)
+  // Monthly-quota providers (e.g. The Odds API: 20000 req/month)
   const isMonthly = (item.monthlyLimit ?? 0) > 0;
 
   // Use effectiveUsedUnits (provider-reported truth) when available; fall back to ledger observation.
@@ -224,7 +224,19 @@ function ProviderCard({
       )}
       {isMonthly && (
         <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>
-          Cuota mensual · reset el 1° del mes
+          {(() => {
+            const now = new Date();
+            const nextReset = new Date(Date.UTC(
+              now.getUTCMonth() === 11 ? now.getUTCFullYear() + 1 : now.getUTCFullYear(),
+              now.getUTCMonth() === 11 ? 0 : now.getUTCMonth() + 1,
+              1, 0, 0, 0,
+            ));
+            const daysLeft = Math.ceil((nextReset.getTime() - now.getTime()) / 86400000);
+            const resetLabel = nextReset.toLocaleDateString('es-UY', {
+              day: 'numeric', month: 'long', timeZone: 'UTC',
+            });
+            return `Cuota mensual · reset el ${resetLabel} (en ${daysLeft}d)`;
+          })()}
         </div>
       )}
 

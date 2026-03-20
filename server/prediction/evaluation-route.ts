@@ -82,6 +82,11 @@ function buildSyntheticRecord(
     ui_clear_or_confusing:    null,
     runtime_issue:            null,
     runtime_notes:            null,
+
+    blend_applied:            null,
+    blend_market_prob_home:   null,
+    blend_market_prob_draw:   null,
+    blend_market_prob_away:   null,
   };
 }
 

@@ -379,7 +379,6 @@ Entry shape:
     logoUrl:             '{logoUrl}',
     seasonLabel:         '{seasonLabel}',
     seasonKind:          '{seasonKind}',
-    defaultMode:         '{mode}',
     isTournament:        {isTournament},
     expectedSeasonGames: {expectedSeasonGames},
   },
@@ -420,22 +419,37 @@ Read the file. Locate the `KNOWN_PROFILES` object, inside the `// API-Football c
 
 ---
 
-## Step 7c — Update .env (PREDICTION_V3_SHADOW_ENABLED and NEXUS_SHADOW_ENABLED)
+## Step 7c — Update .env and .env.production (shadow vars)
 
 **Skip this step if `isTournament=true`.**
 
-Read the current `.env` file. Append `comp:apifootball:{leagueId}` to **both** variables:
+### 7c.1 — Update .env (local dev)
+
+Read the current `.env` file. Append `comp:apifootball:{leagueId}` to **all four** shadow variables:
 
 ```
+PREDICTION_MAIN_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
 PREDICTION_V3_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
+PREDICTION_NEXUS_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
 NEXUS_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
 ```
 
-Note: there is also a `PREDICTION_NEXUS_SHADOW_ENABLED` variable in `.env` but the NEXUS runner reads `NEXUS_SHADOW_ENABLED` (canonical name per spec §S8.2). Update both to keep them in sync, but only `NEXUS_SHADOW_ENABLED` actually gates execution.
+Note: the NEXUS runner reads `NEXUS_SHADOW_ENABLED` (canonical name per spec §S8.2). `PREDICTION_NEXUS_SHADOW_ENABLED` is kept in sync as an alias. Update all four to keep dev and prod consistent.
 
 **Why this matters:** Even with `match-input-adapter.ts` fixed, `isV3ShadowEnabled()` and the NEXUS runner gate on these env vars. A league not listed here will never receive shadow predictions.
 
-Note: `.env` is local-only and gitignored. The equivalent for production is the Render environment variables panel — remind the user to update it before deploying.
+### 7c.2 — Update .env.production (Render / production)
+
+Read the current `.env.production` file. Append `comp:apifootball:{leagueId}` to the same four variables:
+
+```
+PREDICTION_MAIN_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
+PREDICTION_V3_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
+PREDICTION_NEXUS_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
+NEXUS_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
+```
+
+**Why this matters:** `.env.production` is committed to the repo and loaded by the `start` script via `dotenv-cli -e .env.production`. Render picks it up automatically on each deploy — no manual Dashboard editing needed. Without this update, production will never enable shadow predictions for the new league even after deploy.
 
 ---
 
@@ -537,9 +551,10 @@ This script (`scripts/dev-restart.sh`) kills all previous processes, waits for p
 ## Step 10 — Report result and post-activation checklist
 
 Report:
-1. The 3 files edited, one line each describing the change
+1. All files edited, one line each describing the change
 2. Build and typecheck status
 3. Dev server restarted — new league visible in `/admin`
+4. `.env.production` updated — Render will pick up the new shadow vars automatically on next `git push` (no manual Dashboard editing needed)
 
 ### Post-activation validation checklist
 
@@ -607,6 +622,8 @@ If the user chooses 4: close with the same note as "NO" above.
 - Do NOT commit or push — wait for explicit user instruction
 - Do NOT add to COMPETITIONS env var
 - `newsKey` must always be `null`
+- Do NOT add `defaultMode` to competition-registry.ts entries — the field does not exist in `CompetitionRegistryEntry` and will cause a typecheck error
+- Step 7c MUST update BOTH `.env` (local) AND `.env.production` (committed/production). Skipping `.env.production` means Render will never enable shadow predictions for the new league
 - If leagueId already exists in COMPETITION_REGISTRY → abort immediately
 - Do NOT ask the user about `hasSubTournaments`, `aperturaSeason`, or `isTournament` — always auto-detect from AF fixtures in Step 3.5. Users frequently don't know the answer or answer incorrectly.
 - Do NOT skip Step 3.5 even if the league "looks simple". The AF round names are the only reliable source of truth for format detection.

@@ -86,6 +86,14 @@ export interface ForwardValidationRecord {
   // ── Evaluation ─────────────────────────────────────────────────────────
   evaluation_eligible: boolean;
   excluded_reason: string | null;
+
+  // ── Blend context ───────────────────────────────────────────────────────
+  // Odds actually used during prediction generation (pre-kickoff snapshot).
+  // null when no odds were available or match was NOT_ELIGIBLE.
+  blend_applied: boolean | null;
+  blend_market_prob_home: number | null;
+  blend_market_prob_draw: number | null;
+  blend_market_prob_away: number | null;
 }
 
 // ── Store file ─────────────────────────────────────────────────────────────
