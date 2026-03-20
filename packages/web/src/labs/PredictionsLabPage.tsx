@@ -445,7 +445,7 @@ export function PredictionsLabPage() {
       {!loading && !error && snapshots.length === 0 && (
         <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#475569', background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 8, padding: '16px 20px' }}>
           Sin predicciones almacenadas. Activa{' '}
-          <code style={{ color: '#facc15' }}>PREDICTION_NEXUS_SHADOW_ENABLED=comp:apifootball:140</code>{' '}
+          <code style={{ color: '#facc15' }}>PREDICTION_NEXUS_SHADOW_ENABLED={compFilter || 'comp:apifootball:140'}</code>{' '}
           para comenzar.
         </div>
       )}
