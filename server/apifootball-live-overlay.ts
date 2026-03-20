@@ -19,7 +19,7 @@
  * Un único call a /fixtures?live=all trae TODOS los partidos en vivo de todas las ligas.
  */
 import { isQuotaExhausted, isLiveBrakeActive, consumeRequest, markQuotaExhausted, getBudgetStats, getGlobalProviderClient } from '@sportpulse/canonical';
-import { isCompetitionEnabled } from './portal-config-store.js';
+import { isCompetitionEnabled, isSchedulerEnabled } from './portal-config-store.js';
 
 const BASE_URL = 'https://v3.football.api-sports.io';
 
@@ -219,6 +219,13 @@ export class ApifootballLiveOverlay {
       this.cache   = new Map();
       this.rawList = [];
       this.hasLive = false;
+      this.timer = setTimeout(() => void this.poll(), POLL_IDLE_MS);
+      return;
+    }
+
+    // Skip poll if scheduler is paused from admin panel
+    if (!isSchedulerEnabled()) {
+      console.log('[LiveOverlay] Scheduler pausado desde admin — poll omitido');
       this.timer = setTimeout(() => void this.poll(), POLL_IDLE_MS);
       return;
     }

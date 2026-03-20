@@ -100,6 +100,16 @@ function OpsInner({ token }: { token: string }) {
   const [todayData, setTodayData] = useState<TodayResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [environment, setEnvironment] = useState<'production' | 'development' | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/config', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { environment?: 'production' | 'development' } | null) => {
+        if (data?.environment) setEnvironment(data.environment);
+      })
+      .catch(() => undefined);
+  }, [token]);
 
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [detailData, setDetailData] = useState<ProviderDetailResponse | null>(null);
@@ -187,7 +197,27 @@ function OpsInner({ token }: { token: string }) {
         {/* ── Page header ── */}
         <div style={S.header}>
           <div>
-            <div style={S.title}>API Usage — Ops</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={S.title}>API Usage — Ops</div>
+              {environment && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.07em',
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    background: environment === 'production' ? '#dc262622' : '#1d4ed822',
+                    color: environment === 'production' ? '#dc2626' : '#1d4ed8',
+                    border: `1px solid ${environment === 'production' ? '#dc262644' : '#1d4ed844'}`,
+                    textTransform: 'uppercase' as const,
+                    flexShrink: 0,
+                  }}
+                >
+                  {environment === 'production' ? 'PRODUCCION' : 'DEV'}
+                </span>
+              )}
+            </div>
             {todayData && (
               <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginTop: 3 }}>
                 Fecha: <strong style={{ color: 'var(--sp-text)' }}>{todayData.date}</strong>

@@ -407,7 +407,7 @@ async function main() {
 
   // News service — demand-pull, cached per league (30-60 min TTL). Uses RSS feeds (no API key required).
 
-  // Video service — YouTube Data API v3, cached 45 min
+  // Video service — YouTube Data API v3, cached 6h (mem + disk)
   const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY ?? '';
   if (!YOUTUBE_API_KEY) {
     console.warn('[VideoService] YOUTUBE_API_KEY not set — video highlights will be disabled');

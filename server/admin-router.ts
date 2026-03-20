@@ -40,7 +40,10 @@ export function registerAdminRoutes(app: FastifyInstance, snapshotStore: Snapsho
     if (!validateAuth(request.headers.authorization)) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
-    return reply.header('Cache-Control', 'no-store').send(getFullConfig());
+    return reply.header('Cache-Control', 'no-store').send({
+      ...getFullConfig(),
+      environment: process.env.RENDER === 'true' ? 'production' : 'development',
+    });
   });
 
   // PUT /api/admin/config — actualiza config

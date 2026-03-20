@@ -28,6 +28,7 @@ interface PortalConfig {
     updatedBy: string;
   };
   schedulerEnabled: boolean;
+  environment?: 'production' | 'development';
 }
 
 type SaveState = 'idle' | 'saving' | 'ok' | 'error';
@@ -351,7 +352,27 @@ function AdminPanel({ token }: { token: string }) {
       <div style={{ ...S.card, maxWidth: 680 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={S.title}>SportPulse</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={S.title}>SportPulse</div>
+              {config.environment && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.07em',
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    background: config.environment === 'production' ? '#dc262622' : '#1d4ed822',
+                    color: config.environment === 'production' ? '#dc2626' : '#1d4ed8',
+                    border: `1px solid ${config.environment === 'production' ? '#dc262644' : '#1d4ed844'}`,
+                    textTransform: 'uppercase',
+                    flexShrink: 0,
+                  }}
+                >
+                  {config.environment === 'production' ? 'PRODUCCION' : 'DEV'}
+                </span>
+              )}
+            </div>
             <div style={S.subtitle}>Configuración del portal</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
               <a href="/admin/ops" style={{ fontSize: 12, color: 'var(--sp-primary)', textDecoration: 'none' }}>

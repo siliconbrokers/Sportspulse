@@ -27,6 +27,7 @@ import {
 } from '@sportpulse/canonical';
 import type { XgRecord } from '@sportpulse/prediction';
 import { normTeamName } from './injury-source.js';
+import { COMPETITION_REGISTRY } from '../competition-registry.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -40,25 +41,17 @@ const MAX_NEW_XG_FETCHES_PER_CYCLE = 20;
 const CACHE_ROOT = 'cache/xg';
 
 // ── League ID mapping ─────────────────────────────────────────────────────────
+// Derived automatically from COMPETITION_REGISTRY — no manual updates needed when leagues are added.
 
 const AF_LEAGUE_IDS: Record<string, number> = {
-  // Legacy IDs
+  // Legacy IDs (pre-canonical AF migration — kept for backwards compatibility)
   'comp:football-data:PD':  140,  // LaLiga
   'comp:football-data:PL':   39,  // Premier League
   'comp:openligadb:bl1':     78,  // Bundesliga
   'comp:thesportsdb:4432':  268,  // Liga Uruguaya
   'comp:sportsdb-ar:4406':  128,  // Liga Argentina
-  // API-Football canonical IDs (AF_CANONICAL_ENABLED=true)
-  'comp:apifootball:140':   140,
-  'comp:apifootball:39':     39,
-  'comp:apifootball:78':     78,
-  'comp:apifootball:268':   268,
-  'comp:apifootball:128':   128,
-  'comp:apifootball:262':   262,  // Liga MX
-  'comp:apifootball:71':     71,  // Brasileirão Série A
-  'comp:apifootball:135':   135,  // Serie A (Italy)
-  'comp:apifootball:94':     94,  // Primeira Liga (Portugal)
-  'comp:apifootball:265':   265,  // Primera División (Chile)
+  // All registered competitions (auto-derived — source of truth: competition-registry.ts)
+  ...Object.fromEntries(COMPETITION_REGISTRY.map((e) => [e.id, e.leagueId])),
 };
 
 // ── Disk cache types ───────────────────────────────────────────────────────────
