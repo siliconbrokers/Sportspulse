@@ -240,6 +240,21 @@ function ProviderCard({
         </div>
       )}
 
+      {/* Blocked calls */}
+      {(item.blockedToday ?? 0) > 0 && (
+        <div style={{ fontSize: 12, color: '#f97316', display: 'flex', gap: 5, alignItems: 'center' }}>
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            padding: '1px 5px', borderRadius: 3,
+            background: 'rgba(249,115,22,0.15)', color: '#f97316',
+          }}>
+            BLOQUEADAS
+          </span>
+          <span style={{ fontWeight: 600 }}>{fmtNum(item.blockedToday!)}</span>
+          <span style={{ color: 'var(--sp-text-40)' }}>llamadas no llegaron a la API hoy</span>
+        </div>
+      )}
+
       {/* Last seen */}
       <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginTop: 'auto' }}>
         Último evento: {relativeTime(item.lastSeenAtUtc)}

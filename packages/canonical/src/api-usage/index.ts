@@ -38,6 +38,10 @@ export function markQuotaExhausted(providerKey: ProviderKey = 'api-football'): v
   getOrWarnLedger()?.markQuotaExhausted(providerKey);
 }
 
+export function markBlocked(providerKey: ProviderKey = 'api-football'): void {
+  getOrWarnLedger()?.markBlocked(providerKey);
+}
+
 export function isLiveBrakeActive(providerKey: ProviderKey = 'api-football'): boolean {
   return _globalLedger?.isLiveBrakeActive(providerKey) ?? false;
 }

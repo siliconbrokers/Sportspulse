@@ -22,6 +22,7 @@ import {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
+  markBlocked,
   getGlobalProviderClient,
   QuotaExhaustedError,
 } from '@sportpulse/canonical';
@@ -462,7 +463,7 @@ export class XgSource {
       // Remaining fixtures are picked up in subsequent cycles.
       let fetched = 0;
       for (const f of toFetch) {
-        if (isQuotaExhausted()) break;
+        if (isQuotaExhausted()) { markBlocked(); break; }
         if (fetched >= MAX_NEW_XG_FETCHES_PER_CYCLE) break;
 
         // Resolve canonical team IDs from AF team names via normTeamName matching

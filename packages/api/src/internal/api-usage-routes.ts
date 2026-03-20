@@ -46,6 +46,7 @@ export interface IApiUsageLedger {
     providerKey: ProviderKey,
     limit: number,
   ): { consumerId: string; count: number; totalUnits: number }[];
+  getTodayBlockedCount(providerKey: ProviderKey): number;
 }
 
 // ── Private helpers ────────────────────────────────────────────────────────
@@ -165,6 +166,7 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
         lastSeenAtUtc: latestRollup?.lastSeenAtUtc ?? null,
         byConsumerType,
         dataSource, // 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED'
+        blockedToday: ledger.getTodayBlockedCount(quota.providerKey),
       };
     });
 

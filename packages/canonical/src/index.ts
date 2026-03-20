@@ -57,6 +57,7 @@ export {
   isQuotaExhausted,
   consumeRequest,
   markQuotaExhausted,
+  markBlocked,
   isLiveBrakeActive,
   getBudgetStats,
   InstrumentedProviderClient,

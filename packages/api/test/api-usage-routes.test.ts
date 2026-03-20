@@ -90,18 +90,19 @@ function makeRollup(overrides: Partial<DailyRollup> = {}): DailyRollup {
 
 // ── Mock ledger builder ────────────────────────────────────────────────────
 
-function makeMockLedger(overrides: Partial<{
-  rollups: DailyRollup[];
-  quotas: ProviderQuotaDefinition[];
-  events: Map<ProviderKey, ApiUsageEvent[]>;
-  topOps: { operationKey: string; count: number; totalUnits: number }[];
-  topConsumers: { consumerId: string; count: number; totalUnits: number }[];
-}>= {}): IApiUsageLedger {
+function makeMockLedger(
+  overrides: Partial<{
+    rollups: DailyRollup[];
+    quotas: ProviderQuotaDefinition[];
+    events: Map<ProviderKey, ApiUsageEvent[]>;
+    topOps: { operationKey: string; count: number; totalUnits: number }[];
+    topConsumers: { consumerId: string; count: number; totalUnits: number }[];
+  }> = {},
+): IApiUsageLedger {
   const rollups = overrides.rollups ?? [makeRollup()];
   const quotas = overrides.quotas ?? [makeQuota()];
-  const eventsMap = overrides.events ?? new Map<ProviderKey, ApiUsageEvent[]>([
-    ['api-football', [makeEvent()]],
-  ]);
+  const eventsMap =
+    overrides.events ?? new Map<ProviderKey, ApiUsageEvent[]>([['api-football', [makeEvent()]]]);
   const topOps = overrides.topOps ?? [{ operationKey: 'fixtures', count: 3, totalUnits: 3 }];
   const topConsumers = overrides.topConsumers ?? [];
 
@@ -124,10 +125,10 @@ function makeMockLedger(overrides: Partial<{
       }
       return { rollup, quota, percentUsed, warningLevel };
     },
-    getRecentEvents: (pk: ProviderKey, _limit = 50) =>
-      (eventsMap.get(pk) ?? []).slice(0, _limit),
+    getRecentEvents: (pk: ProviderKey, _limit = 50) => (eventsMap.get(pk) ?? []).slice(0, _limit),
     getProviderTopOps: (_pk: ProviderKey, _limit: number) => topOps.slice(0, _limit),
     getProviderTopConsumers: (_pk: ProviderKey, _limit: number) => topConsumers.slice(0, _limit),
+    getTodayBlockedCount: (_pk: ProviderKey) => 0,
   };
 }
 
@@ -157,7 +158,11 @@ describe('GET /api/internal/ops/api-usage/providers/:providerKey', () => {
     const body = res.json<{ topOperations: unknown[] }>();
     expect(Array.isArray(body.topOperations)).toBe(true);
     expect(body.topOperations.length).toBeGreaterThan(0);
-    const first = body.topOperations[0] as { operationKey: string; count: number; totalUnits: number };
+    const first = body.topOperations[0] as {
+      operationKey: string;
+      count: number;
+      totalUnits: number;
+    };
     expect(typeof first.operationKey).toBe('string');
     expect(typeof first.count).toBe('number');
     expect(typeof first.totalUnits).toBe('number');
@@ -240,7 +245,10 @@ describe('GET /api/internal/ops/api-usage/events', () => {
         makeQuota({ providerKey: 'api-football' }),
         makeQuota({ providerKey: 'football-data', displayName: 'Football-Data' }),
       ],
-      rollups: [makeRollup({ providerKey: 'api-football' }), makeRollup({ providerKey: 'football-data' })],
+      rollups: [
+        makeRollup({ providerKey: 'api-football' }),
+        makeRollup({ providerKey: 'football-data' }),
+      ],
       events: new Map<ProviderKey, ApiUsageEvent[]>([
         ['api-football', [afEvent]],
         ['football-data', [fdEvent]],

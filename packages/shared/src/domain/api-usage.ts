@@ -25,6 +25,7 @@ export type ConsumerType =
   | 'MANUAL_SCRIPT'
   | 'DEV_EXPERIMENT'
   | 'RECONCILIATION' // closes the gap between ledger-observed and provider-reported quota
+  | 'QUOTA_BLOCKED' // call was blocked locally — quota exhausted, never reached the API
   | 'UNKNOWN';
 
 // ── Priority tiers ────────────────────────────────────────────────────────────

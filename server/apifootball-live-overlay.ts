@@ -18,7 +18,7 @@
  *
  * Un único call a /fixtures?live=all trae TODOS los partidos en vivo de todas las ligas.
  */
-import { isQuotaExhausted, isLiveBrakeActive, consumeRequest, markQuotaExhausted, getBudgetStats, getGlobalProviderClient } from '@sportpulse/canonical';
+import { isQuotaExhausted, isLiveBrakeActive, consumeRequest, markQuotaExhausted, markBlocked, getBudgetStats, getGlobalProviderClient } from '@sportpulse/canonical';
 import { isCompetitionEnabled, isSchedulerEnabled } from './portal-config-store.js';
 
 const BASE_URL = 'https://v3.football.api-sports.io';
@@ -122,6 +122,8 @@ export class ApifootballLiveOverlay {
   private hasLive = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private _started = false;
+  /** True after the first poll attempt. Periodic polls respect scheduler pause; the initial fetch on startup does not. */
+  private _initialFetchDone = false;
 
   /** Numeric league IDs extracted from trackedCompetitionIds (e.g. "comp:apifootball:140" → 140). */
   private readonly trackedLeagueIds: Set<number>;
@@ -223,16 +225,19 @@ export class ApifootballLiveOverlay {
       return;
     }
 
-    // Skip poll if scheduler is paused from admin panel
-    if (!isSchedulerEnabled()) {
+    // Skip poll if scheduler is paused — but always run the initial fetch on startup
+    // so live scores are populated immediately even when the scheduler is paused.
+    if (!isSchedulerEnabled() && this._initialFetchDone) {
       console.log('[LiveOverlay] Scheduler pausado desde admin — poll omitido');
       this.timer = setTimeout(() => void this.poll(), POLL_IDLE_MS);
       return;
     }
+    this._initialFetchDone = true;
 
     let nextInterval: number;
 
     if (isQuotaExhausted()) {
+      markBlocked();
       nextInterval = POLL_BUDGET_MS;
       const stats = getBudgetStats();
       console.log(`[LiveOverlay] Cuota agotada (${stats.requestsToday}/${stats.limit} req hoy) — próximo poll en 20 min`);

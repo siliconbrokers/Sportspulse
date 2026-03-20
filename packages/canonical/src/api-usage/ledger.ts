@@ -87,6 +87,7 @@ export class ApiUsageLedger {
   private readonly stmtGetProviderTopConsumers: Database.Statement;
   private readonly stmtGetTodayObservedUnits: Database.Statement;
   private readonly stmtUpsertReconciliation: Database.Statement;
+  private readonly stmtGetTodayBlocked: Database.Statement;
 
   constructor(dbPath: string) {
     if (dbPath !== ':memory:') {
@@ -185,6 +186,12 @@ export class ApiUsageLedger {
       SELECT COALESCE(SUM(used_units), 0) as total
       FROM api_usage_daily_rollups
       WHERE provider_key = ? AND usage_date_local = ? AND consumer_type != 'RECONCILIATION'
+    `);
+
+    this.stmtGetTodayBlocked = this.db.prepare(`
+      SELECT COUNT(*) as count
+      FROM api_usage_events
+      WHERE provider_key = ? AND usage_date_local = ? AND error_code = 'QUOTA_BLOCKED'
     `);
 
     this.stmtUpsertReconciliation = this.db.prepare(`
@@ -529,6 +536,48 @@ export class ApiUsageLedger {
       brakeActive: this.isLiveBrakeActive('api-football'),
       quotaExhaustedUntil: exhaustedUntil,
     };
+  }
+
+  /**
+   * Records a blocked API call — one that was skipped because quota was exhausted.
+   * usageUnits=0 so it does not inflate quota counters.
+   */
+  markBlocked(providerKey: ProviderKey = 'api-football'): void {
+    const now = new Date().toISOString();
+    this.recordEvent({
+      id: `blocked-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      providerKey,
+      usageDateLocal: currentDayUtc(),
+      unitType: 'REQUEST',
+      usageUnits: 0,
+      consumerType: 'QUOTA_BLOCKED',
+      consumerId: null,
+      moduleKey: 'quota-guard',
+      operationKey: 'blocked',
+      requestMethod: 'GET',
+      endpointTemplate: 'unknown',
+      statusCode: null,
+      success: false,
+      rateLimited: false,
+      cacheHit: false,
+      startedAtUtc: now,
+      finishedAtUtc: now,
+      latencyMs: 0,
+      remoteLimit: null,
+      remoteRemaining: null,
+      remoteResetAtUtc: null,
+      errorCode: 'QUOTA_BLOCKED',
+      errorClass: null,
+      requestId: null,
+      metadataJson: null,
+      createdAtUtc: now,
+    });
+  }
+
+  /** Returns the number of blocked calls (quota exhausted) recorded today for the given provider. */
+  getTodayBlockedCount(providerKey: ProviderKey = 'api-football'): number {
+    const result = this.stmtGetTodayBlocked.get(providerKey, currentDayUtc()) as { count: number };
+    return result.count;
   }
 
   // ── Legacy migration ──────────────────────────────────────────────────────

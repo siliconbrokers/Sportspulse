@@ -22,6 +22,7 @@ export interface ProviderSummaryItem {
   warningLevel: 'NORMAL' | 'WARNING' | 'CRITICAL' | 'EXHAUSTED';
   lastSeenAtUtc: string | null;
   byConsumerType: { consumerType: string; usedUnits: number }[];
+  blockedToday?: number;
 }
 
 export interface TodayResponse {
