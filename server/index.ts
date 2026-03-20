@@ -459,14 +459,13 @@ async function main() {
   // In AF mode: map AF competition IDs → FD codes so V3 shadow can still query HistoricalStateService
   // (historical data is stored by FD code; team IDs differ but the runner falls back gracefully)
   if (AF_CANONICAL_ENABLED) {
-    // Derive AF→FD code mapping from COMPETITION_REGISTRY instead of hardcoding.
-    // Entries whose slug matches a known FD competition code are the only ones
-    // that have a direct football-data.org counterpart for historical state lookup.
-    const FD_CODE_SET = new Set(FD_COMPETITION_CODES);
+    // Map ALL AF competition IDs → their slug as log code.
+    // FD counterparts (PD/PL/BL1) share the same slug; AF-only leagues (MX/BR/URU/ARG) use theirs.
+    // The runner uses extractFinishedFromDataSource for AF canonical competitions —
+    // competitionCode is only used for logging and as logCode in runMatchPredictions.
+    // Without this, AF-only leagues are silently skipped (fdCompetitionCodeMap.get → undefined → continue).
     for (const entry of COMPETITION_REGISTRY) {
-      if (FD_CODE_SET.has(entry.slug)) {
-        fdCompetitionCodeMap.set(entry.id, entry.slug);
-      }
+      fdCompetitionCodeMap.set(entry.id, entry.slug);
     }
   }
   function normTeamName(s: string) {

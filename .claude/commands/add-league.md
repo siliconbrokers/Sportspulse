@@ -17,7 +17,7 @@ Adding a league requires exactly 3 file edits. Everything else auto-derives from
 | `server/competition-registry.ts` | Data source, shadow runner, portal-config catalog, incident source |
 | `server/prediction/xg-source.ts` | xG backfill for prediction engine |
 | `server/prediction/match-input-adapter.ts` | Competition profile for prediction engine (required for badge/pronósticos) |
-| `.env` `PREDICTION_V3_SHADOW_ENABLED` + `PREDICTION_NEXUS_SHADOW_ENABLED` | Enables shadow predictions for the league |
+| `.env` `PREDICTION_V3_SHADOW_ENABLED` + `NEXUS_SHADOW_ENABLED` | Enables shadow predictions for the league |
 | `packages/web/src/hooks/use-portal-config.ts` | Frontend default config fallback |
 
 The league is NOT auto-activated. The admin activates it via the back office toggle after the code is deployed.
@@ -420,16 +420,18 @@ Read the file. Locate the `KNOWN_PROFILES` object, inside the `// API-Football c
 
 ---
 
-## Step 7c — Update .env (PREDICTION_V3_SHADOW_ENABLED and PREDICTION_NEXUS_SHADOW_ENABLED)
+## Step 7c — Update .env (PREDICTION_V3_SHADOW_ENABLED and NEXUS_SHADOW_ENABLED)
 
 **Skip this step if `isTournament=true`.**
 
-Read the current `.env` file. Append `comp:apifootball:{leagueId}` to both variables:
+Read the current `.env` file. Append `comp:apifootball:{leagueId}` to **both** variables:
 
 ```
 PREDICTION_V3_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
-PREDICTION_NEXUS_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
+NEXUS_SHADOW_ENABLED=...,comp:apifootball:{leagueId}
 ```
+
+Note: there is also a `PREDICTION_NEXUS_SHADOW_ENABLED` variable in `.env` but the NEXUS runner reads `NEXUS_SHADOW_ENABLED` (canonical name per spec §S8.2). Update both to keep them in sync, but only `NEXUS_SHADOW_ENABLED` actually gates execution.
 
 **Why this matters:** Even with `match-input-adapter.ts` fixed, `isV3ShadowEnabled()` and the NEXUS runner gate on these env vars. A league not listed here will never receive shadow predictions.
 

@@ -28,6 +28,7 @@ import { runV3Engine } from '@sportpulse/prediction';
 import type { V3MatchRecord, CalibrationTable } from '@sportpulse/prediction';
 import type { LogisticCoefficients } from '@sportpulse/prediction';
 import { EventStatus } from '@sportpulse/canonical';
+import { COMPETITION_REGISTRY } from '../competition-registry.js';
 import type { PredictionStore } from './prediction-store.js';
 import { buildSnapshot } from './prediction-store.js';
 import type { EvaluationStore } from './evaluation-store.js';
@@ -353,10 +354,13 @@ export async function runV3Shadow(
       const currentSeasonMatches = allHistorical.filter((r) => r.utcDate >= boundary);
       const prevSeasonMatches    = allHistorical.filter((r) => r.utcDate <  boundary);
 
+      const regEntry = COMPETITION_REGISTRY.find((e) => e.id === competitionId);
+      const expGames = regEntry?.expectedSeasonGames ?? 38;
+
       await runMatchPredictions(
         dataSource, seasonId, competitionId, competitionCode,
         currentSeasonMatches, prevSeasonMatches, buildNowUtc, store, 'fd',
-        38, // FD leagues (EPL/PD): standard 38-game season
+        expGames,
         evaluationStore, oddsService, injurySource, xgSource, lineupSource, afOddsService,
       );
     }
