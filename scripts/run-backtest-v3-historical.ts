@@ -69,12 +69,20 @@ const AF_COMPS: Record<string, { leagueId: number; name: string; expectedSeasonG
 const HIST_AF_BASE = path.resolve(process.cwd(), 'cache/historical/apifootball');
 
 function loadHistoricalAF(leagueId: number, year: number): FinishedMatchRecord[] {
-  const file = path.join(HIST_AF_BASE, String(leagueId), `${year}.json`);
-  if (!fs.existsSync(file)) return [];
+  const dir = path.join(HIST_AF_BASE, String(leagueId));
+  // Try calendar-year format first (AR, BR, CL: "2024.json"),
+  // then European-season format (MX: "2023-24.json").
+  const calendarFile = path.join(dir, `${year}.json`);
+  const europeanFile = path.join(dir, `${year - 1}-${String(year).slice(-2)}.json`);
+  const file = fs.existsSync(calendarFile) ? calendarFile
+    : fs.existsSync(europeanFile) ? europeanFile
+    : null;
+  if (!file) return [];
   try {
     const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    // Stored as { season, matches: V3MatchRecord[] } — shape identical to FinishedMatchRecord
-    return (raw?.matches as FinishedMatchRecord[]) ?? [];
+    // Stored as { records: V3MatchRecord[] } (gen-calibration.ts format) or
+    // legacy { matches: V3MatchRecord[] } — both shapes are identical to FinishedMatchRecord
+    return ((raw?.records ?? raw?.matches) as FinishedMatchRecord[]) ?? [];
   } catch { return []; }
 }
 

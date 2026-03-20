@@ -50,6 +50,30 @@ const FIXTURES_DISK_TTL_MS = 24 * 60 * 60 * 1000;  // 24h disk (fixture list imm
 const LINEUPS_DISK_TTL_MS  = 24 * 60 * 60 * 1000;  // 24h disk (lineup confirmed, won't change)
 const CACHE_DIR = path.join(process.cwd(), 'cache', 'lineups');
 
+// Progressive historical archive — write-once, no TTL.
+// Accumulates from deployment date. Used for NEXUS Track 1B retraining.
+const HISTORICAL_LINEUPS_DIR = path.join(process.cwd(), 'cache', 'historical', 'lineups', 'apifootball');
+
+interface HistoricalLineupDoc {
+  version: 1;
+  fixtureId: number;
+  savedAt: string;
+  lineups: ConfirmedLineupRecord[];
+}
+
+function writeHistoricalLineups(fixtureId: number, lineups: ConfirmedLineupRecord[]): void {
+  if (lineups.length === 0) return;
+  const p = path.join(HISTORICAL_LINEUPS_DIR, `${fixtureId}.json`);
+  if (fs.existsSync(p)) return; // write-once: never overwrite
+  const tmp = `${p}.tmp`;
+  try {
+    fs.mkdirSync(HISTORICAL_LINEUPS_DIR, { recursive: true });
+    const doc: HistoricalLineupDoc = { version: 1, fixtureId, savedAt: new Date().toISOString(), lineups };
+    fs.writeFileSync(tmp, JSON.stringify(doc), 'utf-8');
+    fs.renameSync(tmp, p);
+  } catch { /* non-fatal */ }
+}
+
 interface FixturesCacheEntry {
   fixtures: AfFixture[];
   fetchedAt: number;
@@ -396,6 +420,7 @@ async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineu
   // Note: _afTeamName is stripped after resolution — not part of the contract type.
   setCachedLineups(fixtureId, records);
   writeLineupsDisk(fixtureId, records);
+  writeHistoricalLineups(fixtureId, records);
   return records;
 }
 

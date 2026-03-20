@@ -48,6 +48,31 @@ const MEM_CACHE_TTL_MS  = 6 * 60 * 60 * 1000;  // 6 hours — in-memory
 const DISK_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours — disk (injuries don't change intra-day)
 const CACHE_DIR = path.join(process.cwd(), 'cache', 'injuries');
 
+// Progressive historical archive — write-once, no TTL.
+// Accumulates from deployment date. Used for NEXUS Track 1C retraining.
+const HISTORICAL_INJURIES_DIR = path.join(process.cwd(), 'cache', 'historical', 'injuries', 'apifootball');
+
+interface HistoricalInjuriesDoc {
+  version: 1;
+  leagueId: number;
+  season: number;
+  date: string;
+  savedAt: string;
+  records: InjuryRecord[];
+}
+
+function writeHistoricalInjuries(leagueId: number, season: number, date: string, records: InjuryRecord[]): void {
+  const p = path.join(HISTORICAL_INJURIES_DIR, String(leagueId), String(season), `${date}.json`);
+  if (fs.existsSync(p)) return; // write-once: never overwrite
+  const tmp = `${p}.tmp`;
+  try {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const doc: HistoricalInjuriesDoc = { version: 1, leagueId, season, date, savedAt: new Date().toISOString(), records };
+    fs.writeFileSync(tmp, JSON.stringify(doc), 'utf-8');
+    fs.renameSync(tmp, p);
+  } catch { /* non-fatal */ }
+}
+
 // §SP-V4-12: Player stats cache — 30 days (stats stable during season)
 const PLAYER_STATS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PLAYER_STATS_CACHE_DIR = path.join(process.cwd(), 'cache', 'player-stats');
@@ -468,6 +493,7 @@ async function fetchInjuriesForDate(
   console.log(`[InjurySource] ${competitionId} ${dateIso}: ${records.length} injuries fetched (${entries.length} raw entries)`);
   setCache(leagueId, season, dateIso, records);
   writeDiskCache(leagueId, season, dateIso, records);
+  writeHistoricalInjuries(leagueId, season, dateIso, records);
   return records;
 }
 
