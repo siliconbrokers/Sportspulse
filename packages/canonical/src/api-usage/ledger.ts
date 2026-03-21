@@ -484,6 +484,12 @@ export class ApiUsageLedger {
       const dbUntil = new Date(persistedRow.exhausted_until_utc).getTime();
       if (Date.now() < dbUntil) {
         this.exhaustedUntil.set(providerKey, dbUntil); // re-warm mem cache
+        // Fix B: ensure rollup reflects full consumption after restart (partial rollup case)
+        const qb = this.quotaConfig.get(providerKey);
+        const limitB = qb?.dailyLimit ?? 0;
+        if (limitB > 0) {
+          this.reconcileFromProviderHeaders(providerKey, 0, limitB);
+        }
         return true;
       }
       // Expired — clear the persisted flag
@@ -550,6 +556,14 @@ export class ApiUsageLedger {
       .run(new Date(nextResetMs).toISOString(), providerKey);
 
     this.exhaustedUntil.set(providerKey, nextResetMs);
+
+    // Fix A: force-reconcile rollup to dailyLimit so the panel shows full consumption
+    // (provider error responses don't include quota headers, so the rollup may be partial)
+    const limit = quota?.dailyLimit ?? 0;
+    if (limit > 0) {
+      this.reconcileFromProviderHeaders(providerKey, 0, limit);
+    }
+
     console.warn(
       `[ApiUsageLedger] Quota exhausted for ${providerKey} — suspended until ${new Date(nextResetMs).toISOString()}`,
     );

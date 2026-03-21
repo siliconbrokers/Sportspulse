@@ -171,8 +171,9 @@ function ProviderCard({
                 {pct.toFixed(0)}%
               </span>
             )}
-            {/* "(parcial)" hint when data comes from ledger only */}
-            {dsKey === 'LEDGER_OBSERVED' && (
+            {/* "(parcial)" hint when data comes from ledger only — suppressed when exhausted
+                because Fix A/B already reconcile rollup to dailyLimit in that case */}
+            {dsKey === 'LEDGER_OBSERVED' && !item.isExhausted && (
               <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--sp-text-40)' }}>
                 (parcial)
               </span>

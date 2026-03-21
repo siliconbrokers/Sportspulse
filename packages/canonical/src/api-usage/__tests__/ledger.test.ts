@@ -166,6 +166,42 @@ describe('ApiUsageLedger', () => {
     expect(resetDate.getTime()).toBeLessThan(maxAllowed);
   });
 
+  // Fix A: markQuotaExhausted force-reconciles rollup to dailyLimit
+  it('markQuotaExhausted force-reconciles rollup so usedUnits equals dailyLimit (Fix A)', () => {
+    // Simulate partial ledger: 4237 units observed (as if rest went through before ledger started)
+    ledger.recordEvent(makeEvent({ usageUnits: 4237 }));
+    expect(ledger.getTodayRollup('api-football')!.usedUnits).toBe(4237);
+
+    // Mark quota exhausted — should force-reconcile to dailyLimit (7500)
+    ledger.markQuotaExhausted('api-football');
+
+    const rollup = ledger.getTodayRollup('api-football');
+    expect(rollup!.usedUnits).toBe(7500);
+  });
+
+  // Fix B: isQuotaExhausted DB hit path reconciles rollup on post-restart partial data
+  it('isQuotaExhausted DB hit reconciles rollup to dailyLimit after simulated restart (Fix B)', () => {
+    // Simulate restart: write exhausted_until_utc directly to DB (as markQuotaExhausted would have),
+    // but leave the rollup partial (4237 observed, like after restart with sparse ledger).
+    const db = (ledger as unknown as { db: import('better-sqlite3').Database }).db;
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    db.prepare(
+      'UPDATE provider_quota_config SET exhausted_until_utc = ? WHERE provider_key = ?',
+    ).run(tomorrow, 'api-football');
+
+    // Insert partial rollup (4237 units)
+    ledger.recordEvent(makeEvent({ usageUnits: 4237 }));
+    expect(ledger.getTodayRollup('api-football')!.usedUnits).toBe(4237);
+
+    // isQuotaExhausted() hits the DB branch → triggers Fix B reconciliation
+    const exhausted = ledger.isQuotaExhausted('api-football');
+    expect(exhausted).toBe(true);
+
+    // Rollup must now equal dailyLimit (7500)
+    const rollup = ledger.getTodayRollup('api-football');
+    expect(rollup!.usedUnits).toBe(7500);
+  });
+
   it('consumeRequest compatibility facade works', () => {
     ledger.consumeRequest();
     const stats = ledger.getBudgetStats();

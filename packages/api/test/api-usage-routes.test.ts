@@ -352,6 +352,30 @@ describe('GET /api/internal/ops/api-usage/today — isExhausted field', () => {
     expect(prov.isExhausted).toBe(true);
   });
 
+  it('effectiveUsedUnits equals dailyLimit when isExhausted and rollup was reconciled by Fix A/B', async () => {
+    // After Fix A/B, markQuotaExhausted() / isQuotaExhausted() DB hit forces reconciliation
+    // so usedUnits becomes 7500. The route should surface effectiveUsedUnits=7500 (not 4237).
+    app = buildTestApp(
+      makeMockLedger({
+        // Rollup after reconciliation: usedUnits=7500 (dailyLimit), no provider headers
+        rollups: [
+          makeRollup({ usedUnits: 7500, lastRemoteRemaining: null, lastRemoteLimit: null }),
+        ],
+        quotas: [makeQuota({ dailyLimit: 7500, hardStopThresholdPct: 95 })],
+        quotaExhaustedProviders: ['api-football'],
+      }),
+    );
+    const res = await app.inject({ method: 'GET', url: '/api/internal/ops/api-usage/today' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{
+      providers: { isExhausted: boolean; effectiveUsedUnits: number; dailyLimit: number }[];
+    }>();
+    const prov = body.providers[0];
+    expect(prov.isExhausted).toBe(true);
+    expect(prov.effectiveUsedUnits).toBe(7500);
+    expect(prov.dailyLimit).toBe(7500);
+  });
+
   it('isExhausted=true when isQuotaExhausted() returns true (post-restart scenario with stale ledger)', async () => {
     // Simulates Bug 4 / Fix 1 interaction: after restart, ledger has only 1 unit recorded
     // (last_remote_remaining=7499 from the one tracked call), but the persisted DB exhaustion
