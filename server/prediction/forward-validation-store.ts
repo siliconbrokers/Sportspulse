@@ -24,6 +24,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 
@@ -108,10 +109,7 @@ interface StoreFileDoc {
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const DEFAULT_FILE_PATH = path.resolve(
-  process.cwd(),
-  'cache/predictions/forward-validation.json',
-);
+const DEFAULT_FILE_PATH = path.join(CACHE_BASE, 'predictions/forward-validation.json');
 
 // ── ForwardValidationStore ─────────────────────────────────────────────────
 

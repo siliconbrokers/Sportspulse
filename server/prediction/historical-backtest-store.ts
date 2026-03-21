@@ -14,6 +14,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 
@@ -130,10 +131,7 @@ interface StoreFileDoc {
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const DEFAULT_FILE_PATH = path.resolve(
-  process.cwd(),
-  'cache/predictions/historical-backtest.json',
-);
+const DEFAULT_FILE_PATH = path.join(CACHE_BASE, 'predictions/historical-backtest.json');
 
 // ── HistoricalBacktestStore ────────────────────────────────────────────────
 

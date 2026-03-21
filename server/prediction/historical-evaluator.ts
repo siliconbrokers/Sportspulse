@@ -17,6 +17,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { CACHE_BASE } from '../cache-dir.js';
 
 import type { HistoricalBacktestSnapshot } from './historical-backtest-store.js';
 
@@ -26,10 +27,7 @@ const EPSILON = 1e-15;
 const OUTCOMES = ['HOME_WIN', 'DRAW', 'AWAY_WIN'] as const;
 type Outcome = (typeof OUTCOMES)[number];
 
-const DEFAULT_FILE_PATH = path.resolve(
-  process.cwd(),
-  'cache/predictions/historical-evaluation.json',
-);
+const DEFAULT_FILE_PATH = path.join(CACHE_BASE, 'predictions/historical-evaluation.json');
 
 // ── Sub-types ─────────────────────────────────────────────────────────────
 
