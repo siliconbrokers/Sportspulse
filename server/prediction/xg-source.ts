@@ -35,8 +35,10 @@ import { COMPETITION_REGISTRY } from '../competition-registry.js';
 /** TTL for in-memory fixture list cache (per league+season). */
 const FIXTURE_LIST_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-/** Max new fixture stats requests per getHistoricalXg call. Prevents backfill storm on fresh deploys. */
-const MAX_NEW_XG_FETCHES_PER_CYCLE = 20;
+/** Max new fixture stats requests per getHistoricalXg call. Prevents backfill storm on fresh deploys.
+ *  Kept low (3) to avoid burning API-Football quota during live refresh cycles (every 2min in LIVE tier).
+ *  Remaining fixtures are picked up in subsequent cycles over time. */
+const MAX_NEW_XG_FETCHES_PER_CYCLE = 3;
 
 /** Root directory for disk cache (relative to cwd). */
 const CACHE_ROOT = 'cache/xg';
