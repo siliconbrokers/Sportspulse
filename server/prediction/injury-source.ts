@@ -549,6 +549,12 @@ export class InjurySource {
     try {
       if (!process.env.APIFOOTBALL_KEY) return [];
 
+      // Solo fetchear lesiones para partidos dentro de las próximas 24h.
+      // No tiene valor predictivo cachear lesiones para partidos lejanos —
+      // los datos van a cambiar antes del kickoff.
+      const hoursToKickoff = (new Date(kickoffUtc).getTime() - Date.now()) / 3_600_000;
+      if (hoursToKickoff > 24) return [];
+
       // Extract YYYY-MM-DD from kickoffUtc (UTC date — matches the API's date param)
       const dateIso = kickoffUtc.slice(0, 10);
 
