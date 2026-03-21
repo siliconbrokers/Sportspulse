@@ -97,6 +97,7 @@ function makeMockLedger(
     events: Map<ProviderKey, ApiUsageEvent[]>;
     topOps: { operationKey: string; count: number; totalUnits: number }[];
     topConsumers: { consumerId: string; count: number; totalUnits: number }[];
+    quotaExhaustedProviders: ProviderKey[];
   }> = {},
 ): IApiUsageLedger {
   const rollups = overrides.rollups ?? [makeRollup()];
@@ -105,6 +106,7 @@ function makeMockLedger(
     overrides.events ?? new Map<ProviderKey, ApiUsageEvent[]>([['api-football', [makeEvent()]]]);
   const topOps = overrides.topOps ?? [{ operationKey: 'fixtures', count: 3, totalUnits: 3 }];
   const topConsumers = overrides.topConsumers ?? [];
+  const exhaustedProviders = new Set<ProviderKey>(overrides.quotaExhaustedProviders ?? []);
 
   const quotaStore: IQuotaConfigStore = { getAll: () => quotas };
 
@@ -131,6 +133,7 @@ function makeMockLedger(
     getProviderTopOps: (_pk: ProviderKey, _limit: number) => topOps.slice(0, _limit),
     getProviderTopConsumers: (_pk: ProviderKey, _limit: number) => topConsumers.slice(0, _limit),
     getTodayBlockedCount: (_pk: ProviderKey) => 0,
+    isQuotaExhausted: (pk: ProviderKey) => exhaustedProviders.has(pk),
   };
 }
 
@@ -311,5 +314,69 @@ describe('GET /api/internal/ops/api-usage/events', () => {
       url: '/api/internal/ops/api-usage/events?provider=unknown-provider',
     });
     expect(res.statusCode).toBe(404);
+  });
+});
+
+// ── /today — isExhausted field (Fix 4) ─────────────────────────────────────
+
+describe('GET /api/internal/ops/api-usage/today — isExhausted field', () => {
+  it('isExhausted=false when warningLevel is NORMAL', async () => {
+    // usedUnits=10, dailyLimit=100 → 10% → NORMAL
+    app = buildTestApp(
+      makeMockLedger({
+        rollups: [makeRollup({ usedUnits: 10, lastRemoteRemaining: 90 })],
+        quotas: [makeQuota({ dailyLimit: 100 })],
+      }),
+    );
+    const res = await app.inject({ method: 'GET', url: '/api/internal/ops/api-usage/today' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ providers: { isExhausted: boolean; warningLevel: string }[] }>();
+    const prov = body.providers[0];
+    expect(prov.warningLevel).toBe('NORMAL');
+    expect(prov.isExhausted).toBe(false);
+  });
+
+  it('isExhausted=true when usedUnits >= hardStopThresholdPct', async () => {
+    // usedUnits=96, dailyLimit=100 → 96% >= hardStopThresholdPct(95) → EXHAUSTED
+    app = buildTestApp(
+      makeMockLedger({
+        rollups: [makeRollup({ usedUnits: 96, lastRemoteRemaining: 4 })],
+        quotas: [makeQuota({ dailyLimit: 100, hardStopThresholdPct: 95 })],
+      }),
+    );
+    const res = await app.inject({ method: 'GET', url: '/api/internal/ops/api-usage/today' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ providers: { isExhausted: boolean; warningLevel: string }[] }>();
+    const prov = body.providers[0];
+    expect(prov.warningLevel).toBe('EXHAUSTED');
+    expect(prov.isExhausted).toBe(true);
+  });
+
+  it('isExhausted=true when isQuotaExhausted() returns true (post-restart scenario with stale ledger)', async () => {
+    // Simulates Bug 4 / Fix 1 interaction: after restart, ledger has only 1 unit recorded
+    // (last_remote_remaining=7499 from the one tracked call), but the persisted DB exhaustion
+    // flag tells isQuotaExhausted()=true. The route should override warningLevel→EXHAUSTED.
+    app = buildTestApp(
+      makeMockLedger({
+        rollups: [makeRollup({ usedUnits: 1, lastRemoteRemaining: 7499 })],
+        quotas: [makeQuota({ dailyLimit: 7500, hardStopThresholdPct: 95 })],
+        quotaExhaustedProviders: ['api-football'], // simulates persisted DB exhaustion (Fix 1)
+      }),
+    );
+    const res = await app.inject({ method: 'GET', url: '/api/internal/ops/api-usage/today' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{
+      providers: {
+        isExhausted: boolean;
+        providerReportedRemaining: number | null;
+        warningLevel: string;
+      }[];
+    }>();
+    const prov = body.providers[0];
+    // Despite stale providerReportedRemaining and sparse ledger, isExhausted must be true
+    expect(prov.isExhausted).toBe(true);
+    expect(prov.warningLevel).toBe('EXHAUSTED');
+    // providerReportedRemaining is still the raw stale value — frontend ignores it via isExhausted
+    expect(prov.providerReportedRemaining).toBe(7499);
   });
 });

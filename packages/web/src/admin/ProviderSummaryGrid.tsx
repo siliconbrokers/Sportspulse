@@ -77,14 +77,20 @@ function ProviderCard({
       ? Math.min(100, (displayUsed / activeLimit) * 100)
       : null;
 
-  // Remaining: prefer provider-reported value when available.
+  // Remaining: when exhausted, always show 0 — last_remote_remaining can be stale
+  // (e.g. 7499 from the first call of the day, even though quota was later depleted).
+  // Fix 4: isExhausted overrides any provider-reported or estimated value.
   const hasProviderRemaining = item.providerReportedRemaining !== null;
-  const remainingValue = hasProviderRemaining
-    ? item.providerReportedRemaining
-    : (isMonthly && item.monthlyLimit
-        ? Math.max(0, item.monthlyLimit - displayUsed)
-        : item.estimatedRemaining);
-  const remainingLabel = hasProviderRemaining ? 'restantes (provider)' : 'restantes (est.)';
+  const remainingValue = item.isExhausted
+    ? 0
+    : hasProviderRemaining
+      ? item.providerReportedRemaining
+      : (isMonthly && item.monthlyLimit
+          ? Math.max(0, item.monthlyLimit - displayUsed)
+          : item.estimatedRemaining);
+  const remainingLabel = item.isExhausted
+    ? 'restantes'
+    : hasProviderRemaining ? 'restantes (provider)' : 'restantes (est.)';
 
   const dsKey = item.dataSource ?? null;
 

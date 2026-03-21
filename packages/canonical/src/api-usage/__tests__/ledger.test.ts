@@ -78,7 +78,7 @@ describe('ApiUsageLedger', () => {
     expect(ledger.isQuotaExhausted('api-football')).toBe(false);
   });
 
-  it('isQuotaExhausted returns false for providers with dailyLimit=0', () => {
+  it('isQuotaExhausted returns false for providers with dailyLimit=0 and no monthlyLimit', () => {
     ledger.recordEvent(makeEvent({ providerKey: 'thesportsdb' }));
     expect(ledger.isQuotaExhausted('thesportsdb')).toBe(false);
   });
@@ -86,6 +86,84 @@ describe('ApiUsageLedger', () => {
   it('markQuotaExhausted sets in-memory exhaustion', () => {
     ledger.markQuotaExhausted('api-football');
     expect(ledger.isQuotaExhausted('api-football')).toBe(true);
+  });
+
+  // Fix 1: exhaustedUntil persists to DB and survives simulated restart
+  it('markQuotaExhausted persists to DB — isQuotaExhausted returns true on fresh ledger instance (restart simulation)', () => {
+    ledger.markQuotaExhausted('api-football');
+
+    // Simulate a restart: create a new ledger instance pointing to the same DB
+    // For in-memory DB this is not possible (each :memory: is separate),
+    // so we verify the DB value directly via the internal getDb() surface.
+    const db = (ledger as unknown as { db: import('better-sqlite3').Database }).db;
+    const row = db
+      .prepare('SELECT exhausted_until_utc FROM provider_quota_config WHERE provider_key = ?')
+      .get('api-football') as { exhausted_until_utc: string | null };
+    expect(row.exhausted_until_utc).not.toBeNull();
+    const storedUntil = new Date(row.exhausted_until_utc!).getTime();
+    expect(storedUntil).toBeGreaterThan(Date.now());
+  });
+
+  // Fix 2: monthly providers (the-odds-api) are properly detected as exhausted
+  it('isQuotaExhausted returns true for monthly provider when monthTotal >= monthlyLimit', () => {
+    const yearMonth = currentMonthInTimezone('UTC');
+    const today = `${yearMonth}-01`;
+    // the-odds-api has monthlyLimit: 20000 (seeded by default)
+    ledger.recordEvent(
+      makeEvent({ providerKey: 'the-odds-api', usageUnits: 20000, usageDateLocal: today }),
+    );
+    expect(ledger.isQuotaExhausted('the-odds-api')).toBe(true);
+  });
+
+  it('isQuotaExhausted returns false for monthly provider when monthTotal < monthlyLimit', () => {
+    const yearMonth = currentMonthInTimezone('UTC');
+    const today = `${yearMonth}-01`;
+    ledger.recordEvent(
+      makeEvent({ providerKey: 'the-odds-api', usageUnits: 100, usageDateLocal: today }),
+    );
+    expect(ledger.isQuotaExhausted('the-odds-api')).toBe(false);
+  });
+
+  // Fix 3: markQuotaExhausted for monthly provider computes reset to 1st of next month
+  it('markQuotaExhausted sets exhaustedUntil to 1st of next month for monthly providers', () => {
+    ledger.markQuotaExhausted('the-odds-api');
+
+    const db = (ledger as unknown as { db: import('better-sqlite3').Database }).db;
+    const row = db
+      .prepare('SELECT exhausted_until_utc FROM provider_quota_config WHERE provider_key = ?')
+      .get('the-odds-api') as { exhausted_until_utc: string | null };
+    expect(row.exhausted_until_utc).not.toBeNull();
+
+    const resetDate = new Date(row.exhausted_until_utc!);
+    // Must be the 1st of a month at 00:00 UTC
+    expect(resetDate.getUTCDate()).toBe(1);
+    expect(resetDate.getUTCHours()).toBe(0);
+    expect(resetDate.getUTCMinutes()).toBe(0);
+    // Must be in the future
+    expect(resetDate.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('markQuotaExhausted sets exhaustedUntil to next day midnight for daily providers', () => {
+    ledger.markQuotaExhausted('api-football');
+
+    const db = (ledger as unknown as { db: import('better-sqlite3').Database }).db;
+    const row = db
+      .prepare('SELECT exhausted_until_utc FROM provider_quota_config WHERE provider_key = ?')
+      .get('api-football') as { exhausted_until_utc: string | null };
+    expect(row.exhausted_until_utc).not.toBeNull();
+
+    const resetDate = new Date(row.exhausted_until_utc!);
+    // Must be midnight (00:00:00 UTC)
+    expect(resetDate.getUTCHours()).toBe(0);
+    expect(resetDate.getUTCMinutes()).toBe(0);
+    // Must be tomorrow or later
+    const tomorrow = new Date();
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    tomorrow.setUTCHours(0, 0, 0, 0);
+    expect(resetDate.getTime()).toBeGreaterThanOrEqual(tomorrow.getTime());
+    // Must not be as far as end of month (should be just 1 day ahead, not 30+)
+    const maxAllowed = Date.now() + 3 * 24 * 60 * 60 * 1000; // 3 days max
+    expect(resetDate.getTime()).toBeLessThan(maxAllowed);
   });
 
   it('consumeRequest compatibility facade works', () => {

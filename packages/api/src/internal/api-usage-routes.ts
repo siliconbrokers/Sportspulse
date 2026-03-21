@@ -51,6 +51,11 @@ export interface IApiUsageLedger {
     limit: number,
   ): { consumerId: string; count: number; totalUnits: number }[];
   getTodayBlockedCount(providerKey: ProviderKey): number;
+  /**
+   * Returns true if quota is currently exhausted for this provider.
+   * Checks in-memory flag, persisted DB flag (survives restarts), and ledger totals.
+   */
+  isQuotaExhausted(providerKey: ProviderKey): boolean;
 }
 
 // ── Private helpers ────────────────────────────────────────────────────────
@@ -187,6 +192,15 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
         else if (effectivePctUsed >= quota.warningThresholdPct) warningLevel = 'WARNING';
       }
 
+      // Fix 4: override warningLevel from persisted exhaustion state (Fix 1).
+      // After a restart, the ledger may have incomplete usage data (e.g. only 1 unit
+      // recorded if most calls went through before the ledger was in place), causing
+      // effectivePctUsed to appear low. isQuotaExhausted() checks the persisted DB flag
+      // so it correctly returns true even with sparse ledger data.
+      if (warningLevel !== 'EXHAUSTED' && ledger.isQuotaExhausted(quota.providerKey)) {
+        warningLevel = 'EXHAUSTED';
+      }
+
       return {
         providerKey: quota.providerKey,
         displayName: quota.displayName,
@@ -200,6 +214,9 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
         providerReportedLimit,
         discrepancyStatus,
         warningLevel, // calculado desde monthly o daily según corresponda
+        // Fix 4: explicit exhaustion flag so frontend can display remaining=0
+        // without relying on stale last_remote_remaining values
+        isExhausted: warningLevel === 'EXHAUSTED',
         lastSeenAtUtc: latestRollup?.lastSeenAtUtc ?? null,
         byConsumerType,
         dataSource, // 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED'

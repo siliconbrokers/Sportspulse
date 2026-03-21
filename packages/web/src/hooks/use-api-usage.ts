@@ -23,6 +23,8 @@ export interface ProviderSummaryItem {
   lastSeenAtUtc: string | null;
   byConsumerType: { consumerType: string; usedUnits: number }[];
   blockedToday?: number;
+  /** True when warningLevel === 'EXHAUSTED' — use to display remaining=0 regardless of stale provider-reported value. */
+  isExhausted?: boolean;
   /** IANA timezone in which the provider resets its quota. */
   quotaTimezone?: string;
   /** Whether this provider has a daily, monthly, or no quota window. */

@@ -96,6 +96,12 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
         WHERE provider_key = 'the-odds-api';
     `,
   },
+  {
+    version: 3,
+    sql: `
+      ALTER TABLE provider_quota_config ADD COLUMN exhausted_until_utc TEXT DEFAULT NULL;
+    `,
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

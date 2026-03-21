@@ -472,18 +472,47 @@ export class ApiUsageLedger {
   // ── Quota checks ──────────────────────────────────────────────────────────
 
   isQuotaExhausted(providerKey: ProviderKey): boolean {
-    // Check in-memory exhaustion flag first (set by markQuotaExhausted)
+    // 1. Mem cache (fast path — avoids DB query on every call)
     const exhaustedUntil = this.exhaustedUntil.get(providerKey) ?? 0;
     if (Date.now() < exhaustedUntil) return true;
 
-    const quota = this.quotaConfig.get(providerKey);
-    if (!quota || quota.dailyLimit === 0) return false;
+    // 2. DB fallback — survives server restarts (Fix 1)
+    const persistedRow = this.db
+      .prepare('SELECT exhausted_until_utc FROM provider_quota_config WHERE provider_key = ?')
+      .get(providerKey) as { exhausted_until_utc: string | null } | undefined;
+    if (persistedRow?.exhausted_until_utc) {
+      const dbUntil = new Date(persistedRow.exhausted_until_utc).getTime();
+      if (Date.now() < dbUntil) {
+        this.exhaustedUntil.set(providerKey, dbUntil); // re-warm mem cache
+        return true;
+      }
+      // Expired — clear the persisted flag
+      this.db
+        .prepare(
+          'UPDATE provider_quota_config SET exhausted_until_utc = NULL WHERE provider_key = ?',
+        )
+        .run(providerKey);
+    }
 
-    const tz = quota.timezone ?? 'UTC';
-    const result = this.stmtGetTodayTotal.get(providerKey, currentDayInTimezone(tz)) as {
-      total: number;
-    };
-    return result.total >= quota.dailyLimit;
+    // 3. Ledger-based check
+    const quota = this.quotaConfig.get(providerKey);
+    if (!quota) return false;
+
+    if (quota.dailyLimit > 0) {
+      // Daily provider
+      const tz = quota.timezone ?? 'UTC';
+      const result = this.stmtGetTodayTotal.get(providerKey, currentDayInTimezone(tz)) as {
+        total: number;
+      };
+      return result.total >= quota.dailyLimit;
+    }
+
+    if ((quota.monthlyLimit ?? 0) > 0) {
+      // Monthly provider — Fix 2: was always returning false due to dailyLimit === 0 short-circuit
+      return this.getMonthTotal(providerKey) >= (quota.monthlyLimit ?? 0);
+    }
+
+    return false; // no limit configured
   }
 
   isLiveBrakeActive(providerKey: ProviderKey = 'api-football'): boolean {
@@ -497,16 +526,32 @@ export class ApiUsageLedger {
   }
 
   markQuotaExhausted(providerKey: ProviderKey = 'api-football'): void {
-    const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
+    const quota = this.quotaConfig.get(providerKey as ProviderKey);
+    const tz = quota?.timezone ?? 'UTC';
     const todayInTz = currentDayInTimezone(tz); // 'YYYY-MM-DD'
     const [year, month, day] = todayInTz.split('-').map(Number);
-    // Compute the UTC instant of next UTC midnight of tomorrow's date in this timezone.
-    // For UTC providers: exact next UTC midnight. For non-UTC: within timezone-offset hours
-    // of the actual quota reset — a significant improvement over pure UTC for all providers.
-    const nextMidnightApprox = Date.UTC(year, month - 1, day + 1, 0, 0, 0);
-    this.exhaustedUntil.set(providerKey, nextMidnightApprox);
+
+    let nextResetMs: number;
+    if ((quota?.monthlyLimit ?? 0) > 0) {
+      // Fix 3: monthly providers reset on the 1st of next month at 00:00 UTC —
+      // not tomorrow. Using tomorrow was causing the system to retry after 1 day
+      // instead of waiting until the actual monthly reset.
+      const nextMonth = month === 12 ? 1 : month + 1;
+      const nextYear = month === 12 ? year + 1 : year;
+      nextResetMs = Date.UTC(nextYear, nextMonth - 1, 1, 0, 0, 0);
+    } else {
+      // Daily providers: next UTC midnight of tomorrow's date in provider timezone.
+      nextResetMs = Date.UTC(year, month - 1, day + 1, 0, 0, 0);
+    }
+
+    // Fix 1: persist to DB so exhaustion survives server restarts
+    this.db
+      .prepare('UPDATE provider_quota_config SET exhausted_until_utc = ? WHERE provider_key = ?')
+      .run(new Date(nextResetMs).toISOString(), providerKey);
+
+    this.exhaustedUntil.set(providerKey, nextResetMs);
     console.warn(
-      `[ApiUsageLedger] Quota exhausted for ${providerKey} — suspended until ${new Date(nextMidnightApprox).toISOString()}`,
+      `[ApiUsageLedger] Quota exhausted for ${providerKey} — suspended until ${new Date(nextResetMs).toISOString()}`,
     );
   }
 

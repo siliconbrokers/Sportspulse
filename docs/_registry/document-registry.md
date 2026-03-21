@@ -63,6 +63,10 @@
 | SPEC-SPORTPULSE-WEB-AUTH-AND-FREEMIUM-SURFACE | Web Auth and Freemium Surface | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.auth-and-freemium-surface.md |
 | SPEC-SPORTPULSE-WEB-NAVIGATION-AND-SHELL-ARCHITECTURE | Web Navigation and Shell Architecture | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.navigation-and-shell-architecture.md |
 | SPEC-SPORTPULSE-WEB-FRONTEND-MODERNIZATION | Frontend Modernization | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.frontend-modernization.md |
+| SPEC-SPORTPULSE-WEB-DESIGN-SYSTEM-FOUNDATION | Web Design System Foundation | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.design-system-foundation.md |
+| SPEC-SPORTPULSE-WEB-FUTURE-EXPERIENCE-ROADMAP | Future Experience Roadmap | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.future-experience-roadmap.md |
+| SPEC-SPORTPULSE-WEB-SITE-EXPERIENCE-CONFIG | Site Experience Config | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.site-experience-config.md |
+| SPEC-SPORTPULSE-WEB-THEME-AND-GLOBAL-ANNOUNCEMENT-SYSTEM | Web Theme and Global Announcement System | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.theme-and-global-announcement-system.md |
 | SPEC-SPORTPULSE-WEB-UI | UI Specification | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.web.ui.md |
 | SPEC-SPORTPULSE-WEB-DISPLAY-HINTS | Display Hints Specification | spec | active | 1.1.0 | docs/specs/portal/spec.sportpulse.web.display-hints.md |
 | SPEC-SPORTPULSE-WEB-MATCH-MAP-VISUAL-ENCODING | Match Map Visual Encoding | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.web.match-map-visual-encoding.md |
