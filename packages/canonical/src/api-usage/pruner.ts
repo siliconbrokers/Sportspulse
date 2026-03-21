@@ -33,4 +33,13 @@ export function runRetentionPruner(db: Database.Database): void {
         `${rollupsResult.changes} rollup rows (>${ROLLUPS_RETENTION_DAYS}d)`,
     );
   }
+
+  // Checkpoint the WAL after the DELETE so the WAL file does not grow unboundedly.
+  // TRUNCATE mode forces all dirty pages to the main db file and truncates the WAL to zero bytes.
+  try {
+    const result = db.pragma('wal_checkpoint(TRUNCATE)');
+    console.log('[ApiUsageLedger] WAL checkpoint after pruning: %o', result);
+  } catch (err) {
+    console.warn('[ApiUsageLedger] WAL checkpoint failed: %s', err);
+  }
 }

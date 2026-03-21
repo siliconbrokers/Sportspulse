@@ -1,10 +1,22 @@
 /**
  * quota-config.ts — Provider quota definitions stored in SQLite.
  * Spec: SPEC-SPORTPULSE-OPS-API-USAGE-GOVERNANCE §11.1
+ * Spec: SPEC-SPORTPULSE-OPS-QUOTA-LEDGER-TIMEZONE-AWARENESS §5.3
  */
 
 import type Database from 'better-sqlite3';
 import type { ProviderKey, ProviderQuotaDefinition } from '@sportpulse/shared';
+
+/**
+ * Derives the quota window type from a ProviderQuotaDefinition.
+ * Rule: if monthlyLimit > 0 → monthly; if dailyLimit > 0 → daily; else none.
+ * Mutually exclusive: a provider cannot have both dailyLimit > 0 and monthlyLimit > 0.
+ */
+export function quotaWindowType(quota: ProviderQuotaDefinition): 'daily' | 'monthly' | 'none' {
+  if ((quota.monthlyLimit ?? 0) > 0) return 'monthly';
+  if (quota.dailyLimit > 0) return 'daily';
+  return 'none';
+}
 
 // Default quota configs seeded on first startup
 const DEFAULTS: ProviderQuotaDefinition[] = [

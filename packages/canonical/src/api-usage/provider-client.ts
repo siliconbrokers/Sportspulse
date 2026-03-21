@@ -14,6 +14,7 @@
 import { randomUUID } from 'node:crypto';
 import type { ApiUsageEvent, ConsumerType, ProviderKey, PriorityTier } from '@sportpulse/shared';
 import type { ApiUsageLedger } from './ledger.js';
+import { currentDayInTimezone } from './date-utils.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,10 @@ export class QuotaExhaustedError extends Error {
 // ── InstrumentedProviderClient ────────────────────────────────────────────────
 
 export class InstrumentedProviderClient {
-  constructor(private readonly ledger: ApiUsageLedger) {}
+  constructor(
+    private readonly ledger: ApiUsageLedger,
+    private readonly providerTimezone: string = 'UTC',
+  ) {}
 
   /**
    * Makes a governed provider HTTP request.
@@ -197,7 +201,7 @@ export class InstrumentedProviderClient {
     const event: ApiUsageEvent = {
       id: randomUUID(),
       providerKey: params.providerKey,
-      usageDateLocal: params.startedAt.toISOString().slice(0, 10),
+      usageDateLocal: currentDayInTimezone(this.providerTimezone),
       unitType: 'REQUEST',
       usageUnits: params.quotaCost,
       consumerType: params.consumerType,

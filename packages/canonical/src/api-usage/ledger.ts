@@ -19,7 +19,8 @@ import type {
   QuotaWarningLevel,
 } from '@sportpulse/shared';
 import { runMigrations } from './migrations.js';
-import { QuotaConfigStore } from './quota-config.js';
+import { QuotaConfigStore, quotaWindowType } from './quota-config.js';
+import { currentDayInTimezone, currentMonthInTimezone } from './date-utils.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -46,8 +47,13 @@ interface LegacyBudgetDoc {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * currentDayUtc — kept ONLY for provider-agnostic internal uses (e.g. legacy migration
+ * date comparisons, markBlocked, consumeRequest compat shim) where UTC is semantically
+ * correct because these events are not tied to any specific provider's timezone.
+ */
 function currentDayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
+  return currentDayInTimezone('UTC');
 }
 
 function rowToRollup(row: RollupRow): DailyRollup {
@@ -273,14 +279,16 @@ export class ApiUsageLedger {
   }
 
   getTodayRollup(providerKey: ProviderKey): DailyRollup | null {
-    const rows = this.stmtGetTodayRollups.all(currentDayUtc()) as RollupRow[];
+    const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
+    const today = currentDayInTimezone(tz);
+    const rows = this.stmtGetTodayRollups.all(today) as RollupRow[];
     const providerRows = rows.filter((r) => r.provider_key === providerKey);
     if (providerRows.length === 0) return null;
 
     // Aggregate across all consumer types for a single provider summary
     const merged: DailyRollup = {
       providerKey,
-      usageDateLocal: currentDayUtc(),
+      usageDateLocal: today,
       consumerType: 'UNKNOWN',
       usedUnits: 0,
       successCount: 0,
@@ -311,9 +319,51 @@ export class ApiUsageLedger {
     return merged;
   }
 
+  /**
+   * Returns rollups for all providers, each queried against its own "current window"
+   * (daily or monthly) in the provider's configured timezone.
+   * Spec: SPEC-SPORTPULSE-OPS-QUOTA-LEDGER-TIMEZONE-AWARENESS §5.5
+   */
+  getAllCurrentWindowRollups(): DailyRollup[] {
+    const quotas = this.quotaConfig.getAll();
+    const results: DailyRollup[] = [];
+
+    for (const quota of quotas) {
+      const windowType = quotaWindowType(quota);
+      if (windowType === 'none') continue;
+
+      let rows: RollupRow[];
+      if (windowType === 'monthly') {
+        const yearMonth = currentMonthInTimezone(quota.timezone);
+        rows = this.db
+          .prepare(
+            `SELECT * FROM api_usage_daily_rollups
+             WHERE provider_key = ? AND usage_date_local LIKE ?`,
+          )
+          .all(quota.providerKey, `${yearMonth}-%`) as RollupRow[];
+      } else {
+        // daily
+        const dateKey = currentDayInTimezone(quota.timezone);
+        rows = this.db
+          .prepare(
+            `SELECT * FROM api_usage_daily_rollups
+             WHERE provider_key = ? AND usage_date_local = ?`,
+          )
+          .all(quota.providerKey, dateKey) as RollupRow[];
+      }
+
+      results.push(...rows.map(rowToRollup));
+    }
+
+    return results;
+  }
+
+  /**
+   * @deprecated Use getAllCurrentWindowRollups() which respects per-provider timezones.
+   * Kept as alias for backward compatibility during transition.
+   */
   getAllTodayRollups(): DailyRollup[] {
-    const rows = this.stmtGetTodayRollups.all(currentDayUtc()) as RollupRow[];
-    return rows.map(rowToRollup);
+    return this.getAllCurrentWindowRollups();
   }
 
   getRecentEvents(providerKey: ProviderKey, limit = 50): ApiUsageEvent[] {
@@ -372,17 +422,26 @@ export class ApiUsageLedger {
 
   /**
    * Returns total used units for a provider in a given calendar month.
+   * Spec: SPEC-SPORTPULSE-OPS-QUOTA-LEDGER-TIMEZONE-AWARENESS §5.6
+   *
    * @param providerKey Provider to query
-   * @param yearMonth   'YYYY-MM' format
+   * @param yearMonth   Optional 'YYYY-MM' format. When omitted, derived from the
+   *                    provider's configured timezone (correct current month for that provider).
    */
-  getMonthTotal(providerKey: ProviderKey, yearMonth: string): number {
+  getMonthTotal(providerKey: ProviderKey, yearMonth?: string): number {
+    let resolvedYearMonth = yearMonth;
+    if (!resolvedYearMonth) {
+      const quota = this.quotaConfig.get(providerKey);
+      const tz = quota?.timezone ?? 'UTC';
+      resolvedYearMonth = currentMonthInTimezone(tz);
+    }
     const result = this.db
       .prepare(
         `SELECT COALESCE(SUM(used_units), 0) as total
          FROM api_usage_daily_rollups
          WHERE provider_key = ? AND usage_date_local LIKE ?`,
       )
-      .get(providerKey, `${yearMonth}-%`) as { total: number };
+      .get(providerKey, `${resolvedYearMonth}-%`) as { total: number };
     return result.total;
   }
 
@@ -390,7 +449,8 @@ export class ApiUsageLedger {
     providerKey: ProviderKey,
     limit: number,
   ): { operationKey: string; count: number; totalUnits: number }[] {
-    return this.stmtGetProviderTopOps.all(providerKey, currentDayUtc(), limit) as {
+    const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
+    return this.stmtGetProviderTopOps.all(providerKey, currentDayInTimezone(tz), limit) as {
       operationKey: string;
       count: number;
       totalUnits: number;
@@ -401,7 +461,8 @@ export class ApiUsageLedger {
     providerKey: ProviderKey,
     limit: number,
   ): { consumerId: string; count: number; totalUnits: number }[] {
-    return this.stmtGetProviderTopConsumers.all(providerKey, currentDayUtc(), limit) as {
+    const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
+    return this.stmtGetProviderTopConsumers.all(providerKey, currentDayInTimezone(tz), limit) as {
       consumerId: string;
       count: number;
       totalUnits: number;
@@ -418,25 +479,34 @@ export class ApiUsageLedger {
     const quota = this.quotaConfig.get(providerKey);
     if (!quota || quota.dailyLimit === 0) return false;
 
-    const result = this.stmtGetTodayTotal.get(providerKey, currentDayUtc()) as { total: number };
+    const tz = quota.timezone ?? 'UTC';
+    const result = this.stmtGetTodayTotal.get(providerKey, currentDayInTimezone(tz)) as {
+      total: number;
+    };
     return result.total >= quota.dailyLimit;
   }
 
   isLiveBrakeActive(providerKey: ProviderKey = 'api-football'): boolean {
     const quota = this.quotaConfig.get(providerKey);
     if (!quota || quota.brakeLiveThreshold === 0) return false;
-    const result = this.stmtGetTodayTotal.get(providerKey, currentDayUtc()) as { total: number };
+    const tz = quota.timezone ?? 'UTC';
+    const result = this.stmtGetTodayTotal.get(providerKey, currentDayInTimezone(tz)) as {
+      total: number;
+    };
     return result.total >= quota.brakeLiveThreshold;
   }
 
   markQuotaExhausted(providerKey: ProviderKey = 'api-football'): void {
-    const now = new Date();
-    const nextMidnight = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
-    );
-    this.exhaustedUntil.set(providerKey, nextMidnight.getTime());
+    const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
+    const todayInTz = currentDayInTimezone(tz); // 'YYYY-MM-DD'
+    const [year, month, day] = todayInTz.split('-').map(Number);
+    // Compute the UTC instant of next UTC midnight of tomorrow's date in this timezone.
+    // For UTC providers: exact next UTC midnight. For non-UTC: within timezone-offset hours
+    // of the actual quota reset — a significant improvement over pure UTC for all providers.
+    const nextMidnightApprox = Date.UTC(year, month - 1, day + 1, 0, 0, 0);
+    this.exhaustedUntil.set(providerKey, nextMidnightApprox);
     console.warn(
-      `[ApiUsageLedger] Quota exhausted for ${providerKey} — suspended until ${nextMidnight.toISOString()}`,
+      `[ApiUsageLedger] Quota exhausted for ${providerKey} — suspended until ${new Date(nextMidnightApprox).toISOString()}`,
     );
   }
 
@@ -445,7 +515,8 @@ export class ApiUsageLedger {
    * Used by reconcileFromProviderHeaders to compute the gap without double-counting.
    */
   getTodayObservedUnits(providerKey: ProviderKey): number {
-    const result = this.stmtGetTodayObservedUnits.get(providerKey, currentDayUtc()) as {
+    const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
+    const result = this.stmtGetTodayObservedUnits.get(providerKey, currentDayInTimezone(tz)) as {
       total: number;
     };
     return result.total;
@@ -467,7 +538,13 @@ export class ApiUsageLedger {
     const ledgerObserved = this.getTodayObservedUnits(providerKey);
     const gap = providerUsed - ledgerObserved;
     if (gap <= 0) return; // ledger already accounts for equal or more — no reconciliation needed
-    this.stmtUpsertReconciliation.run(providerKey, currentDayUtc(), gap, new Date().toISOString());
+    const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
+    this.stmtUpsertReconciliation.run(
+      providerKey,
+      currentDayInTimezone(tz),
+      gap,
+      new Date().toISOString(),
+    );
   }
 
   getQuotaConfig(): QuotaConfigStore {
@@ -544,10 +621,11 @@ export class ApiUsageLedger {
    */
   markBlocked(providerKey: ProviderKey = 'api-football'): void {
     const now = new Date().toISOString();
+    const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
     this.recordEvent({
       id: `blocked-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       providerKey,
-      usageDateLocal: currentDayUtc(),
+      usageDateLocal: currentDayInTimezone(tz),
       unitType: 'REQUEST',
       usageUnits: 0,
       consumerType: 'QUOTA_BLOCKED',
@@ -576,7 +654,10 @@ export class ApiUsageLedger {
 
   /** Returns the number of blocked calls (quota exhausted) recorded today for the given provider. */
   getTodayBlockedCount(providerKey: ProviderKey = 'api-football'): number {
-    const result = this.stmtGetTodayBlocked.get(providerKey, currentDayUtc()) as { count: number };
+    const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
+    const result = this.stmtGetTodayBlocked.get(providerKey, currentDayInTimezone(tz)) as {
+      count: number;
+    };
     return result.count;
   }
 

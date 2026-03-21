@@ -28,6 +28,9 @@ export interface IQuotaConfigStore {
 }
 
 export interface IApiUsageLedger {
+  /** Returns rollups for each provider's current window (day or month) in their timezone. */
+  getAllCurrentWindowRollups(): DailyRollup[];
+  /** @deprecated Use getAllCurrentWindowRollups(). */
   getAllTodayRollups(): DailyRollup[];
   getQuotaConfig(): IQuotaConfigStore;
   getProviderSummary(providerKey: ProviderKey): {
@@ -36,7 +39,8 @@ export interface IApiUsageLedger {
     percentUsed: number;
     warningLevel: QuotaWarningLevel;
   };
-  getMonthTotal(providerKey: ProviderKey, yearMonth: string): number;
+  /** When yearMonth is omitted, the ledger derives it from the provider's timezone. */
+  getMonthTotal(providerKey: ProviderKey, yearMonth?: string): number;
   getRecentEvents(providerKey: ProviderKey, limit?: number): ApiUsageEvent[];
   getProviderTopOps(
     providerKey: ProviderKey,
@@ -71,12 +75,10 @@ function calcDiscrepancy(
 
 export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsageLedger): void {
   // GET /api/internal/ops/api-usage/today
-  // Returns daily summary for all providers
+  // Returns daily/monthly summary for all providers, each in their configured timezone.
   fastify.get('/api/internal/ops/api-usage/today', async (_req, reply) => {
-    const rollups = ledger.getAllTodayRollups();
+    const rollups = ledger.getAllCurrentWindowRollups();
     const configs = ledger.getQuotaConfig().getAll();
-    const nowUtc = new Date().toISOString();
-    const yearMonth = nowUtc.slice(0, 7); // 'YYYY-MM'
 
     const providers = configs.map((quota) => {
       const providerRollups = rollups.filter((r) => r.providerKey === quota.providerKey);
@@ -89,6 +91,40 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
       const dailyLimit = quota.dailyLimit;
       const monthlyLimit = quota.monthlyLimit ?? 0;
       const estimatedRemaining = dailyLimit > 0 ? Math.max(0, dailyLimit - usedUnits) : null;
+
+      // Derive quota window type and the current window date string for this provider.
+      const isMonthly = monthlyLimit > 0;
+      const quotaWindowTypeVal: 'daily' | 'monthly' | 'none' = isMonthly
+        ? 'monthly'
+        : dailyLimit > 0
+          ? 'daily'
+          : 'none';
+
+      // currentWindowDate: 'YYYY-MM' for monthly providers, 'YYYY-MM-DD' for daily.
+      // Derived in provider timezone so the UI can show "ventana: 2026-03 UTC" unambiguously.
+      const tz = quota.timezone;
+      let currentWindowDate: string;
+      if (isMonthly) {
+        // 'YYYY-MM' — computed in provider timezone
+        try {
+          currentWindowDate = new Intl.DateTimeFormat('en-CA', {
+            timeZone: tz,
+            year: 'numeric',
+            month: '2-digit',
+          })
+            .format(new Date())
+            .slice(0, 7);
+        } catch {
+          currentWindowDate = new Date().toISOString().slice(0, 7);
+        }
+      } else {
+        // 'YYYY-MM-DD' — computed in provider timezone
+        try {
+          currentWindowDate = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+        } catch {
+          currentWindowDate = new Date().toISOString().slice(0, 10);
+        }
+      }
 
       // Get latest provider-reported remaining from rollups (most recent lastSeenAtUtc)
       const latestRollup = providerRollups
@@ -120,7 +156,8 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
       let monthlyUsed: number | null = null;
       let monthlyWarningLevel: 'NORMAL' | 'WARNING' | 'CRITICAL' | 'EXHAUSTED' | null = null;
       if (monthlyLimit > 0) {
-        const ledgerMonthly = ledger.getMonthTotal(quota.providerKey, yearMonth);
+        // getMonthTotal() derives the correct month from provider timezone when yearMonth omitted
+        const ledgerMonthly = ledger.getMonthTotal(quota.providerKey);
         // Prefer provider-reported remaining when available (most accurate)
         monthlyUsed =
           providerReportedRemaining !== null
@@ -167,6 +204,10 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
         byConsumerType,
         dataSource, // 'PROVIDER_REPORTED' | 'LEDGER_OBSERVED'
         blockedToday: ledger.getTodayBlockedCount(quota.providerKey),
+        // Timezone-awareness fields (spec §5.8)
+        quotaTimezone: quota.timezone,
+        quotaWindowType: quotaWindowTypeVal,
+        currentWindowDate,
       };
     });
 

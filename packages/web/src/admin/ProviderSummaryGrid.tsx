@@ -155,7 +155,11 @@ function ProviderCard({
             </span>
             {' / '}
             {fmtNum(activeLimit)}
-            {isMonthly ? ' usadas este mes' : ' usadas'}
+            {item.quotaWindowType === 'monthly'
+              ? ' usadas este mes'
+              : item.quotaWindowType === 'daily'
+                ? ' usadas hoy'
+                : isMonthly ? ' usadas este mes' : ' usadas'}
             {pct !== null && (
               <span style={{ marginLeft: 6, color, fontWeight: 600 }}>
                 {pct.toFixed(0)}%
@@ -222,7 +226,35 @@ function ProviderCard({
           Sin límite configurado — {fmtNum(displayUsed)} unidades usadas
         </div>
       )}
-      {isMonthly && (
+      {/* Quota window footer — shows active window and timezone per provider */}
+      {item.quotaWindowType === 'monthly' && (
+        <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>
+          {(() => {
+            const tz = item.quotaTimezone ?? 'UTC';
+            const windowDate = item.currentWindowDate ?? '—';
+            const now = new Date();
+            // Compute next reset: first day of next month at 00:00 in the provider's timezone.
+            // We approximate by computing in UTC and noting the timezone for the user.
+            const nextReset = new Date(Date.UTC(
+              now.getUTCMonth() === 11 ? now.getUTCFullYear() + 1 : now.getUTCFullYear(),
+              now.getUTCMonth() === 11 ? 0 : now.getUTCMonth() + 1,
+              1, 0, 0, 0,
+            ));
+            const daysLeft = Math.ceil((nextReset.getTime() - now.getTime()) / 86400000);
+            const resetLabel = nextReset.toLocaleDateString('es-UY', {
+              day: 'numeric', month: 'long', timeZone: tz,
+            });
+            return `Cuota mensual · ventana: ${windowDate} (${tz}) · reset el ${resetLabel} (en ${daysLeft}d)`;
+          })()}
+        </div>
+      )}
+      {item.quotaWindowType === 'daily' && (
+        <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>
+          {`Cuota diaria · ${item.currentWindowDate ?? '—'} (${item.quotaTimezone ?? 'UTC'})`}
+        </div>
+      )}
+      {/* Fallback for items without quotaWindowType (older API responses) */}
+      {!item.quotaWindowType && isMonthly && (
         <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>
           {(() => {
             const now = new Date();

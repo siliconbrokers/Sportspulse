@@ -109,6 +109,7 @@ function makeMockLedger(
   const quotaStore: IQuotaConfigStore = { getAll: () => quotas };
 
   return {
+    getAllCurrentWindowRollups: () => rollups,
     getAllTodayRollups: () => rollups,
     getQuotaConfig: () => quotaStore,
     getProviderSummary: (pk: ProviderKey) => {
@@ -125,6 +126,7 @@ function makeMockLedger(
       }
       return { rollup, quota, percentUsed, warningLevel };
     },
+    getMonthTotal: (_pk: ProviderKey, _yearMonth?: string) => 0,
     getRecentEvents: (pk: ProviderKey, _limit = 50) => (eventsMap.get(pk) ?? []).slice(0, _limit),
     getProviderTopOps: (_pk: ProviderKey, _limit: number) => topOps.slice(0, _limit),
     getProviderTopConsumers: (_pk: ProviderKey, _limit: number) => topConsumers.slice(0, _limit),

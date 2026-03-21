@@ -629,3 +629,51 @@ export function loadScoreSnapshot(
     return null;
   }
 }
+
+/**
+ * Checks the health of score-snapshot files for the given competitions.
+ * Logs a warning if a file is missing or corrupt — never throws.
+ * Call at startup after data sources are initialized, before the server accepts requests.
+ */
+export function checkScoreSnapshotHealth(
+  competitions: Array<{ provider: string; competitionId: string }>,
+): void {
+  for (const { provider, competitionId } of competitions) {
+    const filePath = scoreSnapshotFilePath(provider, competitionId);
+    try {
+      if (!fs.existsSync(filePath)) {
+        console.warn(
+          '[Health] score-snapshot missing for %s — regression guard inactive',
+          competitionId,
+        );
+        continue;
+      }
+      let doc: unknown;
+      try {
+        doc = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      } catch {
+        console.warn(
+          '[Health] score-snapshot corrupt for %s — regression guard inactive',
+          competitionId,
+        );
+        continue;
+      }
+      const parsed = doc as ScoreSnapshotDoc;
+      if (!parsed?.scores || typeof parsed.scores !== 'object') {
+        console.warn(
+          '[Health] score-snapshot corrupt for %s — regression guard inactive',
+          competitionId,
+        );
+        continue;
+      }
+      const count = Object.keys(parsed.scores).length;
+      console.log('[Health] score-snapshot OK for %s (%d entries)', competitionId, count);
+    } catch {
+      // Unexpected error — still non-blocking
+      console.warn(
+        '[Health] score-snapshot check failed for %s — regression guard inactive',
+        competitionId,
+      );
+    }
+  }
+}

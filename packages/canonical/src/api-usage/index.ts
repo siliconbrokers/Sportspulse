@@ -1,8 +1,10 @@
 export { ApiUsageLedger } from './ledger.js';
 export { runRetentionPruner } from './pruner.js';
 export type { QuotaConfigStore } from './quota-config.js';
+export { quotaWindowType } from './quota-config.js';
 export { InstrumentedProviderClient, QuotaExhaustedError } from './provider-client.js';
 export type { ProviderCallContext } from './provider-client.js';
+export { currentDayInTimezone, currentMonthInTimezone } from './date-utils.js';
 
 // ── Standalone compatibility functions (af-budget.ts surface) ────────────────
 // These allow callers to import named functions instead of using the ledger instance.

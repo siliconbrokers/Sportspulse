@@ -23,6 +23,12 @@ export interface ProviderSummaryItem {
   lastSeenAtUtc: string | null;
   byConsumerType: { consumerType: string; usedUnits: number }[];
   blockedToday?: number;
+  /** IANA timezone in which the provider resets its quota. */
+  quotaTimezone?: string;
+  /** Whether this provider has a daily, monthly, or no quota window. */
+  quotaWindowType?: 'daily' | 'monthly' | 'none';
+  /** Current window identifier: 'YYYY-MM-DD' for daily, 'YYYY-MM' for monthly. */
+  currentWindowDate?: string;
 }
 
 export interface TodayResponse {

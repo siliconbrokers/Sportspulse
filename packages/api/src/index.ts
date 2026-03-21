@@ -7,3 +7,9 @@ export type { IPredictionService } from './ui/prediction-route.js';
 
 export { registerApiUsageRoutes } from './internal/api-usage-routes.js';
 export type { IApiUsageLedger, IQuotaConfigStore } from './internal/api-usage-routes.js';
+
+export { registerSnapshotStatsRoute } from './internal/snapshot-stats-route.js';
+export type {
+  ISnapshotStatsProvider,
+  ISnapshotServiceStats,
+} from './internal/snapshot-stats-route.js';
