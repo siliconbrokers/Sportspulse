@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX
 title: "Acceptance Test Matrix"
 artifact_class: spec
 status: active
-version: 1.1.0
+version: 1.2.0
 project: sportpulse
 domain: qa
 slug: acceptance-test-matrix
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-16
+updated_at: 2026-03-21
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -625,6 +625,50 @@ The MVP cannot be considered complete unless these tests pass:
 - J-01, J-02
 
 ---
+
+---
+
+## O — Runtime hardening (cold-start + seed integrity)
+
+These tests cover the snapshot cold-start seed recovery and corrupt-seed rejection behavior introduced in Implementation Backlog Phase H (SP-0511). Authoritative definition: SPEC-SPORTPULSE-CORE-RUNTIME-HARDENING-BACKLOG §9.
+
+### O-01 — Cold-start stale seed recovery
+**Type:** Integration (snapshot / api / startup)
+**Preconditions:**
+- compatible last-good snapshot persisted on disk (matching `snapshotSchemaVersion` and `competitionId`)
+- RAM snapshot store starts empty (fresh process start)
+- fresh rebuild is forced to fail (provider outage simulation)
+
+**Steps:**
+1. Start process with valid seed on disk
+2. Seed is loaded into snapshot store at startup
+3. Request `GET /api/ui/dashboard` for the matching competition/date context
+4. Verify fresh rebuild fails
+5. Verify stale seed is served
+
+**Expected:**
+- `200` response
+- Valid snapshot payload
+- `X-Snapshot-Source: stale_fallback`
+- `warnings` includes `PROVIDER_ERROR` and `STALE_DATA`
+- Identity fields (`competitionId`, `snapshotSchemaVersion`, `buildNowUtc`) remain coherent and explicit
+
+**Pass gate:** system degrades honestly instead of falling directly to `503 SNAPSHOT_BUILD_FAILED`.
+**Must not:** serve snapshot from an incompatible competition or season identity.
+
+---
+
+### O-02 — Corrupt seed rejection
+**Type:** Integration (snapshot / api / startup)
+**Preconditions:** corrupt or schema-incompatible snapshot seed exists on disk
+
+**Expected:**
+- seed is rejected explicitly at load time
+- structured warning or error emitted (observable in logs)
+- if no other fallback exists, request returns `503 SNAPSHOT_BUILD_FAILED`
+
+**Pass gate:** invalid seed is never treated as product truth; rejection is observable; degraded path is honest.
+**Must not:** silently treat a corrupt seed as valid or mask the failure.
 
 ---
 

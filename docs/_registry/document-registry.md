@@ -17,7 +17,7 @@
 | SPEC-SPORTPULSE-OPS-OPERATIONAL-BASELINE | Operational Baseline | spec | active | 1.0.0 | docs/core/spec.sportpulse.ops.operational-baseline.md |
 | SPEC-SPORTPULSE-CORE-REPO-STRUCTURE-AND-MODULE-BOUNDARIES | Repo Structure and Module Boundaries | spec | active | 1.1.0 | docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md |
 | SPEC-SPORTPULSE-SHARED-ERRORS-AND-WARNINGS-TAXONOMY | Errors and Warnings Taxonomy | spec | active | 1.0.0 | docs/core/spec.sportpulse.shared.errors-and-warnings-taxonomy.md |
-| SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX | Acceptance Test Matrix | spec | active | 1.1.0 | docs/core/spec.sportpulse.qa.acceptance-test-matrix.md |
+| SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX | Acceptance Test Matrix | spec | active | 1.2.0 | docs/core/spec.sportpulse.qa.acceptance-test-matrix.md |
 | SPEC-SPORTPULSE-QA-GOLDEN-SNAPSHOT-FIXTURES | Golden Snapshot Fixtures | spec | active | 1.0.0 | docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md |
 | SPEC-SPORTPULSE-QA-PREDICTION-TRACK-RECORD-FIXTURES | Prediction Track Record Fixtures | spec | active | 1.0.0 | docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md |
 | SPEC-SPORTPULSE-QA-OPERATING-MODEL | QA Operating Model | spec | proposed | 1.1.0 | docs/core/spec.sportpulse.qa.operating-model.md |
