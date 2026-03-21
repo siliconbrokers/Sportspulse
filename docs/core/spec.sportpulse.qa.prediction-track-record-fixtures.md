@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-QA-PREDICTION-TRACK-RECORD-FIXTURES
 title: "Prediction Track Record Fixtures"
 artifact_class: spec
 status: active
-version: 1.0.0
+version: 1.1.0
 project: sportpulse
 domain: qa
 slug: prediction-track-record-fixtures
 owner: team
 created_at: 2026-03-16
-updated_at: 2026-03-16
+updated_at: 2026-03-21
 supersedes: []
 superseded_by: []
 related_artifacts:
@@ -21,7 +21,7 @@ canonical_path: docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md
 
 # Prediction Track Record Fixtures
 
-Version: 1.0
+Version: 1.1
 Status: Active
 Scope: Authoritative definition of the PF-* prediction fixture family — what they validate, comparison rules, versioning model, anti-lookahead rules, and the track record accuracy gate
 Audience: QA / Fixture Enforcer, predictive-engine-qa agent, predictive-engine-auditor agent, engineering
@@ -45,18 +45,53 @@ PF-* fixtures protect:
 
 ## 2. Relation to the Acceptance Test Matrix
 
-PF-* fixtures are the backing evidence for Acceptance Matrix series K (K-01 through K-06).
+PF-* fixtures are the backing evidence for the **prediction/track-record subset** of Acceptance Matrix series K.
 
-Each PF-* fixture maps to one or more K-series acceptance IDs. When a PF-* fixture fails, the corresponding K acceptance test also fails.
+They do **not** govern the commercial/auth/freemium acceptance cases that now occupy K-04 and above in the active Acceptance Test Matrix.
+
+### 2.1 Scope boundary
+
+PF-* fixtures directly support:
+- prediction response correctness
+- eligibility/operating-mode correctness
+- anti-lookahead correctness
+- track-record threshold/integrity correctness
+
+PF-* fixtures do **not** directly support:
+- Pro depth paywall presentation gating
+- Stripe checkout/session propagation
+- registration deferral
+- commercial ad suppression by tier
+- style-propagation readiness
+
+Those behaviors require API/UI/integration tests and are governed by the Acceptance Matrix and frontend/backend integration specs, not by PF-* fixtures.
+
+### 2.2 Mapping rule
+
+Each PF-* fixture maps to one or more K-series acceptance IDs **only where the acceptance case is prediction/track-record semantic truth**.
+
+A PF-* failure therefore blocks the corresponding prediction/track-record acceptance obligations, but it does **not** substitute for commercial/auth acceptance coverage.
 
 | Acceptance ID | Covered by fixture(s) |
 |---------------|----------------------|
-| K-01 | PF-01 (determinism) |
-| K-02 | PF-02 (distribution integrity) |
-| K-03 | PF-03 (track record threshold gate) |
-| K-04 | PF-04 (calibration shape) |
-| K-05 | PF-05 (operating mode integrity) |
-| K-06 | PF-06 (pre-kickoff timestamp) |
+| K-01 | PF-01 (determinism), PF-02 (distribution integrity), PF-04 (calibration shape), PF-05 (operating mode integrity) |
+| K-02 | PF-05 (operating mode integrity) |
+| K-03 | PF-03 (track record threshold gate), PF-06 (pre-kickoff anti-lookahead), PF-05 (FULL_MODE inclusion discipline) |
+| K-04 | none — commercial/depth gating case, out of PF scope |
+| K-05 | none — subscription/checkout/session case, out of PF scope |
+| K-06 | none — registration deferral UX case, out of PF scope |
+| K-07+ | none unless a future corrected spec explicitly states otherwise |
+
+### 2.3 Conflict correction note
+
+Version 1.0.0 incorrectly presented a one-to-one mapping from PF-04..PF-06 to K-04..K-06.
+
+That mapping is no longer valid because the active Acceptance Matrix assigns:
+- K-04 to Pro depth paywall,
+- K-05 to Pro subscription flow,
+- K-06 to registration deferral.
+
+This spec corrects that conflict without changing PF-01..PF-06 fixture semantics.
 
 ---
 
@@ -124,7 +159,7 @@ The calibrated_1x2_probs must pass an isotonic consistency check: for a pre-buil
 The fixture provides a pre-computed calibrator state (stored as JSON in `tools/fixtures/prediction/pf-04-calibrator-state.json`), a set of raw inputs, and expected calibrated output ranges `[min, max]` per class per input. Each calibrated value must fall within its declared range.
 
 **Why it matters:**
-Calibration transforms raw Poisson-derived probabilities into historically-grounded estimates. If the isotonic regression output drifts, the track record becomes unreliable.
+Calibration transforms raw Poisson-derived probabilities into historically-grounded estimates. If the isotonic regression output drifts, the prediction surface becomes unreliable and any downstream track-record claim is suspect.
 
 **Failure classification:**
 - Within epsilon of declared range: pass.
@@ -145,7 +180,7 @@ Given controlled inputs:
 Exact string equality on `operating_mode` field. Reasons array must contain the declared reason codes for each scenario (see PE Spec §3.6 reasons catalog).
 
 **Why it matters:**
-Operating mode is the eligibility gate. Incorrect mode assignment could expose inaccurate predictions as if they were fully calibrated.
+Operating mode is the eligibility gate. Incorrect mode assignment could expose inaccurate predictions as if they were fully calibrated, or wrongly suppress valid public predictions.
 
 **Failure classification:** always a bug.
 
@@ -250,17 +285,18 @@ tools/fixtures/prediction/FIXTURES-VERSION.md
 This file tracks the current fixture suite version and changelog. Format:
 
 ```
-Prediction Fixture Suite Version: 1.0.0
-Last updated: 2026-03-16
-Reason: Initial fixture set
+Prediction Fixture Suite Version: 1.1.0
+Last updated: 2026-03-21
+Reason: Corrected Acceptance Matrix mapping after K-series commercial expansion
 
 Changelog:
+- 1.1.0 (2026-03-21): Corrected PF↔K mapping boundaries; no PF fixture semantics changed
 - 1.0.0 (2026-03-16): Initial PF-01..PF-06 fixture definitions
 ```
 
 Fixture suite version bumps:
 - **Patch** (x.y.Z): fixing an incorrect expected value that was a defect in the fixture itself
-- **Minor** (x.Y.z): adding new fixture sub-cases without changing existing ones
+- **Minor** (x.Y.z): adding new fixture sub-cases or correcting governing mapping/coverage boundaries without changing fixture comparison semantics
 - **Major** (X.y.z): changing comparison semantics, adding required new fixtures that alter compliance criteria
 
 ---
@@ -300,6 +336,7 @@ The QA / Fixture Enforcer agent must:
 2. Classify any failure as: bug / intentional versioned change / fixture defect
 3. Block merge if any PF-* fixture fails without full classification and version reasoning
 4. Maintain `tools/fixtures/prediction/FIXTURES-VERSION.md` current after any update
+5. Avoid treating PF-* fixtures as proof of commercial/auth/freemium acceptance; those require separate API/UI/integration evidence
 
 The predictive-engine-qa agent owns test implementation for the PF-* suite.
 
@@ -309,4 +346,4 @@ The predictive-engine-auditor agent uses PF-* fixture pass/fail status as primar
 
 ## 11. One-Paragraph Summary
 
-The PF-* prediction fixture family defines six canonical truth locks for the SportsPulse prediction pipeline: determinism (PF-01), distribution integrity (PF-02), track record threshold gate at ≥200 predictions per liga (PF-03), calibration shape consistency (PF-04), operating mode integrity (PF-05), and pre-kickoff anti-lookahead discipline (PF-06). These fixtures are separate from the F1–F6 snapshot fixtures, use different comparison semantics, and are governed by an independent versioning model. No fixture may be updated to make tests pass without explicit classification and version bump reasoning.
+The PF-* prediction fixture family defines six canonical truth locks for the SportPulse prediction pipeline: determinism (PF-01), distribution integrity (PF-02), track record threshold gate at ≥200 predictions per liga (PF-03), calibration shape consistency (PF-04), operating mode integrity (PF-05), and pre-kickoff anti-lookahead discipline (PF-06). These fixtures are separate from the F1–F6 snapshot fixtures, use different comparison semantics, and are governed by an independent versioning model. As of version 1.1.0, PF-* fixtures support only the prediction/track-record semantic subset of Acceptance Matrix series K and are explicitly out of scope for freemium/commercial K cases such as paywall gating, subscription propagation, and registration deferral.

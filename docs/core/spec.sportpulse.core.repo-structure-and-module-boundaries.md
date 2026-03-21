@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-CORE-REPO-STRUCTURE-AND-MODULE-BOUNDARIES
 title: "Repo Structure and Module Boundaries"
 artifact_class: spec
 status: active
-version: 1.1.0
+version: 1.2.0
 project: sportpulse
 domain: core
 slug: repo-structure-and-module-boundaries
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-15
+updated_at: 2026-03-21
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,7 +17,7 @@ canonical_path: docs/core/spec.sportpulse.core.repo-structure-and-module-boundar
 ---
 # SportPulse — Repo Structure and Module Boundaries
 
-Version: 1.1
+Version: 1.2
 Status: Authoritative repository/module boundary definition for MVP — amended to include packages/prediction (v1.1)  
 Scope: Repository layout, module responsibilities, dependency rules, and boundary constraints for SportPulse MVP implementation  
 Audience: Backend, Frontend, QA, Ops, AI-assisted development workflows
@@ -84,6 +84,14 @@ sportpulse/
       spec.sportpulse.core.ai-sdd-operating-protocol.md
       spec.sportpulse.core.subagents-definition.md
       spec.sportpulse.core.universal-case-intake-protocol.md
+    qa/
+      spec.sportpulse.qa.acceptance-gap-closure-update.md
+    backend/
+      spec.sportpulse.backend.frontend-integration-delta.md
+      spec.sportpulse.backend.session-auth-contract.md
+      spec.sportpulse.backend.shared-return-context-contract.md
+      spec.sportpulse.backend.subscription-checkout-contract.md
+      spec.sportpulse.backend.track-record-contract.md
     specs/
       pipeline/
         spec.sportpulse.signals.core.md

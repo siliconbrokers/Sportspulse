@@ -17,7 +17,7 @@ canonical_path: docs/core/spec.sportpulse.qa.acceptance-test-matrix.md
 ---
 # SportPulse — Acceptance Test Matrix (MVP)
 
-Version: 1.1
+Version: 1.2
 Status: Authoritative acceptance matrix for MVP validation
 Scope: Executable acceptance criteria and test cases for deterministic, explainable, snapshot-first SportPulse MVP  
 Audience: QA, Backend, Frontend, Ops, AI-assisted development workflows
@@ -623,52 +623,9 @@ The MVP cannot be considered complete unless these tests pass:
 - H-01, H-02, H-03
 - I-01
 - J-01, J-02
+- K-01, K-02, K-03, K-04, K-05, K-06, K-07, K-08
 
 ---
-
----
-
-## O — Runtime hardening (cold-start + seed integrity)
-
-These tests cover the snapshot cold-start seed recovery and corrupt-seed rejection behavior introduced in Implementation Backlog Phase H (SP-0511). Authoritative definition: SPEC-SPORTPULSE-CORE-RUNTIME-HARDENING-BACKLOG §9.
-
-### O-01 — Cold-start stale seed recovery
-**Type:** Integration (snapshot / api / startup)
-**Preconditions:**
-- compatible last-good snapshot persisted on disk (matching `snapshotSchemaVersion` and `competitionId`)
-- RAM snapshot store starts empty (fresh process start)
-- fresh rebuild is forced to fail (provider outage simulation)
-
-**Steps:**
-1. Start process with valid seed on disk
-2. Seed is loaded into snapshot store at startup
-3. Request `GET /api/ui/dashboard` for the matching competition/date context
-4. Verify fresh rebuild fails
-5. Verify stale seed is served
-
-**Expected:**
-- `200` response
-- Valid snapshot payload
-- `X-Snapshot-Source: stale_fallback`
-- `warnings` includes `PROVIDER_ERROR` and `STALE_DATA`
-- Identity fields (`competitionId`, `snapshotSchemaVersion`, `buildNowUtc`) remain coherent and explicit
-
-**Pass gate:** system degrades honestly instead of falling directly to `503 SNAPSHOT_BUILD_FAILED`.
-**Must not:** serve snapshot from an incompatible competition or season identity.
-
----
-
-### O-02 — Corrupt seed rejection
-**Type:** Integration (snapshot / api / startup)
-**Preconditions:** corrupt or schema-incompatible snapshot seed exists on disk
-
-**Expected:**
-- seed is rejected explicitly at load time
-- structured warning or error emitted (observable in logs)
-- if no other fallback exists, request returns `503 SNAPSHOT_BUILD_FAILED`
-
-**Pass gate:** invalid seed is never treated as product truth; rejection is observable; degraded path is honest.
-**Must not:** silently treat a corrupt seed as valid or mask the failure.
 
 ---
 
@@ -713,6 +670,22 @@ These tests cover the prediction UX surface, track record integrity, and freemiu
 **Expected:** registration prompt appears only when user attempts a Pro-gated action or explicit save/bookmark.
 **Pass gate:** first 5 interactions produce no registration modal; Pro-gated action triggers registration prompt.
 
+### K-07 — Pro commercial ad suppression
+**Precondition (free tier):** at least one active commercial display ad slot is configured for the tested surface.
+**Expected:** the configured commercial display ad slot must render for anonymous or authenticated free users.
+**Precondition (Pro tier):** authenticated user with active Pro subscription on the same tested surface.
+**Expected:** configured commercial display ad slot must not render.
+**Invariant:** the system must preserve semantic distinction between commercial ads, operational notices, degraded-state warnings, mandatory legal/compliance notices, and product-owned informational notices.
+**Must not:** suppress operational notices for Pro; suppress system warnings for Pro; leave broken placeholder chrome where a Pro-suppressed ad would have rendered; reclassify an ad as an "announcement" to evade suppression.
+**Pass gate:** free/anonymous DOM contains configured commercial ad slot output; Pro DOM contains no commercial ad output; operational/system notices remain visible when active; layout remains structurally intact after ad suppression.
+
+### K-08 — Level B style-propagation readiness
+**Precondition:** Level A critical-surface style safety has already been reached; the active product surface inventory for the current release is explicitly listed; at least two approved theme states are available for verification; any temporary exceptions are documented.
+**Expected:** all active release surfaces render without broken contrast, missing semantic tokens, unreadable focus states, or theme-dependent layout breakage in both approved theme states.
+**Surface minimum:** dashboard shell; competition selector; prediction card/detail surface; track record surface; Pro/paywall surface; auth shell action and callback/return states; global notices/announcements.
+**Must not:** claim Level B readiness on a partial surface sample; hide broken states behind ad hoc per-route overrides; require manual post-render patching for one theme only.
+**Pass gate:** the declared active-surface inventory passes the approved Level B verification suite across both theme states, with documented exceptions equal to zero or explicitly waived before release.
+
 ---
 
 ## 7. Notes on automation
@@ -734,4 +707,4 @@ But semantic correctness must be automated.
 
 ## 8. One-paragraph summary
 
-This acceptance matrix defines the concrete pass/fail conditions for SportPulse across canonical normalization, signal computation, scoring policy execution, deterministic treemap geometry, snapshot assembly, UI API contracts, degraded-state handling, frontend rendering, regression/version discipline (A–J), and the prediction surface plus track record (K). The product is considered real only when deterministic, explainable, snapshot-first behavior is verified under both normal and degraded conditions, prediction probabilities are correctly gated by operating mode and subscription tier, track record data is accurate and cherry-pick-proof, and golden fixtures prevent silent semantic drift.
+This acceptance matrix defines the concrete pass/fail conditions for SportPulse across canonical normalization, signal computation, scoring policy execution, deterministic treemap geometry, snapshot assembly, UI API contracts, degraded-state handling, frontend rendering, regression/version discipline (A–J), and the prediction, trust, freemium, and style-readiness surface family (K). The product is considered real only when deterministic, explainable, snapshot-first behavior is verified under both normal and degraded conditions, prediction probabilities are correctly gated by operating mode and subscription tier, track record data is accurate and cherry-pick-proof, commercial suppression for Pro behaves without mutating operational truth, Level B style propagation is honestly verified, and golden fixtures prevent silent semantic drift.

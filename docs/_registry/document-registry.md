@@ -10,19 +10,19 @@
 
 | artifact_id | title | class | status | version | canonical_path |
 |-------------|-------|-------|--------|---------|----------------|
-| SPEC-SPORTPULSE-CORE-CONSTITUTION | SportPulse Constitution v3.0 | spec | active | 3.0.0 | docs/core/spec.sportpulse.core.constitution.md |
+| SPEC-SPORTPULSE-CORE-CONSTITUTION | SportPulse Constitution v3.0 | spec | active | 3.0.1 | docs/core/spec.sportpulse.core.constitution.md |
 | SPEC-SPORTPULSE-CORE-DOMAIN-GLOSSARY-AND-INVARIANTS | Domain Glossary and Invariants | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.domain-glossary-and-invariants.md |
 | SPEC-SPORTPULSE-CORE-MVP-EXECUTION-SCOPE | MVP Execution Scope | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.mvp-execution-scope.md |
 | SPEC-SPORTPULSE-CORE-NON-FUNCTIONAL-REQUIREMENTS | Non-Functional Requirements | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.non-functional-requirements.md |
 | SPEC-SPORTPULSE-OPS-OPERATIONAL-BASELINE | Operational Baseline | spec | active | 1.0.0 | docs/core/spec.sportpulse.ops.operational-baseline.md |
-| SPEC-SPORTPULSE-CORE-REPO-STRUCTURE-AND-MODULE-BOUNDARIES | Repo Structure and Module Boundaries | spec | active | 1.1.0 | docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md |
+| SPEC-SPORTPULSE-CORE-REPO-STRUCTURE-AND-MODULE-BOUNDARIES | Repo Structure and Module Boundaries | spec | active | 1.2.0 | docs/core/spec.sportpulse.core.repo-structure-and-module-boundaries.md |
 | SPEC-SPORTPULSE-SHARED-ERRORS-AND-WARNINGS-TAXONOMY | Errors and Warnings Taxonomy | spec | active | 1.0.0 | docs/core/spec.sportpulse.shared.errors-and-warnings-taxonomy.md |
 | SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX | Acceptance Test Matrix | spec | active | 1.2.0 | docs/core/spec.sportpulse.qa.acceptance-test-matrix.md |
 | SPEC-SPORTPULSE-QA-GOLDEN-SNAPSHOT-FIXTURES | Golden Snapshot Fixtures | spec | active | 1.0.0 | docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md |
-| SPEC-SPORTPULSE-QA-PREDICTION-TRACK-RECORD-FIXTURES | Prediction Track Record Fixtures | spec | active | 1.0.0 | docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md |
+| SPEC-SPORTPULSE-QA-PREDICTION-TRACK-RECORD-FIXTURES | Prediction Track Record Fixtures | spec | active | 1.1.0 | docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md |
 | SPEC-SPORTPULSE-QA-OPERATING-MODEL | QA Operating Model | spec | proposed | 1.1.0 | docs/core/spec.sportpulse.qa.operating-model.md |
 | SPEC-SPORTPULSE-QA-PRE-MERGE-VERIFICATION-GATE | Pre-Merge Verification Gate | spec | proposed | 1.0.0 | docs/core/spec.sportpulse.qa.pre-merge-verification-gate.md |
-| SPEC-SPORTPULSE-CORE-IMPLEMENTATION-BACKLOG | Implementation Backlog (SDD) | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.implementation-backlog.md |
+| SPEC-SPORTPULSE-CORE-IMPLEMENTATION-BACKLOG | Implementation Backlog (SDD) | spec | active | 2.1.0 | docs/core/spec.sportpulse.core.implementation-backlog.md |
 | SPEC-SPORTPULSE-CORE-AI-SDD-OPERATING-PROTOCOL | AI SDD Operating Protocol | spec | active | 1.4.0 | docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md |
 | SPEC-SPORTPULSE-CORE-SUBAGENTS-DEFINITION | Sub-Agents Definition | spec | active | 1.3.0 | docs/core/spec.sportpulse.core.subagents-definition.md |
 | SPEC-SPORTPULSE-CORE-UNIVERSAL-CASE-INTAKE-PROTOCOL | Universal Case Intake Protocol | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.universal-case-intake-protocol.md |
@@ -260,3 +260,11 @@
 ---
 
 *Registry governed by: Repository Governance Standard (§10)*
+| SPEC-SPORTPULSE-BACKEND-FRONTEND-INTEGRATION-DELTA | Backend Frontend Integration Delta | spec | draft | 0.2.0 | docs/backend/spec.sportpulse.backend.frontend-integration-delta.md |
+| SPEC-SPORTPULSE-BACKEND-SESSION-AUTH-CONTRACT | Backend Session and Auth Contract | spec | draft | 0.2.1 | docs/backend/spec.sportpulse.backend.session-auth-contract.md |
+| SPEC-SPORTPULSE-BACKEND-SHARED-RETURN-CONTEXT-CONTRACT | Backend Shared Return Context Contract | spec | draft | 0.1.0 | docs/backend/spec.sportpulse.backend.shared-return-context-contract.md |
+| SPEC-SPORTPULSE-BACKEND-SUBSCRIPTION-CHECKOUT-CONTRACT | Backend Subscription and Checkout Contract | spec | draft | 0.2.1 | docs/backend/spec.sportpulse.backend.subscription-checkout-contract.md |
+| SPEC-SPORTPULSE-BACKEND-TRACK-RECORD-CONTRACT | Backend Track Record Contract | spec | draft | 0.2.0 | docs/backend/spec.sportpulse.backend.track-record-contract.md |
+| SPEC-SPORTPULSE-CORE-CORPUS-INTEGRATION-PATCH-LOG | Corpus Integration Patch Log | note | draft | 0.1.0 | docs/core/spec.sportpulse.core.corpus-integration-patch-log.md |
+| SPEC-SPORTPULSE-QA-ACCEPTANCE-GAP-CLOSURE-UPDATE | Acceptance Gap Closure Update | spec | draft | 0.2.1 | docs/core/spec.sportpulse.qa.acceptance-gap-closure-update.md |
+| SPEC-SPORTPULSE-EXECUTION-PLAN-BACKEND-FRONTEND-GAP-CLOSURE | Backend Frontend Gap Closure Execution Plan | plan | draft | 0.1.0 | docs/plans/spec.sportpulse.execution-plan.backend-frontend-gap-closure.md |

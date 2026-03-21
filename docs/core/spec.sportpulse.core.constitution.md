@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-CORE-CONSTITUTION
 title: "SportPulse Constitution v3.0"
 artifact_class: spec
 status: active
-version: 3.0.0
+version: 3.0.1
 project: sportpulse
 domain: core
 slug: constitution
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-16
+updated_at: 2026-03-21
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -17,7 +17,7 @@ canonical_path: docs/core/spec.sportpulse.core.constitution.md
 ---
 # SportPulse — Constitution (MVP + Design Constraints)
 
-Version: 3.0
+Version: 3.0.1
 Status: Authoritative constitutional document
 Scope: Product constitution, architectural boundaries, MVP constraints, governance, and documentary hierarchy  
 Audience: Product, Backend, Frontend, QA, Ops, Design
@@ -235,7 +235,6 @@ The following documents are the active implementation-level sources of truth:
 - `docs/core/spec.sportpulse.qa.acceptance-test-matrix.md`
 - `docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md`
 - `docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md`
-- `docs/core/spec.sportpulse.qa.operating-model.md` — canonical QA operating model (3+1 agent system, merge/release gates, Verification Package, fixture discipline, version enforcement)
 
 #### Attention dashboard pipeline
 - `docs/specs/pipeline/spec.sportpulse.signals.core.md`
@@ -264,6 +263,13 @@ The following documents are the active implementation-level sources of truth:
 - `docs/data/spec.sportpulse.data.quality.md`
 - `docs/evolution/spec.sportpulse.product.feature-evolution.md`
 - `docs/evolution/spec.sportpulse.product.product-loop.md`
+
+#### Frontend reengineering delta package (binding for current integration work until absorbed into canonical API/backend architecture specs)
+- `docs/backend/spec.sportpulse.backend.frontend-integration-delta.md`
+- `docs/backend/spec.sportpulse.backend.session-auth-contract.md`
+- `docs/backend/spec.sportpulse.backend.shared-return-context-contract.md`
+- `docs/backend/spec.sportpulse.backend.subscription-checkout-contract.md`
+- `docs/backend/spec.sportpulse.backend.track-record-contract.md`
 
 #### Strategic reference (non-binding for implementation details)
 - `docs/product/report.sportpulse.product.business-plan.2026-03-01.md`

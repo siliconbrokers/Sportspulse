@@ -3,7 +3,7 @@ artifact_id: SPEC-SPORTPULSE-WEB-AUTH-AND-FREEMIUM-SURFACE
 title: "Web Auth and Freemium Surface"
 artifact_class: spec
 status: proposed
-version: 0.1.0
+version: 0.1.1
 project: sportpulse
 domain: web
 slug: auth-and-freemium-surface
@@ -25,7 +25,7 @@ canonical_path: docs/web/spec.sportpulse.web.auth-and-freemium-surface.md
 
 # SportPulse — Web Auth and Freemium Surface
 
-Version: 0.1  
+Version: 0.1.1  
 Status: Proposed  
 Scope: Auth model, session model, freemium split, paywall trigger rules, Pro-state behavior, ad suppression for Pro  
 Audience: Product, Frontend, Backend, QA, Ops, AI-assisted development workflows
@@ -468,7 +468,7 @@ A follow-up acceptance test should be added:
 
 - K-07 — Pro commercial ad suppression
 
-### Proposed K-07
+### K-07
 **Precondition (free tier):** active commercial ad slot configured.  
 **Expected:** commercial ad slot may render for anonymous/free user.
 

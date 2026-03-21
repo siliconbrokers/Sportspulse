@@ -3,7 +3,7 @@ artifact_id: SPEC-SPORTPULSE-WEB-FRONTEND-MODERNIZATION
 title: "Frontend Modernization"
 artifact_class: spec
 status: proposed
-version: 0.2.0
+version: 0.2.1
 project: sportpulse
 domain: web
 slug: frontend-modernization
@@ -27,7 +27,7 @@ canonical_path: docs/web/spec.sportpulse.web.frontend-modernization.md
 
 # SportPulse — Frontend Modernization
 
-Version: 0.2  
+Version: 0.2.1  
 Status: Proposed  
 Scope: system-level modernization of the SportPulse web frontend while preserving snapshot-first, backend-owned truth and MVP commercial constraints  
 Audience: Product, Frontend, Backend, QA, Ops, AI-assisted development workflows
@@ -536,7 +536,7 @@ Completion criteria:
 
 - full active product surface inventory is covered,
 - remaining exceptions are documented and bounded,
-- K-08 or equivalent style-propagation readiness validation passes,
+- K-08 style-propagation readiness validation passes,
 - Level B can be asserted honestly.
 
 ### 10.7 Phase 6 — Controlled UX refinement

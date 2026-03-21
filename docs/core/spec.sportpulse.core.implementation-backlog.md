@@ -12,12 +12,17 @@ created_at: 2026-03-15
 updated_at: 2026-03-21
 supersedes: []
 superseded_by: []
-related_artifacts: []
+related_artifacts:
+  - SPEC-SPORTPULSE-BACKEND-FRONTEND-INTEGRATION-DELTA
+  - SPEC-SPORTPULSE-BACKEND-SESSION-AUTH-CONTRACT
+  - SPEC-SPORTPULSE-BACKEND-SHARED-RETURN-CONTEXT-CONTRACT
+  - SPEC-SPORTPULSE-BACKEND-SUBSCRIPTION-CHECKOUT-CONTRACT
+  - SPEC-SPORTPULSE-BACKEND-TRACK-RECORD-CONTRACT
 canonical_path: docs/core/spec.sportpulse.core.implementation-backlog.md
 ---
 # SportPulse — Implementation Backlog (SDD)
 
-Version: 2.0
+Version: 2.1
 Status: Active — Phases 0–9 complete; Phases 10–11 in execution
 Scope: Atomic implementation tickets with dependencies, outputs, tests, and version/fixture impact analysis for SportPulse MVP  
 Audience: Engineering, QA, Ops, AI-assisted development workflows
@@ -73,7 +78,6 @@ Phase 6 — UI API ✅ DONE
 Phase 7 — Frontend UI ✅ DONE
 Phase 8 — Degraded states + fallback ✅ DONE
 Phase 9 — Golden fixtures + regression gates ✅ DONE
-Phase H — Runtime hardening (snapshot/storage/ledger) ← ACTIVE
 Phase 10 — Prediction UX surface + Track record ← ACTIVE
 Phase 11 — Pro tier freemium funnel ← PLANNED
 
@@ -548,116 +552,15 @@ Risks: comparing too strictly or too loosely.
 ---
 
 #### SP-0903 — Implement version bump regression gates
-Owner: QA/BE
-Dependencies: SP-0902
-Refs: NFR, Acceptance Matrix
+Owner: QA/BE  
+Dependencies: SP-0902  
+Refs: NFR, Acceptance Matrix  
 Deliverables:
 - tests ensuring scoring/layout/schema changes require explicit bumps
-Acceptance tests: I-02, I-03, I-04
-Golden fixtures: all
-Version impact: none
+Acceptance tests: I-02, I-03, I-04  
+Golden fixtures: all  
+Version impact: none  
 Risks: false positives if gates not designed carefully.
-
----
-
-### Phase H — Runtime hardening
-
-*Hardening wave targeting snapshot store resilience, cold-start recovery, and storage maintenance. Independent of Phases 10–11 and executable in parallel. All work bounded to `packages/snapshot`, server startup wiring, and the API usage ledger. No product semantics, DTO contracts, scoring policy, or layout truth changed.*
-
-*Authoritative decomposition: SPEC-SPORTPULSE-CORE-RUNTIME-HARDENING-BACKLOG (subordinate to this backlog).*
-
-**Critical (H1 — blocking hardening):**
-
-#### SP-0511 — Snapshot disk persistence + warm seed recovery
-Owner: BE/Ops
-Dependencies: none
-Refs: Runtime Hardening Backlog §7.1, Snapshot Engine Spec, Taxonomy
-Deliverables:
-- atomic persistence of last-good snapshot per compatibility domain (`packages/snapshot` + startup wiring)
-- startup warm-seed load from disk into snapshot store
-- compatibility validation before seed acceptance
-- structured rejection of corrupt or incompatible seed files (never silently treated as valid)
-- stale fallback semantics unchanged: STALE_DATA + PROVIDER_ERROR warnings remain explicit and machine-observable
-Acceptance tests: F-01, F-04, G-01 (must continue to pass); O-01 (new — cold-start stale seed recovery: startup with empty RAM store + valid disk seed + forced fresh-rebuild failure → 200 response, `X-Snapshot-Source: stale_fallback`, warnings include PROVIDER_ERROR + STALE_DATA); O-02 (new — corrupt seed rejection: corrupt/incompatible seed on disk → seed rejected explicitly, structured warning emitted, 503 SNAPSHOT_BUILD_FAILED if no other fallback)
-Golden fixtures impacted: none
-Version impact: none
-Risks: serving semantically incompatible stale seed; hidden persistence coupling bypassing snapshot identity rules.
-
----
-
-#### SP-0510 — Bounded LRU eviction in `InMemorySnapshotStore`
-Owner: BE
-Dependencies: SP-0511 may land before or after; both required in H1
-Refs: Runtime Hardening Backlog §7.1, Snapshot Engine Spec
-Deliverables:
-- configurable `maxEntries` with deterministic LRU-style eviction (`packages/snapshot/src/store`)
-- expired-entry purge during normal access and/or maintenance path
-- internal counters: hit / miss / eviction / entry count
-- unit and integration tests for eviction order and stale retrieval safety
-Acceptance tests: E-01, E-02, E-03, E-04, G-01, F-04 (must continue to pass); new unit cases: capacity never exceeds configured maximum; oldest eligible entry evicted deterministically; expired-entry purge does not corrupt stale behavior for active key
-Golden fixtures impacted: none
-Version impact: none
-Risks: accidental eviction of the only valid stale candidate for the active key; key-cardinality underestimation causing thrash.
-
----
-
-#### SP-0512 — Per-competition snapshot invalidation
-Owner: BE
-Dependencies: none
-Refs: Runtime Hardening Backlog §7.1, Snapshot Engine Spec
-Deliverables:
-- scoped `invalidate(competitionId)` or equivalent API on the snapshot store (`packages/snapshot` + scheduler callers)
-- `invalidateAll()` retained for explicit admin/reset cases only
-- key-matching rules documented and deterministic
-- tests proving unaffected competitions remain cached after targeted invalidation
-Acceptance tests: F-01, F-02, G-01 (must continue to pass); new: refresh of competition A does not invalidate competition B; stale fallback remains restricted to compatible key domain only
-Golden fixtures impacted: none
-Version impact: none
-Risks: over-broad invalidation preserved under a new name; under-invalidating cross-stale entries that should have been cleared.
-
----
-
-**Secondary (H2 — same hardening lane, non-blocking for H1 completion):**
-
-#### SP-0513 — Snapshot cache observability baseline
-Owner: BE/Ops
-Dependencies: SP-0510 preferred first
-Refs: Runtime Hardening Backlog §7.2
-Deliverables:
-- structured log fields: entry count, hit / miss / eviction, stale serve count, build duration (`packages/snapshot` and optional admin/health exposure)
-- optional health summary if consistent with current ops surface; no secrets or irrelevant internals exposed
-Acceptance tests: observability output exists and is structured; snapshot build failures and stale serving diagnosable without reverse-engineering UI behavior
-Golden fixtures impacted: none
-Version impact: none
-Risks: logging noise without stable field naming; over-engineering observability into a monitoring platform.
-
----
-
-#### SP-0514 — Score-snapshot health verification
-Owner: BE/Ops
-Dependencies: none
-Refs: Runtime Hardening Backlog §7.2
-Deliverables:
-- startup check for required score-snapshot artifacts where applicable (server startup / health checks)
-- structured warning on missing or invalid state; non-blocking unless policy explicitly upgrades severity
-Acceptance tests: warning emitted when expected artifact is absent or invalid; startup remains policy-consistent
-Golden fixtures impacted: none
-Version impact: none
-Risks: false alarms from environment-specific artifact expectations.
-
----
-
-#### SP-0515 — SQLite WAL checkpoint after retention pruner
-Owner: BE/Ops
-Dependencies: none
-Refs: Runtime Hardening Backlog §7.2
-Deliverables:
-- explicit WAL checkpoint call after retention pruning in the API usage ledger (API usage ledger maintenance path)
-- structured log of checkpoint result; no ledger schema semantics changed
-Acceptance tests: ledger functions normally after startup maintenance; checkpoint behavior observable and non-corrupting to usage accounting
-Golden fixtures impacted: none
-Version impact: none
-Risks: cargo-cult checkpointing without verifying actual open/close behavior. Note: partial implementation may already exist — audit before opening new work.
 
 ---
 
@@ -695,9 +598,9 @@ Risks: raw distribution accidentally mixed with calibrated probs; NOT_ELIGIBLE s
 #### SP-1002 — Track record aggregate display (public)
 Owner: FE + BE
 Dependencies: SP-1001, track record accumulation operational
-Refs: Constitution v3 §2 (track record as moat), MVP Execution Scope v2 §5.7
+Refs: Constitution v3 §2 (track record as moat), MVP Execution Scope v2 §5.7, spec.sportpulse.backend.track-record-contract.md
 Deliverables:
-- Backend endpoint: `GET /api/ui/track-record?competitionId=X` → accuracy%, prediction count, last_evaluated_at
+- Backend endpoint: `GET /api/ui/track-record?competitionId=X` → canonical competition-level track record payload per `spec.sportpulse.backend.track-record-contract.md` (accuracy, predictionCount, lastEvaluatedAt, belowThreshold, availability/disclosure state)
 - Frontend surface: static aggregate per competition visible in portal (competition info panel or dedicated section)
 - Only FULL_MODE evaluated predictions included in accuracy numerator
 - No user-filtering in MVP (aggregate only)
@@ -710,17 +613,18 @@ Risks: display before minimum data threshold (gate: ≥200 evaluated predictions
 
 #### SP-1003 — Pro depth paywall gate (scorelines, xG, derived markets)
 Owner: FE + BE
-Dependencies: SP-1001, auth/subscription infra decision
-Refs: MVP Execution Scope v2 §5.6 (Pro-only), Business Plan v3.0 §7
+Dependencies: SP-1001, spec.sportpulse.backend.session-auth-contract.md, spec.sportpulse.backend.subscription-checkout-contract.md
+Refs: MVP Execution Scope v2 §5.6 (Pro-only), Business Plan v3.0 §7, spec.sportpulse.backend.session-auth-contract.md, spec.sportpulse.backend.subscription-checkout-contract.md
 Deliverables:
 - Depth fields (scoreline distribution, xG, O/U, BTTS) gated behind Pro check
 - Free user sees 1X2 + paywall CTA in depth section
 - Pro user sees full prediction detail
 - Paywall CTA links to Pro upgrade flow
+- Tier truth sourced from session/auth + subscription contracts; free DOM must not expose depth values while backend payload remains backend-owned full truth
 Acceptance tests: K-04
 Golden fixtures: none
 Version impact: none (gating is presentation logic; backend always returns full payload, frontend gates display)
-Risks: backend leaking Pro data to free tier; paywall CTA creating friction before user has seen value.
+Risks: backend leaking Pro data to free tier; paywall CTA creating friction before user has seen value; entitlement truth drifting from session state.
 
 ---
 
@@ -729,11 +633,15 @@ Risks: backend leaking Pro data to free tier; paywall CTA creating friction befo
 #### SP-1101 — Subscription infrastructure (minimal viable)
 Owner: BE + Ops
 Dependencies: SP-1003
-Refs: Business Plan v3.0 §7, §11, §12
+Refs: Business Plan v3.0 §7, §11, §12, spec.sportpulse.backend.session-auth-contract.md, spec.sportpulse.backend.subscription-checkout-contract.md, spec.sportpulse.backend.shared-return-context-contract.md
 Deliverables:
 - Stripe integration for Pro subscription ($5.20/mo gross)
+- `POST /api/checkout/session`
+- `GET /api/subscription/status`
+- `POST /api/checkout/return/reconcile`
+- `POST /api/subscription/refresh-entitlement`
 - User auth + subscription status check
-- JWT or session with Pro flag propagated to frontend
+- Session with Pro flag propagated to frontend via canonical session truth
 - Admin view: active subscriber count
 Acceptance tests: K-05
 Golden fixtures: none
@@ -744,12 +652,13 @@ Risks: ARPPU leakage (store fees not accounted in reporting); mobile payment flo
 
 #### SP-1102 — Freemium conversion funnel (registration deferral)
 Owner: FE
-Dependencies: SP-1101
-Refs: Business Plan v3.0 §2.3, §7.3 (registration deferral principle)
+Dependencies: SP-1101, spec.sportpulse.backend.session-auth-contract.md, spec.sportpulse.backend.shared-return-context-contract.md
+Refs: Business Plan v3.0 §2.3, §7.3 (registration deferral principle), spec.sportpulse.backend.session-auth-contract.md
 Deliverables:
 - Registration not required on first visit
 - Registration triggered when user tries to save, bookmark, or access Pro depth
 - Clear value prop shown before registration prompt
+- Auth return context preserves attempted gated action for post-auth resume
 Acceptance tests: K-06
 Golden fixtures: none
 Version impact: none
@@ -759,4 +668,4 @@ Risks: registration prompt too early destroys conversion; too late loses the use
 
 ## 6. One-paragraph summary
 
-This backlog decomposes SportPulse into a strict SDD task graph. Phases 0–9 (complete) cover repo scaffolding, canonical normalization, signal computation, scoring policy execution, deterministic layout, snapshot orchestration, UI API exposure, frontend rendering from backend geometry, degraded-state handling, and golden-fixture regression gates. Phase H (active, parallel to Phase 10) closes the three operational cliff edges identified in the runtime/storage audit: unbounded in-memory snapshot growth, no persisted stale seed for restart resilience, and coarse snapshot invalidation — without changing product semantics, DTO contracts, or scoring truth. Phases 10–11 (active) cover the commercial execution: prediction UX surface, track record accumulation and display, Pro depth paywall, and freemium conversion funnel. Each ticket defines boundaries, outputs, acceptance tests, and fixture impact to prevent scope drift and protect deterministic, explainable product truth.
+This backlog decomposes SportPulse into a strict SDD task graph. Phases 0–9 (complete) cover repo scaffolding, canonical normalization, signal computation, scoring policy execution, deterministic layout, snapshot orchestration, UI API exposure, frontend rendering from backend geometry, degraded-state handling, and golden-fixture regression gates. Phases 10–11 (active) cover the commercial execution: prediction UX surface, track record accumulation and display, Pro depth paywall, and freemium conversion funnel. Each ticket defines boundaries, outputs, acceptance tests, and fixture impact to prevent scope drift and protect deterministic, explainable product truth.

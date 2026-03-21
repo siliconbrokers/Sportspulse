@@ -3,7 +3,7 @@ artifact_id: SPEC-SPORTPULSE-WEB-FRONTEND-EXECUTION-BACKLOG
 title: "Web Frontend Execution Backlog"
 artifact_class: spec
 status: proposed
-version: 0.2.0
+version: 0.2.1
 project: sportpulse
 domain: web
 slug: frontend-execution-backlog
@@ -25,7 +25,7 @@ canonical_path: docs/web/spec.sportpulse.web.frontend-execution-backlog.md
 
 # SportPulse — Web Frontend Execution Backlog
 
-Version: 0.2  
+Version: 0.2.1  
 Status: Proposed  
 Scope: Dependency-aware execution backlog for frontend, public track record, auth/session, paywall, Pro-depth, theming foundations, and testability.
 
@@ -215,7 +215,7 @@ Dependencies:
 - **Acceptance criteria**:
   - Theme swap passes across the active product inventory.
   - Semantic distinctions remain intact under theme change.
-  - K-08 or equivalent acceptance case is passing.
+  - K-08 acceptance case is passing.
 - **Risks / notes**:
   - Do not execute this before Level A and the active-surface pass exist.
 - **Owner suggestion**: frontend / QA
@@ -963,7 +963,7 @@ Dependencies:
 **Exit criteria**:
 - Active product surface inventory is closed.
 - Remaining exceptions are documented and bounded.
-- K-08 or equivalent style-propagation readiness verification passes.
+- K-08 style-propagation readiness verification passes.
 
 **Unlocks**:
 - Honest claim that global style changes propagate across the active product.
@@ -1059,7 +1059,7 @@ Final decision replacement:
 
 ### Update
 - `spec.sportpulse.qa.acceptance-test-matrix.md`
-  - Add K-07 for Pro commercial ad suppression.
+  - K-07 for Pro commercial ad suppression is present in the active Acceptance Test Matrix.
 - Any active frontend architecture doc that still claims obsolete routing or framework assumptions.
 
 ### Mark stale / correct
