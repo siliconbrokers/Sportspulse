@@ -2,6 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## API Consumption Control — Reglas CRÍTICAS
+
+**Spec autoritativo:** `docs/specs/ops/spec.sportspulse.ops.api-consumption-control.md`
+
+Tres storms documentados (2026-03-21) destruyeron la cuota diaria de API-Football por no seguir estas reglas. Son de cumplimiento obligatorio en toda implementación que toque APIs externas.
+
+### Regla 1 — Clasificar LIVE vs OFFLINE antes de escribir código
+
+- `LIVE`: necesaria para servir datos en tiempo real → puede ir en ciclo de refresh con protección
+- `OFFLINE`: training data, stats históricas, player stats → **NUNCA en el ciclo de refresh automático**
+
+Una llamada es `OFFLINE` si tiene TTL > 24h, se llama por entidad (jugador/fixture), o existe fallback estático aceptable.
+
+### Regla 2 — Calcular impacto antes de implementar
+
+Documentar `calls_per_cycle`, `calls_per_day`, y `cold_restart_impact` (llamadas en primer ciclo post-restart sin cache). Si `cold_restart_impact > 75` (1% de la cuota diaria de 7500) → requiere aprobación explícita.
+
+### Regla 3 — Tres capas anti-storm obligatorias para toda llamada LIVE
+
+1. **Sentinel en disco en TODOS los error paths** — incluye HTTP error, quota error, catch, y respuesta vacía. Sin sentinel → re-fetch en cada restart.
+2. **Write-before-fetch** para llamadas que se disparan N veces por ciclo — escribir sentinel a disco ANTES de la llamada API. Si el servidor crashea mid-fetch, el próximo restart no re-dispara.
+3. **Cap global por proceso** — `MAX_FETCHES_PER_PROCESS` como última defensa si el burst en frío es peligroso.
+
+### Regla 4 — Dev y prod comparten cuota — nunca ignorarlo
+
+`APIFOOTBALL_KEY` es la misma en dev y prod. Toda llamada `OFFLINE` debe estar gateada con `ENABLE_TRAINING_FETCHES=true` (desactivado por defecto). Correr dev con esta flag activa quema cuota de prod.
+
+---
+
 ## Declaración de agente — Regla CRÍTICA
 
 **Toda respuesta que ejecute trabajo concreto DEBE terminar declarando el agente que realmente lo ejecutó.**
