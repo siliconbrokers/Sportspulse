@@ -99,6 +99,11 @@ const _cache = new Map<string, CacheEntry>();
 const INJURY_FETCH_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const _lastFetchAttemptMs = new Map<string, number>();
 
+// Cooldown for player stats: same principle — once fetched (or attempted), skip for 6h.
+// Prevents burst when many injuries share players not yet in disk cache.
+const PLAYER_STATS_FETCH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const _lastPlayerStatsFetchMs = new Map<string, number>(); // key: `${playerId}:${season}`
+
 function cacheKey(leagueId: number, season: number, date: string): string {
   return `${leagueId}:${season}:${date}`;
 }
@@ -292,6 +297,14 @@ async function fetchPlayerMinutes(
   if (cached !== null) {
     return { minutesPlayed: cached.minutesPlayed, gamesPlayed: cached.gamesPlayed };
   }
+
+  // Cooldown: if we already attempted this player recently, skip to avoid storm on cold cache.
+  const playerKey = `${playerId}:${season}`;
+  const lastAttempt = _lastPlayerStatsFetchMs.get(playerKey) ?? 0;
+  if (Date.now() - lastAttempt < PLAYER_STATS_FETCH_INTERVAL_MS) {
+    return { minutesPlayed: null, gamesPlayed: null };
+  }
+  _lastPlayerStatsFetchMs.set(playerKey, Date.now());
 
   // Budget check before API call
   if (isQuotaExhausted()) {
