@@ -171,11 +171,13 @@ function ProviderCard({
                 {pct.toFixed(0)}%
               </span>
             )}
-            {/* "(parcial)" hint when data comes from ledger only — suppressed when exhausted
-                because Fix A/B already reconcile rollup to dailyLimit in that case */}
+            {/* "solo este servidor" hint for LEDGER_OBSERVED — each env tracks independently */}
             {dsKey === 'LEDGER_OBSERVED' && !item.isExhausted && (
-              <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--sp-text-40)' }}>
-                (parcial)
+              <span
+                title="Cuota compartida entre entornos — este número refleja solo las llamadas de este servidor. Dev y prod acumulan por separado."
+                style={{ marginLeft: 6, fontSize: 11, color: 'var(--sp-text-40)', cursor: 'help', borderBottom: '1px dotted var(--sp-text-40)' }}
+              >
+                solo este servidor
               </span>
             )}
           </div>
