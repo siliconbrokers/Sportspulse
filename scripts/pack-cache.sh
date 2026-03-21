@@ -96,7 +96,7 @@ import json, sys
 with open('$B64_FILE') as f:
     data = f.read().strip()
 import os
-overwrite = os.environ.get('OVERWRITE', 'false').lower() == 'true'
+overwrite = os.environ.get('OVERWRITE', 'true').lower() == 'true'  # default: overwrite
 payload = {'data': data, 'overwrite': overwrite}
 with open('$PAYLOAD_FILE', 'w') as f:
     json.dump(payload, f)
