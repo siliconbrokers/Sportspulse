@@ -3,13 +3,13 @@ artifact_id: SPEC-SPORTPULSE-CORE-IMPLEMENTATION-BACKLOG
 title: "Implementation Backlog (SDD)"
 artifact_class: spec
 status: active
-version: 2.0.0
+version: 2.1.0
 project: sportpulse
 domain: core
 slug: implementation-backlog
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-16
+updated_at: 2026-03-21
 supersedes: []
 superseded_by: []
 related_artifacts: []
@@ -73,6 +73,7 @@ Phase 6 — UI API ✅ DONE
 Phase 7 — Frontend UI ✅ DONE
 Phase 8 — Degraded states + fallback ✅ DONE
 Phase 9 — Golden fixtures + regression gates ✅ DONE
+Phase H — Runtime hardening (snapshot/storage/ledger) ← ACTIVE
 Phase 10 — Prediction UX surface + Track record ← ACTIVE
 Phase 11 — Pro tier freemium funnel ← PLANNED
 
@@ -547,15 +548,116 @@ Risks: comparing too strictly or too loosely.
 ---
 
 #### SP-0903 — Implement version bump regression gates
-Owner: QA/BE  
-Dependencies: SP-0902  
-Refs: NFR, Acceptance Matrix  
+Owner: QA/BE
+Dependencies: SP-0902
+Refs: NFR, Acceptance Matrix
 Deliverables:
 - tests ensuring scoring/layout/schema changes require explicit bumps
-Acceptance tests: I-02, I-03, I-04  
-Golden fixtures: all  
-Version impact: none  
+Acceptance tests: I-02, I-03, I-04
+Golden fixtures: all
+Version impact: none
 Risks: false positives if gates not designed carefully.
+
+---
+
+### Phase H — Runtime hardening
+
+*Hardening wave targeting snapshot store resilience, cold-start recovery, and storage maintenance. Independent of Phases 10–11 and executable in parallel. All work bounded to `packages/snapshot`, server startup wiring, and the API usage ledger. No product semantics, DTO contracts, scoring policy, or layout truth changed.*
+
+*Authoritative decomposition: SPEC-SPORTPULSE-CORE-RUNTIME-HARDENING-BACKLOG (subordinate to this backlog).*
+
+**Critical (H1 — blocking hardening):**
+
+#### SP-0511 — Snapshot disk persistence + warm seed recovery
+Owner: BE/Ops
+Dependencies: none
+Refs: Runtime Hardening Backlog §7.1, Snapshot Engine Spec, Taxonomy
+Deliverables:
+- atomic persistence of last-good snapshot per compatibility domain (`packages/snapshot` + startup wiring)
+- startup warm-seed load from disk into snapshot store
+- compatibility validation before seed acceptance
+- structured rejection of corrupt or incompatible seed files (never silently treated as valid)
+- stale fallback semantics unchanged: STALE_DATA + PROVIDER_ERROR warnings remain explicit and machine-observable
+Acceptance tests: F-01, F-04, G-01 (must continue to pass); O-01 (new — cold-start stale seed recovery: startup with empty RAM store + valid disk seed + forced fresh-rebuild failure → 200 response, `X-Snapshot-Source: stale_fallback`, warnings include PROVIDER_ERROR + STALE_DATA); O-02 (new — corrupt seed rejection: corrupt/incompatible seed on disk → seed rejected explicitly, structured warning emitted, 503 SNAPSHOT_BUILD_FAILED if no other fallback)
+Golden fixtures impacted: none
+Version impact: none
+Risks: serving semantically incompatible stale seed; hidden persistence coupling bypassing snapshot identity rules.
+
+---
+
+#### SP-0510 — Bounded LRU eviction in `InMemorySnapshotStore`
+Owner: BE
+Dependencies: SP-0511 may land before or after; both required in H1
+Refs: Runtime Hardening Backlog §7.1, Snapshot Engine Spec
+Deliverables:
+- configurable `maxEntries` with deterministic LRU-style eviction (`packages/snapshot/src/store`)
+- expired-entry purge during normal access and/or maintenance path
+- internal counters: hit / miss / eviction / entry count
+- unit and integration tests for eviction order and stale retrieval safety
+Acceptance tests: E-01, E-02, E-03, E-04, G-01, F-04 (must continue to pass); new unit cases: capacity never exceeds configured maximum; oldest eligible entry evicted deterministically; expired-entry purge does not corrupt stale behavior for active key
+Golden fixtures impacted: none
+Version impact: none
+Risks: accidental eviction of the only valid stale candidate for the active key; key-cardinality underestimation causing thrash.
+
+---
+
+#### SP-0512 — Per-competition snapshot invalidation
+Owner: BE
+Dependencies: none
+Refs: Runtime Hardening Backlog §7.1, Snapshot Engine Spec
+Deliverables:
+- scoped `invalidate(competitionId)` or equivalent API on the snapshot store (`packages/snapshot` + scheduler callers)
+- `invalidateAll()` retained for explicit admin/reset cases only
+- key-matching rules documented and deterministic
+- tests proving unaffected competitions remain cached after targeted invalidation
+Acceptance tests: F-01, F-02, G-01 (must continue to pass); new: refresh of competition A does not invalidate competition B; stale fallback remains restricted to compatible key domain only
+Golden fixtures impacted: none
+Version impact: none
+Risks: over-broad invalidation preserved under a new name; under-invalidating cross-stale entries that should have been cleared.
+
+---
+
+**Secondary (H2 — same hardening lane, non-blocking for H1 completion):**
+
+#### SP-0513 — Snapshot cache observability baseline
+Owner: BE/Ops
+Dependencies: SP-0510 preferred first
+Refs: Runtime Hardening Backlog §7.2
+Deliverables:
+- structured log fields: entry count, hit / miss / eviction, stale serve count, build duration (`packages/snapshot` and optional admin/health exposure)
+- optional health summary if consistent with current ops surface; no secrets or irrelevant internals exposed
+Acceptance tests: observability output exists and is structured; snapshot build failures and stale serving diagnosable without reverse-engineering UI behavior
+Golden fixtures impacted: none
+Version impact: none
+Risks: logging noise without stable field naming; over-engineering observability into a monitoring platform.
+
+---
+
+#### SP-0514 — Score-snapshot health verification
+Owner: BE/Ops
+Dependencies: none
+Refs: Runtime Hardening Backlog §7.2
+Deliverables:
+- startup check for required score-snapshot artifacts where applicable (server startup / health checks)
+- structured warning on missing or invalid state; non-blocking unless policy explicitly upgrades severity
+Acceptance tests: warning emitted when expected artifact is absent or invalid; startup remains policy-consistent
+Golden fixtures impacted: none
+Version impact: none
+Risks: false alarms from environment-specific artifact expectations.
+
+---
+
+#### SP-0515 — SQLite WAL checkpoint after retention pruner
+Owner: BE/Ops
+Dependencies: none
+Refs: Runtime Hardening Backlog §7.2
+Deliverables:
+- explicit WAL checkpoint call after retention pruning in the API usage ledger (API usage ledger maintenance path)
+- structured log of checkpoint result; no ledger schema semantics changed
+Acceptance tests: ledger functions normally after startup maintenance; checkpoint behavior observable and non-corrupting to usage accounting
+Golden fixtures impacted: none
+Version impact: none
+Risks: cargo-cult checkpointing without verifying actual open/close behavior. Note: partial implementation may already exist — audit before opening new work.
 
 ---
 
@@ -657,4 +759,4 @@ Risks: registration prompt too early destroys conversion; too late loses the use
 
 ## 6. One-paragraph summary
 
-This backlog decomposes SportPulse into a strict SDD task graph. Phases 0–9 (complete) cover repo scaffolding, canonical normalization, signal computation, scoring policy execution, deterministic layout, snapshot orchestration, UI API exposure, frontend rendering from backend geometry, degraded-state handling, and golden-fixture regression gates. Phases 10–11 (active) cover the commercial execution: prediction UX surface, track record accumulation and display, Pro depth paywall, and freemium conversion funnel. Each ticket defines boundaries, outputs, acceptance tests, and fixture impact to prevent scope drift and protect deterministic, explainable product truth.
+This backlog decomposes SportPulse into a strict SDD task graph. Phases 0–9 (complete) cover repo scaffolding, canonical normalization, signal computation, scoring policy execution, deterministic layout, snapshot orchestration, UI API exposure, frontend rendering from backend geometry, degraded-state handling, and golden-fixture regression gates. Phase H (active, parallel to Phase 10) closes the three operational cliff edges identified in the runtime/storage audit: unbounded in-memory snapshot growth, no persisted stale seed for restart resilience, and coarse snapshot invalidation — without changing product semantics, DTO contracts, or scoring truth. Phases 10–11 (active) cover the commercial execution: prediction UX surface, track record accumulation and display, Pro depth paywall, and freemium conversion funnel. Each ticket defines boundaries, outputs, acceptance tests, and fixture impact to prevent scope drift and protect deterministic, explainable product truth.
