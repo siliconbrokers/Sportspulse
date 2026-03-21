@@ -355,6 +355,13 @@ export class PredictionStore {
     try {
       if (!fs.existsSync(this.filePath)) return;
 
+      // Guard: skip files > 20MB to avoid OOM on startup (dev snapshots.json can grow to 100MB+)
+      const sizeBytes = fs.statSync(this.filePath).size;
+      if (sizeBytes > 20 * 1024 * 1024) {
+        console.warn(`[PredictionStore] snapshots file too large (${(sizeBytes / 1024 / 1024).toFixed(1)}MB > 20MB), starting empty. Delete and reseed if needed.`);
+        return;
+      }
+
       const raw = fs.readFileSync(this.filePath, 'utf-8');
       const doc = JSON.parse(raw) as unknown;
 
