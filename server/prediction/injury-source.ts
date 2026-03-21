@@ -503,29 +503,11 @@ async function fetchInjuriesForDate(
       ? mapPositionFromApi(apiPosition)
       : mapPositionFromReason(reason);
 
-    // §SP-V4-12: Fetch player stats to derive importance from real minutes played
-    let importance: number;
-    let minutesPlayed: number | undefined;
-
-    const playerId = entry.player?.id;
-    if (playerId && apiKey) {
-      const statsResult = await fetchPlayerMinutes(playerId, season, leagueId, apiKey);
-      const derivedImportance = deriveImportanceFromMinutes(statsResult.minutesPlayed, statsResult.gamesPlayed);
-      if (derivedImportance !== null) {
-        // Skip players below the importance threshold (squad depth)
-        if (derivedImportance < MIN_IMPORTANCE_THRESHOLD) {
-          continue;
-        }
-        importance = derivedImportance;
-        minutesPlayed = statsResult.minutesPlayed ?? undefined;
-      } else {
-        // Fallback to position-based static importance
-        importance = position === 'GK' ? 0.75 : 0.6;
-      }
-    } else {
-      // No player ID or no API key — use static fallback
-      importance = position === 'GK' ? 0.75 : 0.6;
-    }
+    // §SP-V4-12: importance estático por posición — fetchPlayerMinutes deshabilitado.
+    // La llamada a /players?id=... causaba storms en cada restart (dev y prod comparten
+    // la misma API key). Se usa fallback estático hasta implementar carga offline.
+    const importance: number = position === 'GK' ? 0.75 : 0.6;
+    const minutesPlayed: number | undefined = undefined;
 
     records.push({
       teamId,
