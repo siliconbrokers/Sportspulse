@@ -115,7 +115,8 @@ export function registerAdminRoutes(app: FastifyInstance, snapshotStore: Snapsho
 
         // overwrite=false → --keep-old-files skips files already present in prod (safer default)
         // overwrite=true  → normal extract, overwrites everything
-        const keepFlag = body.overwrite === false ? ' --keep-old-files' : '';
+        // BusyBox tar (Render/Alpine) uses -k; GNU tar supports both -k and --keep-old-files
+        const keepFlag = body.overwrite === false ? ' -k' : '';
         execSync(`tar xzf ${tmpFile} -C ${cacheDir}${keepFlag}`, { stdio: 'pipe' });
 
         let extractedDirs: string[] = [];
