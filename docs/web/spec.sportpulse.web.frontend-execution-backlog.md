@@ -3,7 +3,7 @@ artifact_id: SPEC-SPORTPULSE-WEB-FRONTEND-EXECUTION-BACKLOG
 title: "Web Frontend Execution Backlog"
 artifact_class: spec
 status: proposed
-version: 0.1.0
+version: 0.2.0
 project: sportpulse
 domain: web
 slug: frontend-execution-backlog
@@ -25,7 +25,7 @@ canonical_path: docs/web/spec.sportpulse.web.frontend-execution-backlog.md
 
 # SportPulse — Web Frontend Execution Backlog
 
-Version: 0.1  
+Version: 0.2  
 Status: Proposed  
 Scope: Dependency-aware execution backlog for frontend, public track record, auth/session, paywall, Pro-depth, theming foundations, and testability.
 
@@ -200,7 +200,28 @@ Dependencies:
 - Some items can start immediately.
 - Route-based navigation helps test stability.
 
-### Stream 6 — Experience/theming foundation
+#### Ticket ID: SPF-QA-006
+- **Priority**: P2
+- **Title**: Validate Level B global theme propagation readiness across active product surfaces
+- **Why**: A product-wide style propagation claim needs verification, not belief.
+- **Scope**:
+  - Verify theme swap across the active product surface inventory.
+  - Validate notices, warnings, paywall, and free-vs-Pro surfaces retain semantic distinction under theme change.
+  - Confirm no undocumented raw style leakage remains in active product surfaces.
+- **Out of scope**:
+  - Subjective visual polish judgments.
+  - Future/deferred surfaces outside the active product footprint.
+- **Dependencies**: SPF-EXP-004
+- **Acceptance criteria**:
+  - Theme swap passes across the active product inventory.
+  - Semantic distinctions remain intact under theme change.
+  - K-08 or equivalent acceptance case is passing.
+- **Risks / notes**:
+  - Do not execute this before Level A and the active-surface pass exist.
+- **Owner suggestion**: frontend / QA
+- **Blocking type**: FOUNDATION_ENABLER
+
+## Stream 6 — Experience/theming foundation and style-safety rollout
 Purpose:
 Prepare stable visual grammar, theme variation, and site experience config without overbuilding runtime personalization.
 
@@ -716,19 +737,35 @@ Dependencies:
 
 ### Ticket ID: SPF-EXP-001
 - **Priority**: P1
-- **Title**: Introduce semantic token layer usage in shell and critical cards
-- **Why**: Theme variation and future visual evolution are unsafe without tokenized critical surfaces.
+- **Title**: Tokenize critical surfaces for Level A style safety
+- **Why**: Controlled theme evolution is not credible until critical surfaces are tokenized and style-safe by contract.
 - **Scope**:
-  - Apply design-system foundation tokens to shell, nav, cards, notices, and paywall surfaces.
-  - Replace critical hardcoded visual values where present.
+  - Apply semantic tokens to the critical-surface set:
+    - app shell,
+    - primary navigation,
+    - competition context controls,
+    - dashboard containers,
+    - treemap wrapper/surrounds,
+    - detail panel,
+    - match cards,
+    - prediction cards/blocks,
+    - track record surfaces,
+    - paywall surfaces,
+    - notices/announcement bar.
+  - Replace raw hardcoded visual values in those surfaces except documented exceptions.
+  - Produce or update the active critical-surface inventory used by design-system rollout tracking.
 - **Out of scope**:
-  - Full product-wide restyling.
+  - Full active-product tokenization.
+  - Future/deferred surfaces not yet in active product footprint.
 - **Dependencies**: SPF-FND-005
 - **Acceptance criteria**:
-  - Critical shell and card surfaces use semantic token layer.
-  - No raw hex values remain in critical shell/paywall/notices surfaces except documented exceptions.
+  - Every critical surface consumes semantic tokens.
+  - No raw hex values remain in critical surfaces except documented exceptions.
+  - Theme swap changes critical surfaces without per-component edits.
+  - Level A style safety can be asserted with evidence.
 - **Risks / notes**:
   - Do not let this turn into a full redesign pass.
+  - This ticket establishes Level A only, not product-wide propagation readiness.
 - **Owner suggestion**: frontend
 - **Blocking type**: PARALLELIZABLE
 
@@ -768,6 +805,29 @@ Dependencies:
   - Keep v1 pragmatic; avoid overbuilding config runtime.
 - **Owner suggestion**: frontend / shared
 - **Blocking type**: NICE_TO_HAVE
+
+### Ticket ID: SPF-EXP-004
+- **Priority**: P2
+- **Title**: Complete full active-surface tokenization for Level B style propagation readiness
+- **Why**: The product cannot honestly claim that a global style change propagates everywhere until all active surfaces are tokenized or explicitly excepted.
+- **Scope**:
+  - Extend token adoption from Level A critical surfaces to the full active product surface inventory.
+  - Cover auth/session surfaces, Pro page surfaces, loading/empty/error/degraded states, and remaining ancillary active panels.
+  - Eliminate undocumented raw visual values from active product surfaces.
+  - Close or explicitly register all remaining style exceptions.
+- **Out of scope**:
+  - Future/deferred routes and speculative surfaces.
+  - White-label or advanced targeting.
+- **Dependencies**: SPF-EXP-001, SPF-EXP-002, SPF-EXP-003
+- **Acceptance criteria**:
+  - Full active surface inventory is tokenized or documented as approved exceptions.
+  - No undocumented raw visual values remain in active product surfaces.
+  - Theme swap propagates across the active product without per-surface manual patching.
+  - Level B style propagation readiness can be asserted.
+- **Risks / notes**:
+  - This is where the stronger promise becomes real; do not claim it before this ticket closes.
+- **Owner suggestion**: frontend
+- **Blocking type**: FOUNDATION_ENABLER
 
 ### Ticket ID: SPF-SPEC-001
 - **Priority**: P1
@@ -873,8 +933,8 @@ Dependencies:
 **Unlocks**:
 - General-public product launch readiness.
 
-### Phase 4 — Experience foundation and controlled visual evolution
-**Objective**: Prepare safe theme/announcement/config capability without overbuilding.
+### Phase 4 — Experience foundation and Level A style safety
+**Objective**: Prepare safe theme/announcement/config capability and reach critical-surface style safety without overbuilding.
 
 **Included tickets**:
 - SPF-EXP-001
@@ -883,14 +943,30 @@ Dependencies:
 - SPF-SPEC-001
 
 **Exit criteria**:
-- Critical shell and key surfaces use semantic token layer.
+- Level A critical surfaces are tokenized.
 - Announcement slot exists.
 - Minimal site-experience-config consumption path exists.
+- Controlled theme change works across critical surfaces.
 
 **Unlocks**:
-- Seasonal themes.
+- Seasonal themes on critical surfaces.
 - Global notices.
-- Controlled visual evolution.
+- Controlled visual evolution without critical-surface patching.
+
+### Phase 5 — Full active-surface style propagation readiness
+**Objective**: Extend token safety from critical surfaces to the full active product footprint.
+
+**Included tickets**:
+- SPF-EXP-004
+- SPF-QA-006
+
+**Exit criteria**:
+- Active product surface inventory is closed.
+- Remaining exceptions are documented and bounded.
+- K-08 or equivalent style-propagation readiness verification passes.
+
+**Unlocks**:
+- Honest claim that global style changes propagate across the active product.
 
 ---
 
@@ -916,6 +992,8 @@ Dependencies:
 - SPF-EXP-001 depends on foundational shell/component cleanup; do not start it as a product-wide redesign.
 - SPF-EXP-002 depends on SPF-EXP-001 because announcement slots should use semantic shell primitives.
 - SPF-EXP-003 depends on SPF-EXP-001 and SPF-EXP-002 because config should drive already-existing theme/announcement hooks.
+- SPF-EXP-004 depends on SPF-EXP-001, SPF-EXP-002, and SPF-EXP-003 because product-wide propagation cannot be asserted before critical surfaces, shell announcement hooks, and minimal config path exist.
+- SPF-QA-006 depends on SPF-EXP-004 because product-wide style propagation readiness is not testable before the full active-surface pass exists.
 
 ---
 

@@ -3,7 +3,7 @@ artifact_id: SPEC-SPORTPULSE-WEB-DESIGN-SYSTEM-FOUNDATION
 title: "Web Design System Foundation"
 artifact_class: spec
 status: proposed
-version: 0.1.0
+version: 0.2.0
 project: sportpulse
 domain: web
 slug: design-system-foundation
@@ -19,12 +19,14 @@ related_artifacts:
   - SPEC-SPORTPULSE-WEB-AUTH-AND-FREEMIUM-SURFACE
   - SPEC-SPORTPULSE-WEB-THEME-AND-GLOBAL-ANNOUNCEMENT-SYSTEM
   - SPEC-SPORTPULSE-WEB-SITE-EXPERIENCE-CONFIG
+  - SPEC-SPORTPULSE-WEB-FRONTEND-EXECUTION-BACKLOG
+  - SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX
 canonical_path: docs/web/spec.sportpulse.web.design-system-foundation.md
 ---
 
 # SportPulse — Web Design System Foundation
 
-Version: 0.1  
+Version: 0.2  
 Status: Proposed  
 Scope: Visual grammar, token model, semantic styling rules, component-state styling contract  
 Audience: Product, Frontend, Design, QA, AI-assisted development workflows
@@ -635,7 +637,123 @@ V1 does not require:
 
 ---
 
-## 19. Acceptance criteria for this spec
+## 19. Product-wide style safety contract
+
+### 19.1 Definitions
+
+#### Active product surface
+Any user-reachable web surface that is part of the current live product footprint, including:
+- app shell,
+- primary navigation,
+- competition context controls,
+- dashboard containers,
+- treemap wrapper and surrounding chrome,
+- detail panel,
+- match cards,
+- prediction cards/blocks,
+- track record surfaces,
+- paywall surfaces,
+- auth/session surfaces,
+- Pro page surfaces,
+- notices/announcement bar,
+- loading / empty / error / degraded states.
+
+#### Critical surface
+A subset of active product surfaces whose styling consistency is required before controlled visual evolution can begin safely.
+
+#### Documented exception
+A narrowly approved, temporary styling deviation that is:
+- explicitly listed,
+- justified,
+- bounded in scope,
+- time-limited or rollout-limited,
+- not silently proliferated.
+
+#### Style-safe surface
+A surface that:
+- consumes semantic tokens,
+- does not rely on raw visual values in feature code,
+- responds correctly to theme changes,
+- does not require component-level rewrites when a theme pack changes.
+
+#### Style-safe product
+A product state where every active product surface is either:
+- style-safe, or
+- a documented exception.
+
+### 19.2 Coverage levels
+
+#### Level A — Critical-surface style safety
+Level A is achieved when all critical surfaces are style-safe.
+
+Level A is sufficient to support:
+- shell-safe theme changes,
+- controlled announcement styling,
+- controlled seasonal/event overlays,
+- serious visual iteration without styling chaos.
+
+Level A is **not** sufficient to claim product-wide global style propagation.
+
+#### Level B — Active-product style propagation readiness
+Level B is achieved when the full active product surface inventory is style-safe, except for documented exceptions.
+
+Only Level B permits the claim that a site-wide style change can propagate across the active product without per-surface manual rework.
+
+### 19.3 Mandatory active product surface inventory
+
+The following inventory must be used as the minimum rollout and audit checklist.
+
+| Surface | Minimum level | Tokenization required | Documented exception allowed? |
+| --- | --- | --- | --- |
+| App shell | Level A | Yes | Narrowly, temporarily |
+| Primary navigation | Level A | Yes | Narrowly, temporarily |
+| Competition context controls | Level A | Yes | Narrowly, temporarily |
+| Dashboard containers | Level A | Yes | Narrowly, temporarily |
+| Treemap wrapper / surrounding chrome | Level A | Yes | Narrowly, temporarily |
+| Detail panel | Level A | Yes | Narrowly, temporarily |
+| Match cards | Level A | Yes | Narrowly, temporarily |
+| Prediction cards / blocks | Level A | Yes | Narrowly, temporarily |
+| Track record surfaces | Level A | Yes | Narrowly, temporarily |
+| Paywall surfaces | Level A | Yes | Narrowly, temporarily |
+| Notices / announcement bar | Level A | Yes | Narrowly, temporarily |
+| Auth / session surfaces | Level B | Yes | Narrowly, temporarily |
+| Pro page surfaces | Level B | Yes | Narrowly, temporarily |
+| Loading / empty / error / degraded states | Level B | Yes | Narrowly, temporarily |
+| Secondary utility surfaces and ancillary panels | Level B | Yes | Narrowly, temporarily |
+
+### 19.4 Guarantee boundary
+
+The phrase “changing the site style applies everywhere without touching anything else” may be used only when:
+- Level B has been reached,
+- the active surface inventory has been checked,
+- undocumented raw visual values have been removed from the active product footprint,
+- theme propagation has been verified against the current active theme packs.
+
+Before Level B, the strongest permissible claim is:
+- critical product surfaces support controlled theme variation without component rewrites.
+
+### 19.5 Exception policy
+
+Documented exceptions must include:
+- surface name,
+- reason,
+- why tokenization is temporarily deferred,
+- expected cleanup milestone,
+- risk if left unresolved.
+
+Exceptions must not become silent permanent debt.
+
+### 19.6 Completion gate
+
+This spec’s stronger propagation promise is considered satisfied only when:
+- an active product surface inventory exists,
+- critical surfaces are Level A complete,
+- Level B coverage status is explicitly tracked,
+- no undocumented raw visual values remain in active product surfaces,
+- a theme swap can be performed across the active product without per-surface patching,
+- notices/warnings/paywall/free-vs-Pro surfaces retain semantic distinction under theme change.
+
+## 20. Acceptance criteria for this spec
 
 This foundation is considered established when:
 
@@ -644,11 +762,14 @@ This foundation is considered established when:
 - dark/light are mapped through tokens,
 - premium/notice/operational surfaces are visually distinguishable,
 - future theme packs can override tokens without component rewrites,
+- an active product surface inventory exists,
+- Level A and Level B coverage can be assessed explicitly,
+- the stronger “global style propagation” claim is reserved for Level B only,
 - styling drift is materially reduced.
 
 ---
 
-## 20. Non-goals
+## 21. Non-goals
 
 This spec does not define:
 - final page layouts,
@@ -662,7 +783,7 @@ This spec does not define:
 
 ---
 
-## 21. Deferred future considerations
+## 22. Deferred future considerations
 
 ### 21.1 Accessibility themes
 Potential future work:

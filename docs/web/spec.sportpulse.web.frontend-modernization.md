@@ -3,7 +3,7 @@ artifact_id: SPEC-SPORTPULSE-WEB-FRONTEND-MODERNIZATION
 title: "Frontend Modernization"
 artifact_class: spec
 status: proposed
-version: 0.1.0
+version: 0.2.0
 project: sportpulse
 domain: web
 slug: frontend-modernization
@@ -27,7 +27,7 @@ canonical_path: docs/web/spec.sportpulse.web.frontend-modernization.md
 
 # SportPulse — Frontend Modernization
 
-Version: 0.1  
+Version: 0.2  
 Status: Proposed  
 Scope: system-level modernization of the SportPulse web frontend while preserving snapshot-first, backend-owned truth and MVP commercial constraints  
 Audience: Product, Frontend, Backend, QA, Ops, AI-assisted development workflows
@@ -407,6 +407,36 @@ The frontend cannot continue to evolve through scattered hardcoded styling.
 
 Fixed panels, backdrop hacks, hidden treemap cases, and narrow-layout hierarchy failures must be addressed deliberately.
 
+
+### 9.8 Style-propagation guarantee boundary
+
+Visual modernization must distinguish between two milestones:
+
+#### Level A — Critical-surface style safety
+Level A means the following surfaces are token-safe and theme-safe:
+- shell,
+- navigation,
+- competition controls,
+- dashboard containers,
+- treemap surrounds,
+- detail panel,
+- match/prediction cards,
+- track record,
+- paywall,
+- notices.
+
+Level A is sufficient for:
+- controlled theme evolution,
+- seasonal overlays on critical surfaces,
+- announcement styling without per-component rewrites.
+
+Level A is **not** sufficient to claim that the entire active product will restyle globally without manual patching.
+
+#### Level B — Full active-product style propagation readiness
+Level B means the full active product surface inventory is tokenized or explicitly documented as approved exceptions.
+
+Only Level B permits the stronger product claim that a global style change propagates across the active product without per-surface rework.
+
 ---
 
 ## 10. Phase model
@@ -477,22 +507,39 @@ Completion criteria:
 - K-04/K-05/K-06 behavior is implementable and testable,
 - Pro users see no commercial display ads.
 
-### 10.5 Phase 4 — Visual/system hardening
+### 10.5 Phase 4 — Visual/system hardening (Level A)
 
 Objective:
 
-- align components to design-system foundation,
+- align critical components to design-system foundation,
 - stabilize theme/announcement integration,
 - resolve responsive debt,
-- add UI test baseline.
+- add UI test baseline,
+- reach critical-surface style safety.
 
 Completion criteria:
 
-- major surfaces use token-driven styling,
+- critical surfaces use token-driven styling,
 - critical path UI tests exist,
-- responsive debt items are closed or explicitly deferred.
+- responsive debt items are closed or explicitly deferred,
+- Level A style safety can be asserted.
 
-### 10.6 Phase 5 — Controlled UX refinement
+### 10.6 Phase 5 — Full active-surface style propagation readiness (Level B)
+
+Objective:
+
+- close token gaps across the full active product footprint,
+- eliminate undocumented raw visual values from active surfaces,
+- verify global style propagation readiness.
+
+Completion criteria:
+
+- full active product surface inventory is covered,
+- remaining exceptions are documented and bounded,
+- K-08 or equivalent style-propagation readiness validation passes,
+- Level B can be asserted honestly.
+
+### 10.7 Phase 6 — Controlled UX refinement
 
 Objective:
 
@@ -554,10 +601,12 @@ Includes:
 
 Includes:
 
-- design-token adoption,
+- Level A critical-surface token adoption,
+- Level B full active-surface token closure,
 - theme integration,
 - responsive fixes,
-- critical-path tests.
+- critical-path tests,
+- style-propagation readiness validation.
 
 ---
 
