@@ -82,7 +82,6 @@ fi
 echo ""
 echo "📦 Creando tarball..."
 (cd "$CACHE_DIR" && tar czf "$TARBALL" \
-  --exclude='predictions/snapshots.json' \
   --exclude='predictions/snapshots.json.bak' \
   --exclude='predictions/evaluations.backup-pre-v3fix.json' \
   --exclude='predictions/forward-validation.backup-pre-h11fix.json' \
