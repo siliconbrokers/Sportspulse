@@ -3,9 +3,10 @@
 # Genera un tarball base64 y proporciona el comando curl para subirlo.
 #
 # Uso:
-#   pnpm pack-cache                          # empaqueta + muestra instrucciones
-#   SEED_URL=https://... pnpm pack-cache     # empaqueta + sube automáticamente
-#   ADMIN_SECRET=xxx SEED_URL=... pnpm pack-cache
+#   pnpm pack-cache                                    # empaqueta + muestra instrucciones
+#   SEED_URL=https://... pnpm pack-cache               # empaqueta + sube (skip archivos existentes)
+#   ADMIN_SECRET=xxx SEED_URL=... pnpm pack-cache      # ídem con auth automático
+#   OVERWRITE=true ADMIN_SECRET=xxx SEED_URL=... pnpm pack-cache  # fuerza sobreescritura
 
 set -e
 
@@ -29,6 +30,7 @@ INCLUDE_DIRS=(
   "player-stats"     # player stats cache por (season/playerId) — evita storm en prod
   "lineups"          # lineup cache por (leagueId/date y fixtureId) — evita refetch en restart
   "odds"             # AF odds cache por fixtureId — evita refetch en restart
+  "events"           # eventos de gol por partido FINISHED (permanentes, inmutables)
 )
 
 # Archivos sueltos a incluir
@@ -93,7 +95,9 @@ python3 -c "
 import json, sys
 with open('$B64_FILE') as f:
     data = f.read().strip()
-payload = {'data': data, 'overwrite': True}
+import os
+overwrite = os.environ.get('OVERWRITE', 'false').lower() == 'true'
+payload = {'data': data, 'overwrite': overwrite}
 with open('$PAYLOAD_FILE', 'w') as f:
     json.dump(payload, f)
 print('   → $PAYLOAD_FILE')

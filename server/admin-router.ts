@@ -113,7 +113,9 @@ export function registerAdminRoutes(app: FastifyInstance, snapshotStore: Snapsho
         const buf = Buffer.from(body.data, 'base64');
         fs.writeFileSync(tmpFile, buf);
 
-        const keepFlag = body.overwrite === false ? '' : '';
+        // overwrite=false → --keep-old-files skips files already present in prod (safer default)
+        // overwrite=true  → normal extract, overwrites everything
+        const keepFlag = body.overwrite === false ? ' --keep-old-files' : '';
         execSync(`tar xzf ${tmpFile} -C ${cacheDir}${keepFlag}`, { stdio: 'pipe' });
 
         let extractedDirs: string[] = [];
