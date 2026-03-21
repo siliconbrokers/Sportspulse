@@ -39,6 +39,6 @@ echo ""
 echo "[pre-push] Seeding cache en produccion..."
 # El seed es best-effort: si falla (servidor suspendido, error de red, etc.)
 # el push continua igual. El seed no debe bloquear un deploy de emergencia.
-OVERWRITE="${OVERWRITE:-false}" ADMIN_SECRET="$ADMIN_SECRET" SEED_URL="$SEED_URL" \
+OVERWRITE="${OVERWRITE:-true}" ADMIN_SECRET="$ADMIN_SECRET" SEED_URL="$SEED_URL" \
   bash "$SCRIPT_DIR/pack-cache.sh" || echo "[pre-push] Seed fallo — continuando con el push."
 echo ""

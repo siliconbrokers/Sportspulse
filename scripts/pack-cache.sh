@@ -31,6 +31,7 @@ INCLUDE_DIRS=(
   "lineups"          # lineup cache por (leagueId/date y fixtureId) — evita refetch en restart
   "odds"             # AF odds cache por fixtureId — evita refetch en restart
   "events"           # eventos de gol por partido FINISHED (permanentes, inmutables)
+  "predictions"      # PE predictions cache por modelo y competición
 )
 
 # Archivos sueltos a incluir
@@ -80,7 +81,11 @@ fi
 
 echo ""
 echo "📦 Creando tarball..."
-(cd "$CACHE_DIR" && tar czf "$TARBALL" "${TAR_ARGS[@]}")
+(cd "$CACHE_DIR" && tar czf "$TARBALL" \
+  --exclude='predictions/snapshots.json.bak' \
+  --exclude='predictions/evaluations.backup-pre-v3fix.json' \
+  --exclude='predictions/forward-validation.backup-pre-h11fix.json' \
+  "${TAR_ARGS[@]}")
 
 TARBALL_SIZE=$(du -sh "$TARBALL" | cut -f1)
 echo "   → $TARBALL ($TARBALL_SIZE)"
@@ -98,7 +103,14 @@ with open('$B64_FILE') as f:
     data = f.read().strip()
 import os
 overwrite = os.environ.get('OVERWRITE', 'true').lower() == 'true'  # default: overwrite
-payload = {'data': data, 'overwrite': overwrite}
+# Archivos que producción genera por sí misma después del seed inicial.
+# Se protegen en seeds subsiguientes: si ya existen en disco, prod mantiene su versión.
+# Si no existen aún (primer seed), el tar los crea normalmente.
+never_overwrite = [
+  'predictions/snapshots.json',   # prod acumula predicciones live
+  'predictions/evaluations.json', # prod acumula métricas de accuracy running
+]
+payload = {'data': data, 'overwrite': overwrite, 'neverOverwrite': never_overwrite}
 with open('$PAYLOAD_FILE', 'w') as f:
     json.dump(payload, f)
 print('   → $PAYLOAD_FILE')
