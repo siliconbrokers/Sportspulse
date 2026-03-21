@@ -49,7 +49,7 @@ const TTL_SECONDS: Record<MatchdayStatus, number> = {
   unknown:       120,
 };
 
-const CACHE_BASE = path.join(process.cwd(), 'cache');
+const CACHE_BASE = process.env.CACHE_DIR ?? path.join(process.cwd(), 'cache');
 
 // ── Path (§7) ─────────────────────────────────────────────────────────────────
 

@@ -94,7 +94,7 @@ export function registerAdminRoutes(app: FastifyInstance, snapshotStore: Snapsho
     if (!validateAuth(request.headers.authorization)) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
-    const cacheDir = path.join(process.cwd(), 'cache');
+    const cacheDir = process.env.CACHE_DIR ?? path.join(process.cwd(), 'cache');
     let topLevel: string[] = [];
     const detail: Record<string, string[]> = {};
     try { topLevel = fs.readdirSync(cacheDir); } catch { topLevel = []; }
@@ -145,7 +145,7 @@ export function registerAdminRoutes(app: FastifyInstance, snapshotStore: Snapsho
         return reply.status(400).send({ error: 'Missing field: data (base64 tar.gz)' });
       }
 
-      const cacheDir = path.join(process.cwd(), 'cache');
+      const cacheDir = process.env.CACHE_DIR ?? path.join(process.cwd(), 'cache');
       fs.mkdirSync(cacheDir, { recursive: true });
 
       const tmpFile = path.join(os.tmpdir(), `cache-seed-${Date.now()}.tar.gz`);

@@ -72,7 +72,7 @@ const FEATURE_DEFAULTS: Omit<PortalFeatureConfig, 'updatedAt' | 'updatedBy'> = {
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
-const CACHE_DIR  = path.join(process.cwd(), 'cache');
+const CACHE_DIR  = process.env.CACHE_DIR ?? path.join(process.cwd(), 'cache');
 const CONFIG_FILE = path.join(CACHE_DIR, 'portal-config.json');
 const AUDIT_FILE  = path.join(CACHE_DIR, 'portal-config-audit.jsonl');
 
