@@ -139,21 +139,32 @@ if (!process.env.ENABLE_TRAINING_FETCHES) {
 
 ## Inventario de callers activos (AF mode, producción)
 
-Estado al 2026-03-21:
+Estado al 2026-03-21 (actualizado post-audit F-01 a F-10):
 
 | operationKey | Clase | Protección | Estado |
 |---|---|---|---|
 | `fixtures-live-all` | LIVE | matchday cache | OK |
-| `injuries-by-league-date` | LIVE | disco + cooldown 6h | OK |
+| `injuries-by-league-date` | LIVE | disco + mem + cooldown 6h + disco-sentinel en quota-body path (F-05) | OK |
 | `players-by-id` | OFFLINE | **DESHABILITADO** — importance estático | OK |
-| `fixtures-statistics` (xG) | OFFLINE | disco + cap MAX_NEW_XG_FETCHES=3 + cooldown 6h | OK |
-| `fixtures-by-date` (lineups) | LIVE | disco + guard 15min pre-kickoff | OK |
-| `fixtures-lineups` | LIVE | disco + no cachea [] vacío (sin lineup publicado) + error paths escriben [] | OK |
+| `fixtures-statistics` (xG) | OFFLINE | disco + cap MAX_NEW_XG_FETCHES=3 + gate ENABLE_TRAINING_FETCHES (F-03) + mem-cache 10min (F-09) + error sentinels en HTTP/network paths (F-01) | OK |
+| `fixtures-list` (xG fixture list) | OFFLINE | disco + error sentinels en HTTP/network paths (F-02) | OK |
+| `fixtures-by-date` (lineups) | LIVE | disco + guard 15min pre-kickoff (previo 45min) | OK |
+| `fixtures-lineups` | LIVE | disco + no cachea [] vacío (sin lineup publicado) + error paths con TTL_ERROR=30min (F-07) | OK |
 | `odds` (af-odds-service) | LIVE | disco + sentinel null en error paths | OK |
+| `fixtures-historical-by-league` | OFFLINE | disco + error sentinel 30min en HTTP/network catch (F-04) + sin QuotaExhaustedError sentinel | OK |
 
 ### Callers desactivados en AF mode
 
-`teams-by-league`, `fixtures-historical-by-league` — solo activos con `SHADOW_AF_VALIDATION_ENABLED=true` o `v3NonFdDescriptors`. Tienen disco cache pero **sin** write-before-fetch. Si se reactivan, deben cumplir Regla 3 completa.
+`teams-by-league` — solo activo con `SHADOW_AF_VALIDATION_ENABLED=true`. Tiene disco cache. Si se reactiva, debe cumplir Regla 3 completa.
+
+### xG Backfill — gate ENABLE_TRAINING_FETCHES (F-03)
+
+El timer de backfill de xG (`runXgBackfill` en `server/index.ts`) solo se activa si `ENABLE_TRAINING_FETCHES=true`. Por defecto está desactivado en dev y prod. Activar solo para seed inicial de datos xG en un ambiente nuevo. El runner (`v3-shadow-runner`) usa `readCachedXg()` (solo disco) — no llama a la API en el ciclo LIVE.
+
+### Lineups — error TTL override (F-07)
+
+Los error sentinels de lineups (`[]` + `ttlMs: 30min`) expiran en 30min, no en 24h. Esto evita que un error transitorio bloquee el fetch durante todo el día.
+Los error sentinels de `fixtures-historical-by-league` tienen el mismo patrón con `TTL_ERROR_MS = 30min`.
 
 ---
 

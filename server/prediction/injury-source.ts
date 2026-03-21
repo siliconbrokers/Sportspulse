@@ -482,6 +482,7 @@ async function fetchInjuriesForDate(
     if (errVals.some((v) => typeof v === 'string' && v.toLowerCase().includes('limit'))) {
       markQuotaExhausted();
       setCache(leagueId, season, dateIso, []);
+      writeDiskCache(leagueId, season, dateIso, []); // F-05: disk write faltaba en este path (Rule 3.1)
       return [];
     }
   }

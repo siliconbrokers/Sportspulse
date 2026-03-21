@@ -1308,9 +1308,16 @@ async function main() {
       } catch { /* non-fatal per competition */ }
     }
   }
-  // First run: 60s after startup (let server load data and stabilize before hitting the API)
-  setTimeout(() => void runXgBackfill(), 60_000);
-  setInterval(() => void runXgBackfill(), XG_BACKFILL_INTERVAL_MS);
+  // F-03: OFFLINE training data — gated by ENABLE_TRAINING_FETCHES (Regla 4: dev/prod share cuota)
+  // Para activar backfill en dev: ENABLE_TRAINING_FETCHES=true pnpm dev
+  // En producción: activar solo para seed inicial, luego desactivar.
+  if (process.env.ENABLE_TRAINING_FETCHES === 'true') {
+    // First run: 60s after startup (let server load data and stabilize before hitting the API)
+    setTimeout(() => void runXgBackfill(), 60_000);
+    setInterval(() => void runXgBackfill(), XG_BACKFILL_INTERVAL_MS);
+  } else {
+    console.log('[XgBackfill] Skipping backfill timer — ENABLE_TRAINING_FETCHES not set. Set to "true" to enable offline xG data fetching.');
+  }
 
   // ── GET /api/ui/match/:matchId/incidents ────────────────────────────────────
   // Devuelve snapshot de incidentes (goles, tarjetas, sustituciones) para un partido.

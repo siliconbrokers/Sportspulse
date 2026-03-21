@@ -49,7 +49,18 @@ const CACHE_ROOT = 'cache/xg';
 
 // ── Backfill cooldown tracker ──────────────────────────────────────────────────
 // Key: competitionId — value: timestamp of last backfill run
+// NOTE (F-10): This map is vestigial since getHistoricalXg is now only called from
+// runXgBackfill() via setInterval (every 6h). The setInterval already controls frequency,
+// so this gate is redundant. Kept as defense-in-depth: if getHistoricalXg is ever called
+// from another path, the 6h cooldown still prevents burst fetching.
 const _lastBackfillMs = new Map<string, number>();
+
+// ── readCachedXg in-memory cache ──────────────────────────────────────────────
+// xG data is immutable once written — no need to re-scan N files on every prediction cycle.
+// TTL of 10min is conservative: the backfill only runs every 6h so in practice the disk
+// content changes even less frequently.
+const _readCachedXgMem = new Map<string, { records: XgRecord[]; cachedAt: number }>();
+const READ_CACHED_XG_MEM_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 // ── League ID mapping ─────────────────────────────────────────────────────────
 // Derived automatically from COMPETITION_REGISTRY — no manual updates needed when leagues are added.
@@ -275,6 +286,8 @@ async function fetchFixtureList(
 
     if (!res.ok) {
       console.warn(`[XgSource] HTTP ${res.status} fetching fixture list for league ${leagueId}`);
+      // F-02: Write empty list to disk — prevents cold-restart from immediately re-fetching (Rule 3.1)
+      void writeFixtureListToDisk(leagueId, season, []);
       return mem?.fixtures ?? [];
     }
 
@@ -282,16 +295,18 @@ async function fetchFixtureList(
   } catch (err: unknown) {
     if (err instanceof QuotaExhaustedError) {
       markQuotaExhausted();
-      return mem?.fixtures ?? [];
+      return mem?.fixtures ?? []; // NO sentinel — quota is global, clears at midnight
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[XgSource] fetch error for fixture list (league ${leagueId}): ${msg}`);
+    // F-02: Write empty list to disk — prevents cold-restart storm on persistent network errors
+    void writeFixtureListToDisk(leagueId, season, []);
     return mem?.fixtures ?? [];
   }
 
   if (detectQuotaFromBody(data.errors)) {
     markQuotaExhausted();
-    return mem?.fixtures ?? [];
+    return mem?.fixtures ?? []; // NO sentinel — quota is global, clears at midnight
   }
 
   const fixtures: FixtureListEntry[] = (data.response ?? []).map((entry) => ({
@@ -347,6 +362,13 @@ async function fetchXgForFixture(
 
     if (!res.ok) {
       console.warn(`[XgSource] HTTP ${res.status} for fixture stats ${fixtureId}`);
+      // F-01: Write error sentinel — prevents indefinite retries on permanently broken fixtures (Rule 3.1)
+      await writeToDiskCache(leagueId, season, {
+        fixtureId, utcDate, homeTeamId, awayTeamId,
+        xgHome: 0, xgAway: 0,
+        cachedAt: new Date().toISOString(),
+        noXg: true,
+      });
       return null;
     }
 
@@ -354,10 +376,17 @@ async function fetchXgForFixture(
   } catch (err: unknown) {
     if (err instanceof QuotaExhaustedError) {
       markQuotaExhausted();
-      return null;
+      return null; // NO sentinel — quota is global, clears at midnight
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[XgSource] fetch error for fixture ${fixtureId}: ${msg}`);
+    // F-01: Write error sentinel — prevents retry storm on persistent network failures (Rule 3.1)
+    await writeToDiskCache(leagueId, season, {
+      fixtureId, utcDate, homeTeamId, awayTeamId,
+      xgHome: 0, xgAway: 0,
+      cachedAt: new Date().toISOString(),
+      noXg: true,
+    });
     return null;
   }
 
@@ -441,6 +470,14 @@ export class XgSource {
       const leagueId = AF_LEAGUE_IDS[competitionId];
       if (leagueId === undefined) return [];
 
+      // F-09: In-memory cache — xG data is immutable post-match; no need to re-scan
+      // N files on every prediction cycle (every 2min when LIVE).
+      const memKey = `${competitionId}:${season}`;
+      const mem = _readCachedXgMem.get(memKey);
+      if (mem && Date.now() - mem.cachedAt < READ_CACHED_XG_MEM_TTL_MS) {
+        return mem.records;
+      }
+
       const dir = join(CACHE_ROOT, String(leagueId), String(season));
       let files: string[];
       try {
@@ -468,6 +505,8 @@ export class XgSource {
           } catch { /* skip corrupt files */ }
         }),
       );
+
+      _readCachedXgMem.set(memKey, { records: results, cachedAt: Date.now() });
       return results;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

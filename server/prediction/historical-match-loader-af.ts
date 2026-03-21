@@ -31,6 +31,7 @@ const BASE_URL = 'https://v3.football.api-sports.io';
 const CACHE_DIR = path.resolve(process.cwd(), 'cache/historical/apifootball');
 const TTL_CURRENT_MS  = 6 * 3600_000;         // 6 h — temporada corriente (partidos acumulando)
 const TTL_PAST_MS     = 365 * 24 * 3600_000;  // 1 año — temporadas pasadas (inmutables)
+const TTL_ERROR_MS    = 30 * 60_000;           // 30 min — sentinel de error (HTTP / network); no aplica a quota
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ interface CacheDoc {
   leagueId: number;
   year: number;
   savedAt: string;
+  ttlMs?: number;  // override TTL for error sentinels (short expiry)
   records: V3MatchRecord[];
 }
 
@@ -70,8 +72,8 @@ function currentSeasonYear(): number {
   return month < 6 ? year - 1 : year;
 }
 
-function isCacheFresh(savedAt: string, leagueId: number, year: number): boolean {
-  const ttl   = year < currentSeasonYear() ? TTL_PAST_MS : TTL_CURRENT_MS;
+function isCacheFresh(savedAt: string, leagueId: number, year: number, docTtlMs?: number): boolean {
+  const ttl   = docTtlMs ?? (year < currentSeasonYear() ? TTL_PAST_MS : TTL_CURRENT_MS);
   const ageMs = Date.now() - new Date(savedAt).getTime();
   return ageMs < ttl;
 }
@@ -82,7 +84,11 @@ function readCache(leagueId: number, year: number): V3MatchRecord[] | null {
     const raw = fs.readFileSync(p, 'utf-8');
     const doc = JSON.parse(raw) as CacheDoc;
     if (doc.version !== 1 || doc.leagueId !== leagueId || doc.year !== year) return null;
-    if (!isCacheFresh(doc.savedAt, leagueId, year)) return null;
+    if (!isCacheFresh(doc.savedAt, leagueId, year, doc.ttlMs)) return null;
+    if (doc.records.length === 0 && doc.ttlMs) {
+      // F-04: error sentinel (short TTL, empty records) — still fresh, suppress retry
+      return [];
+    }
     console.log(`[AfHistoricalLoader] CACHE HIT ${leagueId}/${year}: ${doc.records.length} matches`);
     return doc.records;
   } catch {
@@ -90,7 +96,7 @@ function readCache(leagueId: number, year: number): V3MatchRecord[] | null {
   }
 }
 
-function writeCache(leagueId: number, year: number, records: V3MatchRecord[]): void {
+function writeCache(leagueId: number, year: number, records: V3MatchRecord[], ttlMs?: number): void {
   const p = cachePath(leagueId, year);
   const tmp = p + '.tmp';
   try {
@@ -100,6 +106,7 @@ function writeCache(leagueId: number, year: number, records: V3MatchRecord[]): v
       leagueId,
       year,
       savedAt: new Date().toISOString(),
+      ...(ttlMs !== undefined && { ttlMs }),
       records,
     };
     fs.writeFileSync(tmp, JSON.stringify(doc), 'utf-8');
@@ -167,7 +174,7 @@ export async function loadAfHistoricalMatches(
     }
     const body = (await res.json()) as AfResponse<AfFixtureLite>;
 
-    // Detect quota exhaustion from API response body
+    // Detect quota exhaustion from API response body — no sentinel (quota is global, clears at midnight)
     if (body.errors && Object.keys(body.errors).length > 0) {
       markQuotaExhausted();
       console.warn(`[AfHistoricalLoader] API quota error ${leagueId}/${year}:`, body.errors);
@@ -178,12 +185,15 @@ export async function loadAfHistoricalMatches(
     fixtures = body.response ?? [];
   } catch (err) {
     if (err instanceof QuotaExhaustedError) {
+      // No sentinel — quota is global and clears at midnight; sentinel would block valid retries
       markQuotaExhausted();
       console.warn(`[AfHistoricalLoader] Quota exhausted ${leagueId}/${year}`);
       return [];
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[AfHistoricalLoader] API FETCH FAILED ${leagueId}/${year}: ${msg}`);
+    // F-04: write error sentinel to prevent re-fetch on every restart (Rule 3.1)
+    writeCache(leagueId, year, [], TTL_ERROR_MS);
     return [];
   }
 

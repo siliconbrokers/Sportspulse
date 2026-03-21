@@ -48,6 +48,9 @@ const FIXTURES_MEM_TTL_MS  = 1 * 60 * 60 * 1000;   // 1 hour in-memory
 const LINEUPS_MEM_TTL_MS   = 2 * 60 * 60 * 1000;   // 2 hours in-memory
 const FIXTURES_DISK_TTL_MS = 24 * 60 * 60 * 1000;  // 24h disk (fixture list immutable after matchday)
 const LINEUPS_DISK_TTL_MS  = 24 * 60 * 60 * 1000;  // 24h disk (lineup confirmed, won't change)
+// F-07: Error sentinels use a shorter TTL so a transient API error at T-15 doesn't block
+// the confirmed lineup for 24h. 30min covers the full T-15 to kickoff window.
+const LINEUPS_ERROR_DISK_TTL_MS = 30 * 60 * 1000;  // 30 min — for error path sentinels only
 const CACHE_DIR = path.join(process.cwd(), 'cache', 'lineups');
 
 // Progressive historical archive — write-once, no TTL.
@@ -97,6 +100,7 @@ interface LineupsDiskDoc {
   fixtureId: number;
   savedAt: string;
   lineups: ConfirmedLineupRecord[];
+  ttlMs?: number; // F-07: optional TTL override — error sentinels use a shorter TTL than default 24h
 }
 
 // Key: `${leagueId}:${date}`
@@ -140,17 +144,22 @@ function readLineupsDisk(fixtureId: number): ConfirmedLineupRecord[] | null {
     const raw = fs.readFileSync(lineupsDiskPath(fixtureId), 'utf-8');
     const doc = JSON.parse(raw) as LineupsDiskDoc;
     if (doc.version !== 1 || doc.fixtureId !== fixtureId) return null;
-    if (Date.now() - new Date(doc.savedAt).getTime() > LINEUPS_DISK_TTL_MS) return null;
+    // F-07: respect per-entry TTL override (error sentinels use shorter TTL)
+    const effectiveTtl = doc.ttlMs ?? LINEUPS_DISK_TTL_MS;
+    if (Date.now() - new Date(doc.savedAt).getTime() > effectiveTtl) return null;
     return doc.lineups;
   } catch { return null; }
 }
 
-function writeLineupsDisk(fixtureId: number, lineups: ConfirmedLineupRecord[]): void {
+function writeLineupsDisk(fixtureId: number, lineups: ConfirmedLineupRecord[], ttlMs?: number): void {
   const p = lineupsDiskPath(fixtureId);
   const tmp = `${p}.tmp`;
   try {
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    const doc: LineupsDiskDoc = { version: 1, fixtureId, savedAt: new Date().toISOString(), lineups };
+    const doc: LineupsDiskDoc = {
+      version: 1, fixtureId, savedAt: new Date().toISOString(), lineups,
+      ...(ttlMs !== undefined ? { ttlMs } : {}),
+    };
     fs.writeFileSync(tmp, JSON.stringify(doc), 'utf-8');
     fs.renameSync(tmp, p);
   } catch { /* non-fatal */ }
@@ -377,7 +386,7 @@ async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineu
     if (!res.ok) {
       console.warn(`[LineupSource] HTTP ${res.status} fetching lineups for fixture ${fixtureId}`);
       setCachedLineups(fixtureId, []);
-      writeLineupsDisk(fixtureId, []);
+      writeLineupsDisk(fixtureId, [], LINEUPS_ERROR_DISK_TTL_MS); // F-07: short TTL — error sentinel expires in 30min
       return [];
     }
 
@@ -386,19 +395,19 @@ async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineu
     if (err instanceof QuotaExhaustedError) {
       markQuotaExhausted();
       setCachedLineups(fixtureId, []);
-      writeLineupsDisk(fixtureId, []);
+      writeLineupsDisk(fixtureId, [], LINEUPS_ERROR_DISK_TTL_MS); // F-07: short TTL for quota errors
       return [];
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[LineupSource] fetch error (lineups): ${msg}`);
     setCachedLineups(fixtureId, []);
-    writeLineupsDisk(fixtureId, []);
+    writeLineupsDisk(fixtureId, [], LINEUPS_ERROR_DISK_TTL_MS); // F-07: short TTL for network errors
     return [];
   }
 
   if (checkAndMarkQuota(data.errors)) {
     setCachedLineups(fixtureId, []);
-    writeLineupsDisk(fixtureId, []);
+    writeLineupsDisk(fixtureId, [], LINEUPS_ERROR_DISK_TTL_MS); // F-07: short TTL for quota body errors
     return [];
   }
 
