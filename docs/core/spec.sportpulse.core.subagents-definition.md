@@ -3,16 +3,17 @@ artifact_id: SPEC-SPORTPULSE-CORE-SUBAGENTS-DEFINITION
 title: "Sub-Agents Definition"
 artifact_class: spec
 status: active
-version: 1.2.0
+version: 1.3.0
 project: sportpulse
 domain: core
 slug: subagents-definition
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-16
+updated_at: 2026-03-21
 supersedes: []
 superseded_by: []
-related_artifacts: []
+related_artifacts:
+  - SPEC-SPORTPULSE-QA-OPERATING-MODEL
 canonical_path: docs/core/spec.sportpulse.core.subagents-definition.md
 ---
 # SportPulse — Sub‑Agents Definition (SDD Implementation)
@@ -65,18 +66,24 @@ Hard prohibitions (active behavior):
 
 There are **10** sub‑agents (including governance), each with a narrow, enforceable scope.
 
+The canonical top-level sub-agent set remains intentionally small.
+Detailed QA execution for non-trivial work is governed by `docs/core/spec.sportpulse.qa.operating-model.md`.
+
+That QA model does **not** expand the canonical top-level sub-agent count.
+It operationalizes the existing QA responsibility into explicit verification lanes while preserving this document's "small set of high-leverage agents" rule.
+
 ### Governance agents (do not implement product logic)
-1) **SDD Orchestrator**  
-2) **Spec & Version Guardian**  
+1) **SDD Orchestrator**
+2) **Spec & Version Guardian**
 3) **QA / Fixture Enforcer**
 
 ### Implementation agents (write code only inside their package)
-4) **Canonical Engineer**  
-5) **Signals Engineer**  
-6) **Scoring Policy Engineer**  
-7) **Layout Engineer**  
-8) **Snapshot Engine Engineer**  
-9) **UI API Engineer**  
+4) **Canonical Engineer**
+5) **Signals Engineer**
+6) **Scoring Policy Engineer**
+7) **Layout Engineer**
+8) **Snapshot Engine Engineer**
+9) **UI API Engineer**
 10) **Frontend Engineer**
 
 ---
@@ -112,10 +119,12 @@ For each backlog ticket SP‑xxxx:
    - fixture impact
    - version impact
 3) **Implementation agent** executes work strictly in its package boundary and returns the standard output.  
-4) **QA / Fixture Enforcer** runs:
+4) **QA / Fixture Enforcer** runs the required QA lanes per `docs/core/spec.sportpulse.qa.operating-model.md`:
+   - verification intake / package completeness / required-lane routing for non-trivial work
    - required acceptance tests for the ticket
-   - golden fixtures impacted
-   - version bump gates (policy/layout/schema)
+   - required fixture families impacted
+   - regression and version bump gates (policy/layout/schema/calibration)
+   - staging smoke / rollback readiness checks when the change is deploy-bound
 5) **Spec & Version Guardian** performs post‑check:
    - no legacy reintroduction
    - boundary compliance
@@ -172,23 +181,34 @@ No step may be skipped.
 
 ### 6.3 QA / Fixture Enforcer
 
-**Mission:** protect truth: acceptance matrix + fixture families + regression gates.
+**Mission:** protect truth: acceptance matrix + fixture families + regression gates + release-readiness gates for non-trivial work.
 
 **Owns:**
+- QA execution for non-trivial changes under `docs/core/spec.sportpulse.qa.operating-model.md`
 - snapshot fixture runner and comparisons — F1–F6 (semantic/contract/geometry); governed by `spec.sportpulse.qa.golden-snapshot-fixtures.md`
 - prediction fixture runner and comparisons — PF-01–PF-06 (distribution, operating mode, calibration, anti-lookahead); governed by `spec.sportpulse.qa.prediction-track-record-fixtures.md`
 - acceptance suite enforcement (A..K)
 - regression/version bump gates (policy/layout/schema/calibration)
-- classifying failures:
+- classification of failures:
   - bug
   - intentional versioned change
   - fixture defect
+- staging smoke / health / rollback readiness checks for deploy-bound work
+- requiring the conditional prediction QA lane when prediction-domain behavior is touched
+
+**Normative execution model for non-trivial work:**
+- `qa-lead-verification-gate` — verification intake, evidence completeness, required-lane routing, consolidated QA verdict
+- `qa-fixture-regression-auditor` — acceptance conformance, fixture enforcement, regression review, version-gate review
+- `release-smoke-auditor` — staging deploy / health / smoke / rollback readiness for deploy-bound work
+- `prediction-qa-specialist` — conditional lane for prediction-domain changes only; consumes PF-series evidence and prediction specialist outputs
 
 **Must not:**
-- “fix tests” by updating expected outputs without classification and version reasoning
+- "fix tests" by updating expected outputs without classification and version reasoning
 - apply F1–F6 comparison semantics to PF-* fixtures or vice versa
+- omit the conditional prediction QA lane for materially semantic prediction changes
+- treat CI green as sufficient release evidence for deploy-bound work
 
-**Primary inputs:** Acceptance Matrix, Golden Snapshot Fixtures, Prediction Track Record Fixtures, Taxonomy, NFR
+**Primary inputs:** Acceptance Matrix, Golden Snapshot Fixtures, Prediction Track Record Fixtures, Taxonomy, NFR, Operational Baseline, QA Operating Model
 **Primary outputs:** pass/fail report; classification of breaks; required actions
 
 ---

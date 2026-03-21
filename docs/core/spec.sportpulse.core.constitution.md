@@ -235,6 +235,7 @@ The following documents are the active implementation-level sources of truth:
 - `docs/core/spec.sportpulse.qa.acceptance-test-matrix.md`
 - `docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md`
 - `docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md`
+- `docs/core/spec.sportpulse.qa.operating-model.md` — canonical QA operating model (3+1 agent system, merge/release gates, Verification Package, fixture discipline, version enforcement)
 
 #### Attention dashboard pipeline
 - `docs/specs/pipeline/spec.sportpulse.signals.core.md`

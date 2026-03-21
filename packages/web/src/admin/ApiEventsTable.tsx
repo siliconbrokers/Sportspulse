@@ -2,7 +2,7 @@
  * ApiEventsTable — filterable table of recent API usage events.
  * Styles: CSS-in-JS with sp-* variables (no Tailwind).
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchApiUsageEvents } from '../hooks/use-api-usage.js';
 import type { ApiUsageEventLite, EventsFilters } from '../hooks/use-api-usage.js';
 
@@ -85,6 +85,9 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
   const [events, setEvents] = useState<ApiUsageEventLite[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Accumulates all unique consumerType values seen across fetches (for the dropdown)
+  const knownConsumerTypesRef = useRef<Set<string>>(new Set());
+  const [knownConsumerTypes, setKnownConsumerTypes] = useState<string[]>([]);
 
   // Re-fetch whenever committed filters change
   useEffect(() => {
@@ -92,7 +95,19 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
     setLoading(true);
     setError(null);
     fetchApiUsageEvents(token, filters)
-      .then((r) => { if (!cancelled) { setEvents(r.events); setLoading(false); } })
+      .then((r) => {
+        if (!cancelled) {
+          setEvents(r.events);
+          setLoading(false);
+          // Collect unique consumer types for the dropdown
+          const prev = knownConsumerTypesRef.current;
+          let changed = false;
+          r.events.forEach((ev) => {
+            if (!prev.has(ev.consumerType)) { prev.add(ev.consumerType); changed = true; }
+          });
+          if (changed) setKnownConsumerTypes(Array.from(prev).sort());
+        }
+      })
       .catch((e: unknown) => {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Error');
@@ -143,18 +158,21 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
           </select>
         </div>
 
-        {/* ConsumerType text */}
+        {/* ConsumerType select */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <label style={{ fontSize: 10, color: 'var(--sp-text-40)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             ConsumerType
           </label>
-          <input
-            type="text"
-            placeholder="Todos"
+          <select
             value={draftConsumerType}
             onChange={(e) => setDraftConsumerType(e.target.value)}
-            style={{ ...INPUT_BASE, width: 130 }}
-          />
+            style={INPUT_BASE}
+          >
+            <option value="">Todos</option>
+            {knownConsumerTypes.map((ct) => (
+              <option key={ct} value={ct}>{ct}</option>
+            ))}
+          </select>
         </div>
 
         {/* Success select */}
@@ -239,8 +257,13 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
       {error && (
         <div style={{ fontSize: 12, color: 'var(--sp-status-error)', marginBottom: 8 }}>Error: {error}</div>
       )}
-      {!loading && events.length === 0 && !error && (
-        <div style={{ fontSize: 12, color: 'var(--sp-text-40)', marginBottom: 8 }}>Sin eventos para los filtros aplicados.</div>
+      {!loading && !error && (
+        <div style={{ fontSize: 12, color: 'var(--sp-text-40)', marginBottom: 8 }}>
+          {events.length === 0
+            ? 'Sin eventos para los filtros aplicados.'
+            : <><strong style={{ color: 'var(--sp-text)' }}>{events.length}</strong> evento{events.length !== 1 ? 's' : ''}</>
+          }
+        </div>
       )}
 
       {/* ── Table ── */}
@@ -286,7 +309,7 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
                     </td>
                   )}
                   <td style={TD}>
-                    {ev.rateLimited ? (
+                    {ev.rateLimited || ev.errorCode === 'QUOTA_BLOCKED' ? (
                       <span
                         style={{
                           fontSize: 10,
@@ -297,7 +320,7 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
                           color: 'var(--sp-status-error)',
                         }}
                       >
-                        RL
+                        {ev.errorCode === 'QUOTA_BLOCKED' ? 'BLK' : 'RL'}
                       </span>
                     ) : (
                       <span style={{ color: 'var(--sp-text-40)' }}>—</span>

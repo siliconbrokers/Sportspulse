@@ -20,9 +20,11 @@
 | SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX | Acceptance Test Matrix | spec | active | 1.1.0 | docs/core/spec.sportpulse.qa.acceptance-test-matrix.md |
 | SPEC-SPORTPULSE-QA-GOLDEN-SNAPSHOT-FIXTURES | Golden Snapshot Fixtures | spec | active | 1.0.0 | docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md |
 | SPEC-SPORTPULSE-QA-PREDICTION-TRACK-RECORD-FIXTURES | Prediction Track Record Fixtures | spec | active | 1.0.0 | docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md |
+| SPEC-SPORTPULSE-QA-OPERATING-MODEL | QA Operating Model | spec | proposed | 1.1.0 | docs/core/spec.sportpulse.qa.operating-model.md |
+| SPEC-SPORTPULSE-QA-PRE-MERGE-VERIFICATION-GATE | Pre-Merge Verification Gate | spec | proposed | 1.0.0 | docs/core/spec.sportpulse.qa.pre-merge-verification-gate.md |
 | SPEC-SPORTPULSE-CORE-IMPLEMENTATION-BACKLOG | Implementation Backlog (SDD) | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.implementation-backlog.md |
-| SPEC-SPORTPULSE-CORE-AI-SDD-OPERATING-PROTOCOL | AI SDD Operating Protocol | spec | active | 1.2.0 | docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md |
-| SPEC-SPORTPULSE-CORE-SUBAGENTS-DEFINITION | Sub-Agents Definition | spec | active | 1.2.0 | docs/core/spec.sportpulse.core.subagents-definition.md |
+| SPEC-SPORTPULSE-CORE-AI-SDD-OPERATING-PROTOCOL | AI SDD Operating Protocol | spec | active | 1.4.0 | docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md |
+| SPEC-SPORTPULSE-CORE-SUBAGENTS-DEFINITION | Sub-Agents Definition | spec | active | 1.3.0 | docs/core/spec.sportpulse.core.subagents-definition.md |
 | SPEC-SPORTPULSE-CORE-UNIVERSAL-CASE-INTAKE-PROTOCOL | Universal Case Intake Protocol | spec | active | 2.0.0 | docs/core/spec.sportpulse.core.universal-case-intake-protocol.md |
 
 ---

@@ -3,16 +3,18 @@ artifact_id: SPEC-SPORTPULSE-CORE-AI-SDD-OPERATING-PROTOCOL
 title: "AI SDD Operating Protocol"
 artifact_class: spec
 status: active
-version: 1.2.0
+version: 1.4.0
 project: sportpulse
 domain: core
 slug: ai-sdd-operating-protocol
 owner: team
 created_at: 2026-03-15
-updated_at: 2026-03-16
+updated_at: 2026-03-21
 supersedes: []
 superseded_by: []
-related_artifacts: []
+related_artifacts:
+  - SPEC-SPORTPULSE-QA-OPERATING-MODEL
+  - SPEC-SPORTPULSE-QA-PRE-MERGE-VERIFICATION-GATE
 canonical_path: docs/core/spec.sportpulse.core.ai-sdd-operating-protocol.md
 ---
 # SportPulse — AI SDD Operating Protocol
@@ -121,6 +123,8 @@ A failure in either family is a regression until proven otherwise. They have dif
 7. `docs/core/spec.sportpulse.qa.acceptance-test-matrix.md`
 8. `docs/core/spec.sportpulse.qa.golden-snapshot-fixtures.md` — F1–F6 (snapshot pipeline)
 9. `docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md` — PF-01–PF-06 (prediction pipeline)
+10. `docs/core/spec.sportpulse.qa.operating-model.md` — canonical QA routing, verification package contract, merge gate, and release gate
+11. `docs/core/spec.sportpulse.qa.pre-merge-verification-gate.md` — mandatory evidence gate between implementation submission and merge approval for non-trivial work
 
 ### 4.8 Active core technical specs
 9. `docs/specs/pipeline/spec.sportpulse.signals.core.md`
@@ -194,6 +198,10 @@ AI must:
 - run or specify the test suite required by acceptance matrix
 - verify deterministic behavior where applicable
 - ensure no forbidden dependencies introduced
+- produce the Verification Package required for non-trivial work
+- route verification through the required QA lanes defined in `docs/core/spec.sportpulse.qa.operating-model.md`
+- not declare non-trivial work complete unless the required QA verdict exists
+- not treat implementation, CI success, or fixture updates as sufficient proof of merge readiness without satisfying the Pre-Merge Verification Gate
 
 ### Stage 5 — Delivery package
 AI must output:
@@ -202,6 +210,16 @@ AI must output:
 - tests added/updated
 - version changes (if any)
 - fixture impact and whether golden fixtures pass
+- Verification Package fields for non-trivial work:
+  - Scope
+  - Governing specs
+  - Acceptance mapping
+  - Fixture impact
+  - Version impact
+  - Evidence
+  - Regression checks
+  - Risks
+  - Unknowns / not verified yet
 
 ---
 
@@ -217,8 +235,12 @@ Every AI deliverable must include:
 6. **Tests to be created/modified** (mapped to acceptance matrix IDs)
 7. **Versioning impact analysis**
 8. **Golden fixture impact analysis**
-9. **Risk list** (top 3)
-10. **Definition of done**
+9. **Verification Package completeness** (required for non-trivial work)
+10. **Acceptance mapping** (explicit matrix IDs or explicitly authorized manual checks)
+11. **Regression check statement**
+12. **Unknowns / not verified yet**
+13. **Risk list** (top 3)
+14. **Definition of done**
 
 This is non-negotiable.
 
@@ -374,6 +396,10 @@ Any AI-generated delivery must satisfy:
 - [ ] version bumps applied where required
 - [ ] no legacy constructs reintroduced
 - [ ] documentation updated if behavior changed
+- [ ] Verification Package present for non-trivial work
+- [ ] required QA lanes ran per QA Operating Model
+- [ ] prediction-domain changes consumed PF-series evidence and specialist QA lane where required
+- [ ] deploy-bound changes received staging smoke / rollback-readiness validation
 
 ---
 

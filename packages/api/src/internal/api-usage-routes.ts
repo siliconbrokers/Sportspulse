@@ -325,6 +325,13 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
 
     const configs = ledger.getQuotaConfig().getAll();
 
+    // When filters are active, fetch a larger pool so filters apply BEFORE the limit is reached.
+    // Without this, getRecentEvents(provider, 50) returns the 50 most recent events and
+    // then filtering e.g. success=false on those 50 may find 0 matches even though older
+    // events do contain failures — making every filter appear broken to the user.
+    const hasFilters = !!(consumerType || rateLimitedStr !== undefined || successStr !== undefined);
+    const fetchPool = hasFilters ? Math.min(limit * 20, 2000) : limit;
+
     let events: ApiUsageEvent[];
 
     if (provider) {
@@ -333,13 +340,13 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
       if (!knownProvider) {
         return reply.status(404).send({ error: 'Provider not found', provider });
       }
-      events = ledger.getRecentEvents(provider as ProviderKey, limit);
+      events = ledger.getRecentEvents(provider as ProviderKey, fetchPool);
     } else {
       // Aggregate across all known providers
-      const allEvents = configs.flatMap((c) => ledger.getRecentEvents(c.providerKey, limit));
-      // Sort by startedAtUtc descending and take top `limit`
+      const allEvents = configs.flatMap((c) => ledger.getRecentEvents(c.providerKey, fetchPool));
+      // Sort by startedAtUtc descending
       allEvents.sort((a, b) => b.startedAtUtc.localeCompare(a.startedAtUtc));
-      events = allEvents.slice(0, limit);
+      events = allEvents.slice(0, fetchPool);
     }
 
     // Apply in-memory filters
@@ -348,13 +355,22 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
     }
     if (rateLimitedStr !== undefined) {
       const filterVal = rateLimitedStr === 'true';
-      events = events.filter((e) => e.rateLimited === filterVal);
+      // Include QUOTA_BLOCKED events in the "rate-limited" filter — these are calls
+      // preemptively blocked by the ledger after quota exhaustion. API-Football never
+      // returns HTTP 429; it returns HTTP 200 with errors.requests, which triggers
+      // markQuotaExhausted() and subsequent calls are recorded as QUOTA_BLOCKED.
+      if (filterVal) {
+        events = events.filter((e) => e.rateLimited || e.errorCode === 'QUOTA_BLOCKED');
+      } else {
+        events = events.filter((e) => !e.rateLimited && e.errorCode !== 'QUOTA_BLOCKED');
+      }
     }
     if (successStr !== undefined) {
       const filterVal = successStr === 'true';
       events = events.filter((e) => e.success === filterVal);
     }
 
-    return reply.send({ events, count: events.length });
+    // Apply the user-requested limit AFTER filtering so it acts as a true top-N on results
+    return reply.send({ events: events.slice(0, limit), count: Math.min(events.length, limit) });
   });
 }
