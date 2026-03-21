@@ -16,6 +16,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { NexusShadowSnapshot } from './nexus-shadow-runner.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -115,7 +116,7 @@ function normalizeSnapshot(nexus: NexusShadowSnapshot): NexusUnifiedItem {
 
 // ── Filesystem scan ───────────────────────────────────────────────────────────
 
-const NEXUS_SHADOW_BASE = path.join(process.cwd(), 'cache', 'nexus-shadow');
+const NEXUS_SHADOW_BASE = path.join(CACHE_BASE, 'nexus-shadow');
 
 function scanNexusShadowDir(): NexusUnifiedItem[] {
   const items: NexusUnifiedItem[] = [];

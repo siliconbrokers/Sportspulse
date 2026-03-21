@@ -19,11 +19,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { teamId as canonicalTeamId } from '@sportpulse/canonical';
 import type { V3MatchRecord } from '@sportpulse/prediction';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PREV_SEASON_TTL_MS = 365 * 24 * 3600_000; // 1 año — temporada anterior es inmutable
-const CACHE_BASE = path.resolve(process.cwd(), 'cache/historical');
+const CACHE_HISTORICAL = path.join(CACHE_BASE, 'historical');
 
 const OLG_BASE_URL = 'https://api.openligadb.de';
 const SDB_BASE_URL = 'https://www.thesportsdb.com/api/v1/json';
@@ -37,7 +38,7 @@ interface CacheDoc {
 }
 
 function cachePath(provider: string, code: string, year: number): string {
-  return path.join(CACHE_BASE, provider, code, `${year}.json`);
+  return path.join(CACHE_HISTORICAL, provider, code, `${year}.json`);
 }
 
 function readCache(provider: string, code: string, year: number): V3MatchRecord[] | null {

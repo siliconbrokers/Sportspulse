@@ -16,6 +16,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ImpliedOdds } from './odds-service.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── API-Football response types ────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ const MEM_TTL_MS   = 2 * 60 * 60 * 1000;  // 2h  — memoria, cuando hay odds
 const NULL_TTL_MS  = 30 * 60 * 1000;       // 30min — cuando no hay odds (confirmed no-odds)
 const DISK_TTL_MS  = 4 * 60 * 60 * 1000;  // 4h  — disco, sobrevive reinicios de Render
 
-const ODDS_CACHE_DIR = path.resolve(process.cwd(), 'cache', 'odds');
+const ODDS_CACHE_DIR = path.join(CACHE_BASE, 'odds');
 
 interface CacheEntry {
   fetchedAtMs: number;

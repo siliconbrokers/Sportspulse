@@ -9,6 +9,7 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ export interface CoefficientsMetadata {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MAX_LOG_LINES = 60;
-const COEFFICIENTS_PATH = path.join(process.cwd(), 'cache', 'logistic-coefficients.json');
+const COEFFICIENTS_PATH = path.join(CACHE_BASE, 'logistic-coefficients.json');
 const TSX_BIN = path.join(process.cwd(), 'node_modules', '.bin', 'tsx');
 
 // ── Singleton state ───────────────────────────────────────────────────────────

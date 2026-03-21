@@ -18,6 +18,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -72,8 +73,8 @@ interface StoreFileDoc {
 const ENGINE_VERSION = '1.3';
 const SPEC_VERSION = '1.3';
 
-const DEFAULT_FILE_PATH = path.resolve(process.cwd(), 'cache/predictions/snapshots.json');
-const DEFAULT_ARCHIVE_DIR = path.resolve(process.cwd(), 'cache/predictions/archive');
+const DEFAULT_FILE_PATH = path.join(CACHE_BASE, 'predictions/snapshots.json');
+const DEFAULT_ARCHIVE_DIR = path.join(CACHE_BASE, 'predictions/archive');
 
 /** Snapshots con generated_at más antiguos que esto se archivan fuera del archivo hot. */
 const HOT_RETENTION_DAYS = 90;

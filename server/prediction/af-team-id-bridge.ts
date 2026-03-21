@@ -18,6 +18,7 @@ import {
   QuotaExhaustedError,
 } from '@sportpulse/canonical';
 import { normTeamName } from './injury-source.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Cache types ───────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ interface BridgeCacheDoc {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const CACHE_ROOT    = path.resolve(process.cwd(), 'cache/af-team-bridge');
+const CACHE_ROOT    = path.join(CACHE_BASE, 'af-team-bridge');
 const CACHE_TTL_MS  = 30 * 24 * 3600_000; // 30 days
 
 // ── Cache I/O ─────────────────────────────────────────────────────────────────

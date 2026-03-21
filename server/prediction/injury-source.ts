@@ -23,6 +23,7 @@ import {
 } from '@sportpulse/canonical';
 import type { InjuryRecord, AbsenceType, PlayerPosition } from '@sportpulse/prediction';
 import { COMPETITION_REGISTRY } from '../competition-registry.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // SP-V4-12: Same value as packages/prediction/src/engine/v3/constants.ts MIN_IMPORTANCE_THRESHOLD
 // Players with importance < 0.3 are squad depth and excluded from the absence model.
@@ -46,11 +47,11 @@ const AF_LEAGUE_IDS: Record<string, number> = {
 
 const MEM_CACHE_TTL_MS  = 6 * 60 * 60 * 1000;  // 6 hours — in-memory
 const DISK_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours — disk (injuries don't change intra-day)
-const CACHE_DIR = path.join(process.cwd(), 'cache', 'injuries');
+const CACHE_DIR = path.join(CACHE_BASE, 'injuries');
 
 // Progressive historical archive — write-once, no TTL.
 // Accumulates from deployment date. Used for NEXUS Track 1C retraining.
-const HISTORICAL_INJURIES_DIR = path.join(process.cwd(), 'cache', 'historical', 'injuries', 'apifootball');
+const HISTORICAL_INJURIES_DIR = path.join(CACHE_BASE, 'historical', 'injuries', 'apifootball');
 
 interface HistoricalInjuriesDoc {
   version: 1;
@@ -75,7 +76,7 @@ function writeHistoricalInjuries(leagueId: number, season: number, date: string,
 
 // §SP-V4-12: Player stats cache — 30 days (stats stable during season)
 const PLAYER_STATS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const PLAYER_STATS_CACHE_DIR = path.join(process.cwd(), 'cache', 'player-stats');
+const PLAYER_STATS_CACHE_DIR = path.join(CACHE_BASE, 'player-stats');
 
 interface CacheEntry {
   records: InjuryRecord[];

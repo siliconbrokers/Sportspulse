@@ -24,6 +24,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DataSource } from '@sportpulse/snapshot';
+import { CACHE_BASE } from '../cache-dir.js';
 import { runV3Engine } from '@sportpulse/prediction';
 import type { V3MatchRecord, CalibrationTable } from '@sportpulse/prediction';
 import type { LogisticCoefficients } from '@sportpulse/prediction';
@@ -64,7 +65,7 @@ function extractAfFixtureId(matchId: string): number | null {
 // engine falls back to DEFAULT_LOGISTIC_COEFFICIENTS (uniform prior).
 // Only relevant when ENSEMBLE_ENABLED=true in the engine input.
 
-const LOGISTIC_COEF_PATH = path.join(process.cwd(), 'cache', 'logistic-coefficients.json');
+const LOGISTIC_COEF_PATH = path.join(CACHE_BASE, 'logistic-coefficients.json');
 const LOGISTIC_COEF_TTL_MS = 60 * 60_000; // 1h — retrain is infrequent
 
 interface LogisticCoefEntry {
@@ -104,7 +105,7 @@ function loadLogisticCoefficients(): LogisticCoefficients | undefined {
 //
 // Result: acc=50.6%, DRAW recall=43.2%, DRAW prec=34.2% (+1.6pp / +2.0pp / +2.8pp vs global-only)
 
-const CAL_DIR = path.join(process.cwd(), 'cache', 'calibration');
+const CAL_DIR = path.join(CACHE_BASE, 'calibration');
 const CAL_GLOBAL_PATH = path.join(CAL_DIR, 'v3-iso-calibration.json');
 const CAL_TABLE_TTL_MS = 6 * 60 * 60_000; // 6h — generated offline, changes rarely
 

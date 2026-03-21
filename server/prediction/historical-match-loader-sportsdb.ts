@@ -17,6 +17,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { teamId as canonicalTeamId } from '@sportpulse/canonical';
 import type { FinishedMatchRecord } from '@sportpulse/prediction';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Provider ─────────────────────────────────────────────────────────────────
 
@@ -48,10 +49,10 @@ interface CacheDoc {
 const PAST_SEASON_TTL_MS    = 365 * 24 * 3600_000;
 const CURRENT_SEASON_TTL_MS = 6 * 3600_000;
 
-const CACHE_BASE = path.resolve(process.cwd(), 'cache/historical', SPORTSDB_PROVIDER_KEY);
+const HISTORICAL_CACHE_BASE = path.join(CACHE_BASE, 'historical', SPORTSDB_PROVIDER_KEY);
 
 function cachePath(leagueId: string, year: number): string {
-  return path.join(CACHE_BASE, leagueId, `${year}.json`);
+  return path.join(HISTORICAL_CACHE_BASE, leagueId, `${year}.json`);
 }
 
 function readCache(leagueId: string, year: number): CacheDoc | null {

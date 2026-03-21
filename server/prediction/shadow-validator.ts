@@ -24,6 +24,7 @@ import path                         from 'node:path';
 import { buildTeamBridge }          from './af-team-id-bridge.js';
 import { loadAfHistoricalMatches }  from './af-historical-match-loader.js';
 import type { FinishedMatchRecord } from '@sportpulse/prediction';
+import { CACHE_BASE }               from '../cache-dir.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,7 +56,7 @@ export interface ShadowReport {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const CACHE_ROOT       = path.resolve(process.cwd(), 'cache/shadow');
+const CACHE_ROOT       = path.join(CACHE_BASE, 'shadow');
 const DATE_WINDOW_MS   = 2 * 24 * 3600_000; // ±2 days tolerance for UTC/local edge cases
 
 /** Thresholds para verdict */

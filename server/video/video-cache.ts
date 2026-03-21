@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { LeagueKey } from './video-sources-config.js';
 import type { LeagueVideoHighlight } from './video-normalizer.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 interface CacheEntry {
   highlights: LeagueVideoHighlight[];
@@ -22,7 +23,7 @@ interface FallbackRecord {
 type FallbackDiskRecord = Partial<Record<LeagueKey, FallbackRecord>>;
 
 function videoCacheDir(): string {
-  return path.join(process.cwd(), 'cache', 'video');
+  return path.join(CACHE_BASE, 'video');
 }
 
 function cacheFilePath(leagueKey: LeagueKey): string {

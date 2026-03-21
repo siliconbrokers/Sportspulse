@@ -14,6 +14,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -165,7 +166,7 @@ export class HistoricalOddsStore {
   private readonly fileCache = new Map<string, OddsEvent[]>();
 
   constructor(cacheDir?: string) {
-    this.cacheDir = cacheDir ?? path.resolve(process.cwd(), 'cache/historical-odds');
+    this.cacheDir = cacheDir ?? path.join(CACHE_BASE, 'historical-odds');
   }
 
   /**

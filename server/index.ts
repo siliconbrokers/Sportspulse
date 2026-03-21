@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import { CACHE_BASE } from './cache-dir.js';
 import { validateEnv } from './env-validator.js';
 import { buildApp, registerApiUsageRoutes, registerSnapshotStatsRoute } from '@sportpulse/api';
 import { resolveDisplayName } from '@sportpulse/canonical';
@@ -131,7 +132,7 @@ async function main() {
 
   // ── API Usage Ledger (GOV-03) ───────────────────────────────────────────────
   // Single source of truth for all provider quota accounting. Replaces af-budget.ts.
-  const ledger = new ApiUsageLedger(path.join(process.cwd(), 'cache', 'api-usage.db'));
+  const ledger = new ApiUsageLedger(path.join(CACHE_BASE, 'api-usage.db'));
   setGlobalLedger(ledger);
   runRetentionPruner(ledger.getDb());
 
@@ -463,7 +464,7 @@ async function main() {
   const newsService = new NewsService(standingsProvider);
 
   const snapshotStore = new InMemorySnapshotStore();
-  const SEED_DIR = path.join(process.cwd(), 'cache', 'snapshots');
+  const SEED_DIR = path.join(CACHE_BASE, 'snapshots');
   const snapshotService = new SnapshotService({
     store: snapshotStore,
     defaultPolicy: MVP_POLICY,

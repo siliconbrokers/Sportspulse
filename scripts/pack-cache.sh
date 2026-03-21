@@ -36,6 +36,7 @@ INCLUDE_DIRS=(
 # Archivos sueltos a incluir
 INCLUDE_FILES=(
   "portal-config.json"
+  "logistic-coefficients.json"
 )
 
 echo "🔧 SportsPulse — Cache Seed Packager"

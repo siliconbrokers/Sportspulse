@@ -9,11 +9,10 @@
  * Para torneos previene el error 429 (rate limit) en el ciclo de refresh.
  */
 import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
+import { CACHE_BASE } from './cache-dir.js';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const CACHE_DIR = join(__dirname, '../cache/raw');
+const CACHE_DIR = join(CACHE_BASE, 'raw');
 
 interface RawCacheEntry<T> {
   fetchedAt: string;

@@ -24,10 +24,11 @@ import {
   QuotaExhaustedError,
 } from '@sportpulse/canonical';
 import type { FinishedMatchRecord } from '@sportpulse/prediction';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const CACHE_ROOT            = path.resolve(process.cwd(), 'cache/historical/af');
+const CACHE_ROOT            = path.join(CACHE_BASE, 'historical/af');
 const CURRENT_SEASON_TTL_MS = 6 * 3600_000;        // 6 hours
 const PAST_SEASON_TTL_MS    = 365 * 24 * 3600_000; // 1 year
 

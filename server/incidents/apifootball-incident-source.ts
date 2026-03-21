@@ -24,6 +24,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { MatchCoreInput, IncidentEvent } from './types.js';
 import { COMPETITION_REGISTRY, resolveAfSeason } from '../competition-registry.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 import {
   isQuotaExhausted as isAfQuotaExhausted,
@@ -33,7 +34,7 @@ import {
 } from '@sportpulse/canonical';
 
 const BASE_URL    = 'https://v3.football.api-sports.io';
-const ID_MAP_PATH = path.resolve(process.cwd(), 'cache', 'incidents', 'af-fixture-map.json');
+const ID_MAP_PATH = path.join(CACHE_BASE, 'incidents', 'af-fixture-map.json');
 
 /** Re-exported for use in the server incidents route response. */
 export function isApiFootballQuotaExhausted(): boolean {

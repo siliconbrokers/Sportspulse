@@ -21,6 +21,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { PredictionSnapshot } from './prediction-store.js';
 import type { ImpliedOdds } from '../odds/odds-service.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── EvaluationRecord ──────────────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ interface StoreFileDoc {
 
 // ── Persistence path ──────────────────────────────────────────────────────────
 
-const DEFAULT_FILE_PATH = path.resolve(process.cwd(), 'cache/predictions/evaluations.json');
+const DEFAULT_FILE_PATH = path.join(CACHE_BASE, 'predictions/evaluations.json');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

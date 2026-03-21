@@ -20,6 +20,7 @@ import * as path from 'node:path';
 import { teamId as canonicalTeamId, PROVIDER_KEY } from '@sportpulse/canonical';
 import type { FDMatchResponse } from '@sportpulse/canonical';
 import type { FinishedMatchRecord } from '@sportpulse/prediction';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -42,12 +43,12 @@ const CURRENT_SEASON_TTL_MS = 6 * 3600_000;
 /** TTL for past season data (1 year — data is immutable once season ends). */
 const PAST_SEASON_TTL_MS = 365 * 24 * 3600_000;
 
-const CACHE_BASE = path.resolve(process.cwd(), 'cache/historical', PROVIDER_KEY);
+const CACHE_BASE_HISTORICAL = path.join(CACHE_BASE, 'historical', PROVIDER_KEY);
 
 // ── Cache I/O helpers ──────────────────────────────────────────────────────
 
 function cachePath(competitionCode: string, year: number): string {
-  return path.join(CACHE_BASE, competitionCode, `${year}.json`);
+  return path.join(CACHE_BASE_HISTORICAL, competitionCode, `${year}.json`);
 }
 
 function readCache(competitionCode: string, year: number): CacheDoc | null {

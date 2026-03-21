@@ -12,8 +12,9 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { DataSource, MatchGoalEventDTO } from '@sportpulse/snapshot';
+import { CACHE_BASE } from './cache-dir.js';
 
-const CACHE_DIR = path.resolve(process.cwd(), 'cache', 'events');
+const CACHE_DIR = path.join(CACHE_BASE, 'events');
 const BASE_URL = 'https://v3.football.api-sports.io';
 
 // API-Football league IDs + season resolver per competition

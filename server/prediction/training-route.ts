@@ -17,8 +17,9 @@ import {
   startTraining,
 } from './training-runner.js';
 import { NexusShadowReader } from './nexus-shadow-reader.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
-const COEFFICIENTS_PATH = path.join(process.cwd(), 'cache', 'logistic-coefficients.json');
+const COEFFICIENTS_PATH = path.join(CACHE_BASE, 'logistic-coefficients.json');
 
 function isEnabled(): boolean {
   const val = process.env.PREDICTION_INTERNAL_VIEW_ENABLED;

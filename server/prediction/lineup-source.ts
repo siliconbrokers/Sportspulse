@@ -27,6 +27,7 @@ import {
 import type { ConfirmedLineupRecord, PlayerPosition } from '@sportpulse/prediction';
 import { normTeamName } from './injury-source.js';
 import { COMPETITION_REGISTRY } from '../competition-registry.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── League ID mapping ─────────────────────────────────────────────────────────
 // Derived automatically from COMPETITION_REGISTRY — no manual updates needed when leagues are added.
@@ -51,11 +52,11 @@ const LINEUPS_DISK_TTL_MS  = 24 * 60 * 60 * 1000;  // 24h disk (lineup confirmed
 // F-07: Error sentinels use a shorter TTL so a transient API error at T-15 doesn't block
 // the confirmed lineup for 24h. 30min covers the full T-15 to kickoff window.
 const LINEUPS_ERROR_DISK_TTL_MS = 30 * 60 * 1000;  // 30 min — for error path sentinels only
-const CACHE_DIR = path.join(process.cwd(), 'cache', 'lineups');
+const CACHE_DIR = path.join(CACHE_BASE, 'lineups');
 
 // Progressive historical archive — write-once, no TTL.
 // Accumulates from deployment date. Used for NEXUS Track 1B retraining.
-const HISTORICAL_LINEUPS_DIR = path.join(process.cwd(), 'cache', 'historical', 'lineups', 'apifootball');
+const HISTORICAL_LINEUPS_DIR = path.join(CACHE_BASE, 'historical', 'lineups', 'apifootball');
 
 interface HistoricalLineupDoc {
   version: 1;

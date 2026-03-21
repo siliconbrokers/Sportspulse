@@ -5,8 +5,9 @@
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { CACHE_BASE } from './cache-dir.js';
 
-const CACHE_DIR = path.resolve(process.cwd(), 'cache', 'crests');
+const CACHE_DIR = path.join(CACHE_BASE, 'crests');
 
 /** Returns the local filename for a given (provider, id) pair. */
 function localFilename(provider: string, teamId: string, originalUrl: string): string {

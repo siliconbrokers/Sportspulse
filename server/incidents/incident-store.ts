@@ -19,11 +19,12 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { IncidentSnapshot } from './types.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Directorios ───────────────────────────────────────────────────────────────
 
 const DATA_DIR   = path.join(process.cwd(), 'data', 'matches');
-const LEGACY_DIR = path.join(process.cwd(), 'cache', 'incidents');
+const LEGACY_DIR = path.join(CACHE_BASE, 'incidents');
 
 // ── League slug mapping ───────────────────────────────────────────────────────
 

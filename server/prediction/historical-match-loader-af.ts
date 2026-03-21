@@ -17,6 +17,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { V3MatchRecord } from '@sportpulse/prediction';
+import { CACHE_BASE } from '../cache-dir.js';
 import {
   isQuotaExhausted,
   consumeRequest,
@@ -28,7 +29,7 @@ import {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const BASE_URL = 'https://v3.football.api-sports.io';
-const CACHE_DIR = path.resolve(process.cwd(), 'cache/historical/apifootball');
+const CACHE_DIR = path.join(CACHE_BASE, 'historical/apifootball');
 const TTL_CURRENT_MS  = 6 * 3600_000;         // 6 h — temporada corriente (partidos acumulando)
 const TTL_PAST_MS     = 365 * 24 * 3600_000;  // 1 año — temporadas pasadas (inmutables)
 const TTL_ERROR_MS    = 30 * 60_000;           // 30 min — sentinel de error (HTTP / network); no aplica a quota

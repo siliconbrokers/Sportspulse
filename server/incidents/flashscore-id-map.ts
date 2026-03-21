@@ -6,8 +6,9 @@
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { CACHE_BASE } from '../cache-dir.js';
 
-const MAP_PATH = path.join(process.cwd(), 'cache', 'flashscore', 'id-map.json');
+const MAP_PATH = path.join(CACHE_BASE, 'flashscore', 'id-map.json');
 
 type IdMap = Record<string, string>; // ourMatchId → flashscoreId
 

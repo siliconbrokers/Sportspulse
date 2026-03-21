@@ -37,6 +37,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DataSource } from '@sportpulse/snapshot';
 import type { NexusModelWeights } from './nexus-model-loader.js';
+import { CACHE_BASE } from '../cache-dir.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -133,7 +134,7 @@ function isNexusShadowEnabled(competitionId: string): boolean {
 
 // ── Storage helpers ────────────────────────────────────────────────────────────
 
-const NEXUS_SHADOW_BASE = path.join(process.cwd(), 'cache', 'nexus-shadow');
+const NEXUS_SHADOW_BASE = path.join(CACHE_BASE, 'nexus-shadow');
 
 function snapshotFilePath(competitionId: string, matchId: string): string {
   const safeCompId = competitionId.replace(/[^a-zA-Z0-9_.-]/g, '_');
