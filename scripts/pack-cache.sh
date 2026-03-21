@@ -23,6 +23,8 @@ INCLUDE_DIRS=(
   "af-team-bridge"   # mapeo de equipos AF
   "calibration"      # PE calibration data
   "nexus-models"     # NEXUS model
+  "xg"               # xG histórico por fixture (evita backfill storm en prod) — CRÍTICO
+  "historical"       # partidos históricos por temporada (training data PE) — CRÍTICO
 )
 
 # Archivos sueltos a incluir
