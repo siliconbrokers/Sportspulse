@@ -89,6 +89,46 @@ export function registerAdminRoutes(app: FastifyInstance, snapshotStore: Snapsho
     return reply.send({ ok: true, config: getFullConfig() });
   });
 
+  // GET /api/admin/disk-info — diagnóstico del disco persistente
+  app.get('/api/admin/disk-info', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!validateAuth(request.headers.authorization)) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+    const cacheDir = path.join(process.cwd(), 'cache');
+    let topLevel: string[] = [];
+    const detail: Record<string, string[]> = {};
+    try { topLevel = fs.readdirSync(cacheDir); } catch { topLevel = []; }
+
+    // List first-level subdirs (providers)
+    for (const entry of topLevel) {
+      const entryPath = path.join(cacheDir, entry);
+      try {
+        const stat = fs.statSync(entryPath);
+        if (stat.isDirectory()) {
+          detail[entry] = fs.readdirSync(entryPath);
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Check apifootball specifically
+    const afDir = path.join(cacheDir, 'apifootball');
+    const afLeagues: Record<string, string[]> = {};
+    try {
+      for (const league of fs.readdirSync(afDir)) {
+        const leagueDir = path.join(afDir, league);
+        try { afLeagues[league] = fs.readdirSync(leagueDir); } catch { afLeagues[league] = []; }
+      }
+    } catch { /* not found */ }
+
+    return reply.header('Cache-Control', 'no-store').send({
+      cwd: process.cwd(),
+      cacheDir,
+      topLevel,
+      afLeagues,
+      env: process.env.RENDER === 'true' ? 'production' : 'development',
+    });
+  });
+
   // POST /api/admin/seed-cache — recibe un tarball base64 y lo extrae en cache/
   // Body: { data: "<base64 de tar.gz>", overwrite?: boolean }
   // El tarball debe contener rutas relativas a cache/ (ej: apifootball/268/2026/matchday-01.json)
