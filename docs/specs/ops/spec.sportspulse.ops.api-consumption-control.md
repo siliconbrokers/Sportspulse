@@ -147,8 +147,8 @@ Estado al 2026-03-21:
 | `injuries-by-league-date` | LIVE | disco + cooldown 6h | OK |
 | `players-by-id` | OFFLINE | **DESHABILITADO** — importance estático | OK |
 | `fixtures-statistics` (xG) | OFFLINE | disco + cap MAX_NEW_XG_FETCHES=3 + cooldown 6h | OK |
-| `fixtures-by-date` (lineups) | LIVE | disco + guard 45min pre-kickoff | OK |
-| `fixtures-lineups` | LIVE | disco + error paths escriben [] | OK |
+| `fixtures-by-date` (lineups) | LIVE | disco + guard 15min pre-kickoff | OK |
+| `fixtures-lineups` | LIVE | disco + no cachea [] vacío (sin lineup publicado) + error paths escriben [] | OK |
 | `odds` (af-odds-service) | LIVE | disco + sentinel null en error paths | OK |
 
 ### Callers desactivados en AF mode

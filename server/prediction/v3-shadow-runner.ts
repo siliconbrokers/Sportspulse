@@ -44,8 +44,8 @@ import type { LineupSource } from './lineup-source.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** API-Football only publishes odds for ~7-10 days ahead. 5 days covers the next matchday with margin. */
-const ODDS_WINDOW_MS = 5 * 24 * 60 * 60 * 1000; // 5 días
+/** Odds son señal útil solo en las 24h previas al kickoff — más lejos el mercado es volátil y cambia antes de la predicción. */
+const ODDS_WINDOW_MS = 1 * 24 * 60 * 60 * 1000; // 1 día
 
 // ── Helpers (top-level) ───────────────────────────────────────────────────────
 
@@ -452,18 +452,18 @@ async function runMatchPredictions(
     if (t.shortName) teamNameToId.set(normTeamName(t.shortName), t.teamId);
   }
 
-  // MKT-T3-03: Fetch xG histórico una vez por competencia (incremental, cache-first)
+  // MKT-T3-03: Lee xG histórico desde disco — sin llamadas a API.
+  // El backfill corre de forma independiente en server/index.ts cada 6h (runXgBackfill).
   // Cobertura parcial es OK — el engine usa goles reales para partidos sin xG.
   let historicalXg: import('@sportpulse/prediction').XgRecord[] | undefined;
   if (xgSource) {
     try {
-      // Derive season year from buildNowUtc (before July = previous year start)
       const buildDate = new Date(buildNowUtc);
       const buildYear = buildDate.getUTCFullYear();
       const buildMonth = buildDate.getUTCMonth(); // 0-indexed
       const season = buildMonth < 6 ? buildYear - 1 : buildYear;
 
-      const fetched = await xgSource.getHistoricalXg(competitionId, season, teamNameToId);
+      const fetched = await xgSource.readCachedXg(competitionId, season);
       if (fetched.length > 0) historicalXg = fetched;
     } catch {
       historicalXg = undefined; // fault isolation
@@ -502,11 +502,12 @@ async function runMatchPredictions(
         }
       }
 
-      // MKT-T3-04: Fetch confirmed lineup (~1h before kickoff) — fault-isolated, never propagates
+      // MKT-T3-04: Fetch confirmed lineup — fault-isolated, never propagates.
+      // Gate: only within 15min of kickoff (source publishes at T-15 to T-5).
       let confirmedLineups: import('@sportpulse/prediction').ConfirmedLineupRecord[] | undefined;
       if (lineupSource && match.startTimeUtc) {
         const minutesToKickoff = (new Date(match.startTimeUtc).getTime() - Date.now()) / 60_000;
-        if (minutesToKickoff <= 90) {
+        if (minutesToKickoff <= 15) {
           try {
             const fetched = await lineupSource.getConfirmedLineups(
               competitionId,

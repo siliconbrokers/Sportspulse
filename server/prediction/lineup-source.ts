@@ -5,8 +5,8 @@
  *   GET https://v3.football.api-sports.io/fixtures?league={id}&season={year}&date={YYYY-MM-DD}
  *   GET https://v3.football.api-sports.io/fixtures/lineups?fixture={fixtureId}
  *
- * Cuándo están disponibles: las alineaciones se publican ~60 minutos antes del kickoff.
- * El servicio no fetchea si minutesToKickoff > 45 (fetch a 45min da margen si AF demora).
+ * Cuándo están disponibles: las alineaciones se publican ~15-30 minutos antes del kickoff.
+ * El servicio no fetchea si minutesToKickoff > 15.
  *
  * Budget: usa af-budget.ts para coordinar con los demás consumidores de APIFOOTBALL_KEY.
  * Cache: en memoria — fixtures list TTL 1h por (leagueId+date), lineups TTL 2h por fixtureId.
@@ -425,6 +425,12 @@ async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineu
     } as unknown as ConfirmedLineupRecord & { _afTeamName: string });
   }
 
+  // If the response was empty, AF hasn't published the lineup yet — do NOT cache.
+  // Caching [] here would block the lineup from arriving in subsequent cycles (24h disk TTL).
+  // On the next cycle (2min), we'll re-check. The fixture list is already cached so only
+  // the lineup fetch (1 req/fixture) repeats.
+  if (records.length === 0) return [];
+
   // Note: _afTeamName is stripped after resolution — not part of the contract type.
   setCachedLineups(fixtureId, records);
   writeLineupsDisk(fixtureId, records);
@@ -438,7 +444,7 @@ export class LineupSource {
   /**
    * Returns ConfirmedLineupRecord[] for the home and away teams of a specific match.
    * Returns [] when:
-   *   - minutesToKickoff > 90 (too early — lineups not published yet)
+   *   - minutesToKickoff > 15 (too early — lineups not published yet)
    *   - competition not mapped to an AF league ID
    *   - fixture not found via name matching
    *   - quota exhausted
@@ -466,9 +472,11 @@ export class LineupSource {
       const leagueId = AF_LEAGUE_IDS[competitionId];
       if (leagueId === undefined) return [];
 
-      // Guard: only fetch if kickoff is within 45 minutes (AF publishes ~60min before, 45min gives buffer)
+      // Guard: only fetch if kickoff is within 15 minutes.
+      // AF publishes lineups ~15-30min before kickoff; fetching earlier returns [] and we'd
+      // cache that empty result, blocking the real lineup from ever arriving.
       const minutesToKickoff = (new Date(kickoffUtc).getTime() - Date.now()) / 60_000;
-      if (minutesToKickoff > 45) return [];
+      if (minutesToKickoff > 15) return [];
 
       // Derive date (UTC — matches the API's date param)
       const dateIso = kickoffUtc.slice(0, 10);

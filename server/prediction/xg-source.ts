@@ -432,6 +432,51 @@ async function fetchXgForFixture(
 
 export class XgSource {
   /**
+   * Returns XgRecord[] from disk cache only — no API calls, no backfill.
+   * Used by the prediction runner on every cycle. Actual backfill is handled
+   * separately by runXgBackfill() (server/index.ts) on a 6h interval.
+   */
+  async readCachedXg(competitionId: string, season: number): Promise<XgRecord[]> {
+    try {
+      const leagueId = AF_LEAGUE_IDS[competitionId];
+      if (leagueId === undefined) return [];
+
+      const dir = join(CACHE_ROOT, String(leagueId), String(season));
+      let files: string[];
+      try {
+        files = await fs.readdir(dir);
+      } catch {
+        return []; // directory doesn't exist yet — no cached xG
+      }
+
+      const results: XgRecord[] = [];
+      await Promise.all(
+        files.map(async (file) => {
+          if (!file.endsWith('.json') || file === 'fixture-list.json') return;
+          try {
+            const raw = await fs.readFile(join(dir, file), 'utf-8');
+            const cached = JSON.parse(raw) as XgFixtureCache;
+            if (!cached.noXg) {
+              results.push({
+                utcDate:    cached.utcDate,
+                homeTeamId: cached.homeTeamId,
+                awayTeamId: cached.awayTeamId,
+                xgHome:     cached.xgHome,
+                xgAway:     cached.xgAway,
+              });
+            }
+          } catch { /* skip corrupt files */ }
+        }),
+      );
+      return results;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[XgSource] readCachedXg error (${competitionId}): ${msg}`);
+      return [];
+    }
+  }
+
+  /**
    * Returns XgRecord[] for all historically cached fixtures for the given
    * competition and season. Incrementally fetches up to MAX_XG_REQUESTS_PER_CYCLE
    * new fixtures per call.

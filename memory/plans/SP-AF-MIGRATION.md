@@ -215,7 +215,7 @@ Mes 3+:    Track C (cuando el usuario decida priorizar la migración canónica)
 |---------|--------|
 | T3 coverage: xG por partido | ≥80% de partidos en PD/PL |
 | T3 coverage: injuries | ≥1 update/matchday |
-| T3 coverage: lineups | disponibles 60min antes del kickoff |
+| T3 coverage: lineups | fetcheo a partir de T-15min antes del kickoff |
 | Bridge accuracy | ≥98% de equipos mapeados correctamente |
 | PE eligibility rate post-migración | igual o mayor que pre-migración |
 | Req/día con suscripción completa | <5% del límite contratado |

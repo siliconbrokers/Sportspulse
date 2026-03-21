@@ -270,7 +270,7 @@ porque corrigen sesgos sistematicos del modelo (ej: sobre-estimacion de home adv
 **Estado actual:** Ya implementado.
 - `InjurySource` (server/prediction/injury-source.ts) fetcha de API-Football `/injuries`
 - `absence-adjustment.ts` computa multiplicadores de lambda por equipo
-- `LineupSource` (server/prediction/lineup-source.ts) detecta ausencias adicionales ~1h pre-match
+- `LineupSource` (server/prediction/lineup-source.ts) detecta ausencias adicionales — fetchea a partir de T-15min pre-match
 
 **Endpoint exacto:** API-Football v3 `GET /injuries?league={id}&season={year}&date={YYYY-MM-DD}`
 Retorna: jugador, tipo (injury/suspension/doubtful), fecha de retorno estimada.
@@ -661,7 +661,7 @@ Anti-lookahead filter
 |--------|-------------|--------|-------|
 | API-Football (xG historico) | XgSource | Activa, incremental | Budget compartido 100/dia |
 | API-Football (injuries) | InjurySource | Activa | Budget compartido |
-| API-Football (lineups) | LineupSource | Activa (~1h pre-match) | Budget compartido |
+| API-Football (lineups) | LineupSource | Activa (T-15min pre-match) | Budget compartido |
 | The Odds API (h2h odds) | OddsService | Activa (solo evaluacion) | 500 req/mes free |
 | SofaScore MCP (statistics) | NO | Disponible via RapidAPI | Independiente de API-Football |
 

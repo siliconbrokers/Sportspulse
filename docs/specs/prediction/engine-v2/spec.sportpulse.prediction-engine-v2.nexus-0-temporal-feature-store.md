@@ -177,7 +177,7 @@ When multiple providers supply conflicting information about the same entity and
 | Precedence | Source | Notes |
 |------------|--------|-------|
 | 1 (highest) | Official team sheet | Published by the competition organizer or club. Available approximately 60 minutes before kickoff. |
-| 2 | API-Football (v3) | Automated feed. Usually available 45-90 minutes before kickoff. |
+| 2 | API-Football (v3) | Automated feed. Usually available 15-30 minutes before kickoff. Fetched starting at T-15min. |
 | 3 | No data | Lineup not confirmed. Feature absent. |
 
 **Rule:** Lineups are never inferred or predicted. If the confirmed lineup is not available at `buildNowUtc`, the feature is absent. The model must handle this absence through the missingness policy (S6), not by guessing the lineup.
@@ -230,8 +230,8 @@ Confidence is assigned at ingestion time based on the source and the nature of t
 | xG from Poisson estimate (no real measurement) | `LOW` |
 | Injury from API-Football, status CONFIRMED | `HIGH` |
 | Injury from API-Football, status DOUBTFUL | `MEDIUM` |
-| Confirmed lineup from official source, within 90 minutes of kickoff | `HIGH` |
-| Confirmed lineup from API-Football, more than 90 minutes before kickoff | `MEDIUM` |
+| Confirmed lineup from official source, within 30 minutes of kickoff | `HIGH` |
+| Confirmed lineup from API-Football, between 15-30 minutes before kickoff | `HIGH` |
 | Coach from API-Football, appointment within last 30 days | `HIGH` |
 | Coach from historical cache, older than 30 days | `LOW` |
 | Any feature with `source: 'manual'` (manual override) | `MEDIUM` (unless explicitly tagged) |

@@ -206,7 +206,7 @@ cache/lineups/{leagueId}/{date}.json          # lista de fixtures por liga+fecha
 cache/lineups/fixtures/{fixtureId}.json       # lineup por fixture
 ```
 
-TTL disco: **24h** para ambos (post-kickoff el lineup no cambia). Solo se fetchea dentro de los 45 minutos previos al kickoff.
+TTL disco: **24h** para ambos (post-kickoff el lineup no cambia). Solo se fetchea dentro de los **15 minutos previos al kickoff**. Las respuestas vacías (lineup aún no publicado) no se cachean en disco — se reintenta en el próximo ciclo (2 min).
 
 ### `odds/` — Odds de mercado por fixture (AF)
 
@@ -302,10 +302,11 @@ Cada source tiene múltiples capas. Un request solo llega a la API si todas las 
 ### `lineup-source.ts`
 
 ```
-1. Guard: minutesToKickoff > 45 → return [] (no fetchea para partidos lejanos)
+1. Guard: minutesToKickoff > 15 → return [] (no fetchea para partidos lejanos)
 2. Memoria (fixtures: 1h, lineups: 2h)
 3. Disco   (fixtures: 24h, lineups: 24h)
 4. Error paths escriben [] al disco
+5. Respuesta vacía (lineup no publicado aún) NO se cachea en disco — reintenta el próximo ciclo
 ```
 
 ### `af-odds-service.ts`
@@ -341,7 +342,7 @@ curl https://sportspulse-qc6r.onrender.com/api/ui/status
 | `historical/` | ~50-100 (por liga × temporadas) |
 | `injuries/` | ~200-400 (por liga × días con partidos) |
 | `player-stats/` | ~500-2000 (varía según temporadas activas) |
-| `lineups/` | ~100-300 (solo post-kickoff, 45min window) |
+| `lineups/` | ~100-300 (solo post-kickoff, 15min window) |
 | `odds/` | ~200-500 (fixtures activos en ventana de tiempo) |
 | `events/` | ~100+ y creciendo (uno por partido FINISHED con eventos de gol) |
 

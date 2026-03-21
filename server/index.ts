@@ -1283,6 +1283,35 @@ async function main() {
   // Fire-and-forget: errors are caught inside runRefresh().
   void runRefresh().then(() => scheduleNextRefresh());
 
+  // ── xG Backfill — desacoplado del ciclo LIVE ─────────────────────────────────
+  // xG es datos de entrenamiento OFFLINE (Regla 1 — spec.api-consumption-control).
+  // El runner (v3-shadow-runner) solo lee del disco via readCachedXg().
+  // Este timer fetcha datos nuevos de AF cada 6h, independientemente del ciclo de refresh.
+  // Con el cap de MAX_NEW_XG_FETCHES_PER_CYCLE=3 por competencia, el peor caso es
+  // ~3 fixtures nuevos × N competencias por run. Completamente fuera del ciclo LIVE.
+  const XG_BACKFILL_INTERVAL_MS = 6 * 60 * 60 * 1000;
+  async function runXgBackfill(): Promise<void> {
+    const apiKey = process.env.APIFOOTBALL_KEY ?? '';
+    if (!apiKey) return;
+    const season = new Date().getFullYear() - (new Date().getMonth() < 6 ? 1 : 0);
+    const compIds = AF_COMP_IDS.filter((id) => isCompetitionActive(id) && isV3ShadowEnabled(id));
+    console.log(`[XgBackfill] Starting backfill for ${compIds.length} competitions (season=${season})`);
+    for (const competitionId of compIds) {
+      try {
+        const teams = dataSource.getTeams(competitionId);
+        const teamNameToId = new Map<string, string>();
+        for (const t of teams) {
+          if (t.name)      teamNameToId.set(normTeamName(t.name), t.teamId);
+          if (t.shortName) teamNameToId.set(normTeamName(t.shortName), t.teamId);
+        }
+        await xgSource.getHistoricalXg(competitionId, season, teamNameToId);
+      } catch { /* non-fatal per competition */ }
+    }
+  }
+  // First run: 60s after startup (let server load data and stabilize before hitting the API)
+  setTimeout(() => void runXgBackfill(), 60_000);
+  setInterval(() => void runXgBackfill(), XG_BACKFILL_INTERVAL_MS);
+
   // ── GET /api/ui/match/:matchId/incidents ────────────────────────────────────
   // Devuelve snapshot de incidentes (goles, tarjetas, sustituciones) para un partido.
   // El frontend pasa los datos del match core como query params.
