@@ -94,6 +94,11 @@ interface DiskCacheDoc {
 // Key: `${leagueId}:${season}:${date}`
 const _cache = new Map<string, CacheEntry>();
 
+// Cooldown: prevent repeated API calls when disk cache is missing (e.g. fresh deploy + concurrent calls).
+// Once we attempt to fetch a key, we don't retry for 6h — even if the result was [].
+const INJURY_FETCH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const _lastFetchAttemptMs = new Map<string, number>();
+
 function cacheKey(leagueId: number, season: number, date: string): string {
   return `${leagueId}:${season}:${date}`;
 }
@@ -378,6 +383,15 @@ async function fetchInjuriesForDate(
     return fromDisk;
   }
 
+  // Level 3: cooldown gate — if we already attempted this key recently, skip to avoid
+  // re-fetching on every 2-min live cycle after a fresh deploy or server restart.
+  const fetchKey = cacheKey(leagueId, season, dateIso);
+  const lastAttempt = _lastFetchAttemptMs.get(fetchKey) ?? 0;
+  if (Date.now() - lastAttempt < INJURY_FETCH_INTERVAL_MS) {
+    return [];
+  }
+  _lastFetchAttemptMs.set(fetchKey, Date.now());
+
   // Budget check before hitting API
   if (isQuotaExhausted()) {
     console.log(`[InjurySource] Quota exhausted — skipping fetch for ${competitionId} ${dateIso}`);
@@ -413,6 +427,7 @@ async function fetchInjuriesForDate(
     if (!res.ok) {
       console.warn(`[InjurySource] HTTP ${res.status} for ${competitionId} ${dateIso}`);
       setCache(leagueId, season, dateIso, []);
+      writeDiskCache(leagueId, season, dateIso, []);
       return [];
     }
 
@@ -421,11 +436,13 @@ async function fetchInjuriesForDate(
     if (err instanceof QuotaExhaustedError) {
       markQuotaExhausted();
       setCache(leagueId, season, dateIso, []);
+      writeDiskCache(leagueId, season, dateIso, []);
       return [];
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[InjurySource] fetch error for ${competitionId} ${dateIso}: ${msg}`);
     setCache(leagueId, season, dateIso, []);
+    writeDiskCache(leagueId, season, dateIso, []);
     return [];
   }
 

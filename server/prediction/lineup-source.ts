@@ -302,6 +302,7 @@ async function fetchFixturesForDate(
     if (!res.ok) {
       console.warn(`[LineupSource] HTTP ${res.status} fetching fixtures for league ${leagueId} ${date}`);
       setCachedFixtures(leagueId, date, []);
+      writeFixturesDisk(leagueId, date, []);
       return [];
     }
 
@@ -310,16 +311,19 @@ async function fetchFixturesForDate(
     if (err instanceof QuotaExhaustedError) {
       markQuotaExhausted();
       setCachedFixtures(leagueId, date, []);
+      writeFixturesDisk(leagueId, date, []);
       return [];
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[LineupSource] fetch error (fixtures): ${msg}`);
     setCachedFixtures(leagueId, date, []);
+    writeFixturesDisk(leagueId, date, []);
     return [];
   }
 
   if (checkAndMarkQuota(data.errors)) {
     setCachedFixtures(leagueId, date, []);
+    writeFixturesDisk(leagueId, date, []);
     return [];
   }
 
@@ -373,6 +377,7 @@ async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineu
     if (!res.ok) {
       console.warn(`[LineupSource] HTTP ${res.status} fetching lineups for fixture ${fixtureId}`);
       setCachedLineups(fixtureId, []);
+      writeLineupsDisk(fixtureId, []);
       return [];
     }
 
@@ -381,16 +386,19 @@ async function fetchLineupsForFixture(fixtureId: number): Promise<ConfirmedLineu
     if (err instanceof QuotaExhaustedError) {
       markQuotaExhausted();
       setCachedLineups(fixtureId, []);
+      writeLineupsDisk(fixtureId, []);
       return [];
     }
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[LineupSource] fetch error (lineups): ${msg}`);
     setCachedLineups(fixtureId, []);
+    writeLineupsDisk(fixtureId, []);
     return [];
   }
 
   if (checkAndMarkQuota(data.errors)) {
     setCachedLineups(fixtureId, []);
+    writeLineupsDisk(fixtureId, []);
     return [];
   }
 

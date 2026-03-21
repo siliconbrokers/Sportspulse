@@ -25,6 +25,10 @@ INCLUDE_DIRS=(
   "nexus-models"     # NEXUS model
   "xg"               # xG histórico por fixture (evita backfill storm en prod) — CRÍTICO
   "historical"       # partidos históricos por temporada (training data PE) — CRÍTICO
+  "injuries"         # injury cache por (leagueId/season/date) — evita storm en prod
+  "player-stats"     # player stats cache por (season/playerId) — evita storm en prod
+  "lineups"          # lineup cache por (leagueId/date y fixtureId) — evita refetch en restart
+  "odds"             # AF odds cache por fixtureId — evita refetch en restart
 )
 
 # Archivos sueltos a incluir

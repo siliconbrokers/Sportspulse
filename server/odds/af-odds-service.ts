@@ -154,6 +154,9 @@ export class AfOddsService {
       if (!response.ok) {
         const body = await response.text().catch(() => '');
         console.warn(`[AfOddsService] fixture ${fixtureId}: HTTP ${response.status} ${body.slice(0, 120)}`);
+        const entry: CacheEntry = { fetchedAtMs: now, odds: null };
+        this.cache.set(fixtureId, entry);
+        writeOddsToDisk(fixtureId, null);
         return null;
       }
 
@@ -185,6 +188,9 @@ export class AfOddsService {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[AfOddsService] fixture ${fixtureId}: fetch error — ${msg}`);
+      const entry: CacheEntry = { fetchedAtMs: now, odds: null };
+      this.cache.set(fixtureId, entry);
+      writeOddsToDisk(fixtureId, null);
       return null;
     }
   }
