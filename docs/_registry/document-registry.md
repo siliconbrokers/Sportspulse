@@ -112,6 +112,12 @@
 | SPEC-SPORTPULSE-DATA-QCBL-CONMEBOL-2026-BACKFILL | QCBL CONMEBOL 2026 Backfill Specification | spec | active | 1.0.0 | docs/specs/data/spec.sportpulse.data.qcbl-conmebol-2026-backfill.md |
 | SPEC-SPORTPULSE-DATA-LUTA-URUGUAY-MULTISOURCE-INTEGRATION | LUTA Uruguay Multi-Source Integration | spec | active | 1.0.0 | docs/specs/data/spec.sportpulse.data.luta-uruguay-multisource-integration.md |
 
+### Ops (`docs/specs/ops/`)
+
+| artifact_id | title | class | status | version | canonical_path |
+|-------------|-------|-------|--------|---------|----------------|
+| SPEC-SPORTPULSE-OPS-QUOTA-LEDGER-TIMEZONE-AWARENESS | Quota Ledger Timezone Awareness | spec | proposed | 0.1.0 | docs/specs/ops/spec.sportpulse.ops.quota-ledger-timezone-awareness.md |
+
 ---
 
 ## Architecture (`docs/architecture/`)
@@ -161,6 +167,10 @@
 | AUDIT-SPORTPULSE-PREDICTION-PE-2026-03-11 | Predictive Engine Audit — 2026-03-11 | audit | active | 1.0.0 | docs/audits/PE-audit-2026-03-11.md |
 | AUDIT-SPORTPULSE-PREDICTION-PD-VALIDATION-2026-03-10 | Predictive Engine PD Validation — 2026-03-10 | audit | active | 1.0.0 | docs/audits/PE-validation-PD-2026-03-10.md |
 | AUDIT-SPORTPULSE-PREDICTION-PE-2026-03-15 | Predictive Engine Audit — 2026-03-15 | audit | active | 1.0.0 | docs/audits/PE-audit-2026-03-15.md |
+| SPEC-SPORTPULSE-AUDIT-RUNTIME-STORAGE-AND-SCALING-GAP-ANALYSIS | Runtime Storage and Scaling Gap Analysis (Methodology Spec) | spec | proposed | 0.2.0 | docs/audits/spec.sportpulse.audit.runtime-storage-and-scaling-gap-analysis.md |
+| SPEC-SPORTPULSE-CORE-RUNTIME-HARDENING-BACKLOG | Runtime Hardening Backlog | backlog | proposed | 0.1.0 | docs/audits/spec.sportpulse.core.runtime-hardening-backlog.md |
+| SPEC-SPORTPULSE-AUDIT-FRONTEND-PRODUCT-SURFACE-GAP-ANALYSIS | Frontend Product Surface Gap Analysis (Methodology Spec) | spec | proposed | 0.1.0 | docs/audits/spec.sportpulse.audit.frontend-product-surface-gap-analysis.md |
+| AUDIT-SPORTPULSE-FRONTEND-PRODUCT-SURFACE-GAP-ANALYSIS | Frontend Product Surface Gap Analysis — 2026-03-20 | audit | final | 0.1.0 | docs/audits/frontend-product-surface-gap-analysis-2026-03-20.md |
 
 ---
 

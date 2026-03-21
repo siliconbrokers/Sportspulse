@@ -7,16 +7,16 @@ import type { ProviderSummaryItem } from '../hooks/use-api-usage.js';
 // ─── Warning level palette ────────────────────────────────────────────────────
 
 const LEVEL_COLOR: Record<string, string> = {
-  NORMAL: '#22c55e',
-  WARNING: '#eab308',
-  CRITICAL: '#f97316',
-  EXHAUSTED: '#ef4444',
+  NORMAL: 'var(--sp-status-success)',
+  WARNING: 'var(--sp-status-warning)',
+  CRITICAL: 'var(--sp-status-live)',
+  EXHAUSTED: 'var(--sp-status-error)',
 };
 
 const DISCREPANCY_COLOR: Record<string, string> = {
-  NONE: '#22c55e',
-  MINOR: '#eab308',
-  MAJOR: '#ef4444',
+  NONE: 'var(--sp-status-success)',
+  MINOR: 'var(--sp-status-warning)',
+  MAJOR: 'var(--sp-status-error)',
   UNKNOWN: 'var(--sp-text-40)',
 };
 
@@ -42,8 +42,8 @@ function fmtNum(n: number): string {
 // ─── dataSource badge config ──────────────────────────────────────────────────
 
 const DATA_SOURCE_DOT: Record<string, string> = {
-  PROVIDER_REPORTED: '#22c55e',
-  LEDGER_OBSERVED: '#eab308',
+  PROVIDER_REPORTED: 'var(--sp-status-success)',
+  LEDGER_OBSERVED: 'var(--sp-status-warning)',
 };
 
 const DATA_SOURCE_LABEL: Record<string, string> = {
@@ -274,11 +274,11 @@ function ProviderCard({
 
       {/* Blocked calls */}
       {(item.blockedToday ?? 0) > 0 && (
-        <div style={{ fontSize: 12, color: '#f97316', display: 'flex', gap: 5, alignItems: 'center' }}>
+        <div style={{ fontSize: 12, color: 'var(--sp-status-live)', display: 'flex', gap: 5, alignItems: 'center' }}>
           <span style={{
             fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
             padding: '1px 5px', borderRadius: 3,
-            background: 'rgba(249,115,22,0.15)', color: '#f97316',
+            background: 'var(--sp-status-live-soft)', color: 'var(--sp-status-live)',
           }}>
             BLOQUEADAS
           </span>
