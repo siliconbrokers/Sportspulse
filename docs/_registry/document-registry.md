@@ -67,6 +67,7 @@
 | SPEC-SPORTPULSE-WEB-FUTURE-EXPERIENCE-ROADMAP | Future Experience Roadmap | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.future-experience-roadmap.md |
 | SPEC-SPORTPULSE-WEB-SITE-EXPERIENCE-CONFIG | Site Experience Config | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.site-experience-config.md |
 | SPEC-SPORTPULSE-WEB-THEME-AND-GLOBAL-ANNOUNCEMENT-SYSTEM | Web Theme and Global Announcement System | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.theme-and-global-announcement-system.md |
+| SPEC-SPORTPULSE-WEB-FRONTEND-EXECUTION-BACKLOG | Web Frontend Execution Backlog | spec | proposed | 0.1.0 | docs/spec.sportpulse.web.frontend-execution-backlog.md |
 | SPEC-SPORTPULSE-WEB-UI | UI Specification | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.web.ui.md |
 | SPEC-SPORTPULSE-WEB-DISPLAY-HINTS | Display Hints Specification | spec | active | 1.1.0 | docs/specs/portal/spec.sportpulse.web.display-hints.md |
 | SPEC-SPORTPULSE-WEB-MATCH-MAP-VISUAL-ENCODING | Match Map Visual Encoding | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.web.match-map-visual-encoding.md |
