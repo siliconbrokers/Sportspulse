@@ -32,6 +32,7 @@ INCLUDE_DIRS=(
   "odds"             # AF odds cache por fixtureId — evita refetch en restart
   "events"           # eventos de gol por partido FINISHED (permanentes, inmutables)
   "predictions"      # PE predictions cache por modelo y competición
+  "nexus-shadow"     # NEXUS (PE v2) shadow runner outputs por competición
 )
 
 # Archivos sueltos a incluir
