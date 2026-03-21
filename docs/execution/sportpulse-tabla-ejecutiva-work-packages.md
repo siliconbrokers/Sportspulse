@@ -1,6 +1,13 @@
 # SportPulse — Tabla ejecutiva de work packages
 
-> Versión resumida para seguimiento operativo diario.
+## Resumen operativo
+
+Secuencia de ejecución recomendada:
+
+- **P0**: consolidación de corpus y verdad contractual
+- **P1**: backend truth surfaces + foundations frontend
+- **P2**: integración auth / checkout / Pro + QA integrada
+- **P3**: hardening visual final
 
 ## Tabla ejecutiva
 
@@ -67,7 +74,7 @@
 
 ## No negociables
 
-- No empezar checkout serio sin `WP-16` y `WP-17`.
-- No empezar Pro rendering sin `WP-04A` y `WP-06C`.
-- No vender release readiness sin `WP-18`.
+- No arrancar checkout serio sin `WP-16` y `WP-17`.
+- No arrancar Pro rendering sin `WP-04A` y `WP-06C`.
+- No declarar release readiness sin `WP-18`.
 - No tocar hardening visual antes de `WP-10` y `WP-11`.
