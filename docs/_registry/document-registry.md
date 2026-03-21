@@ -268,3 +268,4 @@
 | SPEC-SPORTPULSE-CORE-CORPUS-INTEGRATION-PATCH-LOG | Corpus Integration Patch Log | note | draft | 0.1.0 | docs/core/spec.sportpulse.core.corpus-integration-patch-log.md |
 | SPEC-SPORTPULSE-QA-ACCEPTANCE-GAP-CLOSURE-UPDATE | Acceptance Gap Closure Update | spec | draft | 0.2.1 | docs/core/spec.sportpulse.qa.acceptance-gap-closure-update.md |
 | SPEC-SPORTPULSE-EXECUTION-PLAN-BACKEND-FRONTEND-GAP-CLOSURE | Backend Frontend Gap Closure Execution Plan | plan | draft | 0.1.0 | docs/plans/spec.sportpulse.execution-plan.backend-frontend-gap-closure.md |
+| SPEC-SPORTPULSE-EXECUTION-BOARD-WORK-PACKAGES | Execution Board — Work Packages | spec | draft | 0.2.0 | docs/execution/spec.sportpulse.execution-board.work-packages.md |
