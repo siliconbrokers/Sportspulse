@@ -109,7 +109,7 @@ export async function loadOLGPrevSeason(
   try {
     const url = `${OLG_BASE_URL}/getmatchdata/${league}/${prevYear}`;
     console.log(`[NonFdLoader] Fetching OLG prev season: ${url}`);
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw = (await res.json()) as OLGMatch[];
 
@@ -179,7 +179,7 @@ export async function loadSDBPrevSeason(
   try {
     const url = `${SDB_BASE_URL}/${apiKey}/eventsseason.php?id=${leagueId}&s=${prevYear}`;
     console.log(`[NonFdLoader] Fetching SDB prev season: ${providerKey}/${leagueId}/${prevYear}`);
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { events: SDBEvent[] | null };
     const raw = data.events ?? [];

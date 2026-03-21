@@ -65,6 +65,7 @@ export interface XgFixtureCache {
   xgHome: number;
   xgAway: number;
   cachedAt: string;
+  noXg?: true;          // sentinel — xG no disponible en proveedor; evita re-fetch infinito
 }
 
 // ── In-memory fixture list cache ───────────────────────────────────────────────
@@ -357,7 +358,16 @@ async function fetchXgForFixture(
 
   const teamStats = data.response ?? [];
   if (teamStats.length < 2) {
-    // Incomplete stats — skip, don't cache (may be available later)
+    // Incomplete stats — write sentinel so we don't re-fetch on every cycle.
+    // In practice these fixtures permanently lack stats (abandoned matches, missing uploads).
+    const sentinel: XgFixtureCache = {
+      fixtureId, utcDate, homeTeamId, awayTeamId,
+      xgHome: 0, xgAway: 0,
+      cachedAt: new Date().toISOString(),
+      noXg: true,
+    };
+    await writeToDiskCache(leagueId, season, sentinel);
+    console.log(`[XgSource] fixture ${fixtureId}: incomplete stats — sentinel written`);
     return null;
   }
 
@@ -381,9 +391,15 @@ async function fetchXgForFixture(
   const xgSecond = extractXg(teamStats[1]);
 
   if (xgFirst === null || xgSecond === null) {
-    // xG not available for this fixture — don't create a record
-    // Cache absence as negative sentinel to avoid re-fetching
-    console.log(`[XgSource] fixture ${fixtureId}: xG not available — skipping`);
+    // xG not available for this fixture — write sentinel to avoid re-fetching on every cycle.
+    const sentinel: XgFixtureCache = {
+      fixtureId, utcDate, homeTeamId, awayTeamId,
+      xgHome: 0, xgAway: 0,
+      cachedAt: new Date().toISOString(),
+      noXg: true,
+    };
+    await writeToDiskCache(leagueId, season, sentinel);
+    console.log(`[XgSource] fixture ${fixtureId}: xG not available — sentinel written`);
     return null;
   }
 
@@ -445,13 +461,17 @@ export class XgSource {
         fixtures.map(async (f) => {
           const cached = await readFromDiskCache(leagueId, season, f.fixtureId);
           if (cached) {
-            results.push({
-              utcDate:    cached.utcDate,
-              homeTeamId: cached.homeTeamId,
-              awayTeamId: cached.awayTeamId,
-              xgHome:     cached.xgHome,
-              xgAway:     cached.xgAway,
-            });
+            if (!cached.noXg) {
+              // Real xG record — include in results
+              results.push({
+                utcDate:    cached.utcDate,
+                homeTeamId: cached.homeTeamId,
+                awayTeamId: cached.awayTeamId,
+                xgHome:     cached.xgHome,
+                xgAway:     cached.xgAway,
+              });
+            }
+            // sentinel (noXg: true) → skip silently, do NOT add to toFetch
           } else {
             toFetch.push(f);
           }
