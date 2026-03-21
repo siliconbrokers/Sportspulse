@@ -32,9 +32,35 @@ Sin cache en disco, el servidor intenta fetchear todos los datos en el primer ci
 
 ---
 
+## Setup
+
+`ADMIN_SECRET` y `SEED_URL` viven en `.env` (ya configurado). El hook `pre-push` los lee automáticamente — no requiere ningún paso adicional.
+
+---
+
 ## Comandos
 
-### Operativa normal (skip archivos existentes)
+### Deploy normal (el flujo estándar)
+
+```bash
+git push origin main
+# o equivalentemente:
+pnpm deploy
+```
+
+El hook `pre-push` (`.husky/pre-push`) se ejecuta automáticamente antes del push, seedea el servidor actual y luego el push procede. El disco persiste entre deploys en Render, por lo que el nuevo deploy arranca con los archivos ya en disco.
+
+Si `ADMIN_SECRET` o `SEED_URL` no están en `.env.local`, el hook advierte pero no bloquea el push.
+
+### Deploy con sobreescritura (cuando dev tiene datos más correctos)
+
+```bash
+OVERWRITE=true git push origin main
+```
+
+Útil después de: recalibración PE, fix de fixtures, corrección de datos históricos.
+
+### Solo seed (sin push — para re-seedear sin deployar)
 
 ```bash
 ADMIN_SECRET=<secret> SEED_URL=https://sportspulse-qc6r.onrender.com pnpm pack-cache
@@ -47,14 +73,6 @@ pnpm pack-cache
 # genera tmp/cache-seed.tar.gz y muestra el curl para subir manualmente
 ```
 
-### Forzar sobreescritura (cuando dev tiene datos más correctos)
-
-```bash
-OVERWRITE=true ADMIN_SECRET=<secret> SEED_URL=https://sportspulse-qc6r.onrender.com pnpm pack-cache
-```
-
-Útil después de: recalibración PE, fix de fixtures, corrección de datos históricos.
-
 ---
 
 ## Variables de entorno
@@ -64,6 +82,7 @@ OVERWRITE=true ADMIN_SECRET=<secret> SEED_URL=https://sportspulse-qc6r.onrender.
 | `ADMIN_SECRET` | — | Bearer token para auth en `/api/admin/seed-cache` |
 | `SEED_URL` | `https://sportspulse-qc6r.onrender.com` | Base URL del servidor destino |
 | `OVERWRITE` | `false` | Si `true`, sobreescribe archivos existentes en prod |
+Definir `ADMIN_SECRET` y `SEED_URL` en `.env.local` (no commiteado). El hook `pre-push` las carga automáticamente.
 
 ---
 

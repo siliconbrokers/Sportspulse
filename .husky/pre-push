@@ -1,0 +1,36 @@
+SCRIPT_DIR="$(cd "$(dirname "$0")/../scripts" && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Cargar credenciales desde .env y .env.local (este ultimo tiene precedencia)
+for envfile in "$REPO_ROOT/.env" "$REPO_ROOT/.env.local"; do
+  if [ -f "$envfile" ]; then
+    set -o allexport
+    # shellcheck disable=SC1091
+    source "$envfile"
+    set +o allexport
+  fi
+done
+
+# Solo seedear cuando el push va a main
+PUSH_TARGET=$(cat -)
+BRANCH=$(echo "$PUSH_TARGET" | awk '{print $1}' | sed 's|refs/heads/||')
+
+if [ "$BRANCH" != "main" ]; then
+  exit 0
+fi
+
+if [ -z "${ADMIN_SECRET:-}" ] || [ -z "${SEED_URL:-}" ]; then
+  echo ""
+  echo "[pre-push] ADVERTENCIA: ADMIN_SECRET o SEED_URL no configurados en .env.local"
+  echo "[pre-push] El seed de cache se omite. Define estas vars para automatizarlo:"
+  echo "[pre-push]   ADMIN_SECRET=<token>"
+  echo "[pre-push]   SEED_URL=https://sportspulse-qc6r.onrender.com"
+  echo ""
+  exit 0
+fi
+
+echo ""
+echo "[pre-push] Seeding cache en produccion..."
+OVERWRITE="${OVERWRITE:-false}" ADMIN_SECRET="$ADMIN_SECRET" SEED_URL="$SEED_URL" \
+  bash "$SCRIPT_DIR/pack-cache.sh"
+echo ""

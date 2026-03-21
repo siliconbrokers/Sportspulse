@@ -30,6 +30,7 @@
     "validate:registry": "pnpm tsx scripts/validate-doc-registry.ts",
     "smoke-test": "tsx scripts/smoke-test.ts",
     "pack-cache": "bash scripts/pack-cache.sh",
+    "deploy": "bash scripts/deploy.sh",
     "eval:nexus-gate": "dotenv -e .env -- tsx tools/eval-nexus-gate.ts",
     "odds:backfill": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json tools/backfill-historical-odds.ts",
     "odds:analyze": "npx dotenv-cli -e .env -- npx tsx --tsconfig tsconfig.server.json tools/analyze-blend-accuracy.ts"
