@@ -2,6 +2,7 @@
  * ProviderDetailPanel — detail drawer for a selected provider.
  * Styles: CSS-in-JS with sp-* variables (no Tailwind).
  */
+import { useState } from 'react';
 import type { ProviderSummaryItem, ProviderDetailResponse, ApiUsageEventLite } from '../hooks/use-api-usage.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -121,11 +122,46 @@ interface Props {
   detail: ProviderDetailResponse | null;
   loading: boolean;
   onClose: () => void;
+  token: string;
+  onRefresh: () => void;
 }
 
 // ─── Panel ───────────────────────────────────────────────────────────────────
 
-export function ProviderDetailPanel({ displayName, summaryItem, detail, loading, onClose }: Props) {
+export function ProviderDetailPanel({ providerKey, displayName, summaryItem, detail, loading, onClose, token, onRefresh }: Props) {
+  const [syncRemaining, setSyncRemaining] = useState('');
+  const [syncLimit, setSyncLimit] = useState('');
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  async function handleSyncQuota() {
+    const remaining = parseInt(syncRemaining, 10);
+    const limit = parseInt(syncLimit, 10);
+    if (isNaN(remaining) || isNaN(limit) || remaining < 0 || limit <= 0) {
+      setSyncError('Valores inválidos — ingresa números positivos.');
+      return;
+    }
+    setSyncStatus('loading');
+    setSyncError(null);
+    try {
+      const res = await fetch('/api/internal/ops/api-usage/seed-quota', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ providerKey, remaining, limit }),
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `HTTP ${res.status}`);
+      }
+      setSyncStatus('ok');
+      setSyncRemaining('');
+      setSyncLimit('');
+      onRefresh();
+    } catch (e: unknown) {
+      setSyncStatus('error');
+      setSyncError(e instanceof Error ? e.message : 'Error desconocido');
+    }
+  }
   const color = LEVEL_COLOR[summaryItem.warningLevel] ?? '#22c55e';
   const discColor = DISCREPANCY_COLOR[summaryItem.discrepancyStatus] ?? 'var(--sp-text-40)';
 
@@ -287,6 +323,100 @@ export function ProviderDetailPanel({ displayName, summaryItem, detail, loading,
           {/* ── Rate-limit incidents ── */}
           <SectionTitle>Incidentes rate-limit (últimos 20)</SectionTitle>
           <IncidentsTable events={detail.rateLimitIncidents} />
+        </>
+      )}
+
+      {/* ── Sync Quota manual (LEDGER_OBSERVED only) ── */}
+      {summaryItem.dataSource === 'LEDGER_OBSERVED' && (
+        <>
+          <SectionTitle>Sincronizar cuota</SectionTitle>
+          <div
+            style={{
+              background: 'var(--sp-bg)',
+              border: '1px solid var(--sp-border-8)',
+              borderRadius: 8,
+              padding: '12px 14px',
+              fontSize: 12,
+            }}
+          >
+            <div style={{ color: 'var(--sp-text-40)', marginBottom: 10, lineHeight: 1.5 }}>
+              Este provider no reporta cuota diaria en sus headers — cada instancia
+              (dev/prod) cuenta sus propias llamadas por separado. Ingresá los valores
+              reales desde el dashboard del provider para sincronizar este servidor.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--sp-text-40)', textTransform: 'uppercase' }}>
+                  Restantes
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={syncRemaining}
+                  onChange={(e) => { setSyncRemaining(e.target.value); setSyncStatus('idle'); }}
+                  placeholder="ej: 7430"
+                  style={{
+                    width: 110,
+                    padding: '6px 8px',
+                    borderRadius: 5,
+                    border: '1px solid var(--sp-border-8)',
+                    background: 'var(--sp-surface)',
+                    color: 'var(--sp-text)',
+                    fontSize: 12,
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--sp-text-40)', textTransform: 'uppercase' }}>
+                  Límite total
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={syncLimit}
+                  onChange={(e) => { setSyncLimit(e.target.value); setSyncStatus('idle'); }}
+                  placeholder="ej: 10000"
+                  style={{
+                    width: 110,
+                    padding: '6px 8px',
+                    borderRadius: 5,
+                    border: '1px solid var(--sp-border-8)',
+                    background: 'var(--sp-surface)',
+                    color: 'var(--sp-text)',
+                    fontSize: 12,
+                  }}
+                />
+              </div>
+              <button
+                onClick={() => { void handleSyncQuota(); }}
+                disabled={syncStatus === 'loading' || !syncRemaining || !syncLimit}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 5,
+                  border: 'none',
+                  background: syncStatus === 'loading' ? 'var(--sp-border-8)' : 'var(--sp-primary)',
+                  color: syncStatus === 'loading' ? 'var(--sp-text-40)' : '#fff',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: syncStatus === 'loading' || !syncRemaining || !syncLimit ? 'not-allowed' : 'pointer',
+                  opacity: !syncRemaining || !syncLimit ? 0.5 : 1,
+                  alignSelf: 'flex-end',
+                }}
+              >
+                {syncStatus === 'loading' ? 'Sincronizando…' : 'Sincronizar'}
+              </button>
+            </div>
+            {syncStatus === 'ok' && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--sp-status-success)', fontWeight: 600 }}>
+                Cuota sincronizada correctamente.
+              </div>
+            )}
+            {(syncStatus === 'error' || syncError) && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--sp-status-error)' }}>
+                Error: {syncError}
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>

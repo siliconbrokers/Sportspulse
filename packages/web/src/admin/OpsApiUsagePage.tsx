@@ -300,6 +300,8 @@ function OpsInner({ token }: { token: string }) {
             detail={detailData}
             loading={detailLoading}
             onClose={() => setSelectedProvider(null)}
+            token={token}
+            onRefresh={loadToday}
           />
         )}
 
