@@ -117,7 +117,7 @@ async function main() {
   // Logs the cache directory path and its top-level contents on every startup.
   // If "Migration v1 applied" appears right after this AND the dir appears empty,
   // the Render persistent disk is not mounted correctly at this path.
-  const cacheBase = process.env.CACHE_DIR ?? (process.env.CACHE_DIR ?? path.join(process.cwd(), 'cache'));
+  const cacheBase = process.env.CACHE_DIR ?? ((process.env.CACHE_DIR ?? (process.env.RENDER === 'true' ? '/opt/render/project/src/cache' : path.join(process.cwd(), 'cache'))));
   let startupCacheEntries: string[] = [];
   try {
     startupCacheEntries = fs.readdirSync(cacheBase);
@@ -758,7 +758,7 @@ async function main() {
   // and Track 3 remains inactive in the NEXUS ensemble (no startup failure).
   let nexusModelWeights: NexusModelWeights | null = null;
   try {
-    const cacheDir = (process.env.CACHE_DIR ?? path.join(process.cwd(), 'cache'));
+    const cacheDir = ((process.env.CACHE_DIR ?? (process.env.RENDER === 'true' ? '/opt/render/project/src/cache' : path.join(process.cwd(), 'cache'))));
     nexusModelWeights = await loadNexusModelWeights(cacheDir);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -1458,7 +1458,7 @@ async function main() {
   // Generates Track 3 weights and loads historical odds on first boot if absent.
   // Never blocks server startup. Never throws to caller.
   if (process.env.PREDICTION_NEXUS_SHADOW_ENABLED) {
-    const nexusCacheDir = (process.env.CACHE_DIR ?? path.join(process.cwd(), 'cache'));
+    const nexusCacheDir = ((process.env.CACHE_DIR ?? (process.env.RENDER === 'true' ? '/opt/render/project/src/cache' : path.join(process.cwd(), 'cache'))));
     void runNexusStartupInit(nexusCacheDir);
   }
 
@@ -1478,7 +1478,7 @@ async function main() {
   //     cadence). In practice most fixtures are FAR (30-min cadence) → ~15 req/day.
   try {
     if ((process.env.NEXUS_ODDS_INGEST_ENABLED ?? '').toLowerCase() === 'true') {
-      const nexusCacheDir = (process.env.CACHE_DIR ?? path.join(process.cwd(), 'cache'));
+      const nexusCacheDir = ((process.env.CACHE_DIR ?? (process.env.RENDER === 'true' ? '/opt/render/project/src/cache' : path.join(process.cwd(), 'cache'))));
       // Pull up to 48h of upcoming pre-kickoff matches.
       const upcoming = upcomingService.getUpcoming(48);
       const nowMs = Date.now();
