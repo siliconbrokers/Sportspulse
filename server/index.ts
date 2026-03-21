@@ -1,6 +1,7 @@
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { validateEnv } from './env-validator.js';
-import { buildApp, registerApiUsageRoutes } from '@sportpulse/api';
+import { buildApp, registerApiUsageRoutes, registerSnapshotStatsRoute } from '@sportpulse/api';
 import { resolveDisplayName } from '@sportpulse/canonical';
 import { FootballDataSource } from './football-data-source.js';
 import { FootballDataTournamentSource, WC_PROVIDER_KEY } from './football-data-tournament-source.js';
@@ -63,6 +64,7 @@ import {
   setGlobalProviderClient,
 } from '@sportpulse/canonical';
 import { COMPETITION_REGISTRY, REGISTRY_BY_ID } from './competition-registry.js';
+import { checkScoreSnapshotHealth } from './matchday-cache.js';
 import type { MatchCoreInput } from './incidents/types.js';
 import { isCompetitionActive, getActiveCompetitions, getFullConfig, isFeatureEnabled, isSchedulerEnabled } from './portal-config-store.js';
 import { registerAdminRoutes } from './admin-router.js';
@@ -110,6 +112,22 @@ const DEFAULT_CONTAINER = {
 
 async function main() {
   validateEnv();
+
+  // ── Disk persistence check ──────────────────────────────────────────────────
+  // Logs the cache directory path and its top-level contents on every startup.
+  // If "Migration v1 applied" appears right after this AND the dir appears empty,
+  // the Render persistent disk is not mounted correctly at this path.
+  const cacheBase = path.join(process.cwd(), 'cache');
+  let startupCacheEntries: string[] = [];
+  try {
+    startupCacheEntries = fs.readdirSync(cacheBase);
+  } catch {
+    startupCacheEntries = [];
+  }
+  console.log(
+    `[DiskCheck] cwd=${process.cwd()} cacheBase=${cacheBase} ` +
+    `entries=${startupCacheEntries.length > 0 ? startupCacheEntries.join(',') : '(empty or missing)'}`,
+  );
 
   // ── API Usage Ledger (GOV-03) ───────────────────────────────────────────────
   // Single source of truth for all provider quota accounting. Replaces af-budget.ts.
@@ -278,6 +296,24 @@ async function main() {
       // The scheduler will handle fetching when quota becomes available (hourly retry).
       if (isAfQuotaExhausted()) {
         console.log('[AfCanonical] Quota agotada al startup — omitiendo fetch inicial, usando preload del disco');
+        // Warn loudly if quota is exhausted AND the disk has no matchday data.
+        // This state means the server cannot serve any match data until quota resets.
+        if (!startupCacheEntries.includes('apifootball') && !startupCacheEntries.includes('football-data')) {
+          console.error(
+            '╔══════════════════════════════════════════════════════════════════╗\n' +
+            '║  ⚠  DISCO VACÍO + QUOTA AGOTADA — EL SERVIDOR NO TIENE DATOS  ⚠  ║\n' +
+            '╠══════════════════════════════════════════════════════════════════╣\n' +
+            '║  El disco persistente está vacío y la cuota de API-Football     ║\n' +
+            '║  está agotada. El servidor no puede servir datos de partidos.   ║\n' +
+            '║                                                                  ║\n' +
+            '║  REMEDIOS:                                                       ║\n' +
+            '║  1. Sembrar el disco: pnpm pack-cache → POST /api/admin/seed-cache ║\n' +
+            '║  2. Esperar reset de quota (medianoche UTC)                      ║\n' +
+            '║  3. Verificar que el disco Render esté montado en /app/cache     ║\n' +
+            `║     cacheBase actual: ${cacheBase.padEnd(43)}║\n` +
+            '╚══════════════════════════════════════════════════════════════════╝',
+          );
+        }
       } else {
         // Fetch all AF competitions sequentially (small delays to avoid quota bursts)
         for (let i = 0; i < AF_COMP_IDS.length; i++) {
@@ -427,11 +463,18 @@ async function main() {
   const newsService = new NewsService(standingsProvider);
 
   const snapshotStore = new InMemorySnapshotStore();
+  const SEED_DIR = path.join(process.cwd(), 'cache', 'snapshots');
   const snapshotService = new SnapshotService({
     store: snapshotStore,
     defaultPolicy: MVP_POLICY,
     defaultContainer: DEFAULT_CONTAINER,
+    seedDir: SEED_DIR,
+    statsIntervalMs: 5 * 60_000, // log snapshot cache stats every 5 minutes
   });
+
+  // Load last-good snapshots from disk as stale seeds so cold-start failures
+  // degrade gracefully (stale_fallback) instead of immediately returning 503.
+  await snapshotService.loadAndSeedFromDisk(SEED_DIR);
 
   // Eventos — fuente: streamtp10.com/eventos.json (default) o EVENTOS_SOURCE_URL env
   const EVENTOS_SOURCE_URL = process.env.EVENTOS_SOURCE_URL;
@@ -765,6 +808,7 @@ async function main() {
   const app = buildApp({ snapshotService, dataSource, newsService, videoService, radarService, radarV2Service, eventosService, matchEventsService, tournamentSource: compositeTournamentSource, upcomingService, predictionService, getPortalConfig: getEnrichedPortalConfig, competitionIds: COMPETITION_REGISTRY.map(e => e.id).filter(id => isCompetitionActive(id)), getBudgetStats: getAfBudgetStats });
   registerAdminRoutes(app, snapshotStore);
   registerApiUsageRoutes(app, ledger);
+  registerSnapshotStatsRoute(app, snapshotService);
 
   // ── Smart scheduler ────────────────────────────────────────────────────────
   // Refresh interval adapts to match state. Only polls when data can change.
@@ -1004,13 +1048,12 @@ async function main() {
 
       console.log(`[Scheduler] Refreshing ${toFetch.length}/${enabledAfIds.length} competitions (tier-based)`);
 
-      let invalidated = false;
       for (let i = 0; i < toFetch.length; i++) {
         const compId = toFetch[i];
         try {
           await afCanonicalSource.fetchCompetition(compId);
           compLastFetchedMs.set(compId, Date.now());
-          if (!invalidated) { snapshotService.invalidateAll(); invalidated = true; }
+          snapshotService.invalidateCompetition(compId);
         } catch (err) {
           console.error(`[AfCanonical] Refresh failed for ${compId}:`, err);
         }
@@ -1036,7 +1079,7 @@ async function main() {
         try {
           await fdSource.fetchCompetition(code);
           legacyLastFetchedMs.set(compId, Date.now());
-          snapshotService.invalidateAll();
+          snapshotService.invalidateCompetition(compId);
           didFetch = true;
         } catch (err) {
           console.error(`Refresh failed for ${code}:`, err);
@@ -1049,7 +1092,7 @@ async function main() {
           try {
             await sportsDbSource.fetchSeason();
             legacyLastFetchedMs.set(UY_COMPETITION_ID, Date.now());
-            snapshotService.invalidateAll();
+            snapshotService.invalidateCompetition(UY_COMPETITION_ID);
           } catch (err) {
             console.error('Refresh failed for Liga Uruguaya:', err);
           }
@@ -1062,7 +1105,7 @@ async function main() {
           try {
             await sportsDbArSource.fetchSeason();
             legacyLastFetchedMs.set(AR_COMPETITION_ID, Date.now());
-            snapshotService.invalidateAll();
+            snapshotService.invalidateCompetition(AR_COMPETITION_ID);
           } catch (err) {
             console.error('Refresh failed for Liga Argentina:', err);
           }
@@ -1075,7 +1118,7 @@ async function main() {
           try {
             await openLigaDbSource.fetchSeason();
             legacyLastFetchedMs.set(OLG_COMPETITION_ID, Date.now());
-            snapshotService.invalidateAll();
+            snapshotService.invalidateCompetition(OLG_COMPETITION_ID);
           } catch (err) {
             console.error('Refresh failed for Bundesliga (OpenLigaDB):', err);
           }
@@ -1090,7 +1133,7 @@ async function main() {
         try {
           await wcSource.fetchTournament();
           legacyLastFetchedMs.set(WC_COMPETITION_ID, Date.now());
-          snapshotService.invalidateAll();
+          snapshotService.invalidateCompetition(WC_COMPETITION_ID);
         } catch (err) {
           console.error('Refresh failed for Copa del Mundo 2026:', err);
         }
@@ -1104,7 +1147,7 @@ async function main() {
         try {
           await cliSource.fetchTournament();
           legacyLastFetchedMs.set(CLI_COMPETITION_ID, Date.now());
-          snapshotService.invalidateAll();
+          snapshotService.invalidateCompetition(CLI_COMPETITION_ID);
         } catch (err) {
           console.error('Refresh failed for Copa Libertadores 2026:', err);
         }
@@ -1200,16 +1243,26 @@ async function main() {
       }).catch(err => console.error('[ForwardVal] evaluator error:', err));
     }
 
-    // Invalidate snapshot cache after every data source refresh.
-    // This ensures MatchCardList (snapshot) and PronosticoCard/Radar (reads DataSource live)
-    // always reflect the same canonical data — no inconsistency between sections.
-    snapshotService.invalidateAll();
-    console.log('[Scheduler] Snapshot cache invalidated after data refresh');
+    // Per-competition snapshot invalidation was already applied at each fetch site above.
+    // invalidateAll() is intentionally NOT called here — unaffected competitions retain
+    // their valid cache entries, reducing unnecessary rebuilds (SP-0512).
   } // end runRefreshInner
+
+  function msUntilNextMidnightUtc(): number {
+    const now = new Date();
+    const nextMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    return Math.max(nextMidnight.getTime() - Date.now(), 60_000); // at least 1 min
+  }
 
   function scheduleNextRefresh(): void {
     const matches = getAllMatchSnapshots();
-    const delayMs = computeRefreshDelayMs(matches, Date.now());
+    let delayMs = computeRefreshDelayMs(matches, Date.now());
+    // When AF quota is exhausted, wake up at midnight UTC (quota reset) instead of
+    // sleeping up to 12h. Without this, a cold-start with exhausted quota stays dark
+    // for up to 12h even though data would be available after midnight.
+    if (isAfQuotaExhausted()) {
+      delayMs = Math.min(delayMs, msUntilNextMidnightUtc());
+    }
     const live     = matches.filter((m) => m.status === 'IN_PROGRESS').length;
     const pending  = matches.filter(
       (m) => m.status !== 'FINISHED' && m.status !== 'POSTPONED' && m.status !== 'CANCELED' &&
@@ -1353,6 +1406,14 @@ async function main() {
       .header('Cache-Control', 'no-store')
       .send({ embedUrls: result.embedUrls, fromCache: result.fromCache });
   });
+
+  // ── Score-snapshot health check (SP-0514) ──────────────────────────────────
+  // Non-blocking: warns if the FINISHED-scores regression guard is inactive.
+  // Only TheSportsDB-backed sources write score snapshots; check those providers.
+  checkScoreSnapshotHealth([
+    { provider: SPORTSDB_PROVIDER_KEY, competitionId: UY_LEAGUE_ID },
+    { provider: AR_PROVIDER_KEY,       competitionId: AR_LEAGUE_ID },
+  ]);
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`SportsPulse API running at http://localhost:${PORT}`);

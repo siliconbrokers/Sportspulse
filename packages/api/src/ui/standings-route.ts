@@ -24,9 +24,6 @@ export function standingsRoute(deps: AppDependencies): FastifyPluginAsync {
           typeof query.subTournament === 'string' ? query.subTournament : undefined;
 
         const standings = deps.dataSource.getStandings(competitionId, subTournamentKey);
-        if (standings.length === 0) {
-          throw new AppError(ErrorCode.NOT_FOUND, 'Standings not found', 404);
-        }
 
         // Compute recentForm from actual match records (same logic as DetailPanel / team-tile-builder)
         // This replaces the raw API form string which may have wrong ordering or stale data.
@@ -36,9 +33,8 @@ export function standingsRoute(deps: AppDependencies): FastifyPluginAsync {
 
         const standingsWithForm = standings.map((row) => ({
           ...row,
-          recentForm: matches.length > 0
-            ? extractRecentForm(row.teamId, matches, buildNowUtc)
-            : undefined,
+          recentForm:
+            matches.length > 0 ? extractRecentForm(row.teamId, matches, buildNowUtc) : undefined,
         }));
 
         reply

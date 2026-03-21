@@ -11,6 +11,10 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getFullConfig, updateConfig } from './portal-config-store.js';
 import type { SnapshotStore } from '@sportpulse/snapshot';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { execSync } from 'node:child_process';
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET ?? '';
 
@@ -84,4 +88,46 @@ export function registerAdminRoutes(app: FastifyInstance, snapshotStore: Snapsho
 
     return reply.send({ ok: true, config: getFullConfig() });
   });
+
+  // POST /api/admin/seed-cache — recibe un tarball base64 y lo extrae en cache/
+  // Body: { data: "<base64 de tar.gz>", overwrite?: boolean }
+  // El tarball debe contener rutas relativas a cache/ (ej: apifootball/268/2026/matchday-01.json)
+  app.post(
+    '/api/admin/seed-cache',
+    { config: { rawBody: false }, bodyLimit: 32 * 1024 * 1024 },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!validateAuth(request.headers.authorization)) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+
+      const body = request.body as { data?: string; overwrite?: boolean } | null;
+      if (!body?.data) {
+        return reply.status(400).send({ error: 'Missing field: data (base64 tar.gz)' });
+      }
+
+      const cacheDir = path.join(process.cwd(), 'cache');
+      fs.mkdirSync(cacheDir, { recursive: true });
+
+      const tmpFile = path.join(os.tmpdir(), `cache-seed-${Date.now()}.tar.gz`);
+      try {
+        const buf = Buffer.from(body.data, 'base64');
+        fs.writeFileSync(tmpFile, buf);
+
+        const keepFlag = body.overwrite === false ? '' : '';
+        execSync(`tar xzf ${tmpFile} -C ${cacheDir}${keepFlag}`, { stdio: 'pipe' });
+
+        let extractedDirs: string[] = [];
+        try { extractedDirs = fs.readdirSync(cacheDir); } catch { /* ignore */ }
+
+        console.log(`[AdminRouter] seed-cache: extracted ${buf.length} bytes → ${cacheDir} (${extractedDirs.join(',')})`);
+        return reply.send({ ok: true, bytes: buf.length, cacheEntries: extractedDirs });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[AdminRouter] seed-cache error:', msg);
+        return reply.status(500).send({ error: 'Extraction failed', detail: msg });
+      } finally {
+        try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+      }
+    },
+  );
 }
