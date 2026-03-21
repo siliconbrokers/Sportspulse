@@ -56,6 +56,12 @@ export interface IApiUsageLedger {
    * Checks in-memory flag, persisted DB flag (survives restarts), and ledger totals.
    */
   isQuotaExhausted(providerKey: ProviderKey): boolean;
+  /**
+   * Seeds the quota state for a provider from a known provider-reported remaining value.
+   * Used by the admin sync endpoint to backfill the ledger when the DB has no records
+   * (e.g. after initial deploy before any portal calls, or after a DB reset).
+   */
+  seedProviderQuota(providerKey: ProviderKey, remaining: number, limit: number): void;
 }
 
 // ── Private helpers ────────────────────────────────────────────────────────
@@ -373,4 +379,39 @@ export function registerApiUsageRoutes(fastify: FastifyInstance, ledger: IApiUsa
     // Apply the user-requested limit AFTER filtering so it acts as a true top-N on results
     return reply.send({ events: events.slice(0, limit), count: Math.min(events.length, limit) });
   });
+
+  // POST /api/internal/ops/api-usage/seed-quota
+  // Seeds the quota state for a provider from a known provider-reported remaining value.
+  // Use when the DB has no records for a provider (after deploy, DB reset, or initial setup).
+  fastify.post<{ Body: { providerKey: string; remaining: number; limit: number } }>(
+    '/api/internal/ops/api-usage/seed-quota',
+    async (req, reply) => {
+      const { providerKey, remaining, limit } = req.body ?? {};
+
+      if (typeof providerKey !== 'string' || providerKey.trim() === '') {
+        return reply.status(400).send({ error: 'providerKey required' });
+      }
+      if (typeof remaining !== 'number' || remaining < 0) {
+        return reply.status(400).send({ error: 'remaining must be a non-negative number' });
+      }
+      if (typeof limit !== 'number' || limit <= 0) {
+        return reply.status(400).send({ error: 'limit must be a positive number' });
+      }
+
+      const configs = ledger.getQuotaConfig().getAll();
+      if (!configs.find((c) => c.providerKey === providerKey)) {
+        return reply.status(404).send({ error: 'Provider not found', providerKey });
+      }
+
+      ledger.seedProviderQuota(providerKey as ProviderKey, remaining, limit);
+
+      return reply.send({
+        ok: true,
+        providerKey,
+        remaining,
+        limit,
+        implied_used: limit - remaining,
+      });
+    },
+  );
 }

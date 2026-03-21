@@ -711,6 +711,46 @@ export class ApiUsageLedger {
     });
   }
 
+  /**
+   * Seeds the quota state for a provider from a known provider-reported remaining value.
+   * Records a zero-cost sync event so the rollup carries the correct lastRemoteRemaining,
+   * enabling the monthly used calculation: used = limit - remaining.
+   * Idempotent — safe to call multiple times (each call just updates the rollup timestamp).
+   */
+  seedProviderQuota(providerKey: ProviderKey, remaining: number, limit: number): void {
+    const now = new Date().toISOString();
+    const tz = this.quotaConfig.get(providerKey)?.timezone ?? 'UTC';
+    const dateLocal = currentDayInTimezone(tz);
+    this.recordEvent({
+      id: `quota-seed-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      providerKey,
+      usageDateLocal: dateLocal,
+      unitType: 'REQUEST',
+      usageUnits: 0,
+      consumerType: 'BACKFILL_JOB',
+      consumerId: 'admin-seed',
+      moduleKey: 'admin-quota-sync',
+      operationKey: 'seed-quota',
+      requestMethod: 'GET',
+      endpointTemplate: 'admin-seed',
+      statusCode: null,
+      success: true,
+      rateLimited: false,
+      cacheHit: true,
+      startedAtUtc: now,
+      finishedAtUtc: now,
+      latencyMs: 0,
+      remoteLimit: limit,
+      remoteRemaining: remaining,
+      remoteResetAtUtc: null,
+      errorCode: null,
+      errorClass: null,
+      requestId: null,
+      metadataJson: JSON.stringify({ source: 'admin-seed', seededAt: now }),
+      createdAtUtc: now,
+    });
+  }
+
   /** Returns the number of blocked calls (quota exhausted) recorded today for the given provider. */
   getTodayBlockedCount(providerKey: ProviderKey = 'api-football'): number {
     const tz = this.quotaConfig.get(providerKey as ProviderKey)?.timezone ?? 'UTC';
