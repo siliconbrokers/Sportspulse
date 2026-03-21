@@ -257,40 +257,40 @@ function teamShort(id: string): string {
   return id.split(':').pop() ?? id;
 }
 function resultColor(r: string | null): string {
-  if (r === 'HOME_WIN') return '#22c55e';
-  if (r === 'AWAY_WIN') return '#ef4444';
-  if (r === 'DRAW') return '#f59e0b';
-  return '#64748b';
+  if (r === 'HOME_WIN') return 'var(--sp-status-success)';
+  if (r === 'AWAY_WIN') return 'var(--sp-status-error)';
+  if (r === 'DRAW') return 'var(--sp-status-zombie)';
+  return 'var(--sp-text-40)';
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────
 
-function makeRoot(isDark: boolean): React.CSSProperties {
+function makeRoot(_isDark: boolean): React.CSSProperties {
   return {
     minHeight: '100vh',
-    backgroundColor: isDark ? '#0a0a0a' : '#f8fafc',
-    color: isDark ? '#e2e8f0' : '#0f172a',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
+    backgroundColor: 'var(--sp-bg)',
+    color: 'var(--sp-text)',
+    fontFamily: 'var(--sp-font-family-base)',
     fontSize: 12,
     padding: '12px 16px',
   };
 }
 
-function makePanel(isDark: boolean): React.CSSProperties {
+function makePanel(_isDark: boolean): React.CSSProperties {
   return {
-    background: isDark ? '#141414' : '#ffffff',
-    border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    background: 'var(--sp-surface)',
+    border: '1px solid var(--sp-border-8)',
     borderRadius: 8,
     padding: '12px 14px',
     marginBottom: 12,
   };
 }
 
-function makeSectionTitle(isDark: boolean): React.CSSProperties {
+function makeSectionTitle(_isDark: boolean): React.CSSProperties {
   return {
     fontSize: 10,
     fontWeight: 700,
-    color: isDark ? '#64748b' : '#475569',
+    color: 'var(--sp-text-40)',
     textTransform: 'uppercase',
     letterSpacing: '0.1em',
     marginBottom: 8,
@@ -298,26 +298,26 @@ function makeSectionTitle(isDark: boolean): React.CSSProperties {
   };
 }
 
-function makeTH(isDark: boolean): React.CSSProperties {
+function makeTH(_isDark: boolean): React.CSSProperties {
   return {
     padding: '6px 8px',
     fontSize: 10,
     fontWeight: 600,
-    color: isDark ? '#64748b' : '#475569',
+    color: 'var(--sp-text-40)',
     textAlign: 'left',
     whiteSpace: 'nowrap',
-    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
-    background: isDark ? '#0f0f0f' : '#f1f5f9',
+    borderBottom: '1px solid var(--sp-border-8)',
+    background: 'var(--sp-surface)',
     cursor: 'default',
   };
 }
 
-function makeTD(isDark: boolean, i: number, right = false): React.CSSProperties {
+function makeTD(_isDark: boolean, i: number, right = false): React.CSSProperties {
   return {
     padding: '5px 8px',
     fontSize: 11,
-    background: isDark ? (i % 2 === 0 ? '#141414' : '#111') : (i % 2 === 0 ? '#ffffff' : '#f8fafc'),
-    borderBottom: isDark ? '1px solid #1c1c1c' : '1px solid #e8ecf0',
+    background: i % 2 === 0 ? 'var(--sp-surface)' : 'var(--sp-bg)',
+    borderBottom: '1px solid var(--sp-border-5)',
     whiteSpace: 'nowrap',
     textAlign: right ? 'right' : 'left',
   };
@@ -353,10 +353,10 @@ function DistBar({ value, total, color, isDark }: { value: number; total: number
   const pct = total > 0 ? (value / total) * 100 : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ width: 120, height: 8, background: isDark ? '#2a2a2a' : '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ width: 120, height: 8, background: 'var(--sp-border-8)', borderRadius: 4, overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4 }} />
       </div>
-      <span style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 11, minWidth: 60 }}>
+      <span style={{ color: 'var(--sp-text-40)', fontSize: 11, minWidth: 60 }}>
         {value} / {total} ({pct.toFixed(1)}%)
       </span>
     </div>
@@ -366,12 +366,12 @@ function DistBar({ value, total, color, isDark }: { value: number; total: number
 // ── Verdict badge ─────────────────────────────────────────────────────────
 
 function Verdict({ v, label }: { v: boolean | null; label: string }) {
-  const color = v === true ? '#22c55e' : v === false ? '#ef4444' : '#64748b';
+  const color = v === true ? 'var(--sp-status-success)' : v === false ? 'var(--sp-status-error)' : 'var(--sp-text-40)';
   const icon = v === true ? '✓' : v === false ? '✗' : '—';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
       <span style={{ color, fontWeight: 700, fontSize: 12, width: 14 }}>{icon}</span>
-      <span style={{ color: '#94a3b8', fontSize: 11 }}>{label}</span>
+      <span style={{ color: 'var(--sp-text-40)', fontSize: 11 }}>{label}</span>
     </div>
   );
 }
@@ -387,14 +387,14 @@ type Filters = {
 
 function FilterBar({ filters, onChange, isDark }: { filters: Filters; onChange: (f: Filters) => void; isDark: boolean }) {
   const sel: React.CSSProperties = {
-    background: isDark ? '#1a1a1a' : '#ffffff',
-    border: isDark ? '1px solid #2a2a2a' : '1px solid #d1d5db',
-    color: isDark ? '#e2e8f0' : '#0f172a',
+    background: 'var(--sp-surface)',
+    border: '1px solid var(--sp-border-8)',
+    color: 'var(--sp-text)',
     borderRadius: 4, padding: '3px 6px', fontSize: 11, marginRight: 8,
   };
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10, alignItems: 'center' }}>
-      <span style={{ color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Filtros:</span>
+      <span style={{ color: 'var(--sp-text-40)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Filtros:</span>
       <select style={sel} value={filters.mode} onChange={e => onChange({ ...filters, mode: e.target.value })}>
         <option value="">Todos los modos</option>
         <option value="FULL_MODE">FULL_MODE</option>
@@ -420,7 +420,7 @@ function FilterBar({ filters, onChange, isDark }: { filters: Filters; onChange: 
         <option value="miss">Solo misses</option>
       </select>
       <button
-        style={{ ...sel, cursor: 'pointer', color: '#f59e0b', borderColor: '#f59e0b' }}
+        style={{ ...sel, cursor: 'pointer', color: 'var(--sp-status-zombie)', borderColor: 'var(--sp-status-zombie)' }}
         onClick={() => onChange({ mode: '', actual: '', predicted: '', hit: '' })}
       >
         Reset
@@ -450,7 +450,7 @@ function MatchTable({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: bool
   return (
     <>
       <FilterBar filters={filters} onChange={setFilters} isDark={isDark} />
-      <div style={{ color: isDark ? '#64748b' : '#475569', fontSize: 10, marginBottom: 6 }}>
+      <div style={{ color: 'var(--sp-text-40)', fontSize: 10, marginBottom: 6 }}>
         Mostrando {filtered.length} de {snapshots.length} partidos · source_type = HISTORICAL_BACKTEST
       </div>
       <div style={{ overflowX: 'auto' }}>
@@ -470,10 +470,10 @@ function MatchTable({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: bool
                 <tr key={s.snapshot_id}>
                   <td style={makeTD(isDark, i)}>{fmtDate(s.kickoff_utc)}</td>
                   <td style={makeTD(isDark, i)}>
-                    <span style={{ color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 11 }}>
+                    <span style={{ color: 'var(--sp-text)', fontSize: 11 }}>
                       {teamShort(s.home_team_id)} vs {teamShort(s.away_team_id)}
                     </span>
-                    <span style={{ marginLeft: 5, color: '#f59e0b', fontWeight: 600 }}>
+                    <span style={{ marginLeft: 5, color: 'var(--sp-status-zombie)', fontWeight: 600 }}>
                       {s.home_goals}–{s.away_goals}
                     </span>
                   </td>
@@ -484,26 +484,26 @@ function MatchTable({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: bool
                     {fmtResult(s.predicted_result)}
                   </td>
                   <td style={{ ...makeTD(isDark, i), textAlign: 'center' }}>
-                    {s.predicted_result === null ? <span style={{ color: '#475569' }}>—</span>
-                      : hit ? <span style={{ color: '#22c55e', fontWeight: 700 }}>✓</span>
-                      : miss ? <span style={{ color: '#ef4444', fontWeight: 700 }}>✗</span>
+                    {s.predicted_result === null ? <span style={{ color: 'var(--sp-text-40)' }}>—</span>
+                      : hit ? <span style={{ color: 'var(--sp-status-success)', fontWeight: 700 }}>✓</span>
+                      : miss ? <span style={{ color: 'var(--sp-status-error)', fontWeight: 700 }}>✗</span>
                       : null}
                   </td>
-                  <td style={{ ...makeTD(isDark, i), color: s.mode === 'FULL_MODE' ? '#60a5fa' : s.mode === 'LIMITED_MODE' ? '#f59e0b' : '#64748b', fontSize: 10 }}>
+                  <td style={{ ...makeTD(isDark, i), color: s.mode === 'FULL_MODE' ? '#60a5fa' : s.mode === 'LIMITED_MODE' ? 'var(--sp-status-zombie)' : 'var(--sp-text-40)', fontSize: 10 }}>
                     {s.mode.replace('_MODE','').replace('NOT_ELIGIBLE','N/E')}
                   </td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_home_win)}</td>
-                  <td style={{ ...makeTD(isDark, i, true), color: s.actual_result === 'DRAW' ? '#f59e0b' : (isDark ? '#94a3b8' : '#64748b') }}>{fmtPct(s.p_draw)}</td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_away_win)}</td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.expected_goals_home, 1)}</td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(s.expected_goals_away, 1)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)' }}>{fmtPct(s.p_home_win)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: s.actual_result === 'DRAW' ? 'var(--sp-status-zombie)' : 'var(--sp-text-40)' }}>{fmtPct(s.p_draw)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)' }}>{fmtPct(s.p_away_win)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)' }}>{fmtNum(s.expected_goals_home, 1)}</td>
+                  <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)' }}>{fmtNum(s.expected_goals_away, 1)}</td>
                   <td style={{ ...makeTD(isDark, i), color: resultColor(s.baseline_predicted_result), fontSize: 10 }}>
                     {fmtResult(s.baseline_predicted_result)}
                   </td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
+                  <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)', fontSize: 10 }}>
                     {s.elo_home_pre.toFixed(0)}/{s.elo_away_pre.toFixed(0)}
                   </td>
-                  <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
+                  <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)', fontSize: 10 }}>
                     {s.matches_365d_home}/{s.matches_365d_away}
                   </td>
                 </tr>
@@ -512,7 +512,7 @@ function MatchTable({ snapshots, isDark }: { snapshots: Snapshot[]; isDark: bool
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div style={{ padding: '20px 0', textAlign: 'center', color: '#475569', fontSize: 12 }}>
+          <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--sp-text-40)', fontSize: 12 }}>
             No hay registros con estos filtros.
           </div>
         )}
@@ -539,7 +539,7 @@ function NexusSnapshotTable({ snapshots, isDark }: { snapshots: NexusSnapshotRow
           {snapshots.map((s, i) => (
             <tr key={`${s.match_id}-${i}`}>
               <td style={makeTD(isDark, i)}>{fmtDate(s.kickoff_utc)}</td>
-              <td style={{ ...makeTD(isDark, i), color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>
+              <td style={{ ...makeTD(isDark, i), color: 'var(--sp-text-40)', fontSize: 10 }}>
                 {shortId(s.match_id)}
               </td>
               <td style={{ ...makeTD(isDark, i), color: resultColor(s.predicted) }}>
@@ -550,19 +550,19 @@ function NexusSnapshotTable({ snapshots, isDark }: { snapshots: NexusSnapshotRow
               </td>
               <td style={{ ...makeTD(isDark, i), textAlign: 'center' }}>
                 {s.correct
-                  ? <span style={{ color: '#22c55e', fontWeight: 700 }}>✓</span>
-                  : <span style={{ color: '#ef4444', fontWeight: 700 }}>✗</span>
+                  ? <span style={{ color: 'var(--sp-status-success)', fontWeight: 700 }}>✓</span>
+                  : <span style={{ color: 'var(--sp-status-error)', fontWeight: 700 }}>✗</span>
                 }
               </td>
-              <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_home)}</td>
-              <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_draw)}</td>
-              <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(s.p_away)}</td>
+              <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)' }}>{fmtPct(s.p_home)}</td>
+              <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)' }}>{fmtPct(s.p_draw)}</td>
+              <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)' }}>{fmtPct(s.p_away)}</td>
             </tr>
           ))}
         </tbody>
       </table>
       {snapshots.length === 0 && (
-        <div style={{ padding: '20px 0', textAlign: 'center', color: '#475569', fontSize: 12 }}>
+        <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--sp-text-40)', fontSize: 12 }}>
           No hay snapshots NEXUS disponibles.
         </div>
       )}
@@ -613,19 +613,19 @@ function ComparePanel({ data, isDark }: { data: CompareResponse; isDark: boolean
 
   return (
     <div style={PANEL}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a', marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--sp-text)', marginBottom: 12 }}>
         Comparacion V3 vs NEXUS — {o.match_count} partidos en overlap
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
         {/* Accuracy */}
-        <div style={{ background: isDark ? '#1a1a1a' : '#f8fafc', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
-          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Accuracy</div>
+        <div style={{ background: 'var(--sp-surface)', border: '1px solid var(--sp-border-8)', borderRadius: 6, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Accuracy</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: 10, color: '#60a5fa', marginBottom: 2 }}>V3</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: '#60a5fa' }}>{fmtPct(o.v3_accuracy)}</div>
             </div>
-            <div style={{ color: isDark ? '#334155' : '#cbd5e1', fontSize: 20 }}>vs</div>
+            <div style={{ color: 'var(--sp-border-8)', fontSize: 20 }}>vs</div>
             <div style={{ textAlign: 'right' as const }}>
               <div style={{ fontSize: 10, color: '#a78bfa', marginBottom: 2 }}>NEXUS</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: '#a78bfa' }}>{fmtPct(o.nexus_accuracy)}</div>
@@ -633,14 +633,14 @@ function ComparePanel({ data, isDark }: { data: CompareResponse; isDark: boolean
           </div>
         </div>
         {/* Brier */}
-        <div style={{ background: isDark ? '#1a1a1a' : '#f8fafc', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
-          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Brier Score</div>
+        <div style={{ background: 'var(--sp-surface)', border: '1px solid var(--sp-border-8)', borderRadius: 6, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Brier Score</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: 10, color: '#60a5fa', marginBottom: 2 }}>V3</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: '#60a5fa' }}>{fmtNum(o.v3_brier)}</div>
             </div>
-            <div style={{ color: isDark ? '#334155' : '#cbd5e1', fontSize: 20 }}>vs</div>
+            <div style={{ color: 'var(--sp-border-8)', fontSize: 20 }}>vs</div>
             <div style={{ textAlign: 'right' as const }}>
               <div style={{ fontSize: 10, color: '#a78bfa', marginBottom: 2 }}>NEXUS</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: '#a78bfa' }}>{fmtNum(o.nexus_brier)}</div>
@@ -648,10 +648,10 @@ function ComparePanel({ data, isDark }: { data: CompareResponse; isDark: boolean
           </div>
         </div>
         {/* Match count */}
-        <div style={{ background: isDark ? '#1a1a1a' : '#f8fafc', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '10px 14px' }}>
-          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Partidos en Overlap</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>{o.match_count}</div>
-          <div style={{ fontSize: 10, color: isDark ? '#475569' : '#94a3b8', marginTop: 4 }}>evaluados en ambos motores</div>
+        <div style={{ background: 'var(--sp-surface)', border: '1px solid var(--sp-border-8)', borderRadius: 6, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Partidos en Overlap</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--sp-text)' }}>{o.match_count}</div>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)', marginTop: 4 }}>evaluados en ambos motores</div>
         </div>
       </div>
     </div>
@@ -675,33 +675,33 @@ function DrawDiagnosisPanel({ snapshots, isDark }: { snapshots: Snapshot[]; isDa
   return (
     <div style={PANEL}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <span style={{ fontSize: 14, color: '#f59e0b' }}>⚠</span>
-        <strong style={{ color: '#f59e0b', fontSize: 13 }}>DRAW Collapse Diagnosis</strong>
-        <span style={{ color: isDark ? '#64748b' : '#475569', fontSize: 11 }}>
-          — Real DRAWs: <strong style={{ color: '#f59e0b' }}>{drawMatches.length}</strong>
-          {' · '}Predicted DRAWs: <strong style={{ color: '#ef4444' }}>0</strong>
+        <span style={{ fontSize: 14, color: 'var(--sp-status-zombie)' }}>⚠</span>
+        <strong style={{ color: 'var(--sp-status-zombie)', fontSize: 13 }}>DRAW Collapse Diagnosis</strong>
+        <span style={{ color: 'var(--sp-text-40)', fontSize: 11 }}>
+          — Real DRAWs: <strong style={{ color: 'var(--sp-status-zombie)' }}>{drawMatches.length}</strong>
+          {' · '}Predicted DRAWs: <strong style={{ color: 'var(--sp-status-error)' }}>0</strong>
         </span>
       </div>
 
       {/* Summary boxes */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div style={{ background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
-          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Prob problem</div>
-          <div style={{ fontSize: 20, color: '#ef4444', fontWeight: 700 }}>{probProblem.length}</div>
-          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>selected_minus_draw &gt; 5%</div>
-          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>Model genuinely underestimates DRAW</div>
+        <div style={{ background: 'var(--sp-surface)', border: '1px solid var(--sp-border-8)', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Prob problem</div>
+          <div style={{ fontSize: 20, color: 'var(--sp-status-error)', fontWeight: 700 }}>{probProblem.length}</div>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)' }}>selected_minus_draw &gt; 5%</div>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)' }}>Model genuinely underestimates DRAW</div>
         </div>
-        <div style={{ background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
-          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Borderline</div>
-          <div style={{ fontSize: 20, color: '#f59e0b', fontWeight: 700 }}>{borderline.length}</div>
-          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>selected_minus_draw ≤ 5%</div>
-          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>Decision rule blocks DRAW call</div>
+        <div style={{ background: 'var(--sp-surface)', border: '1px solid var(--sp-border-8)', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Borderline</div>
+          <div style={{ fontSize: 20, color: 'var(--sp-status-zombie)', fontWeight: 700 }}>{borderline.length}</div>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)' }}>selected_minus_draw ≤ 5%</div>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)' }}>Decision rule blocks DRAW call</div>
         </div>
-        <div style={{ background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
-          <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>No probs</div>
-          <div style={{ fontSize: 20, color: isDark ? '#64748b' : '#475569', fontWeight: 700 }}>{noProbs.length}</div>
-          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>NOT_ELIGIBLE / LIMITED_MODE</div>
-          <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b' }}>Cannot diagnose</div>
+        <div style={{ background: 'var(--sp-surface)', border: '1px solid var(--sp-border-8)', borderRadius: 6, padding: '8px 12px', minWidth: 160 }}>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>No probs</div>
+          <div style={{ fontSize: 20, color: 'var(--sp-text-40)', fontWeight: 700 }}>{noProbs.length}</div>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)' }}>NOT_ELIGIBLE / LIMITED_MODE</div>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)' }}>Cannot diagnose</div>
         </div>
       </div>
 
@@ -728,13 +728,13 @@ function DrawDiagnosisPanel({ snapshots, isDark }: { snapshots: Snapshot[]; isDa
               {diagRows.map((row, i) => {
                 const isBorderline = row.selected_minus_draw !== null && row.selected_minus_draw <= 0.05 && row.selected_minus_draw >= 0;
                 const isProb = row.selected_minus_draw !== null && row.selected_minus_draw > 0.05;
-                const selColor = isBorderline ? '#f59e0b' : isProb ? '#ef4444' : '#64748b';
+                const selColor = isBorderline ? 'var(--sp-status-zombie)' : isProb ? 'var(--sp-status-error)' : 'var(--sp-text-40)';
                 return (
                   <tr key={row.snap.snapshot_id}>
                     <td style={makeTD(isDark, i)}>{fmtDate(row.snap.kickoff_utc)}</td>
                     <td style={makeTD(isDark, i)}>
-                      <span style={{ color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 11 }}>{teamShort(row.snap.home_team_id)} vs {teamShort(row.snap.away_team_id)}</span>
-                      <span style={{ marginLeft: 5, color: '#f59e0b', fontWeight: 600 }}>
+                      <span style={{ color: 'var(--sp-text)', fontSize: 11 }}>{teamShort(row.snap.home_team_id)} vs {teamShort(row.snap.away_team_id)}</span>
+                      <span style={{ marginLeft: 5, color: 'var(--sp-status-zombie)', fontWeight: 600 }}>
                         {row.snap.home_goals}–{row.snap.away_goals}
                       </span>
                     </td>
@@ -745,17 +745,17 @@ function DrawDiagnosisPanel({ snapshots, isDark }: { snapshots: Snapshot[]; isDa
                       {fmtResult(row.snap.predicted_result)}
                     </td>
                     <td style={makeTD(isDark, i, true)}>{fmtPct(row.snap.p_home_win)}</td>
-                    <td style={{ ...makeTD(isDark, i, true), color: '#f59e0b', fontWeight: 600 }}>
+                    <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-status-zombie)', fontWeight: 600 }}>
                       {fmtPct(row.snap.p_draw)}
                     </td>
                     <td style={makeTD(isDark, i, true)}>{fmtPct(row.snap.p_away_win)}</td>
-                    <td style={{ ...makeTD(isDark, i), color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>{fmtResult(row.top1_class)}</td>
-                    <td style={{ ...makeTD(isDark, i), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>{fmtResult(row.top2_class)}</td>
-                    <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(row.top1_minus_top2, 3)}</td>
+                    <td style={{ ...makeTD(isDark, i), color: 'var(--sp-text-40)', fontSize: 10 }}>{fmtResult(row.top1_class)}</td>
+                    <td style={{ ...makeTD(isDark, i), color: 'var(--sp-text-40)', fontSize: 10 }}>{fmtResult(row.top2_class)}</td>
+                    <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)' }}>{fmtNum(row.top1_minus_top2, 3)}</td>
                     <td style={{ ...makeTD(isDark, i, true), color: selColor, fontWeight: 700 }}>
                       {row.selected_minus_draw !== null ? fmtNum(row.selected_minus_draw, 3) : '—'}
                     </td>
-                    <td style={{ ...makeTD(isDark, i, true), color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
+                    <td style={{ ...makeTD(isDark, i, true), color: 'var(--sp-text-40)', fontSize: 10 }}>
                       {fmtNum(row.snap.expected_goals_home, 1)}/{fmtNum(row.snap.expected_goals_away, 1)}
                     </td>
                   </tr>
@@ -792,19 +792,19 @@ function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: bo
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <tbody>
               {[
-                ['Total snapshots', ex.total_snapshots, isDark ? '#e2e8f0' : '#0f172a'],
-                ['NOT_ELIGIBLE', ex.not_eligible, isDark ? '#64748b' : '#475569'],
-                ['ERROR', ex.error, '#ef4444'],
-                ['LIMITED_MODE sin pred.', ex.limited_mode_no_prediction, isDark ? '#64748b' : '#475569'],
-                ['TOO_CLOSE', ex.too_close, isDark ? '#64748b' : '#475569'],
-                ['Total excluidos', ex.total_excluded, isDark ? '#94a3b8' : '#64748b'],
+                ['Total snapshots', ex.total_snapshots, 'var(--sp-text)'],
+                ['NOT_ELIGIBLE', ex.not_eligible, 'var(--sp-text-40)'],
+                ['ERROR', ex.error, 'var(--sp-status-error)'],
+                ['LIMITED_MODE sin pred.', ex.limited_mode_no_prediction, 'var(--sp-text-40)'],
+                ['TOO_CLOSE', ex.too_close, 'var(--sp-text-40)'],
+                ['Total excluidos', ex.total_excluded, 'var(--sp-text-40)'],
               ].map(([label, value, color]) => (
                 <tr key={String(label)}>
-                  <td style={{ padding: '3px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>{label}</td>
+                  <td style={{ padding: '3px 0', color: 'var(--sp-text-40)', fontSize: 11 }}>{label}</td>
                   <td style={{ padding: '3px 0', color: color as string, fontWeight: 600, textAlign: 'right', fontSize: 12 }}>{String(value)}</td>
                 </tr>
               ))}
-              <tr style={{ borderTop: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0' }}>
+              <tr style={{ borderTop: '1px solid var(--sp-border-8)' }}>
                 <td style={{ padding: '5px 0', color: '#60a5fa', fontSize: 12, fontWeight: 700 }}>
                   ▶ Evaluable (denominador)
                 </td>
@@ -839,7 +839,7 @@ function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: bo
                     </td>
                     <td style={{ padding: '4px 0' }}>
                       {pcd[cls] === 0
-                        ? <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 700 }}>0 ⚠ colapso</span>
+                        ? <span style={{ color: 'var(--sp-status-error)', fontSize: 11, fontWeight: 700 }}>0 ⚠ colapso</span>
                         : <DistBar value={pcd[cls]} total={acd.total} color={resultColor(cls)} isDark={isDark} />
                       }
                     </td>
@@ -848,7 +848,7 @@ function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: bo
               </tbody>
             </table>
           ) : (
-            <div style={{ color: '#475569' }}>Sin datos</div>
+            <div style={{ color: 'var(--sp-text-40)' }}>Sin datos</div>
           )}
         </div>
       </div>
@@ -861,20 +861,20 @@ function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: bo
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <tbody>
               <tr>
-                <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>Accuracy (n={cm?.denominator ?? 0})</td>
-                <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a', fontWeight: 700, fontSize: 14 }}>{fmtPct(cm?.accuracy ?? null)}</td>
+                <td style={{ padding: '4px 0', color: 'var(--sp-text-40)', fontSize: 11 }}>Accuracy (n={cm?.denominator ?? 0})</td>
+                <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text)', fontWeight: 700, fontSize: 14 }}>{fmtPct(cm?.accuracy ?? null)}</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>Correcto / total</td>
-                <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>{cm?.correct ?? 0} / {cm?.denominator ?? 0}</td>
+                <td style={{ padding: '4px 0', color: 'var(--sp-text-40)', fontSize: 11 }}>Correcto / total</td>
+                <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)', fontSize: 11 }}>{cm?.correct ?? 0} / {cm?.denominator ?? 0}</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>Brier score (n={fm?.prob_denominator ?? 0})</td>
-                <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 12 }}>{fmtNum(fm?.brier_score ?? null)}</td>
+                <td style={{ padding: '4px 0', color: 'var(--sp-text-40)', fontSize: 11 }}>Brier score (n={fm?.prob_denominator ?? 0})</td>
+                <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text)', fontSize: 12 }}>{fmtNum(fm?.brier_score ?? null)}</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}>Log loss</td>
-                <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a', fontSize: 12 }}>{fmtNum(fm?.log_loss ?? null)}</td>
+                <td style={{ padding: '4px 0', color: 'var(--sp-text-40)', fontSize: 11 }}>Log loss</td>
+                <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text)', fontSize: 12 }}>{fmtNum(fm?.log_loss ?? null)}</td>
               </tr>
             </tbody>
           </table>
@@ -886,9 +886,9 @@ function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: bo
                   <thead>
                     <tr>
                       <th style={{ ...TH, background: 'transparent' }}></th>
-                      <th style={{ ...TH, background: 'transparent', color: '#22c55e' }}>pred H</th>
-                      <th style={{ ...TH, background: 'transparent', color: '#f59e0b' }}>pred D</th>
-                      <th style={{ ...TH, background: 'transparent', color: '#ef4444' }}>pred A</th>
+                      <th style={{ ...TH, background: 'transparent', color: 'var(--sp-status-success)' }}>pred H</th>
+                      <th style={{ ...TH, background: 'transparent', color: 'var(--sp-status-zombie)' }}>pred D</th>
+                      <th style={{ ...TH, background: 'transparent', color: 'var(--sp-status-error)' }}>pred A</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -905,7 +905,7 @@ function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: bo
                               padding: '3px 12px',
                               textAlign: 'center',
                               fontWeight: isHit ? 700 : 400,
-                              color: isHit ? '#22c55e' : (isDark ? '#94a3b8' : '#64748b'),
+                              color: isHit ? 'var(--sp-status-success)' : 'var(--sp-text-40)',
                               background: isHit ? '#0d2618' : 'transparent',
                             }}>{v}</td>
                           );
@@ -936,34 +936,34 @@ function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: bo
               {/* Model */}
               <tr>
                 <td style={{ padding: '5px 0', color: '#60a5fa', fontWeight: 700, fontSize: 11 }}>Modelo</td>
-                <td style={{ padding: '5px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a', fontWeight: 700 }}>{fmtPct(cm?.accuracy ?? null)}</td>
-                <td style={{ padding: '5px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a' }}>{fmtNum(fm?.brier_score ?? null)}</td>
-                <td style={{ padding: '5px 0', textAlign: 'right', color: isDark ? '#e2e8f0' : '#0f172a' }}>{fmtNum(fm?.log_loss ?? null)}</td>
+                <td style={{ padding: '5px 0', textAlign: 'right', color: 'var(--sp-text)', fontWeight: 700 }}>{fmtPct(cm?.accuracy ?? null)}</td>
+                <td style={{ padding: '5px 0', textAlign: 'right', color: 'var(--sp-text)' }}>{fmtNum(fm?.brier_score ?? null)}</td>
+                <td style={{ padding: '5px 0', textAlign: 'right', color: 'var(--sp-text)' }}>{fmtNum(fm?.log_loss ?? null)}</td>
                 <td></td>
               </tr>
               {/* Cat baselines */}
               {report.baselines && (
                 <>
                   <tr>
-                    <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>
+                    <td style={{ padding: '4px 0', color: 'var(--sp-text-40)', fontSize: 10 }}>
                       MOST_FREQ ("{report.baselines.most_frequent_class.always_predicts.replace('_WIN','')}")
                     </td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(report.baselines.most_frequent_class.accuracy)}</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>{fmtPct(report.baselines.most_frequent_class.accuracy)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>—</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>—</td>
                     <td style={{ padding: '4px 0', textAlign: 'center' }}>
-                      <span style={{ color: report.beats_most_frequent_class ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
+                      <span style={{ color: report.beats_most_frequent_class ? 'var(--sp-status-success)' : 'var(--sp-status-error)', fontWeight: 700 }}>
                         {report.beats_most_frequent_class ? '✓' : '✗'}
                       </span>
                     </td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>ALWAYS_HOME_WIN</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtPct(report.baselines.always_home_win.accuracy)}</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
+                    <td style={{ padding: '4px 0', color: 'var(--sp-text-40)', fontSize: 10 }}>ALWAYS_HOME_WIN</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>{fmtPct(report.baselines.always_home_win.accuracy)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>—</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>—</td>
                     <td style={{ padding: '4px 0', textAlign: 'center' }}>
-                      <span style={{ color: report.beats_always_home_win ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
+                      <span style={{ color: report.beats_always_home_win ? 'var(--sp-status-success)' : 'var(--sp-status-error)', fontWeight: 700 }}>
                         {report.beats_always_home_win ? '✓' : '✗'}
                       </span>
                     </td>
@@ -973,34 +973,34 @@ function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: bo
               {/* Prob baselines */}
               {pb && (
                 <>
-                  <tr style={{ borderTop: isDark ? '1px solid #1c1c1c' : '1px solid #e8ecf0' }}>
-                    <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>UNIFORM (1/3,1/3,1/3)</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(pb.uniform.brier_score)}</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(pb.uniform.log_loss)}</td>
+                  <tr style={{ borderTop: '1px solid var(--sp-border-5)' }}>
+                    <td style={{ padding: '4px 0', color: 'var(--sp-text-40)', fontSize: 10 }}>UNIFORM (1/3,1/3,1/3)</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>—</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>{fmtNum(pb.uniform.brier_score)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>{fmtNum(pb.uniform.log_loss)}</td>
                     <td style={{ padding: '4px 0', textAlign: 'center', fontSize: 10 }}>
-                      <span style={{ color: report.beats_uniform_brier ? '#22c55e' : '#ef4444' }}>
+                      <span style={{ color: report.beats_uniform_brier ? 'var(--sp-status-success)' : 'var(--sp-status-error)' }}>
                         {report.beats_uniform_brier ? '✓' : '✗'}B
                       </span>
                       {' '}
-                      <span style={{ color: report.beats_uniform_log_loss ? '#22c55e' : '#ef4444' }}>
+                      <span style={{ color: report.beats_uniform_log_loss ? 'var(--sp-status-success)' : 'var(--sp-status-error)' }}>
                         {report.beats_uniform_log_loss ? '✓' : '✗'}LL
                       </span>
                     </td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '4px 0', color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>
+                    <td style={{ padding: '4px 0', color: 'var(--sp-text-40)', fontSize: 10 }}>
                       EMPIRICAL ({(pb.empirical_freq.probs.HOME_WIN * 100).toFixed(0)}%/{(pb.empirical_freq.probs.DRAW * 100).toFixed(0)}%/{(pb.empirical_freq.probs.AWAY_WIN * 100).toFixed(0)}%)
                     </td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: '#475569' }}>—</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(pb.empirical_freq.brier_score)}</td>
-                    <td style={{ padding: '4px 0', textAlign: 'right', color: isDark ? '#94a3b8' : '#64748b' }}>{fmtNum(pb.empirical_freq.log_loss)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>—</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>{fmtNum(pb.empirical_freq.brier_score)}</td>
+                    <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--sp-text-40)' }}>{fmtNum(pb.empirical_freq.log_loss)}</td>
                     <td style={{ padding: '4px 0', textAlign: 'center', fontSize: 10 }}>
-                      <span style={{ color: report.beats_empirical_brier ? '#22c55e' : '#ef4444' }}>
+                      <span style={{ color: report.beats_empirical_brier ? 'var(--sp-status-success)' : 'var(--sp-status-error)' }}>
                         {report.beats_empirical_brier ? '✓' : '✗'}B
                       </span>
                       {' '}
-                      <span style={{ color: report.beats_empirical_log_loss ? '#22c55e' : '#ef4444' }}>
+                      <span style={{ color: report.beats_empirical_log_loss ? 'var(--sp-status-success)' : 'var(--sp-status-error)' }}>
                         {report.beats_empirical_log_loss ? '✓' : '✗'}LL
                       </span>
                     </td>
@@ -1022,18 +1022,18 @@ function SummaryPanel({ report, isDark }: { report: EvaluationReport; isDark: bo
 
           <div style={{ marginTop: 14 }}>
             <div style={SECTION_TITLE}>Elo symmetry</div>
-            <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>
+            <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>
               Breaks symmetry: {' '}
               <strong style={{ color: '#60a5fa' }}>
                 {report.elo_breaks_symmetry}/{report.elo_breaks_symmetry_denominator}
               </strong>
               {report.elo_breaks_symmetry_denominator > 0 && (
-                <span style={{ color: isDark ? '#64748b' : '#475569' }}>
+                <span style={{ color: 'var(--sp-text-40)' }}>
                   {' '}({((report.elo_breaks_symmetry / report.elo_breaks_symmetry_denominator) * 100).toFixed(0)}%)
                 </span>
               )}
             </div>
-            <div style={{ fontSize: 10, color: isDark ? '#64748b' : '#475569', marginTop: 3 }}>
+            <div style={{ fontSize: 10, color: 'var(--sp-text-40)', marginTop: 3 }}>
               Elo histórico influye en las probabilidades del modelo.
             </div>
           </div>
@@ -1090,8 +1090,8 @@ export function HistoricalEvaluationLabPage() {
     cursor: 'pointer',
     border: 'none',
     borderRadius: 4,
-    background: tab === key ? '#1e3a5f' : (isDark ? '#1a1a1a' : '#f1f5f9'),
-    color: tab === key ? '#60a5fa' : (isDark ? '#64748b' : '#475569'),
+    background: tab === key ? '#1e3a5f' : 'var(--sp-surface)',
+    color: tab === key ? '#60a5fa' : 'var(--sp-text-40)',
     outline: 'none',
   });
 
@@ -1107,14 +1107,14 @@ export function HistoricalEvaluationLabPage() {
             : <span style={BADGE_HBT}>HISTORICAL BACKTEST</span>
           }
           <strong style={{ color: '#60a5fa', fontSize: 14 }}>Evaluación Histórica — Lab Interno</strong>
-          <span style={{ color: '#475569', fontSize: 11, marginLeft: 8 }}>
+          <span style={{ color: 'var(--sp-text-40)', fontSize: 11, marginLeft: 8 }}>
             {`source_type = ${engineMode === 'nexus' ? 'NEXUS_SHADOW' : 'HISTORICAL_BACKTEST'} · ${leagues.find(l => l.slug.toUpperCase() === compCode)?.displayName ?? compCode}`}
           </span>
           <span style={{
             marginLeft: 'auto',
             fontSize: 10,
-            color: '#ef4444',
-            border: '1px solid #ef4444',
+            color: 'var(--sp-status-error)',
+            border: '1px solid var(--sp-status-error)',
             borderRadius: 4,
             padding: '2px 7px',
             fontWeight: 700,
@@ -1140,7 +1140,7 @@ export function HistoricalEvaluationLabPage() {
             </button>
           ))}
           <select
-            style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', background: isDark ? '#1a1a1a' : '#fff', color: isDark ? '#e2e8f0' : '#0f172a', cursor: 'pointer' }}
+            style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--sp-border-8)', background: 'var(--sp-surface)', color: 'var(--sp-text)', cursor: 'pointer' }}
             value={compCode}
             onChange={(e) => setCompCode(e.target.value)}
           >
@@ -1154,22 +1154,22 @@ export function HistoricalEvaluationLabPage() {
         </div>
 
         {snapshotCount > 0 && (
-          <div style={{ marginTop: 6, color: isDark ? '#64748b' : '#475569', fontSize: 10 }}>
+          <div style={{ marginTop: 6, color: 'var(--sp-text-40)', fontSize: 10 }}>
             {snapshotCount} snapshots
           </div>
         )}
       </div>
 
       {loading && (
-        <div style={{ color: isDark ? '#64748b' : '#475569', padding: '40px 0', textAlign: 'center' }}>
+        <div style={{ color: 'var(--sp-text-40)', padding: '40px 0', textAlign: 'center' }}>
           Cargando evaluación histórica…
         </div>
       )}
 
       {error && (
-        <div style={{ color: '#ef4444', background: isDark ? '#1a0f0f' : '#fef2f2', border: '1px solid #ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>
+        <div style={{ color: 'var(--sp-status-error)', background: 'var(--sp-status-error-soft)', border: '1px solid var(--sp-status-error)', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>
           <strong>Error:</strong> {error}
-          <div style={{ marginTop: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}>
+          <div style={{ marginTop: 6, color: 'var(--sp-text-40)', fontSize: 10 }}>
             Asegurate de tener <code>PREDICTION_INTERNAL_VIEW_ENABLED=true</code> en .env y de haber ejecutado
             {' '}<code>npx tsx --tsconfig tsconfig.server.json scripts/run-backtest.ts</code> al menos una vez.
           </div>

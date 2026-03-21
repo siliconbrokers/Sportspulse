@@ -237,7 +237,7 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
         <div style={{ fontSize: 12, color: 'var(--sp-text-40)', marginBottom: 8 }}>Cargando eventos…</div>
       )}
       {error && (
-        <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 8 }}>Error: {error}</div>
+        <div style={{ fontSize: 12, color: 'var(--sp-status-error)', marginBottom: 8 }}>Error: {error}</div>
       )}
       {!loading && events.length === 0 && !error && (
         <div style={{ fontSize: 12, color: 'var(--sp-text-40)', marginBottom: 8 }}>Sin eventos para los filtros aplicados.</div>
@@ -273,7 +273,7 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
                     style={{
                       ...TD,
                       fontWeight: 600,
-                      color: is2xx(ev.statusCode) ? '#22c55e' : '#ef4444',
+                      color: is2xx(ev.statusCode) ? 'var(--sp-status-success)' : 'var(--sp-status-error)',
                     }}
                   >
                     {ev.statusCode ?? '—'}
@@ -281,7 +281,7 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
                   <td style={TD}>{ev.latencyMs}ms</td>
                   <td style={TD}>{ev.usageUnits}</td>
                   {!isMobileView && (
-                    <td style={{ ...TD, color: ev.cacheHit ? '#22c55e' : 'var(--sp-text-40)' }}>
+                    <td style={{ ...TD, color: ev.cacheHit ? 'var(--sp-status-success)' : 'var(--sp-text-40)' }}>
                       {ev.cacheHit ? '✓' : '—'}
                     </td>
                   )}
@@ -293,8 +293,8 @@ export function ApiEventsTable({ token, knownProviders }: Props) {
                           fontWeight: 700,
                           padding: '1px 5px',
                           borderRadius: 3,
-                          background: '#ef444422',
-                          color: '#ef4444',
+                          background: 'var(--sp-status-error-soft)',
+                          color: 'var(--sp-status-error)',
                         }}
                       >
                         RL

@@ -156,12 +156,12 @@ function teamShort(id: string): string {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-function makeRoot(isDark: boolean): React.CSSProperties {
+function makeRoot(_isDark: boolean): React.CSSProperties {
   return {
     minHeight: '100vh',
-    backgroundColor: isDark ? '#0f0f0f' : '#f8fafc',
-    color: isDark ? '#e2e8f0' : '#0f172a',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
+    backgroundColor: 'var(--sp-bg)',
+    color: 'var(--sp-text)',
+    fontFamily: 'var(--sp-font-family-base)',
     padding: 16,
   };
 }
@@ -169,43 +169,43 @@ function makeRoot(isDark: boolean): React.CSSProperties {
 const SECTION_TITLE: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 700,
-  color: '#64748b',
+  color: 'var(--sp-text-40)',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: 8,
   marginTop: 20,
 };
 
-function makePanel(isDark: boolean): React.CSSProperties {
+function makePanel(_isDark: boolean): React.CSSProperties {
   return {
-    background: isDark ? '#1a1a1a' : '#ffffff',
-    border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    background: 'var(--sp-surface)',
+    border: '1px solid var(--sp-border-8)',
     borderRadius: 8,
     padding: '14px 16px',
     marginBottom: 12,
   };
 }
 
-function makeTH(isDark: boolean): React.CSSProperties {
+function makeTH(_isDark: boolean): React.CSSProperties {
   return {
     padding: '7px 9px',
     fontSize: 10,
     fontWeight: 600,
-    color: isDark ? '#64748b' : '#475569',
+    color: 'var(--sp-text-40)',
     textAlign: 'left',
     whiteSpace: 'nowrap',
-    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
-    background: isDark ? '#141414' : '#f1f5f9',
+    borderBottom: '1px solid var(--sp-border-8)',
+    background: 'var(--sp-surface)',
   };
 }
 
-function makeTD(isDark: boolean, isEven: boolean): React.CSSProperties {
+function makeTD(_isDark: boolean, isEven: boolean): React.CSSProperties {
   return {
     padding: '6px 9px',
     fontSize: 11,
-    color: isDark ? '#e2e8f0' : '#0f172a',
-    background: isDark ? (isEven ? '#1d1d1d' : '#171717') : (isEven ? '#ffffff' : '#f8fafc'),
-    borderBottom: isDark ? '1px solid #1f1f1f' : '1px solid #e8ecf0',
+    color: 'var(--sp-text)',
+    background: isEven ? 'var(--sp-surface)' : 'var(--sp-bg)',
+    borderBottom: '1px solid var(--sp-border-5)',
     whiteSpace: 'nowrap',
   };
 }
@@ -226,9 +226,9 @@ function modeBadge(mode: string): { label: string; bg: string; color: string } {
 
 function gtBadge(status: string): { label: string; color: string } {
   switch (status) {
-    case 'CAPTURED':     return { label: '✓', color: '#4ade80' };
-    case 'UNAVAILABLE':  return { label: '✗', color: '#f87171' };
-    default:             return { label: '…', color: '#94a3b8' };
+    case 'CAPTURED':     return { label: '✓', color: 'var(--sp-status-success)' };
+    case 'UNAVAILABLE':  return { label: '✗', color: 'var(--sp-status-error)' };
+    default:             return { label: '…', color: 'var(--sp-text-40)' };
   }
 }
 
@@ -255,17 +255,17 @@ function CoverageFunnelPanel({ funnel, isDark }: { funnel: CoverageFunnel; isDar
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         {rows.map(([label, count]) => (
           <div key={label} style={{ ...PANEL, minWidth: 130, padding: '10px 14px', marginBottom: 0 }}>
-            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#475569', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>{count}</div>
+            <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--sp-text)' }}>{count}</div>
           </div>
         ))}
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-        <div style={{ fontSize: 12, color: '#94a3b8' }}>
-          NOT_ELIGIBLE: <strong style={{ color: '#f87171' }}>{funnel.NOT_ELIGIBLE_count}</strong>
+        <div style={{ fontSize: 12, color: 'var(--sp-text-40)' }}>
+          NOT_ELIGIBLE: <strong style={{ color: 'var(--sp-status-error)' }}>{funnel.NOT_ELIGIBLE_count}</strong>
         </div>
-        <div style={{ fontSize: 12, color: '#94a3b8', marginLeft: 12 }}>
-          No pregame snapshot: <strong style={{ color: '#facc15' }}>{funnel.NO_PREGAME_SNAPSHOT_count}</strong>
+        <div style={{ fontSize: 12, color: 'var(--sp-text-40)', marginLeft: 12 }}>
+          No pregame snapshot: <strong style={{ color: 'var(--sp-status-warning)' }}>{funnel.NO_PREGAME_SNAPSHOT_count}</strong>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
@@ -298,8 +298,8 @@ function PerformancePanel({ perf, isDark }: { perf: PerformanceMetrics; isDark: 
           { label: 'Baseline B acc.', val: fmtPct(perf.baseline_b_accuracy) },
         ].map(({ label, val }) => (
           <div key={label} style={{ ...PANEL, minWidth: 120, padding: '10px 14px', marginBottom: 0 }}>
-            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#475569', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: isDark ? '#e2e8f0' : '#0f172a' }}>{val}</div>
+            <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--sp-text)' }}>{val}</div>
           </div>
         ))}
       </div>
@@ -307,14 +307,14 @@ function PerformancePanel({ perf, isDark }: { perf: PerformanceMetrics; isDark: 
       {/* By mode */}
       {Object.keys(perf.by_mode).length > 0 && (
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: '#475569', marginBottom: 6 }}>By mode</div>
+          <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginBottom: 6 }}>By mode</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {Object.entries(perf.by_mode).map(([mode, m]) => (
               <div key={mode} style={{ ...PANEL, padding: '8px 12px', marginBottom: 0, minWidth: 140 }}>
                 <div style={{ fontSize: 10, color: modeBadge(mode).color, fontWeight: 700, marginBottom: 4 }}>{mode} ({m.count})</div>
-                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>acc: {fmtPct(m.accuracy)}</div>
-                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>brier: {fmtNum(m.brier)}</div>
-                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>logloss: {fmtNum(m.log_loss)}</div>
+                <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>acc: {fmtPct(m.accuracy)}</div>
+                <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>brier: {fmtNum(m.brier)}</div>
+                <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>logloss: {fmtNum(m.log_loss)}</div>
               </div>
             ))}
           </div>
@@ -324,13 +324,13 @@ function PerformancePanel({ perf, isDark }: { perf: PerformanceMetrics; isDark: 
       {/* By calibration mode */}
       {Object.keys(perf.by_calibration_mode).length > 0 && (
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: '#475569', marginBottom: 6 }}>By calibration mode</div>
+          <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginBottom: 6 }}>By calibration mode</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {Object.entries(perf.by_calibration_mode).map(([key, m]) => (
               <div key={key} style={{ ...PANEL, padding: '8px 12px', marginBottom: 0, minWidth: 120 }}>
-                <div style={{ fontSize: 10, color: isDark ? '#94a3b8' : '#64748b', fontWeight: 700, marginBottom: 4 }}>{key} ({m.count})</div>
-                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>acc: {fmtPct(m.accuracy)}</div>
-                <div style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b' }}>brier: {fmtNum(m.brier)}</div>
+                <div style={{ fontSize: 10, color: 'var(--sp-text-40)', fontWeight: 700, marginBottom: 4 }}>{key} ({m.count})</div>
+                <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>acc: {fmtPct(m.accuracy)}</div>
+                <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>brier: {fmtNum(m.brier)}</div>
               </div>
             ))}
           </div>
@@ -340,26 +340,26 @@ function PerformancePanel({ perf, isDark }: { perf: PerformanceMetrics; isDark: 
       {/* Confusion matrix */}
       {perf.confusion_matrix && (
         <div>
-          <div style={{ fontSize: 11, color: '#475569', marginBottom: 6 }}>Confusion matrix (predicted → actual)</div>
+          <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginBottom: 6 }}>Confusion matrix (predicted → actual)</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ borderCollapse: 'collapse', fontSize: 11 }}>
               <thead>
                 <tr>
-                  <th style={{ ...TH, background: isDark ? '#111' : '#f1f5f9' }}>pred\actual</th>
+                  <th style={{ ...TH, background: 'var(--sp-surface)' }}>pred\actual</th>
                   {['HOME_WIN', 'DRAW', 'AWAY_WIN'].map((h) => (
-                    <th key={h} style={{ ...TH, color: isDark ? '#94a3b8' : '#64748b' }}>{h}</th>
+                    <th key={h} style={{ ...TH, color: 'var(--sp-text-40)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {['HOME_WIN', 'DRAW', 'AWAY_WIN'].map((pred) => (
                   <tr key={pred}>
-                    <td style={{ ...makeTD(isDark, false), fontWeight: 600, color: isDark ? '#94a3b8' : '#64748b' }}>{pred}</td>
+                    <td style={{ ...makeTD(isDark, false), fontWeight: 600, color: 'var(--sp-text-40)' }}>{pred}</td>
                     {['HOME_WIN', 'DRAW', 'AWAY_WIN'].map((actual) => {
                       const v = perf.confusion_matrix?.[pred]?.[actual] ?? 0;
                       const isDiag = pred === actual;
                       return (
-                        <td key={actual} style={{ ...makeTD(isDark, false), color: isDiag ? '#4ade80' : (isDark ? '#e2e8f0' : '#0f172a'), fontWeight: isDiag ? 700 : 400 }}>
+                        <td key={actual} style={{ ...makeTD(isDark, false), color: isDiag ? 'var(--sp-status-success)' : 'var(--sp-text)', fontWeight: isDiag ? 700 : 400 }}>
                           {v}
                         </td>
                       );
@@ -390,8 +390,8 @@ function OperationalPanel({ op, isDark }: { op: OperationalMetrics; isDark: bool
           { label: 'Scope mismatches', val: op.scope_mismatch_count, warn: op.scope_mismatch_count > 0 },
         ].map(({ label, val, warn }) => (
           <div key={label} style={{ ...PANEL, minWidth: 110, padding: '10px 14px', marginBottom: 0 }}>
-            <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#475569', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: warn ? '#f87171' : '#4ade80' }}>{val}</div>
+            <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: warn ? 'var(--sp-status-error)' : 'var(--sp-status-success)' }}>{val}</div>
           </div>
         ))}
       </div>
@@ -406,7 +406,7 @@ function RecordsTable({ records, isDark }: { records: EvaluationRecord[]; isDark
   const TH = makeTH(isDark);
   if (records.length === 0) {
     return (
-      <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#475569', ...PANEL }}>
+      <div style={{ fontSize: 13, color: 'var(--sp-text-40)', ...PANEL }}>
         Sin registros de evaluación todavía.
       </div>
     );
@@ -446,12 +446,12 @@ function RecordsTable({ records, isDark }: { records: EvaluationRecord[]; isDark
 
             return (
               <tr key={r.match_id}>
-                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{fmtDate(r.scheduled_kickoff_utc)}</td>
+                <td style={{ ...td, color: 'var(--sp-text-40)' }}>{fmtDate(r.scheduled_kickoff_utc)}</td>
                 <td style={{ ...td, fontSize: 11 }}>
-                  <span style={{ color: isDark ? '#e2e8f0' : '#0f172a' }}>
+                  <span style={{ color: 'var(--sp-text)' }}>
                     {teamShort(r.home_team_id)} vs {teamShort(r.away_team_id)}
                   </span>
-                  <div style={{ fontSize: 9, color: isDark ? '#334155' : '#94a3b8', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: 9, color: 'var(--sp-text-40)', fontFamily: 'monospace' }}>
                     {r.match_id.split(':').pop()}
                   </div>
                 </td>
@@ -461,19 +461,19 @@ function RecordsTable({ records, isDark }: { records: EvaluationRecord[]; isDark
                   </span>
                 </td>
                 <td style={{ ...td, color: gt.color, fontWeight: 700 }}>{gt.label}</td>
-                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{r.actual_result ? fmtResult(r.actual_result) : score}</td>
-                <td style={{ ...td, color: isDark ? '#94a3b8' : '#64748b' }}>{fmtResult(r.predicted_result)}</td>
+                <td style={{ ...td, color: 'var(--sp-text-40)' }}>{r.actual_result ? fmtResult(r.actual_result) : score}</td>
+                <td style={{ ...td, color: 'var(--sp-text-40)' }}>{fmtResult(r.predicted_result)}</td>
                 <td style={td}>{hitBadge(r.predicted_result, r.actual_result)}</td>
                 <td style={td}>{fmtPct(r.p_home_win)}</td>
                 <td style={td}>{fmtPct(r.p_draw)}</td>
                 <td style={td}>{fmtPct(r.p_away_win)}</td>
                 <td style={td}>{fmtNum(r.expected_goals_home, 1)}</td>
                 <td style={td}>{fmtNum(r.expected_goals_away, 1)}</td>
-                <td style={{ ...td, fontSize: 9, color: isDark ? '#64748b' : '#475569' }}>{r.ui_render_result ?? '—'}</td>
-                <td style={{ ...td, color: r.evaluation_eligible ? '#4ade80' : '#f87171' }}>
+                <td style={{ ...td, fontSize: 9, color: 'var(--sp-text-40)' }}>{r.ui_render_result ?? '—'}</td>
+                <td style={{ ...td, color: r.evaluation_eligible ? 'var(--sp-status-success)' : 'var(--sp-status-error)' }}>
                   {r.evaluation_eligible ? 'Sí' : 'No'}
                 </td>
-                <td style={{ ...td, fontSize: 9, color: isDark ? '#94a3b8' : '#64748b' }}>{r.excluded_reason ?? '—'}</td>
+                <td style={{ ...td, fontSize: 9, color: 'var(--sp-text-40)' }}>{r.excluded_reason ?? '—'}</td>
               </tr>
             );
           })}
@@ -490,9 +490,9 @@ function OverlapPanel({ overlap, isDark }: { overlap: OverlapMetrics; isDark: bo
   const TH = makeTH(isDark);
 
   function deltaColor(delta: number | null, lowerIsBetter: boolean): string {
-    if (delta === null) return isDark ? '#94a3b8' : '#64748b';
+    if (delta === null) return 'var(--sp-text-40)';
     const improved = lowerIsBetter ? delta < 0 : delta > 0;
-    return improved ? '#4ade80' : '#f87171';
+    return improved ? 'var(--sp-status-success)' : 'var(--sp-status-error)';
   }
 
   function fmtDelta(v: number | null, scale = 100, suffix = '%'): string {
@@ -557,7 +557,7 @@ function OverlapPanel({ overlap, isDark }: { overlap: OverlapMetrics; isDark: bo
         Comparacion — {overlap.match_count} partidos evaluados en ambos motores
       </div>
       {overlap.match_count === 0 ? (
-        <div style={{ fontSize: 12, color: isDark ? '#64748b' : '#475569' }}>
+        <div style={{ fontSize: 12, color: 'var(--sp-text-40)' }}>
           Sin partidos en overlap todavia — se necesita ground truth en ambos motores para el mismo partido.
         </div>
       ) : (
@@ -575,7 +575,7 @@ function OverlapPanel({ overlap, isDark }: { overlap: OverlapMetrics; isDark: bo
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.label}>
-                    <td style={{ ...makeTD(isDark, false), color: isDark ? '#94a3b8' : '#64748b' }}>{row.label}</td>
+                    <td style={{ ...makeTD(isDark, false), color: 'var(--sp-text-40)' }}>{row.label}</td>
                     <td style={{ ...makeTD(isDark, false), textAlign: 'right' }}>{row.v3Val}</td>
                     <td style={{ ...makeTD(isDark, false), textAlign: 'right' }}>{row.nexusVal}</td>
                     <td style={{ ...makeTD(isDark, false), textAlign: 'right', fontWeight: 700, color: deltaColor(row.delta, row.lowerIsBetter) }}>
@@ -586,7 +586,7 @@ function OverlapPanel({ overlap, isDark }: { overlap: OverlapMetrics; isDark: bo
               </tbody>
             </table>
           </div>
-          <div style={{ fontSize: 10, color: isDark ? '#475569' : '#94a3b8', marginTop: 8 }}>
+          <div style={{ fontSize: 10, color: 'var(--sp-text-40)', marginTop: 8 }}>
             Delta = NEXUS - V3. Verde si NEXUS mejora (accuracy up, Brier/LogLoss down).
             Solo partidos donde ambos motores emitieron prediccion y el resultado es conocido.
             V3 puede abstenerse (TOO_CLOSE) en casos donde NEXUS predice.
@@ -652,16 +652,16 @@ export function EvaluationLabPage() {
   const title: React.CSSProperties = {
     fontSize: 15,
     fontWeight: 700,
-    color: isDark ? '#e2e8f0' : '#0f172a',
+    color: 'var(--sp-text)',
     margin: 0,
     flex: 1,
   };
 
   const refreshBtn: React.CSSProperties = {
     fontSize: 12,
-    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-    color: isDark ? '#94a3b8' : '#64748b',
-    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.12)',
+    background: 'var(--sp-surface)',
+    color: 'var(--sp-text-40)',
+    border: '1px solid var(--sp-border-8)',
     borderRadius: 6,
     padding: '5px 12px',
     cursor: 'pointer',
@@ -672,14 +672,14 @@ export function EvaluationLabPage() {
     borderRadius: 4,
     padding: '3px 10px',
     cursor: 'pointer',
-    border: isDark ? '1px solid #2a3a4a' : '1px solid #cbd5e1',
+    border: '1px solid var(--sp-border-8)',
   };
 
   function engineToggleStyle(active: boolean): React.CSSProperties {
     return {
       ...engineToggleBase,
-      background: active ? '#1e3a5f' : (isDark ? '#1a1a1a' : '#f1f5f9'),
-      color: active ? '#60a5fa' : (isDark ? '#64748b' : '#475569'),
+      background: active ? 'rgba(59,130,246,0.15)' : 'var(--sp-surface)',
+      color: active ? '#60a5fa' : 'var(--sp-text-40)',
     };
   }
 
@@ -692,8 +692,8 @@ export function EvaluationLabPage() {
         <div style={headerRow}>
           <h1 style={title}>Labs — Evaluacion PE</h1>
         </div>
-        <div style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', ...PANEL }}>
-          No disponible — <code style={{ color: '#f87171' }}>PREDICTION_INTERNAL_VIEW_ENABLED</code> no esta configurado.
+        <div style={{ fontSize: 13, color: 'var(--sp-text-40)', ...PANEL }}>
+          No disponible — <code style={{ color: 'var(--sp-status-error)' }}>PREDICTION_INTERNAL_VIEW_ENABLED</code> no esta configurado.
         </div>
       </div>
     );
@@ -706,7 +706,7 @@ export function EvaluationLabPage() {
       <div style={headerRow}>
         <h1 style={title}>Labs — Evaluacion PE</h1>
         {activeData && (
-          <span style={{ fontSize: 11, color: '#475569' }}>
+          <span style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>
             Calculado: {fmtDate(activeData.computed_at)} · {activeData.total_records} registros
           </span>
         )}
@@ -722,7 +722,7 @@ export function EvaluationLabPage() {
           ))}
         </div>
         <select
-          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', background: isDark ? '#1a1a1a' : '#fff', color: isDark ? '#e2e8f0' : '#0f172a', cursor: 'pointer' }}
+          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--sp-border-8)', background: 'var(--sp-surface)', color: 'var(--sp-text)', cursor: 'pointer' }}
           value={compFilter}
           onChange={(e) => setCompFilter(e.target.value)}
         >
@@ -738,13 +738,13 @@ export function EvaluationLabPage() {
       </div>
 
       {error && (
-        <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '10px 14px', marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: 'var(--sp-status-error)', background: 'var(--sp-status-error-soft)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '10px 14px', marginBottom: 16 }}>
           Error: {error}
         </div>
       )}
 
       {loading && !data && !compareData && (
-        <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#475569', ...PANEL }}>Cargando...</div>
+        <div style={{ fontSize: 13, color: 'var(--sp-text-40)', ...PANEL }}>Cargando...</div>
       )}
 
       {engineMode === 'compare' && compareData && (

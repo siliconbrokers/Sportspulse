@@ -113,7 +113,7 @@ export function TeamTile({ team, focused, dimmed, onClick }: TeamTileProps) {
         width: w,
         height: h,
         backgroundColor: getHeatColor(team.displayScore),
-        border: focused ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.15)',
+        border: focused ? '2px solid var(--sp-primary)' : '1px solid rgba(255,255,255,0.15)',
         borderRadius: 6,
         opacity: dimmed ? 0.4 : 1,
         cursor: 'pointer',

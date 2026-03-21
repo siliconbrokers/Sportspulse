@@ -63,20 +63,20 @@ const VERDICT: Record<VKey, {
 }> = {
   CONFIRMED: {
     label: 'Acertado', icon: '✓',
-    dark: '#86efac', light: '#15803d',
-    bg: 'rgba(34,197,94,0.10)', border: '1.5px solid rgba(34,197,94,0.65)',
+    dark: 'var(--sp-status-success)', light: 'var(--sp-status-success)',
+    bg: 'var(--sp-status-success-soft)', border: '1.5px solid rgba(34,197,94,0.65)',
     anim: 'sp-neon-hit 2.6s ease-in-out infinite',
   },
   PARTIAL: {
     label: 'Parcial', icon: '~',
-    dark: '#fcd34d', light: '#b45309',
-    bg: 'rgba(245,158,11,0.10)', border: '1.5px solid rgba(245,158,11,0.55)',
+    dark: 'var(--sp-status-zombie)', light: 'var(--sp-status-zombie)',
+    bg: 'var(--sp-status-zombie-soft)', border: '1.5px solid rgba(245,158,11,0.55)',
     anim: 'none',
   },
   REJECTED: {
     label: 'Fallado', icon: '✗',
-    dark: '#fca5a5', light: '#dc2626',
-    bg: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.55)',
+    dark: 'var(--sp-status-error)', light: 'var(--sp-status-error)',
+    bg: 'var(--sp-status-error-soft)', border: '1.5px solid rgba(239,68,68,0.55)',
     anim: 'sp-glitch 6s ease-in-out infinite',
   },
 };
@@ -205,16 +205,16 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
 
   // ── Card decoration ───────────────────────────────────────────────────────
   const cardBorder = vCfg ? vCfg.border
-    : isLive   ? '1.5px solid rgba(239,68,68,0.50)'
-    : isZombie ? '1.5px solid rgba(245,158,11,0.45)'
+    : isLive   ? '1.5px solid rgba(239,68,68,0.50)' /* live border — rgba alpha needed */
+    : isZombie ? '1.5px solid rgba(245,158,11,0.45)' /* zombie border — rgba alpha needed */
     :            '1px solid var(--sp-border-8)';
 
   const cardAnim = vCfg ? vCfg.anim : 'none';
 
-  const scoreColor = vKey === 'CONFIRMED' ? (isDark ? '#86efac' : '#15803d')
-    : vKey === 'REJECTED'                 ? (isDark ? '#fca5a5' : '#dc2626')
-    : isLive   ? '#f97316'
-    : isZombie ? '#f59e0b'
+  const scoreColor = vKey === 'CONFIRMED' ? 'var(--sp-status-success)'
+    : vKey === 'REJECTED'                 ? 'var(--sp-status-error)'
+    : isLive   ? 'var(--sp-status-live)'
+    : isZombie ? 'var(--sp-status-zombie)'
     : 'var(--sp-text)';
 
   // ── Narrative text ────────────────────────────────────────────────────────
@@ -280,7 +280,7 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
       display: 'inline-flex', alignItems: 'center', gap: 3,
       fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
       padding: '2px 7px', borderRadius: 20,
-      background: '#ef4444', color: '#fff',
+      background: 'var(--sp-status-error)', color: '#fff',
       animation: 'sp-live-ping 1.4s infinite',
       lineHeight: 1.6, boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
     }}>
@@ -288,7 +288,7 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
       LIVE
     </span>
   ) : isZombie ? (
-    <span style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>🕐 Confirmando</span>
+    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-status-zombie)' }}>🕐 Confirmando</span>
   ) : matchCard.kickoffUtc ? (
     <div style={{ textAlign: 'center' }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-80)', lineHeight: 1 }}>
@@ -318,7 +318,7 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
           alignItems: 'center', justifyContent: 'center', gap: 4,
           padding: '10px 8px',
           borderRight: `1px solid ${vCfg ? `${vCol}20` : 'var(--sp-border-6)'}`,
-          background: vCfg ? vCfg.bg : isLive ? 'rgba(239,68,68,0.05)' : 'transparent',
+          background: vCfg ? vCfg.bg : isLive ? 'var(--sp-status-error-soft)' : 'transparent',
         }}>
           <Crest url={homeCrest} size={22} />
           {/* Marcador centrado entre crests */}
@@ -373,7 +373,7 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
                 display: 'inline-flex', alignItems: 'center', gap: 3,
                 fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
                 padding: '2px 7px', borderRadius: 20,
-                background: '#ef4444', color: '#fff',
+                background: 'var(--sp-status-error)', color: '#fff',
                 animation: 'sp-live-ping 1.4s infinite',
                 lineHeight: 1.6, boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
               }}>
@@ -383,7 +383,7 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
             </div>
           ) : isZombie ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b' }}>🕐 Confirmando</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--sp-status-zombie)' }}>🕐 Confirmando</span>
             </div>
           ) : matchCard.kickoffUtc ? (
             <span style={{ fontSize: 10, color: 'var(--sp-text-35)' }}>{fmtDate(matchCard.kickoffUtc)} · {fmtTime(matchCard.kickoffUtc)}</span>
@@ -442,7 +442,7 @@ export function PronosticoCard({ matchCard, radarCard, live, onViewMatch, animat
                   display: 'inline-flex', alignItems: 'center', gap: 3,
                   fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
                   padding: '2px 7px', borderRadius: 20,
-                  background: '#ef4444', color: '#fff',
+                  background: 'var(--sp-status-error)', color: '#fff',
                   animation: 'sp-live-ping 1.4s infinite',
                   lineHeight: 1.6, boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
                 }}>

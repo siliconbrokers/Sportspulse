@@ -18,8 +18,8 @@ export function AdBlockerBanner({ isMobile }: { isMobile: boolean }) {
   return (
     <div
       style={{
-        background: 'rgba(251,191,36,0.08)',
-        border: '1px solid rgba(251,191,36,0.25)',
+        background: 'var(--sp-status-zombie-soft)',
+        border: '1px solid rgba(245,158,11,0.25)', /* zombie border alpha — no exact token */
         borderRadius: 10,
         padding: isMobile ? '12px 14px' : '14px 18px',
         marginBottom: 20,
@@ -38,7 +38,7 @@ export function AdBlockerBanner({ isMobile }: { isMobile: boolean }) {
         <p style={{
           fontSize: isMobile ? 13 : 14,
           fontWeight: 600,
-          color: 'rgba(251,191,36,0.95)',
+          color: 'var(--sp-status-zombie)',
           margin: '0 0 4px',
           lineHeight: 1.4,
         }}>
@@ -46,7 +46,7 @@ export function AdBlockerBanner({ isMobile }: { isMobile: boolean }) {
         </p>
         <p style={{
           fontSize: isMobile ? 11 : 12,
-          color: 'rgba(255,255,255,0.5)',
+          color: 'var(--sp-text-50)',
           margin: '0 0 10px',
           lineHeight: 1.5,
         }}>
@@ -62,9 +62,9 @@ export function AdBlockerBanner({ isMobile }: { isMobile: boolean }) {
               display: 'inline-block',
               fontSize: 12,
               fontWeight: 600,
-              color: '#fbbf24',
-              background: 'rgba(251,191,36,0.12)',
-              border: '1px solid rgba(251,191,36,0.3)',
+              color: 'var(--sp-status-zombie)',
+              background: 'var(--sp-status-zombie-soft)',
+              border: '1px solid rgba(245,158,11,0.3)',
               borderRadius: 6,
               padding: '5px 12px',
               textDecoration: 'none',
@@ -73,7 +73,7 @@ export function AdBlockerBanner({ isMobile }: { isMobile: boolean }) {
             {rec.cta} →
           </a>
           {rec.note && (
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+            <span style={{ fontSize: 11, color: 'var(--sp-text-20)' }}>
               {rec.note}
             </span>
           )}
@@ -87,7 +87,7 @@ export function AdBlockerBanner({ isMobile }: { isMobile: boolean }) {
         style={{
           background: 'transparent',
           border: 'none',
-          color: 'rgba(255,255,255,0.3)',
+          color: 'var(--sp-text-30)',
           fontSize: 18,
           cursor: 'pointer',
           padding: '0 2px',

@@ -7,7 +7,7 @@ export function EmptyState() {
         justifyContent: 'center',
         alignItems: 'center',
         height: 300,
-        color: '#94a3b8',
+        color: 'var(--sp-text-40)',
         fontSize: 16,
       }}
     >

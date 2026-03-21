@@ -23,7 +23,6 @@ const S = {
     minHeight: '100vh',
     background: 'var(--sp-bg)',
     color: 'var(--sp-text)',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     padding: '28px 20px 48px',
   } as React.CSSProperties,
   inner: {
@@ -207,9 +206,9 @@ function OpsInner({ token }: { token: string }) {
                     letterSpacing: '0.07em',
                     padding: '2px 8px',
                     borderRadius: 4,
-                    background: environment === 'production' ? '#dc262622' : '#1d4ed822',
-                    color: environment === 'production' ? '#dc2626' : '#1d4ed8',
-                    border: `1px solid ${environment === 'production' ? '#dc262644' : '#1d4ed844'}`,
+                    background: environment === 'production' ? 'var(--sp-status-error-soft)' : 'var(--sp-status-info-soft)',
+                    color: environment === 'production' ? 'var(--sp-status-error)' : 'var(--sp-status-info)',
+                    border: `1px solid ${environment === 'production' ? 'rgba(239,68,68,0.3)' : 'rgba(59,130,246,0.3)'}`,
                     textTransform: 'uppercase' as const,
                     flexShrink: 0,
                   }}
@@ -278,7 +277,7 @@ function OpsInner({ token }: { token: string }) {
 
         {/* ── Error ── */}
         {error && (
-          <div style={{ fontSize: 13, color: '#ef4444', marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: 'var(--sp-status-error)', marginBottom: 16 }}>
             Error: {error}
           </div>
         )}

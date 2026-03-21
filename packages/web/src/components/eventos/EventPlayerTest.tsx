@@ -91,9 +91,9 @@ export function EventPlayerTest() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#0f172a',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      color: '#fff',
+      backgroundColor: 'var(--sp-bg)',
+      fontFamily: 'var(--sp-font-family-base)',
+      color: 'var(--sp-text)',
     }}>
       {/* Header — sin ninguna referencia a URLs externas */}
       <div style={{

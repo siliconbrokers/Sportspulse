@@ -16,11 +16,11 @@ export function ErrorState({ message, onRetry }: ErrorStateProps) {
         gap: 12,
       }}
     >
-      <p style={{ color: '#fca5a5', fontSize: 16, margin: 0 }}>{message}</p>
+      <p style={{ color: 'var(--sp-status-error)', fontSize: 16, margin: 0 }}>{message}</p>
       <button
         onClick={onRetry}
         style={{
-          backgroundColor: '#3b82f6',
+          backgroundColor: 'var(--sp-status-info)',
           color: '#fff',
           border: 'none',
           borderRadius: 6,

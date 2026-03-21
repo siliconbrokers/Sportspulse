@@ -24,7 +24,7 @@ export function ServerBootScreen() {
         justifyContent: 'center',
         background: 'var(--sp-bg)',
         color: 'var(--sp-text)',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontFamily: 'var(--sp-font-family-base)',
         gap: 24,
         padding: 24,
       }}

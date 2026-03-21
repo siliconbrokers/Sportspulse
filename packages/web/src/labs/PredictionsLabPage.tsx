@@ -107,31 +107,29 @@ function expandKey(snap: Snapshot): string {
 function ExpandedRow({ snap }: { snap: Snapshot }) {
   const [showRequest, setShowRequest] = useState(false);
   const [showResponse, setShowResponse] = useState(false);
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
 
   const cellStyle: React.CSSProperties = {
     padding: '14px 16px',
-    background: isDark ? '#111' : '#f8fafc',
-    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    background: 'var(--sp-bg)',
+    borderBottom: '1px solid var(--sp-border-8)',
   };
 
   const sectionTitle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 700,
-    color: isDark ? '#64748b' : '#475569',
+    color: 'var(--sp-text-40)',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     marginBottom: 6,
   };
 
   const preStyle: React.CSSProperties = {
-    background: isDark ? '#0a0a0a' : '#f1f5f9',
-    border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    background: 'var(--sp-surface)',
+    border: '1px solid var(--sp-border-8)',
     borderRadius: 6,
     padding: '10px 12px',
     fontSize: 11,
-    color: isDark ? '#94a3b8' : '#475569',
+    color: 'var(--sp-text-40)',
     overflowX: 'auto',
     maxHeight: 300,
     overflowY: 'auto',
@@ -142,7 +140,7 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
 
   const toggleBtn: React.CSSProperties = {
     fontSize: 11,
-    color: '#3b82f6',
+    color: 'var(--sp-status-info)',
     background: 'none',
     border: '1px solid rgba(59,130,246,0.3)',
     borderRadius: 4,
@@ -156,18 +154,18 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
     <tr>
       <td colSpan={12} style={cellStyle}>
         {/* Summary line */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: 12, fontSize: 12, color: isDark ? '#94a3b8' : '#64748b' }}>
-          <span style={{ fontFamily: 'monospace', color: '#64748b', fontSize: 11 }}>{snap.match_id}</span>
-          <span><span style={{ color: '#64748b' }}>Mode:</span> {snap.mode}</span>
-          <span><span style={{ color: '#64748b' }}>Calibración:</span> {snap.calibration_mode ?? '—'}</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: 12, fontSize: 12, color: 'var(--sp-text-40)' }}>
+          <span style={{ fontFamily: 'monospace', color: 'var(--sp-text-40)', fontSize: 11 }}>{snap.match_id}</span>
+          <span><span style={{ color: 'var(--sp-text-40)' }}>Mode:</span> {snap.mode}</span>
+          <span><span style={{ color: 'var(--sp-text-40)' }}>Calibración:</span> {snap.calibration_mode ?? '—'}</span>
           {snap.favorite_margin !== null && (
-            <span><span style={{ color: '#64748b' }}>margen favorito:</span> {snap.favorite_margin.toFixed(3)}</span>
+            <span><span style={{ color: 'var(--sp-text-40)' }}>margen favorito:</span> {snap.favorite_margin.toFixed(3)}</span>
           )}
           {snap.draw_risk !== null && (
-            <span><span style={{ color: '#64748b' }}>riesgo empate:</span> {snap.draw_risk.toFixed(3)}</span>
+            <span><span style={{ color: 'var(--sp-text-40)' }}>riesgo empate:</span> {snap.draw_risk.toFixed(3)}</span>
           )}
           {snap.engine_version && (
-            <span><span style={{ color: '#64748b' }}>motor:</span> {snap.engine_version}</span>
+            <span><span style={{ color: 'var(--sp-text-40)' }}>motor:</span> {snap.engine_version}</span>
           )}
         </div>
 
@@ -179,11 +177,11 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
               {snap.reasons.map((r, i) => (
                 <span key={i} style={{
                   fontSize: 11,
-                  background: 'rgba(100,116,139,0.12)',
-                  border: '1px solid rgba(100,116,139,0.2)',
+                  background: 'var(--sp-border-8)',
+                  border: '1px solid var(--sp-border-8)',
                   borderRadius: 4,
                   padding: '2px 7px',
-                  color: '#94a3b8',
+                  color: 'var(--sp-text-40)',
                 }}>
                   {r}
                 </span>
@@ -200,11 +198,11 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
               {snap.degradation_notes.map((n, i) => (
                 <span key={i} style={{
                   fontSize: 11,
-                  background: 'rgba(234,179,8,0.1)',
+                  background: 'var(--sp-status-warning-soft)',
                   border: '1px solid rgba(234,179,8,0.2)',
                   borderRadius: 4,
                   padding: '2px 7px',
-                  color: '#facc15',
+                  color: 'var(--sp-status-warning)',
                 }}>
                   {JSON.stringify(n)}
                 </span>
@@ -217,13 +215,13 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
         {snap.error_detail && (
           <div style={{ marginBottom: 10 }}>
             <div style={sectionTitle}>Error detail</div>
-            <pre style={{ ...preStyle, color: '#f87171' }}>{snap.error_detail}</pre>
+            <pre style={{ ...preStyle, color: 'var(--sp-status-error)' }}>{snap.error_detail}</pre>
           </div>
         )}
 
         {/* Request payload */}
         <div style={{ marginBottom: 10 }}>
-          <div style={{ ...sectionTitle, borderTop: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', paddingTop: 10 }}>
+          <div style={{ ...sectionTitle, borderTop: '1px solid var(--sp-border-8)', paddingTop: 10 }}>
             Request Payload
           </div>
           <button style={toggleBtn} onClick={() => setShowRequest((v) => !v)}>
@@ -236,7 +234,7 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
 
         {/* Response payload */}
         <div>
-          <div style={{ ...sectionTitle, borderTop: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', paddingTop: 10 }}>
+          <div style={{ ...sectionTitle, borderTop: '1px solid var(--sp-border-8)', paddingTop: 10 }}>
             Response Payload
           </div>
           <button style={toggleBtn} onClick={() => setShowResponse((v) => !v)}>
@@ -253,7 +251,6 @@ function ExpandedRow({ snap }: { snap: Snapshot }) {
 
 export function PredictionsLabPage() {
   const { theme, toggleTheme } = useTheme();
-  const isDark = theme === 'dark';
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -291,9 +288,9 @@ export function PredictionsLabPage() {
 
   const root: React.CSSProperties = {
     minHeight: '100vh',
-    backgroundColor: isDark ? '#0f0f0f' : '#f8fafc',
-    color: isDark ? '#e2e8f0' : '#0f172a',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
+    backgroundColor: 'var(--sp-bg)',
+    color: 'var(--sp-text)',
+    fontFamily: 'var(--sp-font-family-base)',
     padding: 16,
   };
 
@@ -307,16 +304,16 @@ export function PredictionsLabPage() {
   const title: React.CSSProperties = {
     fontSize: 15,
     fontWeight: 700,
-    color: isDark ? '#e2e8f0' : '#0f172a',
+    color: 'var(--sp-text)',
     margin: 0,
     flex: 1,
   };
 
   const refreshBtn: React.CSSProperties = {
     fontSize: 12,
-    background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-    color: isDark ? '#94a3b8' : '#64748b',
-    border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.12)',
+    background: 'var(--sp-surface)',
+    color: 'var(--sp-text-40)',
+    border: '1px solid var(--sp-border-8)',
     borderRadius: 6,
     padding: '5px 12px',
     cursor: 'pointer',
@@ -326,20 +323,20 @@ export function PredictionsLabPage() {
     padding: '8px 10px',
     fontSize: 11,
     fontWeight: 600,
-    color: isDark ? '#64748b' : '#475569',
+    color: 'var(--sp-text-40)',
     textAlign: 'left',
     whiteSpace: 'nowrap',
-    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
-    background: isDark ? '#141414' : '#f1f5f9',
+    borderBottom: '1px solid var(--sp-border-8)',
+    background: 'var(--sp-surface)',
   };
 
   function tdStyle(isEven: boolean): React.CSSProperties {
     return {
       padding: '8px 10px',
       fontSize: 12,
-      color: isDark ? '#e2e8f0' : '#0f172a',
-      background: isDark ? (isEven ? '#222' : '#1a1a1a') : (isEven ? '#ffffff' : '#f8fafc'),
-      borderBottom: isDark ? '1px solid #222' : '1px solid #e8ecf0',
+      color: 'var(--sp-text)',
+      background: isEven ? 'var(--sp-surface)' : 'var(--sp-bg)',
+      borderBottom: '1px solid var(--sp-border-5)',
       whiteSpace: 'nowrap',
       cursor: 'pointer',
     };
@@ -354,8 +351,8 @@ export function PredictionsLabPage() {
         <div style={headerRow}>
           <h1 style={title}>Labs — Predicciones</h1>
         </div>
-        <div style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 8, padding: '16px 20px' }}>
-          Labs no disponible — <code style={{ color: '#f87171' }}>PREDICTION_INTERNAL_VIEW_ENABLED</code> no esta configurado.
+        <div style={{ fontSize: 13, color: 'var(--sp-text-40)', background: 'var(--sp-surface)', border: '1px solid var(--sp-border-8)', borderRadius: 8, padding: '16px 20px' }}>
+          Labs no disponible — <code style={{ color: 'var(--sp-status-error)' }}>PREDICTION_INTERNAL_VIEW_ENABLED</code> no esta configurado.
         </div>
       </div>
     );
@@ -366,14 +363,14 @@ export function PredictionsLabPage() {
     borderRadius: 4,
     padding: '3px 10px',
     cursor: 'pointer',
-    border: isDark ? '1px solid #2a3a4a' : '1px solid #cbd5e1',
+    border: '1px solid var(--sp-border-8)',
   };
 
   function engineToggleStyle(active: boolean): React.CSSProperties {
     return {
       ...engineToggleBase,
-      background: active ? '#1e3a5f' : (isDark ? '#1a1a1a' : '#f1f5f9'),
-      color: active ? '#60a5fa' : (isDark ? '#64748b' : '#475569'),
+      background: active ? 'rgba(59,130,246,0.15)' : 'var(--sp-surface)',
+      color: active ? '#60a5fa' : 'var(--sp-text-40)',
     };
   }
 
@@ -381,9 +378,9 @@ export function PredictionsLabPage() {
     fontSize: 11,
     borderRadius: 4,
     padding: '3px 8px',
-    border: isDark ? '1px solid #2a3a4a' : '1px solid #cbd5e1',
-    background: isDark ? '#1a1a1a' : '#f1f5f9',
-    color: isDark ? '#94a3b8' : '#475569',
+    border: '1px solid var(--sp-border-8)',
+    background: 'var(--sp-surface)',
+    color: 'var(--sp-text-40)',
     cursor: 'pointer',
   };
 
@@ -437,15 +434,15 @@ export function PredictionsLabPage() {
       </div>
 
       {error && (
-        <div style={{ fontSize: 12, color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '10px 14px', marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: 'var(--sp-status-error)', background: 'var(--sp-status-error-soft)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '10px 14px', marginBottom: 16 }}>
           Error: {error}
         </div>
       )}
 
       {!loading && !error && snapshots.length === 0 && (
-        <div style={{ fontSize: 13, color: isDark ? '#64748b' : '#475569', background: isDark ? '#1a1a1a' : '#ffffff', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 8, padding: '16px 20px' }}>
+        <div style={{ fontSize: 13, color: 'var(--sp-text-40)', background: 'var(--sp-surface)', border: '1px solid var(--sp-border-8)', borderRadius: 8, padding: '16px 20px' }}>
           Sin predicciones almacenadas. Activa{' '}
-          <code style={{ color: '#facc15' }}>PREDICTION_NEXUS_SHADOW_ENABLED={compFilter || 'comp:apifootball:140'}</code>{' '}
+          <code style={{ color: 'var(--sp-status-warning)' }}>PREDICTION_NEXUS_SHADOW_ENABLED={compFilter || 'comp:apifootball:140'}</code>{' '}
           para comenzar.
         </div>
       )}
@@ -461,11 +458,11 @@ export function PredictionsLabPage() {
           ? kickoffs.reduce((a, b) => (a > b ? a : b)).slice(0, 10)
           : null;
         return (
-          <div style={{ marginBottom: 8, fontSize: 11, color: isDark ? '#475569' : '#94a3b8', flexWrap: 'wrap', display: 'flex', gap: 4 }}>
+          <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--sp-text-40)', flexWrap: 'wrap', display: 'flex', gap: 4 }}>
             <span>{snapshots.length} predicciones</span>
             {oldest && newest && (
               <>
-                <span style={{ color: isDark ? '#2d3748' : '#cbd5e1' }}>·</span>
+                <span style={{ color: 'var(--sp-border-8)' }}>·</span>
                 <span>kickoff {oldest} → {newest}</span>
               </>
             )}
@@ -529,7 +526,7 @@ export function PredictionsLabPage() {
                     ? { label: 'NEXUS', bg: 'rgba(139,92,246,0.15)', color: '#a78bfa' }
                     : { label: 'V3',    bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa' };
                   const td = tdStyle(isEven);
-                  const dividerBorder = isDivider ? '1px dashed #2a2a2a' : undefined;
+                  const dividerBorder = isDivider ? '1px dashed var(--sp-border-8)' : undefined;
 
                   return (
                     <React.Fragment key={key}>
@@ -553,7 +550,7 @@ export function PredictionsLabPage() {
                             {engineBadge.label}
                           </span>
                         </td>
-                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{displayDate}</td>
+                        <td style={{ ...td, color: 'var(--sp-text-40)', borderTop: dividerBorder }}>{displayDate}</td>
                         <td style={{ ...td, borderTop: dividerBorder }}>
                           <span style={{
                             fontSize: 10,
@@ -570,9 +567,9 @@ export function PredictionsLabPage() {
                         <td style={{ ...td, borderTop: dividerBorder }}>{fmtProb(snap.p_draw)}</td>
                         <td style={{ ...td, borderTop: dividerBorder }}>{fmtProb(snap.p_away_win)}</td>
                         <td style={{ ...td, fontWeight: 600, borderTop: dividerBorder }}>{fmtResult(snap.predicted_result)}</td>
-                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_home)}</td>
-                        <td style={{ ...td, color: '#94a3b8', borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_away)}</td>
-                        <td style={{ ...td, borderTop: dividerBorder, color: snap.generation_status === 'ok' ? '#4ade80' : '#f87171', fontSize: 10, fontWeight: 600 }}>{snap.generation_status === 'ok' ? 'OK' : 'ERR'}</td>
+                        <td style={{ ...td, color: 'var(--sp-text-40)', borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_home)}</td>
+                        <td style={{ ...td, color: 'var(--sp-text-40)', borderTop: dividerBorder }}>{fmtXg(snap.expected_goals_away)}</td>
+                        <td style={{ ...td, borderTop: dividerBorder, color: snap.generation_status === 'ok' ? 'var(--sp-status-success)' : 'var(--sp-status-error)', fontSize: 10, fontWeight: 600 }}>{snap.generation_status === 'ok' ? 'OK' : 'ERR'}</td>
                       </tr>
                       {isExpanded && <ExpandedRow key={`${key}__expanded`} snap={snap} />}
                     </React.Fragment>

@@ -2,85 +2,225 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── CSS Custom Properties — Design tokens para temas Night/Day ────────────── */
+/* ── LAYER 1: Foundation tokens (raw palette — no semantic meaning) ── */
+:root {
+  /* Color palette */
+  --sp-f-gray-950: #0B0E14;
+  --sp-f-gray-900: #0F172A;
+  --sp-f-gray-850: #1A1D24;
+  --sp-f-gray-600: #64748B;
+  --sp-f-gray-500: #6b7280;
+  --sp-f-gray-400: #8A94A8;
+  --sp-f-slate-50: #F8FAFC;
+  --sp-f-white: #FFFFFF;
+  --sp-f-cyan-500: #00E0FF;
+  --sp-f-sky-600: #0284C7;
+  --sp-f-green-500: #22c55e;
+  --sp-f-green-400: #4ade80;
+  --sp-f-red-500: #ef4444;
+  --sp-f-red-400: #f87171;
+  --sp-f-red-300: #fca5a5;
+  --sp-f-orange-500: #f97316;
+  --sp-f-orange-400: #fb923c;
+  --sp-f-amber-500: #f59e0b;
+  --sp-f-amber-400: #FBBF24;
+  --sp-f-amber-200: #fde68a;
+  --sp-f-yellow-500: #eab308;
+  --sp-f-teal-500: #14b8a6;
+  --sp-f-cyan-300: #22d3ee;
+  --sp-f-blue-500: #3b82f6;
+
+  /* Typography palette */
+  --sp-f-font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sp-f-font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Size scale */
+  --sp-f-size-2xs: 0.5625rem;  /* 9px */
+  --sp-f-size-xs:  0.625rem;   /* 10px */
+  --sp-f-size-sm:  0.75rem;    /* 12px */
+  --sp-f-size-base:0.8125rem;  /* 13px */
+  --sp-f-size-md:  0.875rem;   /* 14px */
+  --sp-f-size-lg:  1rem;       /* 16px */
+  --sp-f-size-xl:  1.125rem;   /* 18px */
+  --sp-f-size-2xl: 1.25rem;    /* 20px */
+  --sp-f-size-3xl: 1.5rem;     /* 24px */
+
+  /* Spacing scale */
+  --sp-f-space-1: 2px;
+  --sp-f-space-2: 4px;
+  --sp-f-space-3: 8px;
+  --sp-f-space-4: 12px;
+  --sp-f-space-5: 16px;
+  --sp-f-space-6: 20px;
+  --sp-f-space-7: 24px;
+  --sp-f-space-8: 32px;
+  --sp-f-space-9: 48px;
+
+  /* Radius scale */
+  --sp-f-radius-sm:   4px;
+  --sp-f-radius-md:   12px;
+  --sp-f-radius-lg:   24px;
+  --sp-f-radius-full: 9999px;
+}
+
+/* ── LAYER 2: Semantic tokens — Dark theme (default) ── */
 :root {
   /* Backgrounds */
-  --sp-bg: #0B0E14;
-  --sp-surface: #1A1D24;
-  --sp-header: rgba(11,14,20,0.95);
-  --sp-surface-alpha: rgba(26,29,36,0.8);
-  --sp-surface-card: rgba(255,255,255,0.04);
+  --sp-bg:             var(--sp-f-gray-950);
+  --sp-surface:        var(--sp-f-gray-850);
+  --sp-header:         rgba(11,14,20,0.95);
+  --sp-surface-alpha:  rgba(26,29,36,0.8);
+  --sp-surface-card:   rgba(255,255,255,0.04);
   --sp-surface-raised: rgba(255,255,255,0.07);
+  --sp-surface-overlay:rgba(0,0,0,0.6);
+
   /* Brand primary */
-  --sp-primary: #00E0FF;
-  --sp-primary-04: rgba(0,224,255,0.04);
-  --sp-primary-10: rgba(0,224,255,0.10);
-  --sp-primary-12: rgba(0,224,255,0.12);
-  --sp-primary-22: rgba(0,224,255,0.22);
-  --sp-primary-40: rgba(0,224,255,0.40);
-  --sp-primary-glow: 0 0 12px rgba(0,224,255,0.4);
-  --sp-brand-rgb: 0, 224, 255;
+  --sp-primary:     var(--sp-f-cyan-500);
+  --sp-primary-04:  rgba(0,224,255,0.04);
+  --sp-primary-10:  rgba(0,224,255,0.10);
+  --sp-primary-12:  rgba(0,224,255,0.12);
+  --sp-primary-22:  rgba(0,224,255,0.22);
+  --sp-primary-40:  rgba(0,224,255,0.40);
+  --sp-primary-glow:0 0 12px rgba(0,224,255,0.4);
+  --sp-brand-rgb:   0, 224, 255;
+
   /* Text */
-  --sp-text: #ffffff;
-  --sp-text-88: rgba(255,255,255,0.88);
-  --sp-text-85: rgba(255,255,255,0.85);
-  --sp-text-75: rgba(255,255,255,0.75);
-  --sp-text-70: rgba(255,255,255,0.70);
-  --sp-text-55: rgba(255,255,255,0.55);
-  --sp-text-50: rgba(255,255,255,0.50);
-  --sp-text-40: rgba(255,255,255,0.40);
-  --sp-text-35: rgba(255,255,255,0.35);
-  --sp-text-30: rgba(255,255,255,0.30);
-  --sp-text-20: rgba(255,255,255,0.20);
-  --sp-secondary: #8A94A8;
+  --sp-text:     var(--sp-f-white);
+  --sp-text-88:  rgba(255,255,255,0.88);
+  --sp-text-85:  rgba(255,255,255,0.85);
+  --sp-text-75:  rgba(255,255,255,0.75);
+  --sp-text-70:  rgba(255,255,255,0.70);
+  --sp-text-55:  rgba(255,255,255,0.55);
+  --sp-text-50:  rgba(255,255,255,0.50);
+  --sp-text-40:  rgba(255,255,255,0.40);
+  --sp-text-35:  rgba(255,255,255,0.35);
+  --sp-text-30:  rgba(255,255,255,0.30);
+  --sp-text-20:  rgba(255,255,255,0.20);
+  --sp-secondary:var(--sp-f-gray-400);
+
   /* Borders */
-  --sp-border: rgba(255,255,255,0.06);
-  --sp-border-10: rgba(255,255,255,0.10);
+  --sp-border:   rgba(255,255,255,0.06);
+  --sp-border-10:rgba(255,255,255,0.10);
   --sp-border-8: rgba(255,255,255,0.08);
   --sp-border-6: rgba(255,255,255,0.06);
   --sp-border-5: rgba(255,255,255,0.05);
   --sp-border-4: rgba(255,255,255,0.04);
-  /* Table rows */
+
+  /* Table */
   --sp-row-even: rgba(255,255,255,0.015);
-  --sp-row-hover: rgba(0,224,255,0.04);
+  --sp-row-hover:rgba(0,224,255,0.04);
+
+  /* Status */
+  --sp-status-success:      var(--sp-f-green-500);
+  --sp-status-success-soft: rgba(34,197,94,0.15);
+  --sp-status-error:        var(--sp-f-red-500);
+  --sp-status-error-soft:   rgba(239,68,68,0.15);
+  --sp-status-warning:      var(--sp-f-orange-500);
+  --sp-status-warning-soft: rgba(249,115,22,0.15);
+  --sp-status-live:         var(--sp-f-orange-500);
+  --sp-status-live-soft:    rgba(249,115,22,0.12);
+  --sp-status-zombie:       var(--sp-f-amber-500);
+  --sp-status-zombie-soft:  rgba(245,158,11,0.10);
+  --sp-status-neutral:      var(--sp-f-gray-500);
+  --sp-status-info:         var(--sp-f-blue-500);
+  --sp-status-info-soft:    rgba(59,130,246,0.15);
+
+  /* Zone (standings) */
+  --sp-zone-champions:      var(--sp-primary);
+  --sp-zone-europa:         var(--sp-f-orange-500);
+  --sp-zone-conference:     var(--sp-f-teal-500);
+  --sp-zone-playoff:        var(--sp-f-yellow-500);
+  --sp-zone-playoff-alt:    var(--sp-f-amber-400);
+  --sp-zone-liguilla:       var(--sp-f-amber-500);
+  --sp-zone-relegation:     var(--sp-f-red-500);
+  --sp-zone-sudamericana:   var(--sp-f-cyan-300);
+
+  /* Form results */
+  --sp-form-win:  var(--sp-f-green-500);
+  --sp-form-draw: var(--sp-f-gray-500);
+  --sp-form-loss: var(--sp-f-red-500);
+
+  /* Typography */
+  --sp-font-family-base: var(--sp-f-font-system);
+  --sp-font-family-mono: var(--sp-f-font-mono);
+  --sp-text-size-2xs:    var(--sp-f-size-2xs);
+  --sp-text-size-xs:     var(--sp-f-size-xs);
+  --sp-text-size-sm:     var(--sp-f-size-sm);
+  --sp-text-size-base:   var(--sp-f-size-base);
+  --sp-text-size-md:     var(--sp-f-size-md);
+  --sp-text-size-lg:     var(--sp-f-size-lg);
+  --sp-text-size-xl:     var(--sp-f-size-xl);
+  --sp-text-size-2xl:    var(--sp-f-size-2xl);
+  --sp-text-size-3xl:    var(--sp-f-size-3xl);
+  --sp-font-weight-regular:   400;
+  --sp-font-weight-medium:    500;
+  --sp-font-weight-semibold:  600;
+  --sp-font-weight-bold:      700;
+
+  /* Spacing */
+  --sp-space-1: var(--sp-f-space-1);
+  --sp-space-2: var(--sp-f-space-2);
+  --sp-space-3: var(--sp-f-space-3);
+  --sp-space-4: var(--sp-f-space-4);
+  --sp-space-5: var(--sp-f-space-5);
+  --sp-space-6: var(--sp-f-space-6);
+  --sp-space-7: var(--sp-f-space-7);
+  --sp-space-8: var(--sp-f-space-8);
+  --sp-space-9: var(--sp-f-space-9);
+
+  /* Radius */
+  --sp-radius-sm:   var(--sp-f-radius-sm);
+  --sp-radius-md:   var(--sp-f-radius-md);
+  --sp-radius-lg:   var(--sp-f-radius-lg);
+  --sp-radius-full: var(--sp-f-radius-full);
 }
 
-/* ── Modo Día (Light) ───────────────────────────────────────────────────────── */
+/* ── Light theme overrides ── */
 body.light {
-  --sp-bg: #F8FAFC;
-  --sp-surface: #FFFFFF;
-  --sp-header: rgba(248,250,252,0.95);
-  --sp-surface-alpha: rgba(255,255,255,0.9);
-  --sp-surface-card: rgba(0,0,0,0.03);
+  --sp-bg:             var(--sp-f-slate-50);
+  --sp-surface:        var(--sp-f-white);
+  --sp-header:         rgba(248,250,252,0.95);
+  --sp-surface-alpha:  rgba(255,255,255,0.9);
+  --sp-surface-card:   rgba(0,0,0,0.03);
   --sp-surface-raised: rgba(0,0,0,0.05);
-  --sp-primary: #0284C7;
-  --sp-primary-04: rgba(2,132,199,0.04);
-  --sp-primary-10: rgba(2,132,199,0.10);
-  --sp-primary-12: rgba(2,132,199,0.12);
-  --sp-primary-22: rgba(2,132,199,0.22);
-  --sp-primary-40: rgba(2,132,199,0.40);
-  --sp-primary-glow: 0 0 12px rgba(2,132,199,0.3);
-  --sp-brand-rgb: 2, 132, 199;
-  --sp-text: #0F172A;
-  --sp-text-88: rgba(15,23,42,0.88);
-  --sp-text-85: rgba(15,23,42,0.85);
-  --sp-text-75: rgba(15,23,42,0.75);
-  --sp-text-70: rgba(15,23,42,0.70);
-  --sp-text-55: rgba(15,23,42,0.55);
-  --sp-text-50: rgba(15,23,42,0.50);
-  --sp-text-40: rgba(15,23,42,0.40);
-  --sp-text-35: rgba(15,23,42,0.35);
-  --sp-text-30: rgba(15,23,42,0.30);
-  --sp-text-20: rgba(15,23,42,0.20);
-  --sp-secondary: #64748B;
-  --sp-border: rgba(0,0,0,0.08);
-  --sp-border-10: rgba(0,0,0,0.12);
+  --sp-surface-overlay:rgba(0,0,0,0.4);
+  --sp-primary:     var(--sp-f-sky-600);
+  --sp-primary-04:  rgba(2,132,199,0.04);
+  --sp-primary-10:  rgba(2,132,199,0.10);
+  --sp-primary-12:  rgba(2,132,199,0.12);
+  --sp-primary-22:  rgba(2,132,199,0.22);
+  --sp-primary-40:  rgba(2,132,199,0.40);
+  --sp-primary-glow:0 0 12px rgba(2,132,199,0.3);
+  --sp-brand-rgb:   2, 132, 199;
+  --sp-text:     var(--sp-f-gray-900);
+  --sp-text-88:  rgba(15,23,42,0.88);
+  --sp-text-85:  rgba(15,23,42,0.85);
+  --sp-text-75:  rgba(15,23,42,0.75);
+  --sp-text-70:  rgba(15,23,42,0.70);
+  --sp-text-55:  rgba(15,23,42,0.55);
+  --sp-text-50:  rgba(15,23,42,0.50);
+  --sp-text-40:  rgba(15,23,42,0.40);
+  --sp-text-35:  rgba(15,23,42,0.35);
+  --sp-text-30:  rgba(15,23,42,0.30);
+  --sp-text-20:  rgba(15,23,42,0.20);
+  --sp-secondary:var(--sp-f-gray-600);
+  --sp-border:   rgba(0,0,0,0.08);
+  --sp-border-10:rgba(0,0,0,0.12);
   --sp-border-8: rgba(0,0,0,0.10);
   --sp-border-6: rgba(0,0,0,0.07);
   --sp-border-5: rgba(0,0,0,0.06);
   --sp-border-4: rgba(0,0,0,0.04);
   --sp-row-even: rgba(0,0,0,0.02);
-  --sp-row-hover: rgba(2,132,199,0.04);
+  --sp-row-hover:rgba(2,132,199,0.04);
+  /* Status soft variants slightly less opaque on light */
+  --sp-status-success-soft: rgba(34,197,94,0.12);
+  --sp-status-error-soft:   rgba(239,68,68,0.12);
+  --sp-status-warning-soft: rgba(249,115,22,0.12);
+  --sp-status-live-soft:    rgba(249,115,22,0.10);
+  --sp-status-zombie-soft:  rgba(245,158,11,0.08);
+  --sp-status-info-soft:    rgba(59,130,246,0.12);
+  /* zone-champions follows --sp-primary which is now sky-600 in light */
+  --sp-zone-champions: var(--sp-primary);
 }
 
 /* ── Animaciones de UI ──────────────────────────────────────────────────────── */
@@ -102,6 +242,7 @@ body.light {
     @apply transition-colors duration-200;
     background-color: var(--sp-bg);
     color: var(--sp-text);
+    font-family: var(--sp-font-family-base);
   }
 }
 

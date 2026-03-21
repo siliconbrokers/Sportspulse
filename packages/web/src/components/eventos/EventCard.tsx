@@ -7,7 +7,6 @@ import { Tv } from 'lucide-react';
 import type { ParsedEvent } from '../../hooks/use-events.js';
 import { openEventDirect } from '../../hooks/use-events.js';
 import { getMatchDisplayStatus } from '../../utils/match-status.js';
-import { useTheme } from '../../hooks/use-theme.js';
 import { resolveTeamName } from '../../utils/resolve-team-name.js';
 
 // ── CSS inyectado una vez ──────────────────────────────────────────────────────
@@ -40,7 +39,7 @@ function injectStyles() {
       box-shadow: 0 8px 24px rgba(0,0,0,0.18);
     }
     .sp-ev-card:focus-visible {
-      outline: 2px solid #00E0FF;
+      outline: 2px solid var(--sp-primary);
       outline-offset: 2px;
     }
   `;
@@ -138,8 +137,6 @@ interface EventCardProps {
 
 export function EventCard({ event, accentColor, isMobile, signals, animationDelay = 0, hasSignal = true, onCardClick }: EventCardProps) {
   useEffect(() => { injectStyles(); }, []);
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
 
   // Estado de visualización — zombie guard incluido
   const ds = getMatchDisplayStatus(toApiStatus(event.normalizedStatus), event.startsAtPortalTz);
@@ -151,13 +148,11 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
   const crestSize = isMobile ? 22 : 26;
 
   // ── Decoración de la tarjeta según estado ─────────────────────────────────
-  const borderColor = isLive   ? 'rgba(239,68,68,0.45)'
-    : isZombie                  ? 'rgba(245,158,11,0.45)'
-    : `${accentColor}28`;
+  const borderColor = isLive   ? 'rgba(239,68,68,0.45)' /* live border — rgba alpha needed */
+    : isZombie                  ? 'rgba(245,158,11,0.45)' /* zombie border — rgba alpha needed */
+    : `${accentColor}28`; /* dynamic accent — keep as-is */
 
-  const cardBg = isDark
-    ? 'var(--sp-surface-card)'
-    : 'var(--sp-surface-card)';
+  const cardBg = 'var(--sp-surface-card)';
 
   // ── Handler de click ──────────────────────────────────────────────────────
   function handleCardClick(e: React.MouseEvent) {
@@ -223,7 +218,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
           {/* Columna central: score/vs — siempre en el mismo lugar */}
           <div style={{ width: 52, flexShrink: 0, textAlign: 'center' }}>
             {isActive && event.scoreHome != null && event.scoreAway != null ? (
-              <span style={{ fontSize: 13, fontWeight: 900, color: '#f97316', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
+              <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--sp-status-live)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
                 {event.scoreHome}–{event.scoreAway}
               </span>
             ) : (
@@ -242,7 +237,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
             {hasSignal && (
               <Tv
                 size={14}
-                color="#00E0FF"
+                color="var(--sp-primary)"
                 strokeWidth={2.2}
                 style={{ flexShrink: 0, animation: isActive ? 'sp-tv-pulse 1.6s ease-in-out infinite' : 'none' }}
               />
@@ -259,14 +254,14 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
                 display: 'inline-flex', alignItems: 'center', gap: 3,
                 fontSize: 8, fontWeight: 900, letterSpacing: '0.08em',
                 padding: '1px 6px', borderRadius: 20,
-                background: '#ef4444', color: '#fff',
+                background: 'var(--sp-status-error)', color: '#fff',
                 animation: 'sp-live-dot 1.2s ease-in-out infinite',
               }}>
                 <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
                 LIVE
               </span>
             ) : isZombie ? (
-              <span style={{ fontSize: 9, color: '#f59e0b' }}>⚠</span>
+              <span style={{ fontSize: 9, color: 'var(--sp-status-zombie)' }}>⚠</span>
             ) : isFinished ? (
               <span style={{ fontSize: 9, color: 'var(--sp-text-30)' }}>Finalizado</span>
             ) : (
@@ -333,16 +328,16 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
           <div style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '3px 7px', borderRadius: 20,
-            background: 'rgba(0,224,255,0.10)',
-            border: '1px solid rgba(0,224,255,0.25)',
+            background: 'var(--sp-primary-10)',
+            border: '1px solid var(--sp-primary-22)',
           }}>
             <Tv
               size={11}
-              color="#00E0FF"
+              color="var(--sp-primary)"
               strokeWidth={2.2}
               style={{ animation: isActive ? 'sp-tv-pulse 1.6s ease-in-out infinite' : 'none' }}
             />
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#00E0FF', letterSpacing: '0.06em' }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--sp-primary)', letterSpacing: '0.06em' }}>
               STREAM
             </span>
           </div>
@@ -350,10 +345,10 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
           <div style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '3px 7px', borderRadius: 20,
-            background: 'rgba(245,158,11,0.10)',
+            background: 'var(--sp-status-zombie-soft)',
             border: '1px solid rgba(245,158,11,0.30)',
           }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#f59e0b', letterSpacing: '0.06em' }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--sp-status-zombie)', letterSpacing: '0.06em' }}>
               🕐 SIN SEÑAL AÚN
             </span>
           </div>
@@ -388,7 +383,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
           {isActive && event.scoreHome != null && event.scoreAway != null ? (
             <span style={{
               fontSize: isMobile ? 14 : 16, fontWeight: 900,
-              color: '#f97316', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em',
+              color: 'var(--sp-status-live)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em',
             }}>
               {event.scoreHome}<span style={{ opacity: 0.5, margin: '0 2px' }}>–</span>{event.scoreAway}
             </span>
@@ -415,7 +410,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingTop: isMobile ? 6 : 8,
-        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+        borderTop: '1px solid var(--sp-border)',
         gap: 8,
       }}>
         {/* Badge de estado */}
@@ -424,7 +419,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
             display: 'inline-flex', alignItems: 'center', gap: 3,
             fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
             padding: '2px 7px', borderRadius: 20,
-            background: '#ef4444', color: '#fff',
+            background: 'var(--sp-status-error)', color: '#fff',
             animation: 'sp-live-dot 1.2s ease-in-out infinite',
             lineHeight: 1.6, boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
           }}>
@@ -432,7 +427,7 @@ export function EventCard({ event, accentColor, isMobile, signals, animationDela
             LIVE
           </span>
         ) : isZombie ? (
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sp-status-zombie)' }}>
             ⚠️ Pendiente de confirmación
           </span>
         ) : isFinished ? (

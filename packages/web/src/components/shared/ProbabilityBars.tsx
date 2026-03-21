@@ -3,8 +3,6 @@
  * Mismo layout que RadarCard: width:X% para números Y barras, alineación perfecta.
  */
 
-import { useTheme } from '../../hooks/use-theme.js';
-
 interface ProbabilityBarsProps {
   probHomeWin: number;   // 0..1
   probDraw: number;      // 0..1
@@ -24,9 +22,6 @@ export function ProbabilityBars({
   label = 'Pronóstico',
   showTeamNames = false,
 }: ProbabilityBarsProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-
   const pH = Math.round(probHomeWin * 100);
   const pD = Math.round(probDraw * 100);
   const pA = Math.round(probAwayWin * 100);
@@ -66,9 +61,9 @@ export function ProbabilityBars({
 
       {/* Barras proporcionales */}
       <div style={{ display: 'flex', gap: 2, borderRadius: 3, overflow: 'hidden', height: 4 }}>
-        <div style={{ width: `${pH}%`, backgroundColor: '#22c55e' }} />
-        <div style={{ width: `${pD}%`, backgroundColor: isDark ? '#374151' : '#94a3b8' }} />
-        <div style={{ width: `${pA}%`, backgroundColor: '#ef4444' }} />
+        <div style={{ width: `${pH}%`, backgroundColor: 'var(--sp-form-win)' }} />
+        <div style={{ width: `${pD}%`, backgroundColor: 'var(--sp-form-draw)' }} />
+        <div style={{ width: `${pA}%`, backgroundColor: 'var(--sp-form-loss)' }} />
       </div>
     </div>
   );

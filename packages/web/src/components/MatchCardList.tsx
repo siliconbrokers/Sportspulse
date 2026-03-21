@@ -102,12 +102,12 @@ function SkeletonGrid() {
 
 function chipColors(level: string): [string, string] {
   const map: Record<string, [string, string]> = {
-    HOT:     ['rgba(239,68,68,0.2)',   '#f87171'],
-    OK:      ['rgba(34,197,94,0.18)',  '#4ade80'],
-    WARN:    ['rgba(249,115,22,0.18)', '#fb923c'],
-    INFO:    ['var(--sp-border-8)','var(--sp-text-55)'],
-    UNKNOWN: ['rgba(255,255,255,0.05)','var(--sp-text-35)'],
-    ERROR:   ['rgba(239,68,68,0.12)',  '#f87171'],
+    HOT:     ['var(--sp-status-error-soft)',   'var(--sp-status-error)'],
+    OK:      ['var(--sp-status-success-soft)', 'var(--sp-status-success)'],
+    WARN:    ['var(--sp-status-warning-soft)', 'var(--sp-status-warning)'],
+    INFO:    ['var(--sp-border-8)',            'var(--sp-text-55)'],
+    UNKNOWN: ['var(--sp-border-4)',            'var(--sp-text-35)'],
+    ERROR:   ['var(--sp-status-error-soft)',   'var(--sp-status-error)'],
   };
   return map[level] ?? map.INFO;
 }
@@ -196,7 +196,7 @@ function TeamRow({
   const isZombie = cardState === 'ZOMBIE';
 
   // Color del score según estado
-  const scoreColor  = isLive ? '#f97316' : isZombie ? '#f59e0b' : 'var(--sp-text-88)';
+  const scoreColor  = isLive ? 'var(--sp-status-live)' : isZombie ? 'var(--sp-status-zombie)' : 'var(--sp-text-88)';
   const scoreShadow = isLive ? '0 0 10px rgba(249,115,22,0.5)' : 'none';
 
   return (
@@ -244,7 +244,7 @@ function TeamRow({
             )}
           </>
         ) : showDash ? (
-          <span style={{ fontSize: 16, fontWeight: 800, color: 'rgba(251,146,60,0.75)' }}>-</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--sp-status-zombie)' }}>-</span>
         ) : showScorePlaceholder ? (
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text-35)', fontVariantNumeric: 'tabular-nums' }}>—</span>
         ) : (
@@ -294,7 +294,7 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
   const cardBorder = isLive
     ? '1.5px solid var(--sp-primary-40)'
     : isZombie
-    ? '1.5px solid rgba(245,158,11,0.40)'
+    ? '1.5px solid rgba(245,158,11,0.40)' /* zombie border — rgba alpha needed */
     : hovered
     ? '1px solid var(--sp-border-8)'
     : '1px solid var(--sp-border-5)';
@@ -302,7 +302,7 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
   const cardBg = isLive
     ? 'var(--sp-primary-04)'
     : isZombie
-    ? 'rgba(245,158,11,0.04)'
+    ? 'var(--sp-status-zombie-soft)'
     : hovered
     ? 'var(--sp-surface)'
     : 'var(--sp-surface-alpha)';
@@ -310,26 +310,26 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
   const cardShadow = isLive
     ? '0 0 20px var(--sp-primary-10)'
     : isZombie
-    ? '0 0 14px rgba(245,158,11,0.08)'
+    ? '0 0 14px rgba(245,158,11,0.08)' /* zombie glow — keep rgba */
     : 'none';
 
   // Badge de estado — live usa rojo sólido como LiveCarousel
   const badgeBg = isLive
-    ? '#ef4444'
+    ? 'var(--sp-status-error)'
     : isZombie
-    ? 'rgba(245,158,11,0.10)'
-    : 'rgba(255,255,255,0.05)';
+    ? 'var(--sp-status-zombie-soft)'
+    : 'var(--sp-border-4)';
 
   const badgeColor = isLive
     ? '#fff'
     : isZombie
-    ? '#f59e0b'
+    ? 'var(--sp-status-zombie)'
     : 'var(--sp-text-35)';
 
   const badgeBorder = isLive
     ? 'none'
     : isZombie
-    ? '1px solid rgba(245,158,11,0.30)'
+    ? '1px solid rgba(245,158,11,0.30)' /* zombie badge border — rgba alpha needed */
     : '1px solid transparent';
 
   function handleCardClick() {
@@ -344,7 +344,7 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
 
   // ── Variante compacta mobile (2 filas, ~74px) ─────────────────────────────
   if (isMobile) {
-    const scoreColor = isLive ? '#f97316' : isZombie ? '#f59e0b' : 'var(--sp-text-88)';
+    const scoreColor = isLive ? 'var(--sp-status-live)' : isZombie ? 'var(--sp-status-zombie)' : 'var(--sp-text-88)';
     const kickoffTime = card.kickoffUtc
       ? new Intl.DateTimeFormat('es-UY', {
           timeZone: PORTAL_TZ, hour: '2-digit', minute: '2-digit', hour12: false,
@@ -393,7 +393,7 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
                 {card.scoreHome ?? '-'}–{card.scoreAway ?? '-'}
               </span>
             ) : showDash ? (
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'rgba(251,146,60,0.75)' }}>-–-</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--sp-status-zombie)' }}>-–-</span>
             ) : (
               <span style={{ fontSize: 11, color: 'var(--sp-text-25)', fontWeight: 300 }}>vs</span>
             )}
@@ -481,7 +481,7 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
         </span>
       </div>
 
-      <div className="h-px" style={{ background: isZombie ? 'rgba(245,158,11,0.15)' : 'var(--sp-border-4)' }} />
+      <div className="h-px" style={{ background: isZombie ? 'var(--sp-status-zombie-soft)' : 'var(--sp-border-4)' }} />
 
       <TeamRow
         card={card} side="home"
@@ -490,7 +490,7 @@ function MatchCard({ card, onSelectTeam, focusedTeamId, showForm }: CardProps) {
         isFocus={homeIsFocus} isDimmed={hasFocus && !homeIsFocus}
       />
 
-      <div className="h-px" style={{ background: isZombie ? 'rgba(245,158,11,0.15)' : 'var(--sp-border-4)' }} />
+      <div className="h-px" style={{ background: isZombie ? 'var(--sp-status-zombie-soft)' : 'var(--sp-border-4)' }} />
 
       <TeamRow
         card={card} side="away"
@@ -548,9 +548,9 @@ function DatePills({
           <span
             className="text-xs px-2 py-0.5 rounded-full"
             style={{
-              background: 'rgba(251,191,36,0.08)',
-              border: '1px solid rgba(251,191,36,0.2)',
-              color: 'rgba(251,191,36,0.7)',
+              background: 'var(--sp-status-zombie-soft)',
+              border: '1px solid rgba(245,158,11,0.2)',
+              color: 'var(--sp-status-zombie)',
               letterSpacing: '0.02em',
             }}
           >

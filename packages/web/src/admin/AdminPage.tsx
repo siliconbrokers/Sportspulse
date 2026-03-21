@@ -40,7 +40,6 @@ const S = {
     minHeight: '100vh',
     background: 'var(--sp-bg)',
     color: 'var(--sp-text)',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     padding: '40px 24px',
   } as React.CSSProperties,
   card: {
@@ -111,14 +110,14 @@ const S = {
     width: '100%',
   } as React.CSSProperties,
   errMsg: {
-    color: '#ef4444',
+    color: 'var(--sp-status-error)',
     fontSize: 13,
     marginTop: 8,
   } as React.CSSProperties,
   feedback: (state: SaveState) => ({
     fontSize: 12,
     marginLeft: 8,
-    color: state === 'ok' ? '#22c55e' : state === 'error' ? '#ef4444' : 'var(--sp-text-40)',
+    color: state === 'ok' ? 'var(--sp-status-success)' : state === 'error' ? 'var(--sp-status-error)' : 'var(--sp-text-40)',
   }) as React.CSSProperties,
 };
 
@@ -161,9 +160,9 @@ function Toggle({ value, onChange, disabled }: { value: boolean; onChange: (v: b
 // ─── Mode selector (segmented control) ───────────────────────────────────────
 
 const MODE_OPTIONS: { value: CompetitionMode; label: string; activeColor: string; borderColor: string; activeText: string }[] = [
-  { value: 'portal',   label: 'Portal',  activeColor: '#22c55e', borderColor: '#22c55e', activeText: '#fff' },
-  { value: 'shadow',   label: 'Shadow',  activeColor: '#f59e0b', borderColor: '#f59e0b', activeText: '#fff' },
-  { value: 'disabled', label: 'Off',     activeColor: '#9ca3af', borderColor: '#9ca3af', activeText: '#fff' },
+  { value: 'portal',   label: 'Portal',  activeColor: 'var(--sp-status-success)', borderColor: 'var(--sp-status-success)', activeText: '#fff' },
+  { value: 'shadow',   label: 'Shadow',  activeColor: 'var(--sp-status-zombie)',  borderColor: 'var(--sp-status-zombie)',  activeText: '#fff' },
+  { value: 'disabled', label: 'Off',     activeColor: 'var(--sp-status-neutral)', borderColor: 'var(--sp-status-neutral)', activeText: '#fff' },
 ];
 
 function ModeSelector({
@@ -329,7 +328,7 @@ function AdminPanel({ token }: { token: string }) {
     return (
       <div style={S.page}>
         <div style={S.card}>
-          <div style={{ color: '#ef4444', fontSize: 14 }}>{loadError}</div>
+          <div style={{ color: 'var(--sp-status-error)', fontSize: 14 }}>{loadError}</div>
         </div>
       </div>
     );
@@ -362,9 +361,9 @@ function AdminPanel({ token }: { token: string }) {
                     letterSpacing: '0.07em',
                     padding: '2px 8px',
                     borderRadius: 4,
-                    background: config.environment === 'production' ? '#dc262622' : '#1d4ed822',
-                    color: config.environment === 'production' ? '#dc2626' : '#1d4ed8',
-                    border: `1px solid ${config.environment === 'production' ? '#dc262644' : '#1d4ed844'}`,
+                    background: config.environment === 'production' ? 'var(--sp-status-error-soft)' : 'var(--sp-status-info-soft)',
+                    color: config.environment === 'production' ? 'var(--sp-status-error)' : 'var(--sp-status-info)',
+                    border: `1px solid ${config.environment === 'production' ? 'rgba(220,38,38,0.3)' : 'rgba(29,78,216,0.3)'}`,
                     textTransform: 'uppercase',
                     flexShrink: 0,
                   }}
@@ -416,20 +415,20 @@ function AdminPanel({ token }: { token: string }) {
             padding: '12px 14px',
             border: config.schedulerEnabled !== false
               ? '1px solid var(--sp-border-8)'
-              : '1.5px solid #f59e0b',
+              : '1.5px solid var(--sp-status-zombie)',
             background: config.schedulerEnabled !== false
               ? 'transparent'
-              : 'rgba(245,158,11,0.06)',
+              : 'var(--sp-status-zombie-soft)',
           }}
         >
           <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
             <div style={{ ...S.label, fontWeight: 700 }}>Scheduler de datos</div>
             {config.schedulerEnabled !== false ? (
-              <div style={{ ...S.slug, marginTop: 3, color: '#22c55e', fontWeight: 500 }}>
+              <div style={{ ...S.slug, marginTop: 3, color: 'var(--sp-status-success)', fontWeight: 500 }}>
                 Activo — fetches automaticos segun estado de partidos
               </div>
             ) : (
-              <div style={{ ...S.slug, marginTop: 3, color: '#f59e0b', fontWeight: 600 }}>
+              <div style={{ ...S.slug, marginTop: 3, color: 'var(--sp-status-zombie)', fontWeight: 600 }}>
                 Pausado — el servidor no esta actualizando datos de API
               </div>
             )}

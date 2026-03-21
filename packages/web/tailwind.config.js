@@ -21,7 +21,31 @@ export default {
           // ESTADOS
           success: "#4ADE80",
           alert: "#F97316",
-        }
+        },
+        status: {
+          success: 'var(--sp-status-success)',
+          error:   'var(--sp-status-error)',
+          warning: 'var(--sp-status-warning)',
+          live:    'var(--sp-status-live)',
+          zombie:  'var(--sp-status-zombie)',
+          neutral: 'var(--sp-status-neutral)',
+          info:    'var(--sp-status-info)',
+        },
+        zone: {
+          champions:    'var(--sp-zone-champions)',
+          europa:       'var(--sp-zone-europa)',
+          conference:   'var(--sp-zone-conference)',
+          playoff:      'var(--sp-zone-playoff)',
+          'playoff-alt':'var(--sp-zone-playoff-alt)',
+          liguilla:     'var(--sp-zone-liguilla)',
+          relegation:   'var(--sp-zone-relegation)',
+          sudamericana: 'var(--sp-zone-sudamericana)',
+        },
+        form: {
+          win:  'var(--sp-form-win)',
+          draw: 'var(--sp-form-draw)',
+          loss: 'var(--sp-form-loss)',
+        },
       },
       borderRadius: {
         'bento': '1.5rem',       // 24px para las cajas grandes

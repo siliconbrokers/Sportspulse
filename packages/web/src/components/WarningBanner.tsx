@@ -22,8 +22,8 @@ export function WarningBanner({ warnings }: WarningBannerProps) {
             marginBottom: 4,
             borderRadius: 4,
             fontSize: 13,
-            backgroundColor: w.severity === 'ERROR' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)',
-            color: w.severity === 'ERROR' ? '#fca5a5' : '#fde68a',
+            backgroundColor: w.severity === 'ERROR' ? 'var(--sp-status-error-soft)' : 'var(--sp-status-warning-soft)',
+            color: w.severity === 'ERROR' ? 'var(--sp-status-error)' : 'var(--sp-status-warning)',
           }}
         >
           {WARNING_LABELS[w.code] ?? w.message ?? w.code}

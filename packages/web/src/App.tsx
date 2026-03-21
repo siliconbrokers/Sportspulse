@@ -225,7 +225,7 @@ function App({ portalConfig }: { portalConfig: PortalConfig }) {
         width: '100%',
         overflowX: 'hidden',
         backgroundColor: 'var(--sp-bg)',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontFamily: 'var(--sp-font-family-base)',
         transition: 'background-color 0.2s ease',
       }}
     >

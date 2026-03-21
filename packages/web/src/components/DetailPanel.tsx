@@ -33,9 +33,9 @@ interface DetailPanelProps {
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
 const FORM_COLORS: Record<FormResult, string> = {
-  W: '#22c55e',
-  D: '#6b7280',
-  L: '#ef4444',
+  W: 'var(--sp-form-win)',
+  D: 'var(--sp-form-draw)',
+  L: 'var(--sp-form-loss)',
 };
 const FORM_LABELS: Record<FormResult, string> = { W: 'G', D: 'E', L: 'P' };
 
@@ -159,13 +159,13 @@ function MatchHeader({
 
   // Color semántico del score según estado
   const scoreColor =
-    isLive   ? '#f97316'                // naranja neon — en juego confirmado
-    : isZombie ? '#f59e0b'             // ámbar — pendiente de confirmación
-    : 'var(--sp-text)';                // blanco/negro — resto
+    isLive   ? 'var(--sp-status-live)'    // naranja neon — en juego confirmado
+    : isZombie ? 'var(--sp-status-zombie)' // ámbar — pendiente de confirmación
+    : 'var(--sp-text)';                    // blanco/negro — resto
 
   const scoreShadow =
-    isLive   ? 'drop-shadow(0 0 10px rgba(249,115,22,0.7))'
-    : isZombie ? 'drop-shadow(0 0 6px rgba(245,158,11,0.35))'
+    isLive   ? 'drop-shadow(0 0 10px rgba(249,115,22,0.7))'   // dynamic glow — keep rgba
+    : isZombie ? 'drop-shadow(0 0 6px rgba(245,158,11,0.35))' // dynamic glow — keep rgba
     : 'none';
 
   return (
@@ -214,7 +214,7 @@ function MatchHeader({
                 transform: 'translate(-50%, -60%)',
                 width: 64, height: 32,
                 borderRadius: '50%',
-                background: 'rgba(249,115,22,0.18)',
+                background: 'var(--sp-status-live-soft)',
                 filter: 'blur(12px)',
                 pointerEvents: 'none',
               }} />
@@ -234,16 +234,16 @@ function MatchHeader({
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{
                     width: 6, height: 6, borderRadius: '50%',
-                    backgroundColor: '#ef4444', display: 'inline-block',
+                    backgroundColor: 'var(--sp-status-error)', display: 'inline-block',
                     animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
                   }} />
-                  <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <span style={{ fontSize: 9, color: 'var(--sp-status-error)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     LIVE
                   </span>
                 </div>
                 {clockText && (
                   <span style={{
-                    fontSize: 12, fontWeight: 800, color: '#f97316',
+                    fontSize: 12, fontWeight: 800, color: 'var(--sp-status-live)',
                     fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em',
                     lineHeight: 1,
                   }}>
@@ -253,8 +253,8 @@ function MatchHeader({
               </div>
             ) : isZombie ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 6 }}>
-                <Clock size={11} color="#f59e0b" strokeWidth={2.5} />
-                <span style={{ fontSize: 9, color: '#f59e0b', fontWeight: 700, letterSpacing: '0.05em' }}>
+                <Clock size={11} color="var(--sp-status-zombie)" strokeWidth={2.5} />
+                <span style={{ fontSize: 9, color: 'var(--sp-status-zombie)', fontWeight: 700, letterSpacing: '0.05em' }}>
                   Confirmando
                 </span>
               </div>
@@ -311,17 +311,17 @@ function derivePredictionBadge(
   uiState?: string,
 ): { label: string; color: string } | null {
   if (uiState === 'PENDING_CONFIRMATION')
-    return { label: 'Confirmando resultado', color: '#f59e0b' };
+    return { label: 'Confirmando resultado', color: 'var(--sp-status-zombie)' };
   // PRE_MATCH: solo muestra badge cuando hay outcome explícito
   if (uiState === 'PRE_MATCH')
-    return outcomeStatus === 'pending' ? { label: 'Pendiente', color: '#6b7280' } : null;
+    return outcomeStatus === 'pending' ? { label: 'Pendiente', color: 'var(--sp-status-neutral)' } : null;
   // Predicción pendiente de evaluación (en curso o aún no iniciado)
   if (outcomeStatus === 'in_progress' || outcomeStatus === 'pending')
-    return { label: 'Pendiente', color: '#6b7280' };
+    return { label: 'Pendiente', color: 'var(--sp-status-neutral)' };
   // Post-partido — evaluación binaria
-  if (outcomeStatus === 'hit')           return { label: 'Acertado',     color: '#22c55e' };
-  if (outcomeStatus === 'miss')          return { label: 'Fallado',      color: '#ef4444' };
-  if (outcomeStatus === 'not_evaluable') return { label: 'No evaluable', color: '#6b7280' };
+  if (outcomeStatus === 'hit')           return { label: 'Acertado',     color: 'var(--sp-status-success)' };
+  if (outcomeStatus === 'miss')          return { label: 'Fallado',      color: 'var(--sp-status-error)' };
+  if (outcomeStatus === 'not_evaluable') return { label: 'No evaluable', color: 'var(--sp-status-neutral)' };
   return null;
 }
 
@@ -403,7 +403,7 @@ function PreMatchBody({
                         <td style={{ padding: '5px 0', fontSize: 12, fontWeight: 700, color: 'var(--sp-text-88)' }}>{name}</td>
                         <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12 }}>{stats!.goalsFor}</td>
                         <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12 }}>{stats!.goalsAgainst}</td>
-                        <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: gd > 0 ? '#22c55e' : gd < 0 ? '#ef4444' : '#6b7280' }}>
+                        <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: gd > 0 ? 'var(--sp-status-success)' : gd < 0 ? 'var(--sp-status-error)' : 'var(--sp-status-neutral)' }}>
                           {gd > 0 ? '+' : ''}{gd}
                         </td>
                         <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: 'var(--sp-text)' }}>{stats!.points}</td>
@@ -434,7 +434,7 @@ function PreMatchBody({
               <td style={{ padding: '5px 0', fontSize: 12, color: 'var(--sp-text-55)' }}>{venue}</td>
               <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12 }}>{stats.goalsFor}</td>
               <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12 }}>{stats.goalsAgainst}</td>
-              <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: gd > 0 ? '#22c55e' : gd < 0 ? '#ef4444' : '#6b7280' }}>
+              <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: gd > 0 ? 'var(--sp-status-success)' : gd < 0 ? 'var(--sp-status-error)' : 'var(--sp-status-neutral)' }}>
                 {gd > 0 ? '+' : ''}{gd}
               </td>
               <td style={{ textAlign: 'center', padding: '5px 6px', fontSize: 12, fontWeight: 700, color: 'var(--sp-text)' }}>{stats.points}</td>
@@ -601,12 +601,12 @@ function IncidentTimeline({
             const badgeBg = goal
               ? 'var(--sp-primary-10)'
               : card
-              ? 'rgba(239,68,68,0.08)'
+              ? 'var(--sp-status-error-soft)'
               : 'transparent';
             const badgeBorder = goal
               ? '1px solid var(--sp-primary-22)'
               : card
-              ? '1px solid rgba(239,68,68,0.2)'
+              ? '1px solid rgba(239,68,68,0.2)' /* card border alpha — no exact token */
               : 'none';
 
             return (
@@ -758,8 +758,8 @@ function FinishedBody({
   const isHit = effectiveOutcomeStatus === 'hit';
   const isMiss = effectiveOutcomeStatus === 'miss';
 
-  const narrativeBorder = isHit ? '#22c55e' : isMiss ? '#ef4444' : 'var(--sp-border-8)';
-  const narrativeBg     = isHit ? 'rgba(34,197,94,0.06)' : isMiss ? 'rgba(239,68,68,0.05)' : 'var(--sp-border-4)';
+  const narrativeBorder = isHit ? 'var(--sp-status-success)' : isMiss ? 'var(--sp-status-error)' : 'var(--sp-border-8)';
+  const narrativeBg     = isHit ? 'var(--sp-status-success-soft)' : isMiss ? 'var(--sp-status-error-soft)' : 'var(--sp-border-4)';
 
   // Padding de la evaluación: más grande cuando no hay eventos para llenar el espacio
   const predPadding = noEventsData ? '20px 20px' : '14px 16px';
@@ -1144,7 +1144,7 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
                       marginBottom: 10, padding: '12px 16px',
                       backgroundColor: 'var(--sp-border-4)',
                       borderRadius: 12,
-                      border: '1px solid rgba(245,158,11,0.25)',
+                      border: '1px solid rgba(245,158,11,0.25)', /* zombie border alpha — no exact token */
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -1180,14 +1180,14 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
               ) : null}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                fontSize: 12, color: '#f59e0b',
+                fontSize: 12, color: 'var(--sp-status-zombie)',
                 textAlign: 'center', justifyContent: 'center',
                 marginTop: 12, padding: '12px 16px',
-                backgroundColor: 'rgba(245,158,11,0.06)',
+                backgroundColor: 'var(--sp-status-zombie-soft)',
                 borderRadius: 10,
                 border: '1px solid rgba(245,158,11,0.18)',
               }}>
-                <Clock size={13} color="#f59e0b" strokeWidth={2} />
+                <Clock size={13} color="var(--sp-status-zombie)" strokeWidth={2} />
                 <span style={{ fontWeight: 600 }}>
                   Resultado pendiente de confirmación oficial
                 </span>
@@ -1214,20 +1214,20 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
                         width: '100%',
                         marginBottom: 12,
                         padding: '11px 16px',
-                        backgroundColor: 'rgba(34,197,94,0.08)',
+                        backgroundColor: 'var(--sp-status-success-soft)',
                         borderRadius: 10,
-                        border: '1px solid rgba(34,197,94,0.25)',
-                        color: '#22c55e',
+                        border: '1px solid rgba(34,197,94,0.25)', /* success border alpha — no exact token */
+                        color: 'var(--sp-status-success)',
                         fontSize: 13,
                         fontWeight: 700,
                         cursor: 'pointer',
                         transition: 'background-color 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.14)';
+                        e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.14)'; /* hover accent — keep rgba */
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.08)';
+                        e.currentTarget.style.backgroundColor = 'var(--sp-status-success-soft)';
                       }}
                     >
                       <span style={{ fontSize: 15 }}>▶</span>
@@ -1320,8 +1320,8 @@ export function DetailPanel({ detail, onClose, predictionProbsOverride }: Detail
           gap: 6,
           padding: '7px 16px',
           fontSize: 11,
-          color: '#ef4444',
-          borderTop: '1px solid rgba(239,68,68,0.2)',
+          color: 'var(--sp-status-error)',
+          borderTop: '1px solid rgba(239,68,68,0.2)', /* quota warning border alpha — no exact token */
         }}>
           <span style={{ fontSize: 13 }}>⚠</span>
           <span>Eventos no disponibles — cuota diaria de API agotada</span>

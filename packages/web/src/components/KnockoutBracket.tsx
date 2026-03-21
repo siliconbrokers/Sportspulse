@@ -84,7 +84,7 @@ function BracketSlot({ slot, isWinner }: { slot: TieSlotDTO; isWinner: boolean }
     <div style={{
       display: 'flex', alignItems: 'center', gap: 5,
       padding: '3px 6px',
-      backgroundColor: isWinner ? 'rgba(34,197,94,0.1)' : 'var(--sp-border-4)',
+      backgroundColor: isWinner ? 'var(--sp-status-success-soft)' : 'var(--sp-border-4)',
       borderRadius: 4, minWidth: 0,
     }}>
       {hasTeam && slot.crestUrl ? (
@@ -95,7 +95,7 @@ function BracketSlot({ slot, isWinner }: { slot: TieSlotDTO; isWinner: boolean }
       <span style={{
         fontSize: 11,
         fontWeight: isWinner ? 700 : 400,
-        color: hasTeam ? (isWinner ? '#22c55e' : 'var(--sp-text-85)') : 'var(--sp-text-30)',
+        color: hasTeam ? (isWinner ? 'var(--sp-status-success)' : 'var(--sp-text-85)') : 'var(--sp-text-30)',
         fontStyle: hasTeam ? 'normal' : 'italic',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
       }}>
@@ -119,7 +119,7 @@ function BracketTieCard({ tie }: { tie: TieDTO }) {
     : isMatchLive(tie.utcDate);
 
   const scoreColor = (isWinner: boolean) =>
-    live ? '#f97316' : isWinner ? '#22c55e' : 'var(--sp-text-55)';
+    live ? 'var(--sp-status-live)' : isWinner ? 'var(--sp-status-success)' : 'var(--sp-text-55)';
 
   return (
     <div style={{
@@ -134,7 +134,7 @@ function BracketTieCard({ tie }: { tie: TieDTO }) {
         <span style={{
           position: 'absolute', top: 4, right: 4,
           width: 5, height: 5, borderRadius: '50%',
-          background: '#ef4444',
+          background: 'var(--sp-status-error)',
           animation: 'sp-badge-blink 2s ease-in-out infinite',
         }} />
       )}
@@ -425,7 +425,7 @@ function MobileTieCard({ tie }: { tie: TieDTO }) {
     : isMatchLive(tie.utcDate);
 
   const scoreColor = (isWinner: boolean) =>
-    live ? '#f97316' : isWinner ? '#22c55e' : 'var(--sp-text-70)';
+    live ? 'var(--sp-status-live)' : isWinner ? 'var(--sp-status-success)' : 'var(--sp-text-70)';
 
   return (
     <div style={{
@@ -435,14 +435,14 @@ function MobileTieCard({ tie }: { tie: TieDTO }) {
       position: 'relative',
     }}>
       <div style={{
-        fontSize: 10, color: live ? '#ef4444' : 'var(--sp-text-30)',
+        fontSize: 10, color: live ? 'var(--sp-status-error)' : 'var(--sp-text-30)',
         textTransform: 'uppercase', letterSpacing: '0.06em',
         padding: '3px 8px', borderBottom: '1px solid var(--sp-border-5)',
         display: 'flex', alignItems: 'center', gap: 5,
       }}>
         {live && (
           <span style={{
-            width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0,
+            width: 5, height: 5, borderRadius: '50%', background: 'var(--sp-status-error)', flexShrink: 0,
             animation: 'sp-badge-blink 2s ease-in-out infinite',
           }} />
         )}

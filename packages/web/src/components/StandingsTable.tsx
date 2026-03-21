@@ -19,65 +19,65 @@ interface Zone {
 }
 
 const PD_ZONES: Zone[] = [
-  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
-  { from: 5,  to: 6,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
-  { from: 7,  to: 7,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
-  { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: 'var(--sp-zone-champions)' },
+  { from: 5,  to: 6,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: 'var(--sp-zone-europa)' },
+  { from: 7,  to: 7,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: 'var(--sp-zone-conference)' },
+  { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: 'var(--sp-zone-relegation)' },
 ];
 const PL_ZONES: Zone[] = [
-  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
-  { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
-  { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
-  { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: 'var(--sp-zone-champions)' },
+  { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: 'var(--sp-zone-europa)' },
+  { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: 'var(--sp-zone-conference)' },
+  { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: 'var(--sp-zone-relegation)' },
 ];
 const BL1_ZONES: Zone[] = [
-  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
-  { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
-  { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
-  { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: '#eab308' },
-  { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: 'var(--sp-zone-champions)' },
+  { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: 'var(--sp-zone-europa)' },
+  { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: 'var(--sp-zone-conference)' },
+  { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: 'var(--sp-zone-playoff)' },
+  { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: 'var(--sp-zone-relegation)' },
 ];
 const URU_ZONES: Zone[] = [
-  { from: 1, to: 1, type: 'ucl', emoji: '🔵', label: 'Copa Libertadores', color: '#00E0FF' },
-  { from: 2, to: 5, type: 'uel', emoji: '🟠', label: 'Copa Sudamericana', color: '#F97316' },
+  { from: 1, to: 1, type: 'ucl', emoji: '🔵', label: 'Copa Libertadores', color: 'var(--sp-zone-champions)' },
+  { from: 2, to: 5, type: 'uel', emoji: '🟠', label: 'Copa Sudamericana', color: 'var(--sp-zone-sudamericana)' },
 ];
 // Argentina Liga Profesional — 28 equipos (Apertura 2025)
 const AR_ZONES: Zone[] = [
-  { from: 1,  to: 1,  type: 'ucl',        emoji: '🔵', label: 'Libertadores',  color: '#22c55e' },
-  { from: 2,  to: 4,  type: 'uel',        emoji: '🟠', label: 'Sudamericana',  color: '#22d3ee' },
-  { from: 25, to: 28, type: 'relegation', emoji: '🔴', label: 'Descenso',      color: '#ef4444' },
+  { from: 1,  to: 1,  type: 'ucl',        emoji: '🔵', label: 'Libertadores',  color: 'var(--sp-zone-champions)' },
+  { from: 2,  to: 4,  type: 'uel',        emoji: '🟠', label: 'Sudamericana',  color: 'var(--sp-zone-sudamericana)' },
+  { from: 25, to: 28, type: 'relegation', emoji: '🔴', label: 'Descenso',      color: 'var(--sp-zone-relegation)' },
 ];
 // Liga MX — top 8 clasifican a Liguilla (playoffs). Sin descenso directo por puntos (sistema Promedios).
 const MX_ZONES: Zone[] = [
-  { from: 1, to: 8, type: 'playoff', emoji: '🟡', label: 'Liguilla', color: '#f59e0b' },
+  { from: 1, to: 8, type: 'playoff', emoji: '🟡', label: 'Liguilla', color: 'var(--sp-zone-liguilla)' },
 ];
 // Chile Primera División — pos 1-2 Libertadores, 3 playoff Libertadores, 4-6 Sudamericana, 15-16 descenso
 const CL_ZONES: Zone[] = [
-  { from: 1,  to: 2,  type: 'ucl',        emoji: '🔵', label: 'Copa Libertadores',    color: '#00E0FF' },
-  { from: 3,  to: 3,  type: 'playoff',    emoji: '🟡', label: 'Playoff Libertadores', color: '#FBBF24' },
-  { from: 4,  to: 6,  type: 'uel',        emoji: '🟠', label: 'Copa Sudamericana',    color: '#F97316' },
-  { from: 15, to: 16, type: 'relegation', emoji: '🔴', label: 'Descenso',             color: '#EF4444' },
+  { from: 1,  to: 2,  type: 'ucl',        emoji: '🔵', label: 'Copa Libertadores',    color: 'var(--sp-zone-champions)' },
+  { from: 3,  to: 3,  type: 'playoff',    emoji: '🟡', label: 'Playoff Libertadores', color: 'var(--sp-zone-playoff-alt)' },
+  { from: 4,  to: 6,  type: 'uel',        emoji: '🟠', label: 'Copa Sudamericana',    color: 'var(--sp-zone-sudamericana)' },
+  { from: 15, to: 16, type: 'relegation', emoji: '🔴', label: 'Descenso',             color: 'var(--sp-zone-relegation)' },
 ];
 // Brasileirão Série A — pos 1-6 Libertadores, 7-12 Sudamericana, 17-20 descenso
 const BR_ZONES: Zone[] = [
-  { from: 1,  to: 6,  type: 'ucl',        emoji: '🔵', label: 'Copa Libertadores', color: '#00E0FF' },
-  { from: 7,  to: 12, type: 'uel',        emoji: '🟠', label: 'Copa Sudamericana', color: '#F97316' },
-  { from: 17, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+  { from: 1,  to: 6,  type: 'ucl',        emoji: '🔵', label: 'Copa Libertadores', color: 'var(--sp-zone-champions)' },
+  { from: 7,  to: 12, type: 'uel',        emoji: '🟠', label: 'Copa Sudamericana', color: 'var(--sp-zone-sudamericana)' },
+  { from: 17, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: 'var(--sp-zone-relegation)' },
 ];
 // Primeira Liga (Portugal) — pos 1-2 Champions, 3 Europa, 4 Conference, 16 playoff, 17-18 descenso
 const PT_ZONES: Zone[] = [
-  { from: 1,  to: 2,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
-  { from: 3,  to: 3,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
-  { from: 4,  to: 4,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
-  { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: '#FBBF24' },
-  { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+  { from: 1,  to: 2,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: 'var(--sp-zone-champions)' },
+  { from: 3,  to: 3,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: 'var(--sp-zone-europa)' },
+  { from: 4,  to: 4,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: 'var(--sp-zone-conference)' },
+  { from: 16, to: 16, type: 'playoff',    emoji: '🟡', label: 'Playoff descenso',  color: 'var(--sp-zone-playoff-alt)' },
+  { from: 17, to: 18, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: 'var(--sp-zone-relegation)' },
 ];
 // Serie A (Italy) — pos 1-4 Champions, 5 Europa, 6 Conference, 18-20 descenso
 const SA_ZONES: Zone[] = [
-  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: '#00E0FF' },
-  { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: '#F97316' },
-  { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: '#14b8a6' },
-  { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: '#EF4444' },
+  { from: 1,  to: 4,  type: 'ucl',        emoji: '🔵', label: 'Champions League',  color: 'var(--sp-zone-champions)' },
+  { from: 5,  to: 5,  type: 'uel',        emoji: '🟠', label: 'Europa League',     color: 'var(--sp-zone-europa)' },
+  { from: 6,  to: 6,  type: 'uecl',       emoji: '🟢', label: 'Conference League', color: 'var(--sp-zone-conference)' },
+  { from: 18, to: 20, type: 'relegation', emoji: '🔴', label: 'Descenso',          color: 'var(--sp-zone-relegation)' },
 ];
 
 const ZONE_CONFIGS: Record<string, Zone[]> = {
@@ -109,9 +109,9 @@ function getZone(competitionId: string, position: number): Zone | null {
 
 // ─── Forma reciente — mismo esquema visual que DetailPanel ───────────────────
 const FORM_COLORS: Record<string, string> = {
-  W: '#22c55e',
-  D: '#6b7280',
-  L: '#ef4444',
+  W: 'var(--sp-form-win)',
+  D: 'var(--sp-form-draw)',
+  L: 'var(--sp-form-loss)',
 };
 const FORM_LABELS: Record<string, string> = { W: 'G', D: 'E', L: 'P' };
 const FORM_TITLES: Record<string, string> = { W: 'Victoria', D: 'Empate', L: 'Derrota' };
@@ -406,7 +406,7 @@ export function StandingsTable({
                       <span
                         style={{
                           fontWeight: 500,
-                          color: isLiveNow ? '#f97316' : playsToday ? 'var(--sp-primary)' : 'var(--sp-text-88)',
+                          color: isLiveNow ? 'var(--sp-status-live)' : playsToday ? 'var(--sp-primary)' : 'var(--sp-text-88)',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -423,8 +423,8 @@ export function StandingsTable({
                             width: 6,
                             height: 6,
                             borderRadius: '50%',
-                            background: '#f97316',
-                            boxShadow: '0 0 6px rgba(249,115,22,0.7)',
+                            background: 'var(--sp-status-live)',
+                            boxShadow: '0 0 6px var(--sp-status-live-soft)',
                             flexShrink: 0,
                             animation: 'pulse-live 2s cubic-bezier(0.4,0,0.6,1) infinite',
                           }}
@@ -459,9 +459,9 @@ export function StandingsTable({
                         fontSize: 12,
                         color:
                           row.goalDifference > 0
-                            ? '#4ade80'
+                            ? 'var(--sp-status-success)'
                             : row.goalDifference < 0
-                              ? '#f87171'
+                              ? 'var(--sp-status-error)'
                               : 'var(--sp-text-35)',
                       }}
                     >
@@ -481,9 +481,9 @@ export function StandingsTable({
                           fontWeight: 600,
                           color:
                             row.goalDifference > 0
-                              ? '#4ade80'
+                              ? 'var(--sp-status-success)'
                               : row.goalDifference < 0
-                                ? '#f87171'
+                                ? 'var(--sp-status-error)'
                                 : 'var(--sp-text-35)',
                         }}
                       >

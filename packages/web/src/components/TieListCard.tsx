@@ -66,7 +66,7 @@ function SlotRow({
   live: boolean;
   isMobile: boolean;
 }) {
-  const scoreColor = live ? '#f97316' : isWinner ? '#22c55e' : 'var(--sp-text-70)';
+  const scoreColor = live ? 'var(--sp-status-live)' : isWinner ? 'var(--sp-status-success)' : 'var(--sp-text-70)';
 
   return (
     <div style={{
@@ -139,25 +139,25 @@ function LegRow({
         padding: '6px 10px',
         cursor: onSelect ? 'pointer' : 'default',
         borderRadius: 6,
-        border: live ? '1px solid rgba(239,68,68,0.3)' : '1px solid transparent',
-        backgroundColor: live ? 'rgba(239,68,68,0.04)' : 'transparent',
+        border: live ? '1px solid rgba(239,68,68,0.3)' : '1px solid transparent', /* live border — rgba alpha needed */
+        backgroundColor: live ? 'var(--sp-status-error-soft)' : 'transparent',
         transition: 'background-color 0.12s',
       }}
-      onMouseEnter={(e) => { if (onSelect) (e.currentTarget as HTMLDivElement).style.backgroundColor = live ? 'rgba(239,68,68,0.08)' : 'var(--sp-border-4)'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.backgroundColor = live ? 'rgba(239,68,68,0.04)' : 'transparent'; }}
+      onMouseEnter={(e) => { if (onSelect) (e.currentTarget as HTMLDivElement).style.backgroundColor = live ? 'var(--sp-status-error-soft)' : 'var(--sp-border-4)'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.backgroundColor = live ? 'var(--sp-status-error-soft)' : 'transparent'; }}
     >
       {/* Label */}
       <div style={{ flexShrink: 0, minWidth: 60 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {live && (
             <span style={{
-              width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0,
+              width: 5, height: 5, borderRadius: '50%', background: 'var(--sp-status-error)', flexShrink: 0,
               animation: 'sp-badge-blink 2s ease-in-out infinite',
             }} />
           )}
           <span style={{
             fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
-            color: live ? '#ef4444' : 'var(--sp-text-30)',
+            color: live ? 'var(--sp-status-error)' : 'var(--sp-text-30)',
           }}>
             {label}
           </span>
@@ -185,7 +185,7 @@ function LegRow({
           <span style={{
             fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
             padding: '2px 6px', borderRadius: 20,
-            background: '#ef4444', color: '#fff', lineHeight: 1.6,
+            background: 'var(--sp-status-error)', color: '#fff', lineHeight: 1.6,
           }}>
             LIVE
           </span>
@@ -193,7 +193,7 @@ function LegRow({
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
             <span style={{
               fontSize: 12, fontWeight: 700,
-              color: live ? '#f97316' : 'var(--sp-text-75)',
+              color: live ? 'var(--sp-status-live)' : 'var(--sp-text-75)',
               fontVariantNumeric: 'tabular-nums',
             }}>
               {homeScore ?? '–'} : {awayScore ?? '–'}
@@ -297,7 +297,7 @@ export function TieListCard({
         <span style={{
           position: 'absolute', top: 6, right: 8,
           width: 6, height: 6, borderRadius: '50%',
-          background: '#ef4444',
+          background: 'var(--sp-status-error)',
           animation: 'sp-badge-blink 2s ease-in-out infinite',
         }} />
       )}

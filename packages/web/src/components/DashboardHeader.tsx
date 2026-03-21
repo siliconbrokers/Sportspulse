@@ -12,7 +12,7 @@ export function DashboardHeader({ header, warnings, source }: DashboardHeaderPro
   const warningCount = warnings.filter((w) => w.severity === 'WARN' || w.severity === 'ERROR').length;
 
   return (
-    <header data-testid="dashboard-header" style={{ padding: '12px 16px', color: '#fff' }}>
+    <header data-testid="dashboard-header" style={{ padding: '12px 16px', color: 'var(--sp-text)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div>
@@ -26,7 +26,7 @@ export function DashboardHeader({ header, warnings, source }: DashboardHeaderPro
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {source === 'stale_fallback' && (
-            <span data-testid="stale-indicator" style={{ fontSize: 12, color: '#fbbf24' }}>
+            <span data-testid="stale-indicator" style={{ fontSize: 12, color: 'var(--sp-status-zombie)' }}>
               Datos desactualizados · {formatDate(header.computedAtUtc, header.timezone)}
             </span>
           )}
@@ -34,8 +34,8 @@ export function DashboardHeader({ header, warnings, source }: DashboardHeaderPro
             <span
               data-testid="warning-badge"
               style={{
-                backgroundColor: warnings.some((w) => w.severity === 'ERROR') ? '#ef4444' : '#f59e0b',
-                color: '#000',
+                backgroundColor: warnings.some((w) => w.severity === 'ERROR') ? 'var(--sp-status-error)' : 'var(--sp-status-zombie)',
+                color: '#fff',
                 borderRadius: 12,
                 padding: '2px 8px',
                 fontSize: 12,

@@ -37,8 +37,8 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
               gap: 12,
               padding: '10px 12px',
               borderRadius: 10,
-              backgroundColor: isFocused ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
-              border: isFocused ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.08)',
+              backgroundColor: isFocused ? 'var(--sp-surface-raised)' : 'var(--sp-surface-card)',
+              border: isFocused ? '1px solid var(--sp-border-10)' : '1px solid var(--sp-border-8)',
               cursor: 'pointer',
             }}
           >
@@ -47,7 +47,7 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
               style={{
                 minWidth: 22,
                 fontSize: 12,
-                color: 'rgba(255,255,255,0.4)',
+                color: 'var(--sp-text-40)',
                 textAlign: 'center',
               }}
             >
@@ -68,7 +68,7 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
                   width: 32,
                   height: 32,
                   borderRadius: '50%',
-                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  backgroundColor: 'var(--sp-border-8)',
                   flexShrink: 0,
                 }}
               />
@@ -80,7 +80,7 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
                 style={{
                   fontSize: 14,
                   fontWeight: 600,
-                  color: '#fff',
+                  color: 'var(--sp-text)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -94,8 +94,8 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
                   {team.displayHints.formChip && (
                     <span style={{
                       fontSize: 10,
-                      color: 'rgba(255,255,255,0.7)',
-                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      color: 'var(--sp-text-70)',
+                      backgroundColor: 'var(--sp-border-8)',
                       borderRadius: 4,
                       padding: '1px 5px',
                       whiteSpace: 'nowrap',
@@ -106,8 +106,8 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
                   {team.displayHints.nextMatchChip && (
                     <span style={{
                       fontSize: 10,
-                      color: 'rgba(255,255,255,0.7)',
-                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      color: 'var(--sp-text-70)',
+                      backgroundColor: 'var(--sp-border-8)',
                       borderRadius: 4,
                       padding: '1px 5px',
                       whiteSpace: 'nowrap',
@@ -118,7 +118,7 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
                 </div>
               )}
               {nm && (
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>
+                <div style={{ fontSize: 11, color: 'var(--sp-text-40)', marginTop: 3 }}>
                   {played
                     ? `${nm.scoreHome} - ${nm.scoreAway} vs ${nm.opponentName ?? '?'}`
                     : nm.opponentName
@@ -131,13 +131,13 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
 
             {/* Score bar + value */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{scoreBar}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sp-text)' }}>{scoreBar}</div>
               <div
                 style={{
                   width: 48,
                   height: 4,
                   borderRadius: 2,
-                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  backgroundColor: 'var(--sp-border-8)',
                   overflow: 'hidden',
                 }}
               >
@@ -146,7 +146,7 @@ export function MobileTeamList({ teams, focusedTeamId, onSelectTeam, timezone }:
                     width: `${scoreBar}%`,
                     height: '100%',
                     borderRadius: 2,
-                    backgroundColor: scoreBar >= 70 ? '#f87171' : scoreBar >= 40 ? '#fb923c' : '#60a5fa',
+                    backgroundColor: scoreBar >= 70 ? 'var(--sp-status-error)' : scoreBar >= 40 ? 'var(--sp-status-warning)' : 'var(--sp-status-info)',
                   }}
                 />
               </div>

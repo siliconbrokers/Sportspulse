@@ -49,7 +49,7 @@ const CARD_GAP       = 12;
 // Derived from NORMALIZED_LEAGUE_TO_ACCENT (competition-meta → DEFAULT_CONFIG → registry)
 // Copa América no está en el registry (no es una liga activa del portal) — fallback manual.
 const LEAGUE_ACCENT: Record<string, string> = {
-  COPA_AMERICA: '#3b82f6', // no tiene competitionId en el portal, fallback estático
+  COPA_AMERICA: 'var(--sp-status-info)', // no tiene competitionId en el portal, fallback estático
   ...NORMALIZED_LEAGUE_TO_ACCENT,
 };
 
@@ -278,7 +278,7 @@ function LiveMatchCard({
     : isLive && !isZombie
     ? '1.5px solid var(--sp-primary)'
     : isZombie
-    ? '1.5px solid rgba(251,191,36,0.55)'
+    ? '1.5px solid var(--sp-status-zombie)'
     : `1px solid var(--sp-border-8)`;
 
   const cardAnimation = isLive && !isZombie && !isSelected
@@ -340,9 +340,9 @@ function LiveMatchCard({
           display: 'inline-flex', alignItems: 'center', gap: 3,
           fontSize: 8, fontWeight: 800, letterSpacing: '0.06em',
           padding: '2px 7px', borderRadius: 20,
-          background: 'rgba(251,191,36,0.15)',
-          color: 'rgb(251,191,36)',
-          border: '1px solid rgba(251,191,36,0.35)',
+          background: 'var(--sp-status-live-soft)',
+          color: 'var(--sp-status-zombie)',
+          border: '1px solid var(--sp-status-zombie)',
           lineHeight: 1.6,
         }}>
           ⏳ CONFIRMANDO
@@ -369,7 +369,7 @@ function LiveMatchCard({
           color: isLive && !isZombie
             ? 'var(--sp-primary)'
             : isZombie
-            ? 'rgb(251,191,36)'
+            ? 'var(--sp-status-zombie)'
             : 'var(--sp-text-55)',
           fontVariantNumeric: 'tabular-nums',
           flexShrink: 0,
@@ -385,7 +385,7 @@ function LiveMatchCard({
         background: isLive && !isZombie
           ? 'var(--sp-primary-22)'
           : isZombie
-          ? 'rgba(251,191,36,0.20)'
+          ? 'var(--sp-status-live-soft)'
           : 'var(--sp-border)',
         marginTop: -2,
       }} />
@@ -393,7 +393,7 @@ function LiveMatchCard({
       {/* ── Equipos ── */}
       {(() => {
         const hasScore = isLive && !isZombie && event.scoreHome != null && event.scoreAway != null;
-        const scoreColor = '#f97316';
+        const scoreColor = 'var(--sp-status-live)';
         return (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {/* Nombres + crests */}
@@ -446,7 +446,7 @@ function LiveMatchCard({
         }}>
           {clockText && (
             <span style={{
-              fontSize: 10, fontWeight: 800, color: '#f97316',
+              fontSize: 10, fontWeight: 800, color: 'var(--sp-status-live)',
               fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em',
               lineHeight: 1,
             }}>
@@ -457,10 +457,10 @@ function LiveMatchCard({
             display: 'inline-flex', alignItems: 'center', gap: 3,
             fontSize: 8, fontWeight: 900, letterSpacing: '0.1em',
             padding: '2px 7px', borderRadius: 20,
-            background: '#ef4444', color: '#fff',
+            background: 'var(--sp-status-error)', color: '#fff',
             animation: 'sp-badge-blink 2s ease-in-out infinite',
             lineHeight: 1.6,
-            boxShadow: '0 1px 6px rgba(239,68,68,0.45)',
+            boxShadow: '0 1px 6px var(--sp-status-error-soft)',
           }}>
             <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
             LIVE

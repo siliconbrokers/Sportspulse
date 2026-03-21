@@ -97,21 +97,21 @@ async function fetchFullCoefficients(): Promise<Coefficients | null> {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-function makeRoot(isDark: boolean): React.CSSProperties {
+function makeRoot(_isDark: boolean): React.CSSProperties {
   return {
     minHeight: '100vh',
-    backgroundColor: isDark ? '#0a0a0a' : '#f8fafc',
-    color: isDark ? '#e2e8f0' : '#0f172a',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace',
+    backgroundColor: 'var(--sp-bg)',
+    color: 'var(--sp-text)',
+    fontFamily: 'var(--sp-font-family-base)',
     fontSize: 12,
     padding: '12px 16px',
   };
 }
 
-function makePanel(isDark: boolean): React.CSSProperties {
+function makePanel(_isDark: boolean): React.CSSProperties {
   return {
-    background: isDark ? '#141414' : '#ffffff',
-    border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+    background: 'var(--sp-surface)',
+    border: '1px solid var(--sp-border-8)',
     borderRadius: 8,
     padding: '12px 14px',
     marginBottom: 12,
@@ -121,31 +121,31 @@ function makePanel(isDark: boolean): React.CSSProperties {
 const SECTION_TITLE: React.CSSProperties = {
   fontSize: 10,
   fontWeight: 700,
-  color: '#64748b',
+  color: 'var(--sp-text-40)',
   textTransform: 'uppercase' as const,
   letterSpacing: '0.1em',
   marginBottom: 8,
 };
 
-function makeTH(isDark: boolean): React.CSSProperties {
+function makeTH(_isDark: boolean): React.CSSProperties {
   return {
     padding: '5px 8px',
     fontSize: 10,
     fontWeight: 600,
-    color: isDark ? '#64748b' : '#475569',
+    color: 'var(--sp-text-40)',
     textAlign: 'left' as const,
     whiteSpace: 'nowrap' as const,
-    borderBottom: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
-    background: isDark ? '#0f0f0f' : '#f1f5f9',
+    borderBottom: '1px solid var(--sp-border-8)',
+    background: 'var(--sp-surface)',
   };
 }
 
-function makeTD(isDark: boolean, i: number, right = false, mono = false): React.CSSProperties {
+function makeTD(_isDark: boolean, i: number, right = false, mono = false): React.CSSProperties {
   return {
     padding: '4px 8px',
     fontSize: 11,
-    background: isDark ? (i % 2 === 0 ? '#141414' : '#111') : (i % 2 === 0 ? '#ffffff' : '#f8fafc'),
-    borderBottom: isDark ? '1px solid #1c1c1c' : '1px solid #e8ecf0',
+    background: i % 2 === 0 ? 'var(--sp-surface)' : 'var(--sp-bg)',
+    borderBottom: '1px solid var(--sp-border-5)',
     whiteSpace: 'nowrap' as const,
     textAlign: right ? 'right' as const : 'left' as const,
     fontFamily: mono ? 'monospace' : 'inherit',
@@ -177,7 +177,12 @@ function fmtMs(ms: number | null): string {
 }
 
 function statusColor(s: JobStatus): string {
-  return { IDLE: '#64748b', RUNNING: '#f59e0b', COMPLETED: '#22c55e', FAILED: '#ef4444' }[s];
+  return ({
+    IDLE: 'var(--sp-status-neutral)',
+    RUNNING: 'var(--sp-status-zombie)',
+    COMPLETED: 'var(--sp-status-success)',
+    FAILED: 'var(--sp-status-error)',
+  } as Record<string, string>)[s] ?? 'var(--sp-text-40)';
 }
 
 // ── Competition ID humanizer ──────────────────────────────────────────────────
@@ -237,7 +242,7 @@ function FeatureTable({ coeff, isDark }: { coeff: Coefficients; isDark: boolean 
 
   function bar(v: number, max = 0.5): React.ReactNode {
     const pct = Math.min(Math.abs(v) / max * 100, 100);
-    const color = v > 0 ? '#22c55e' : v < 0 ? '#ef4444' : '#334155';
+    const color = v > 0 ? 'var(--sp-status-success)' : v < 0 ? 'var(--sp-status-error)' : 'var(--sp-border-8)';
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <div style={{
@@ -249,7 +254,7 @@ function FeatureTable({ coeff, isDark }: { coeff: Coefficients; isDark: boolean 
           borderRadius: 2,
           transition: 'width 0.3s',
         }} />
-        <span style={{ color: v > 0 ? '#86efac' : v < 0 ? '#fca5a5' : '#64748b', minWidth: 48, textAlign: 'right' }}>
+        <span style={{ color: v > 0 ? 'var(--sp-status-success)' : v < 0 ? 'var(--sp-status-error)' : 'var(--sp-text-40)', minWidth: 48, textAlign: 'right' }}>
           {v > 0 ? '+' : ''}{v.toFixed(4)}
         </span>
       </div>
@@ -269,16 +274,16 @@ function FeatureTable({ coeff, isDark }: { coeff: Coefficients; isDark: boolean 
         </thead>
         <tbody>
           <tr>
-            <td style={{ ...makeTD(isDark, 0), color: isDark ? '#64748b' : '#475569', fontStyle: 'italic' }}>bias</td>
+            <td style={{ ...makeTD(isDark, 0), color: 'var(--sp-text-40)', fontStyle: 'italic' }}>bias</td>
             <td style={makeTD(isDark, 0)}>{bar(coeff.home.bias)}</td>
             <td style={makeTD(isDark, 0)}>{bar(coeff.draw.bias)}</td>
             <td style={makeTD(isDark, 0)}>{bar(coeff.away.bias)}</td>
           </tr>
           {rows.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ ...makeTD(isDark, i + 1), color: r.key.startsWith('market') ? '#f59e0b' : (isDark ? '#cbd5e1' : '#334155') }}>
+              <td style={{ ...makeTD(isDark, i + 1), color: r.key.startsWith('market') ? 'var(--sp-status-zombie)' : 'var(--sp-text)' }}>
                 {r.label}
-                {r.key.startsWith('market') && <span style={{ color: '#f59e0b', marginLeft: 4 }}>★</span>}
+                {r.key.startsWith('market') && <span style={{ color: 'var(--sp-status-zombie)', marginLeft: 4 }}>★</span>}
               </td>
               <td style={makeTD(isDark, i + 1)}>{bar(r.home)}</td>
               <td style={makeTD(isDark, i + 1)}>{bar(r.draw)}</td>
@@ -287,7 +292,7 @@ function FeatureTable({ coeff, isDark }: { coeff: Coefficients; isDark: boolean 
           ))}
         </tbody>
       </table>
-      <div style={{ fontSize: 10, color: '#475569', marginTop: 6 }}>
+      <div style={{ fontSize: 10, color: 'var(--sp-text-40)', marginTop: 6 }}>
         ★ Market features — implied probs de Pinnacle/Bet365. Valor 1/3 en producción (sin acceso a odds en vivo).
       </div>
     </div>
@@ -307,8 +312,8 @@ function LogViewer({ lines, status, isDark }: { lines: string[]; status: JobStat
 
   return (
     <div ref={ref} style={{
-      background: isDark ? '#0a0a0a' : '#f1f5f9',
-      border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0',
+      background: 'var(--sp-surface)',
+      border: '1px solid var(--sp-border-8)',
       borderRadius: 6,
       padding: '8px 10px',
       maxHeight: 280,
@@ -316,19 +321,19 @@ function LogViewer({ lines, status, isDark }: { lines: string[]; status: JobStat
       fontFamily: 'monospace',
       fontSize: 11,
       lineHeight: 1.5,
-      color: isDark ? '#94a3b8' : '#64748b',
+      color: 'var(--sp-text-40)',
       marginTop: 8,
     }}>
       {lines.map((l, i) => {
-        const color = l.startsWith('[runner]') ? '#64748b'
+        const color = l.startsWith('[runner]') ? 'var(--sp-text-40)'
           : l.includes('iter') ? '#7dd3fc'
-          : l.includes('accuracy') || l.includes('Accuracy') ? '#86efac'
-          : l.includes('ERROR') || l.includes('error') || l.startsWith('[stderr]') ? '#fca5a5'
-          : '#94a3b8';
+          : l.includes('accuracy') || l.includes('Accuracy') ? 'var(--sp-status-success)'
+          : l.includes('ERROR') || l.includes('error') || l.startsWith('[stderr]') ? 'var(--sp-status-error)'
+          : 'var(--sp-text-40)';
         return <div key={i} style={{ color }}>{l}</div>;
       })}
       {status === 'RUNNING' && (
-        <div style={{ color: '#f59e0b', marginTop: 4 }}>▌</div>
+        <div style={{ color: 'var(--sp-status-zombie)', marginTop: 4 }}>▌</div>
       )}
     </div>
   );
@@ -344,7 +349,7 @@ function NexusInfoPanel({ nexusInfo, isDark, compDisplayNames = {} }: { nexusInf
     return (
       <div style={{ ...PANEL, borderColor: '#4a1d96' }}>
         <div style={{ color: '#a78bfa', fontWeight: 600, marginBottom: 6 }}>No hay snapshots NEXUS disponibles</div>
-        <div style={{ color: isDark ? '#64748b' : '#475569', fontSize: 11 }}>
+        <div style={{ color: 'var(--sp-text-40)', fontSize: 11 }}>
           El motor NEXUS aun no tiene snapshots generados para esta competición. Activar con{' '}
           <code style={{ color: '#c4b5fd' }}>PREDICTION_NEXUS_SHADOW_ENABLED</code> en el servidor.
         </div>
@@ -366,9 +371,9 @@ function NexusInfoPanel({ nexusInfo, isDark, compDisplayNames = {} }: { nexusInf
             ['Feature schema', nexusInfo.featureSchemaVersion ?? '—'],
             ['Competiciones', nexusInfo.competitionIds?.map((id) => humanizeCompId(id, compDisplayNames)).join(', ') ?? '—'],
           ].map(([label, value]) => (
-            <div key={label} style={{ background: isDark ? '#1a1a1a' : '#f8fafc', border: isDark ? '1px solid #2a2a2a' : '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px' }}>
+            <div key={label} style={{ background: 'var(--sp-surface)', border: '1px solid var(--sp-border-8)', borderRadius: 6, padding: '8px 10px' }}>
               <div style={{ fontSize: 10, color: '#a78bfa', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#e2e8f0' : '#0f172a', wordBreak: 'break-all' as const }}>{value}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--sp-text)', wordBreak: 'break-all' as const }}>{value}</div>
             </div>
           ))}
         </div>
@@ -380,8 +385,8 @@ function NexusInfoPanel({ nexusInfo, isDark, compDisplayNames = {} }: { nexusInf
           <h4 style={{ ...SECTION_TITLE, color: '#a78bfa' }}>Pesos del ensemble</h4>
           {Object.entries(ensembleWeights).map(([k, v]) => (
             <div key={k} className="flex items-center gap-2 mb-1">
-              <span style={{ fontSize: 11, color: isDark ? '#94a3b8' : '#64748b', width: 80, flexShrink: 0 }}>{k}</span>
-              <div style={{ flex: 1, background: isDark ? '#2a2a2a' : '#e2e8f0', borderRadius: 4, height: 12, overflow: 'hidden' }}>
+              <span style={{ fontSize: 11, color: 'var(--sp-text-40)', width: 80, flexShrink: 0 }}>{k}</span>
+              <div style={{ flex: 1, background: 'var(--sp-border-8)', borderRadius: 4, height: 12, overflow: 'hidden' }}>
                 <div
                   style={{ background: '#7c3aed', height: '100%', borderRadius: 4, width: `${(v * 100).toFixed(1)}%` }}
                 />
@@ -395,7 +400,7 @@ function NexusInfoPanel({ nexusInfo, isDark, compDisplayNames = {} }: { nexusInf
       )}
 
       {/* Read-only note */}
-      <div style={{ ...PANEL, borderColor: '#4a1d96', background: isDark ? '#130d24' : '#f5f3ff' }}>
+      <div style={{ ...PANEL, borderColor: '#4a1d96', background: 'rgba(74,29,150,0.06)' }}>
         <div style={{ color: '#a78bfa', fontSize: 11 }}>
           NEXUS no requiere entrenamiento manual. Los pesos del ensemble se actualizan automáticamente mediante calibración bootstrap.
         </div>
@@ -503,7 +508,7 @@ export function TrainingLabPage() {
         <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
-        <div style={{ color: isDark ? '#64748b' : '#475569', padding: 24 }}>Cargando...</div>
+        <div style={{ color: 'var(--sp-text-40)', padding: 24 }}>Cargando...</div>
       </div>
     );
   }
@@ -514,9 +519,9 @@ export function TrainingLabPage() {
         <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
-        <div style={{ ...PANEL, borderColor: '#451a03', background: isDark ? '#1a0a00' : '#fff7ed' }}>
-          <div style={{ color: '#f97316', fontWeight: 600, marginBottom: 6 }}>Lab no disponible</div>
-          <div style={{ color: isDark ? '#94a3b8' : '#64748b' }}>Activar con <code style={{ color: '#f59e0b' }}>PREDICTION_INTERNAL_VIEW_ENABLED=true</code> en el servidor.</div>
+        <div style={{ ...PANEL, borderColor: 'rgba(249,115,22,0.4)', background: 'var(--sp-status-live-soft)' }}>
+          <div style={{ color: 'var(--sp-status-live)', fontWeight: 600, marginBottom: 6 }}>Lab no disponible</div>
+          <div style={{ color: 'var(--sp-text-40)' }}>Activar con <code style={{ color: 'var(--sp-status-zombie)' }}>PREDICTION_INTERNAL_VIEW_ENABLED=true</code> en el servidor.</div>
         </div>
       </div>
     );
@@ -528,10 +533,10 @@ export function TrainingLabPage() {
         <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
-        <div style={{ ...PANEL, borderColor: '#450a0a', background: isDark ? '#1a0000' : '#fef2f2' }}>
-          <div style={{ color: '#ef4444', marginBottom: 4 }}>Error al cargar</div>
-          <div style={{ color: isDark ? '#94a3b8' : '#64748b', fontFamily: 'monospace', fontSize: 11 }}>{error}</div>
-          <button onClick={() => void load()} style={{ marginTop: 10, background: isDark ? '#1e293b' : '#f1f5f9', color: isDark ? '#e2e8f0' : '#0f172a', border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
+        <div style={{ ...PANEL, borderColor: 'rgba(239,68,68,0.3)', background: 'var(--sp-status-error-soft)' }}>
+          <div style={{ color: 'var(--sp-status-error)', marginBottom: 4 }}>Error al cargar</div>
+          <div style={{ color: 'var(--sp-text-40)', fontFamily: 'monospace', fontSize: 11 }}>{error}</div>
+          <button onClick={() => void load()} style={{ marginTop: 10, background: 'var(--sp-surface)', color: 'var(--sp-text)', border: '1px solid var(--sp-border-8)', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
             Reintentar
           </button>
         </div>
@@ -549,13 +554,13 @@ export function TrainingLabPage() {
       {/* Header */}
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#f1f5f9' : '#0f172a', marginBottom: 2 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--sp-text)', marginBottom: 2 }}>
             {trainingEngineMode === 'nexus'
               ? 'NEXUS — Ensemble Predictivo PE'
               : 'Entrenamiento — Modelo Logístico PE'
             }
           </div>
-          <div style={{ fontSize: 11, color: '#475569' }}>
+          <div style={{ fontSize: 11, color: 'var(--sp-text-40)' }}>
             {trainingEngineMode === 'nexus'
               ? 'Pipeline: NEXUS ensemble · calibración bootstrap · multi-motor'
               : 'Pipeline: odds (football-data.co.uk) → walk-forward → multinomial logistic + class weights'
@@ -586,15 +591,15 @@ export function TrainingLabPage() {
       {trainingEngineMode === 'nexus' && (
         <>
           {nexusLoading && (
-            <div style={{ color: isDark ? '#64748b' : '#475569', padding: '20px 0' }}>
+            <div style={{ color: 'var(--sp-text-40)', padding: '20px 0' }}>
               Cargando información NEXUS…
             </div>
           )}
           {nexusError && (
-            <div style={{ ...PANEL, borderColor: '#450a0a', background: isDark ? '#1a0000' : '#fef2f2' }}>
-              <div style={{ color: '#ef4444', marginBottom: 4 }}>Error al cargar info NEXUS</div>
-              <div style={{ color: isDark ? '#94a3b8' : '#64748b', fontFamily: 'monospace', fontSize: 11 }}>{nexusError}</div>
-              <div style={{ marginTop: 6, color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }}>
+            <div style={{ ...PANEL, borderColor: 'rgba(239,68,68,0.3)', background: 'var(--sp-status-error-soft)' }}>
+              <div style={{ color: 'var(--sp-status-error)', marginBottom: 4 }}>Error al cargar info NEXUS</div>
+              <div style={{ color: 'var(--sp-text-40)', fontFamily: 'monospace', fontSize: 11 }}>{nexusError}</div>
+              <div style={{ marginTop: 6, color: 'var(--sp-text-40)', fontSize: 10 }}>
                 Verifica que <code>PREDICTION_NEXUS_SHADOW_ENABLED</code> este configurado en el servidor.
               </div>
             </div>
@@ -627,8 +632,8 @@ export function TrainingLabPage() {
                 onClick={() => void handleRun()}
                 disabled={isRunning || triggering}
                 style={{
-                  background: isRunning ? '#1e293b' : '#1d4ed8',
-                  color: isRunning ? '#475569' : '#fff',
+                  background: isRunning ? 'var(--sp-surface)' : 'var(--sp-status-info)',
+                  color: isRunning ? 'var(--sp-text-40)' : '#fff',
                   border: 'none',
                   borderRadius: 6,
                   padding: '7px 16px',
@@ -640,7 +645,7 @@ export function TrainingLabPage() {
                 {isRunning ? '⏳ Entrenando...' : triggering ? 'Iniciando...' : '▶ Reentrenar'}
               </button>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 11, cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--sp-text-40)', fontSize: 11, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={skipDownload}
@@ -652,7 +657,7 @@ export function TrainingLabPage() {
               </label>
 
               {!isRunning && (
-                <button onClick={() => void load()} style={{ background: isDark ? '#1e293b' : '#f1f5f9', color: isDark ? '#94a3b8' : '#64748b', border: isDark ? '1px solid #334155' : '1px solid #e2e8f0', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
+                <button onClick={() => void load()} style={{ background: 'var(--sp-surface)', color: 'var(--sp-text-40)', border: '1px solid var(--sp-border-8)', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 11 }}>
                   Actualizar
                 </button>
               )}
@@ -680,7 +685,7 @@ export function TrainingLabPage() {
               <div style={SECTION_TITLE}>
                 Pesos del modelo — {coeff.trained_on_matches.toLocaleString()} ejemplos · {new Date(coeff.trained_at).toLocaleDateString('es-UY', { timeZone: 'America/Montevideo' })}
               </div>
-              <div style={{ fontSize: 10, color: '#475569', marginBottom: 8 }}>
+              <div style={{ fontSize: 10, color: 'var(--sp-text-40)', marginBottom: 8 }}>
                 Ordenado por magnitud máxima entre clases. Verde = favorece la clase. Rojo = penaliza.
               </div>
               <FeatureTable coeff={coeff} isDark={isDark} />
@@ -688,9 +693,9 @@ export function TrainingLabPage() {
           )}
 
           {!coeff && meta && (
-            <div style={{ ...PANEL, borderColor: '#1e293b' }}>
-              <div style={{ color: '#475569', fontSize: 11 }}>
-                Pesos del modelo no disponibles. Activar <code style={{ color: '#f59e0b' }}>GET /api/internal/training/coefficients</code>.
+            <div style={{ ...PANEL, borderColor: 'var(--sp-border-8)' }}>
+              <div style={{ color: 'var(--sp-text-40)', fontSize: 11 }}>
+                Pesos del modelo no disponibles. Activar <code style={{ color: 'var(--sp-status-zombie)' }}>GET /api/internal/training/coefficients</code>.
               </div>
             </div>
           )}
@@ -703,11 +708,11 @@ export function TrainingLabPage() {
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
-function Stat({ label, value, valueColor, isDark }: { label: string; value: string; valueColor?: string; isDark: boolean }) {
+function Stat({ label, value, valueColor }: { label: string; value: string; valueColor?: string; isDark: boolean }) {
   return (
     <div>
-      <div style={{ fontSize: 10, color: '#475569', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: valueColor ?? (isDark ? '#e2e8f0' : '#0f172a') }}>{value}</div>
+      <div style={{ fontSize: 10, color: 'var(--sp-text-40)', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: valueColor ?? 'var(--sp-text)' }}>{value}</div>
     </div>
   );
 }

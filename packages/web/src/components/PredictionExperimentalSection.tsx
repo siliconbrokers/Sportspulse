@@ -119,7 +119,7 @@ const experimentalBadgeStyle: React.CSSProperties = {
   fontSize: 10,
   fontWeight: 700,
   color: '#fff',
-  backgroundColor: '#f97316',
+  backgroundColor: 'var(--sp-status-live)',
   borderRadius: 4,
   padding: '2px 6px',
   lineHeight: 1.4,
@@ -128,8 +128,8 @@ const experimentalBadgeStyle: React.CSSProperties = {
 const warningBoxStyle: React.CSSProperties = {
   fontSize: 12,
   color: 'var(--sp-text-55)',
-  backgroundColor: 'rgba(245,158,11,0.08)',
-  border: '1px solid rgba(245,158,11,0.22)',
+  backgroundColor: 'var(--sp-status-warning-soft)',
+  border: '1px solid rgba(245,158,11,0.22)', /* warning border alpha — no exact token */
   borderRadius: 8,
   padding: '8px 10px',
   marginBottom: 8,
@@ -182,7 +182,7 @@ function SignalChip({ label, active, detail }: SignalChipProps) {
     padding: '4px 8px',
     fontSize: 11,
     fontWeight: 600,
-    backgroundColor: active ? 'rgba(34,197,94,0.12)' : 'var(--sp-surface-raised)',
+    backgroundColor: active ? 'var(--sp-status-success-soft)' : 'var(--sp-surface-raised)',
     color: active ? 'var(--sp-text-88)' : 'var(--sp-text-50)',
     whiteSpace: 'nowrap' as const,
   };
@@ -227,7 +227,7 @@ function SignalsPanel({ signals }: { signals: SignalsData }) {
 
   const limitedNoteStyle: React.CSSProperties = {
     fontSize: 10,
-    color: '#b45309',
+    color: 'var(--sp-status-warning)',
     marginTop: 6,
   };
 

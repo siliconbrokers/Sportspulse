@@ -7,16 +7,16 @@ import type { ProviderSummaryItem, ProviderDetailResponse, ApiUsageEventLite } f
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const LEVEL_COLOR: Record<string, string> = {
-  NORMAL: '#22c55e',
-  WARNING: '#eab308',
-  CRITICAL: '#f97316',
-  EXHAUSTED: '#ef4444',
+  NORMAL: 'var(--sp-status-success)',
+  WARNING: 'var(--sp-status-warning)',
+  CRITICAL: 'var(--sp-status-live)',
+  EXHAUSTED: 'var(--sp-status-error)',
 };
 
 const DISCREPANCY_COLOR: Record<string, string> = {
-  NONE: '#22c55e',
-  MINOR: '#eab308',
-  MAJOR: '#ef4444',
+  NONE: 'var(--sp-status-success)',
+  MINOR: 'var(--sp-status-warning)',
+  MAJOR: 'var(--sp-status-error)',
   UNKNOWN: 'var(--sp-text-40)',
 };
 
@@ -100,7 +100,7 @@ function IncidentsTable({ events }: { events: ApiUsageEventLite[] }) {
             <tr key={ev.id}>
               <td style={TD}>{relativeTime(ev.startedAtUtc)}</td>
               <td style={{ ...TD, fontFamily: 'monospace', fontSize: 11 }}>{truncate(ev.operationKey, 40)}</td>
-              <td style={{ ...TD, color: ev.success ? '#22c55e' : '#ef4444' }}>
+              <td style={{ ...TD, color: ev.success ? 'var(--sp-status-success)' : 'var(--sp-status-error)' }}>
                 {ev.statusCode ?? '—'}
               </td>
               <td style={TD}>{ev.latencyMs}ms</td>
