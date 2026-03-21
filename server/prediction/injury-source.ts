@@ -99,6 +99,12 @@ const _cache = new Map<string, CacheEntry>();
 const INJURY_FETCH_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const _lastFetchAttemptMs = new Map<string, number>();
 
+// Hard cap: max player-stats API calls per process lifetime.
+// Prevents burst storms on restart when disk cache is cold.
+// Survivors of the cap get static importance fallback (position-based).
+const MAX_PLAYER_STATS_FETCHES_PER_PROCESS = 30;
+let _playerStatsFetchCount = 0;
+
 // Cooldown for player stats: same principle — once fetched (or attempted), skip for 6h.
 // Prevents burst when many injuries share players not yet in disk cache.
 const PLAYER_STATS_FETCH_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -298,13 +304,24 @@ async function fetchPlayerMinutes(
     return { minutesPlayed: cached.minutesPlayed, gamesPlayed: cached.gamesPlayed };
   }
 
+  // Hard cap: if we've already fetched too many players this process lifetime, skip.
+  // Prevents burst on restart when disk cache is cold for many players.
+  if (_playerStatsFetchCount >= MAX_PLAYER_STATS_FETCHES_PER_PROCESS) {
+    return { minutesPlayed: null, gamesPlayed: null };
+  }
+
   // Cooldown: if we already attempted this player recently, skip to avoid storm on cold cache.
   const playerKey = `${playerId}:${season}`;
   const lastAttempt = _lastPlayerStatsFetchMs.get(playerKey) ?? 0;
   if (Date.now() - lastAttempt < PLAYER_STATS_FETCH_INTERVAL_MS) {
     return { minutesPlayed: null, gamesPlayed: null };
   }
+
+  // Write sentinel to disk BEFORE the API call — if server crashes mid-fetch,
+  // the next restart finds a sentinel and skips this player (avoids crash loops).
+  writePlayerStatsCache(playerId, season, leagueId, null, null);
   _lastPlayerStatsFetchMs.set(playerKey, Date.now());
+  _playerStatsFetchCount++;
 
   // Budget check before API call
   if (isQuotaExhausted()) {
