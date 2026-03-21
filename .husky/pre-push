@@ -19,18 +19,26 @@ if [ "$BRANCH" != "main" ]; then
   exit 0
 fi
 
+# SKIP_SEED=true omite el seed (usar cuando el servidor esta suspendido o en emergencias)
+if [ "${SKIP_SEED:-false}" = "true" ]; then
+  echo ""
+  echo "[pre-push] SKIP_SEED=true — omitiendo seed."
+  echo ""
+  exit 0
+fi
+
 if [ -z "${ADMIN_SECRET:-}" ] || [ -z "${SEED_URL:-}" ]; then
   echo ""
-  echo "[pre-push] ADVERTENCIA: ADMIN_SECRET o SEED_URL no configurados en .env.local"
-  echo "[pre-push] El seed de cache se omite. Define estas vars para automatizarlo:"
-  echo "[pre-push]   ADMIN_SECRET=<token>"
-  echo "[pre-push]   SEED_URL=https://sportspulse-qc6r.onrender.com"
+  echo "[pre-push] ADVERTENCIA: ADMIN_SECRET o SEED_URL no configurados."
+  echo "[pre-push] El seed de cache se omite."
   echo ""
   exit 0
 fi
 
 echo ""
 echo "[pre-push] Seeding cache en produccion..."
+# El seed es best-effort: si falla (servidor suspendido, error de red, etc.)
+# el push continua igual. El seed no debe bloquear un deploy de emergencia.
 OVERWRITE="${OVERWRITE:-false}" ADMIN_SECRET="$ADMIN_SECRET" SEED_URL="$SEED_URL" \
-  bash "$SCRIPT_DIR/pack-cache.sh"
+  bash "$SCRIPT_DIR/pack-cache.sh" || echo "[pre-push] Seed fallo — continuando con el push."
 echo ""
