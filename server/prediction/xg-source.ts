@@ -35,13 +35,21 @@ import { COMPETITION_REGISTRY } from '../competition-registry.js';
 /** TTL for in-memory fixture list cache (per league+season). */
 const FIXTURE_LIST_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-/** Max new fixture stats requests per getHistoricalXg call. Prevents backfill storm on fresh deploys.
- *  Kept low (3) to avoid burning API-Football quota during live refresh cycles (every 2min in LIVE tier).
- *  Remaining fixtures are picked up in subsequent cycles over time. */
+/** Max new fixture stats requests per backfill run (per competition). */
 const MAX_NEW_XG_FETCHES_PER_CYCLE = 3;
+
+/** Minimum interval between backfill runs per competition.
+ *  xG is historical training data — immutable once a match finishes.
+ *  No need to backfill on every live refresh cycle (every 2min).
+ *  6h cooldown means at most 4 backfill runs/day per competition. */
+const XG_BACKFILL_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 /** Root directory for disk cache (relative to cwd). */
 const CACHE_ROOT = 'cache/xg';
+
+// ── Backfill cooldown tracker ──────────────────────────────────────────────────
+// Key: competitionId — value: timestamp of last backfill run
+const _lastBackfillMs = new Map<string, number>();
 
 // ── League ID mapping ─────────────────────────────────────────────────────────
 // Derived automatically from COMPETITION_REGISTRY — no manual updates needed when leagues are added.
@@ -480,9 +488,17 @@ export class XgSource {
         }),
       );
 
-      // Step 3: Fetch missing fixtures — capped at MAX_NEW_XG_FETCHES_PER_CYCLE to
-      // prevent backfill storms on fresh deploys (Render wipes ephemeral FS on redeploy).
-      // Remaining fixtures are picked up in subsequent cycles.
+      // Step 3: Backfill missing fixtures — subject to cooldown + per-cycle cap.
+      // xG is historical training data (immutable post-match) — no need to backfill
+      // on every live refresh cycle. Cooldown of 6h means at most 4 runs/day per competition,
+      // regardless of how often getHistoricalXg is called (e.g. every 2min in LIVE tier).
+      const lastBackfill = _lastBackfillMs.get(competitionId) ?? 0;
+      const backfillDue = toFetch.length > 0 && (Date.now() - lastBackfill) >= XG_BACKFILL_INTERVAL_MS;
+      if (!backfillDue) {
+        // Not due yet — return cached results only, no API calls
+        return results;
+      }
+      _lastBackfillMs.set(competitionId, Date.now());
       let fetched = 0;
       for (const f of toFetch) {
         if (isQuotaExhausted()) { markBlocked(); break; }
