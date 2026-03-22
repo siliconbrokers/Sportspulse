@@ -1,349 +1,42 @@
 ---
 artifact_id: SPEC-SPORTPULSE-QA-PREDICTION-TRACK-RECORD-FIXTURES
-title: "Prediction Track Record Fixtures"
+title: "Prediction and Track Record Fixtures"
 artifact_class: spec
 status: active
 version: 1.1.0
 project: sportpulse
 domain: qa
 slug: prediction-track-record-fixtures
-owner: team
-created_at: 2026-03-16
+owner: qa
+created_at: 2026-03-15
 updated_at: 2026-03-21
 supersedes: []
 superseded_by: []
 related_artifacts:
-  - SPEC-SPORTPULSE-QA-GOLDEN-SNAPSHOT-FIXTURES
+  - SPEC-SPORTPULSE-BACKEND-TRACK-RECORD-CONTRACT
   - SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX
-  - SPEC-SPORTPULSE-PREDICTION-ENGINE
 canonical_path: docs/core/spec.sportpulse.qa.prediction-track-record-fixtures.md
 ---
+# Prediction and Track Record Fixtures
 
-# Prediction Track Record Fixtures
-
-Version: 1.1
+Version: 1.1.0  
 Status: Active
-Scope: Authoritative definition of the PF-* prediction fixture family — what they validate, comparison rules, versioning model, anti-lookahead rules, and the track record accuracy gate
-Audience: QA / Fixture Enforcer, predictive-engine-qa agent, predictive-engine-auditor agent, engineering
 
----
-
-## 1. Purpose
-
-This spec defines the **PF-* fixture family** — the canonical truth locks for the prediction pipeline.
-
-It is separate from `spec.sportpulse.qa.golden-snapshot-fixtures.md` (F1–F6), which governs the snapshot/attention dashboard pipeline. The two families have different comparison semantics and cannot be merged.
-
-PF-* fixtures protect:
-- determinism of the prediction engine output given the same inputs
-- correctness of probability distributions (sum, calibration)
-- operating mode assignment integrity
-- pre-kickoff timestamp discipline (anti-lookahead)
-- aggregate accuracy computation and track record display logic
-
----
-
-## 2. Relation to the Acceptance Test Matrix
-
-PF-* fixtures are the backing evidence for the **prediction/track-record subset** of Acceptance Matrix series K.
-
-They do **not** govern the commercial/auth/freemium acceptance cases that now occupy K-04 and above in the active Acceptance Test Matrix.
-
-### 2.1 Scope boundary
-
-PF-* fixtures directly support:
-- prediction response correctness
-- eligibility/operating-mode correctness
-- anti-lookahead correctness
-- track-record threshold/integrity correctness
-
-PF-* fixtures do **not** directly support:
-- Pro depth paywall presentation gating
-- Stripe checkout/session propagation
-- registration deferral
-- commercial ad suppression by tier
-- style-propagation readiness
-
-Those behaviors require API/UI/integration tests and are governed by the Acceptance Matrix and frontend/backend integration specs, not by PF-* fixtures.
-
-### 2.2 Mapping rule
-
-Each PF-* fixture maps to one or more K-series acceptance IDs **only where the acceptance case is prediction/track-record semantic truth**.
-
-A PF-* failure therefore blocks the corresponding prediction/track-record acceptance obligations, but it does **not** substitute for commercial/auth acceptance coverage.
-
-| Acceptance ID | Covered by fixture(s) |
-|---------------|----------------------|
-| K-01 | PF-01 (determinism), PF-02 (distribution integrity), PF-04 (calibration shape), PF-05 (operating mode integrity) |
-| K-02 | PF-05 (operating mode integrity) |
-| K-03 | PF-03 (track record threshold gate), PF-06 (pre-kickoff anti-lookahead), PF-05 (FULL_MODE inclusion discipline) |
-| K-04 | none — commercial/depth gating case, out of PF scope |
-| K-05 | none — subscription/checkout/session case, out of PF scope |
-| K-06 | none — registration deferral UX case, out of PF scope |
-| K-07+ | none unless a future corrected spec explicitly states otherwise |
-
-### 2.3 Conflict correction note
-
-Version 1.0.0 incorrectly presented a one-to-one mapping from PF-04..PF-06 to K-04..K-06.
-
-That mapping is no longer valid because the active Acceptance Matrix assigns:
-- K-04 to Pro depth paywall,
-- K-05 to Pro subscription flow,
-- K-06 to registration deferral.
-
-This spec corrects that conflict without changing PF-01..PF-06 fixture semantics.
-
----
-
-## 3. Fixture Definitions
-
-### PF-01 — Prediction Determinism
-
-**What it validates:**
-Given the same `MatchInput`, the same `CompetitionProfile`, and the same historical match record (prior ratings), the prediction engine must produce byte-identical output on repeated invocations.
-
-**Comparison rule:**
-Deep-equal on the full `PredictionResponse` object. No field may differ between runs.
-
-**Why it matters:**
-Non-determinism in Elo or Poisson computation causes silent divergence in the track record. Same inputs must always yield the same probabilities.
-
-**Failure classification:** always a bug — no intentional-change path.
-
----
-
-### PF-02 — Distribution Integrity (Sum = 1.0 ± ε)
-
-**What it validates:**
-- `raw_1x2_probs.home + raw_1x2_probs.draw + raw_1x2_probs.away` = 1.0 ± 0.0001
-- `calibrated_1x2_probs.home + calibrated_1x2_probs.draw + calibrated_1x2_probs.away` = 1.0 ± 0.0001
-- Sum of all cells in `raw_match_distribution` (8×8 matrix) + `tail_mass_raw` = 1.0 ± 0.0001
-- BTTS: `yes + no` = 1.0 ± 0.0001
-- Each total band in `over_under` maps: `over + under` = 1.0 ± 0.0001 per threshold
-
-**Comparison rule:**
-Numeric assertion within epsilon. Epsilon = 0.0001 (1e-4). Silent renormalization is forbidden — if the sum falls outside epsilon, it is a fixture failure, not an auto-fix.
-
-**Why it matters:**
-Probabilities that do not sum to 1 are invalid. The spec explicitly forbids silent renormalization (PE Spec §16.9).
-
-**Failure classification:** always a bug.
-
----
-
-### PF-03 — Track Record Threshold Gate
-
-**What it validates:**
-When the number of evaluated predictions for a given liga is `< 200`, the `PredictionResponse` or track record endpoint must set `belowThreshold: true` and must NOT expose numeric accuracy metrics (accuracy %, hit rate, calibration score).
-
-When the count reaches `≥ 200`, numeric accuracy metrics may be exposed.
-
-**Comparison rule:**
-Two fixture sub-cases:
-- Sub-case A (count = 50): response must have `belowThreshold: true` and `accuracy: null` (or absent).
-- Sub-case B (count = 250): response may have `belowThreshold: false` and numeric `accuracy`.
-
-**Why it matters:**
-The 200-prediction threshold is a constitutional invariant (Constitution §24, BP v3.0 §11.2). Showing accuracy from a small sample is epistemically misleading and violates the track record integrity moat.
-
-**Failure classification:** bug if threshold is not enforced; intentional change requires a spec amendment with explicit reasoning.
-
----
-
-### PF-04 — Calibration Shape
-
-**What it validates:**
-The calibrated_1x2_probs must pass an isotonic consistency check: for a pre-built calibrator trained on known data, the output probabilities must fall within the expected output range for the given raw input bucket.
-
-**Comparison rule:**
-The fixture provides a pre-computed calibrator state (stored as JSON in `tools/fixtures/prediction/pf-04-calibrator-state.json`), a set of raw inputs, and expected calibrated output ranges `[min, max]` per class per input. Each calibrated value must fall within its declared range.
-
-**Why it matters:**
-Calibration transforms raw Poisson-derived probabilities into historically-grounded estimates. If the isotonic regression output drifts, the prediction surface becomes unreliable and any downstream track-record claim is suspect.
-
-**Failure classification:**
-- Within epsilon of declared range: pass.
-- Outside range but calibrator state unchanged: bug in application logic.
-- Range shifts because calibrator state changed intentionally: requires fixture update with version bump to `calibration_version`.
-
----
-
-### PF-05 — Operating Mode Integrity
-
-**What it validates:**
-Given controlled inputs:
-- Valid MatchInput with ≥10 prior matches per team: `operating_mode = FULL_MODE`
-- MatchInput with 5 prior matches for one team: `operating_mode = LIMITED_MODE`
-- MatchInput with 0 prior matches: `operating_mode = NOT_ELIGIBLE`
-
-**Comparison rule:**
-Exact string equality on `operating_mode` field. Reasons array must contain the declared reason codes for each scenario (see PE Spec §3.6 reasons catalog).
-
-**Why it matters:**
-Operating mode is the eligibility gate. Incorrect mode assignment could expose inaccurate predictions as if they were fully calibrated, or wrongly suppress valid public predictions.
-
-**Failure classification:** always a bug.
-
----
-
-### PF-06 — Pre-Kickoff Timestamp Discipline (Anti-Lookahead)
-
-**What it validates:**
-A prediction generated with `buildNowUtc = T` where `T < kickoffUtc` must not use any match result data with `matchDate ≥ T`. The engine must not incorporate post-kickoff information from the match being predicted or any match that has not yet been played relative to `T`.
-
-**Comparison rule:**
-Fixture provides: a `buildNowUtc`, a set of historical matches with explicit dates, one of which falls after `buildNowUtc`. The prediction output must be identical to a run where that future match was excluded from the history. If the future match affects the output, the fixture fails.
-
-**Why it matters:**
-Lookahead contamination invalidates the track record. A model that "knows" future outcomes when predicting past matches produces inflated apparent accuracy.
-
-**Failure classification:** always a bug. No intentional-change path exists for lookahead — it is a fundamental correctness invariant.
-
----
-
-## 4. Fixture File Layout
-
-Prediction fixtures live under:
-
-```
-tools/fixtures/prediction/
-  pf-01-determinism/
-    input.json           # MatchInput + CompetitionProfile + history
-    expected-output.json # Full PredictionResponse (golden)
-  pf-02-distribution/
-    input.json
-    expected-sums.json   # {raw_1x2, calibrated_1x2, matrix, btts, ou}
-  pf-03-threshold/
-    input-below.json     # history with 50 evaluated predictions
-    expected-below.json  # {belowThreshold: true, accuracy: null}
-    input-above.json     # history with 250 evaluated predictions
-    expected-above.json  # {belowThreshold: false, accuracy: <number>}
-  pf-04-calibration/
-    pf-04-calibrator-state.json  # serialized calibrator
-    test-cases.json              # [{raw_input, expected_min, expected_max}]
-  pf-05-operating-mode/
-    case-full.json       # {input, expected_mode: "FULL_MODE", expected_reasons: [...]}
-    case-limited.json    # {input, expected_mode: "LIMITED_MODE", ...}
-    case-not-eligible.json # {input, expected_mode: "NOT_ELIGIBLE", ...}
-  pf-06-antilookahead/
-    input-with-future.json   # history includes one match after buildNowUtc
-    input-without-future.json # same history, future match removed
-    expected-equal.json      # PredictionResponse must be identical for both
-```
-
----
-
-## 5. Comparison Semantics
-
-### 5.1 Deep equality vs. structural equality
-
-PF-01 uses **deep equality** — every field must match. If the engine adds new fields to PredictionResponse (e.g., a new explainability field), the fixture must be updated with a version bump.
-
-PF-02, PF-03 use **structural assertions** — specific numeric or boolean fields are checked, not the full object. Adding new fields does not break these fixtures.
-
-PF-04, PF-05, PF-06 use **property assertions** — enumerable properties within declared ranges or exact values on a subset of fields.
-
-### 5.2 Epsilon for floating-point comparisons
-
-All floating-point probability comparisons use epsilon = 0.0001 unless a fixture explicitly declares a tighter epsilon.
-
-### 5.3 Fixture update protocol
-
-When a fixture must be updated (intentional versioned change):
-
-1. Classify the change: bug fix / calibrator retraining / PE spec amendment
-2. If classification is "calibrator retraining": bump `calibration_version` in `version-metadata.ts`
-3. If classification is "PE spec amendment": bump `policyVersion` per versioning gates
-4. Update the fixture file with new expected values
-5. Document the reason and version in the fixture's `CHANGELOG.md` under `tools/fixtures/prediction/`
-6. Never update a fixture "to make the test pass" without completing steps 1–5
-
----
-
-## 6. Anti-Lookahead Rules
-
-The anti-lookahead invariant applies to both the fixture runner and the production engine:
-
-1. **Fixture runner**: must pass `buildNowUtc` as an explicit parameter when computing predictions for evaluation. It must never use `new Date()` or `Date.now()` as the temporal anchor.
-
-2. **Production engine**: must filter historical matches to those with `matchDate < buildNowUtc` before computing Elo ratings.
-
-3. **Track record computation**: a prediction is "evaluated" only when its match is FINISHED and `matchDate ≤ evaluationWindowCloseUtc`. Predictions for matches still SCHEDULED or IN_PROGRESS are excluded from accuracy metrics.
-
-4. **Forward validation**: predictions must be generated before their respective matches kick off. Any prediction generated after `kickoffUtc` is tagged `post_kickoff: true` and excluded from track record computations.
-
----
-
-## 7. Versioning Model
-
-PF-* fixtures are versioned independently from snapshot fixtures.
-
-```
-tools/fixtures/prediction/FIXTURES-VERSION.md
-```
-
-This file tracks the current fixture suite version and changelog. Format:
-
-```
-Prediction Fixture Suite Version: 1.1.0
-Last updated: 2026-03-21
-Reason: Corrected Acceptance Matrix mapping after K-series commercial expansion
-
-Changelog:
-- 1.1.0 (2026-03-21): Corrected PF↔K mapping boundaries; no PF fixture semantics changed
-- 1.0.0 (2026-03-16): Initial PF-01..PF-06 fixture definitions
-```
-
-Fixture suite version bumps:
-- **Patch** (x.y.Z): fixing an incorrect expected value that was a defect in the fixture itself
-- **Minor** (x.Y.z): adding new fixture sub-cases or correcting governing mapping/coverage boundaries without changing fixture comparison semantics
-- **Major** (X.y.z): changing comparison semantics, adding required new fixtures that alter compliance criteria
-
----
-
-## 8. Anti-Cherry-Picking Rule
-
-The track record must include all evaluated predictions for a liga within the evaluation window, not a curated subset.
-
-The QA fixture must verify:
-- The count in the track record response matches the count of stored evaluated predictions
-- The accuracy metric (when `belowThreshold = false`) is computed over the full population, not filtered by outcome
-
-Any filtering of evaluated predictions (e.g., excluding "uncertain" matches) requires an explicit spec amendment, not a silent implementation choice.
-
----
-
-## 9. Relation to Snapshot Fixtures (F1–F6)
-
-| Dimension | Snapshot Fixtures (F1–F6) | Prediction Fixtures (PF-01–PF-06) |
-|-----------|--------------------------|-----------------------------------|
-| Pipeline | attention dashboard (canonical→signals→scoring→layout→snapshot) | prediction (canonical→prediction engine→PredictionResponse) |
-| Truth anchor | `buildNowUtc` → DashboardSnapshotDTO | `buildNowUtc` → PredictionResponse |
-| Comparison method | JSON deep-equal on DTO shape | per-fixture: deep-equal, range, or property assertion |
-| Version gate trigger | snapshotSchemaVersion bump | policyVersion or calibration_version bump |
-| Anti-lookahead | not applicable | mandatory (§6) |
-| Track record gate | not applicable | ≥200 per liga (§3, PF-03) |
-
-These two families are operationally independent. A PF-* failure does not affect F1–F6 pass status, and vice versa.
-
----
-
-## 10. Fixture Enforcement Policy
-
-The QA / Fixture Enforcer agent must:
-
-1. Run the full PF-* suite as part of every PR that touches `packages/prediction/`
-2. Classify any failure as: bug / intentional versioned change / fixture defect
-3. Block merge if any PF-* fixture fails without full classification and version reasoning
-4. Maintain `tools/fixtures/prediction/FIXTURES-VERSION.md` current after any update
-5. Avoid treating PF-* fixtures as proof of commercial/auth/freemium acceptance; those require separate API/UI/integration evidence
-
-The predictive-engine-qa agent owns test implementation for the PF-* suite.
-
-The predictive-engine-auditor agent uses PF-* fixture pass/fail status as primary evidence in formal conformance audits.
-
----
-
-## 11. One-Paragraph Summary
-
-The PF-* prediction fixture family defines six canonical truth locks for the SportPulse prediction pipeline: determinism (PF-01), distribution integrity (PF-02), track record threshold gate at ≥200 predictions per liga (PF-03), calibration shape consistency (PF-04), operating mode integrity (PF-05), and pre-kickoff anti-lookahead discipline (PF-06). These fixtures are separate from the F1–F6 snapshot fixtures, use different comparison semantics, and are governed by an independent versioning model. As of version 1.1.0, PF-* fixtures support only the prediction/track-record semantic subset of Acceptance Matrix series K and are explicitly out of scope for freemium/commercial K cases such as paywall gating, subscription propagation, and registration deferral.
+## Purpose
+Defines fixture-backed evidence for prediction surface and public track record. It does not validate paywall, auth, checkout, or ad suppression behavior.
+
+## Mapping
+- PF-01 → K-01 support
+- PF-02 → K-02 support
+- PF-03 → K-03 support (available)
+- PF-04 → K-03 support (below_threshold)
+- PF-05 → K-03 support (historical_walk_forward disclosure)
+- PF-06 → K-03 support (unavailable)
+
+## Explicit exclusion
+The following are outside PF scope:
+- K-04 Pro paywall
+- K-05 subscription flow
+- K-06 registration deferral
+- K-07 Pro ad suppression
+- K-08 style propagation
