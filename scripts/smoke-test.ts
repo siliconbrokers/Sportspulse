@@ -60,6 +60,39 @@ async function main(): Promise<void> {
     await get('/api/ui/news?league=PD');
   });
 
+  // 5. GET /api/session (V2 — only if ENABLE_V2_ROUTES is detectable)
+  // We check for a 200 response and a JSON body with 'sessionStatus' field.
+  // This smoke check is skipped when the endpoint returns 404 (V2 routes not enabled).
+  await check('session endpoint (V2 — skipped if not enabled)', async () => {
+    const res = await fetch(`${BASE_URL}/api/session`);
+    if (res.status === 404) {
+      console.log('    (skipped — ENABLE_V2_ROUTES=false)');
+      return; // not a failure, just inactive
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = await res.json() as Record<string, unknown>;
+    if (!('sessionStatus' in body)) throw new Error('missing sessionStatus field in response');
+    const valid = ['anonymous', 'authenticated', 'expired'];
+    if (!valid.includes(String(body.sessionStatus))) {
+      throw new Error(`unexpected sessionStatus: ${body.sessionStatus}`);
+    }
+  });
+
+  // 6. GET /api/ui/track-record (public — one competition)
+  // Uses first enabled competition. State must be one of the 3 valid values.
+  if (enabledIds.length > 0) {
+    await check('track-record: responds with valid state', async () => {
+      const id = enabledIds[0]!;
+      const res = await fetch(`${BASE_URL}/api/ui/track-record?competitionId=${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json() as Record<string, unknown>;
+      const validStates = ['available', 'below_threshold', 'unavailable'];
+      if (!validStates.includes(String(body.state))) {
+        throw new Error(`unexpected state: ${body.state}`);
+      }
+    });
+  }
+
   // Summary
   const icon = failed === 0 ? '✅' : '❌';
   console.log(`\n${icon} ${failed === 0 ? 'All smoke checks passed' : `${failed} check(s) FAILED`}\n`);

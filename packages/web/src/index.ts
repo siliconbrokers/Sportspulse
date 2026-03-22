@@ -1,4 +1,4 @@
-export { App } from './App.js';
+export { AppRoot as App } from './App.js';
 export { DashboardLayout } from './components/DashboardLayout.js';
 export { TreemapCanvas } from './components/TreemapCanvas.js';
 export { TeamTile } from './components/TeamTile.js';

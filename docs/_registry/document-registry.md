@@ -2,7 +2,7 @@
 
 > Machine-maintained index of all governed artifacts in `docs/`.
 > Update this file whenever an artifact is created, renamed, superseded, or archived.
-> Last updated: 2026-03-16 (residual patch — BP uniqueness, constitution title, intake serialization, PF-* governance adoption)
+> Last updated: 2026-03-21 (corpus sync — 4 status/version corrections, backend-architecture v1.1.0, 5 prompt-master entries, execution table reference)
 
 ---
 
@@ -62,14 +62,14 @@
 
 | artifact_id | title | class | status | version | canonical_path |
 |-------------|-------|-------|--------|---------|----------------|
-| SPEC-SPORTPULSE-WEB-AUTH-AND-FREEMIUM-SURFACE | Web Auth and Freemium Surface | spec | proposed | 0.1.0 | docs/web/spec.sportpulse.web.auth-and-freemium-surface.md |
+| SPEC-SPORTPULSE-WEB-AUTH-AND-FREEMIUM-SURFACE | Web Auth and Freemium Surface | spec | active | 1.0.0 | docs/web/spec.sportpulse.web.auth-and-freemium-surface.md |
 | SPEC-SPORTPULSE-WEB-NAVIGATION-AND-SHELL-ARCHITECTURE | Web Navigation and Shell Architecture | spec | proposed | 0.1.0 | docs/web/spec.sportpulse.web.navigation-and-shell-architecture.md |
-| SPEC-SPORTPULSE-WEB-FRONTEND-MODERNIZATION | Frontend Modernization | spec | proposed | 0.2.0 | docs/web/spec.sportpulse.web.frontend-modernization.md |
+| SPEC-SPORTPULSE-WEB-FRONTEND-MODERNIZATION | Frontend Modernization | spec | active | 1.0.0 | docs/web/spec.sportpulse.web.frontend-modernization.md |
 | SPEC-SPORTPULSE-WEB-DESIGN-SYSTEM-FOUNDATION | Web Design System Foundation | spec | proposed | 0.2.0 | docs/web/spec.sportpulse.web.design-system-foundation.md |
 | SPEC-SPORTPULSE-WEB-FUTURE-EXPERIENCE-ROADMAP | Future Experience Roadmap | spec | proposed | 0.1.0 | docs/web/spec.sportpulse.web.future-experience-roadmap.md |
 | SPEC-SPORTPULSE-WEB-SITE-EXPERIENCE-CONFIG | Site Experience Config | spec | proposed | 0.1.0 | docs/web/spec.sportpulse.web.site-experience-config.md |
 | SPEC-SPORTPULSE-WEB-THEME-AND-GLOBAL-ANNOUNCEMENT-SYSTEM | Web Theme and Global Announcement System | spec | proposed | 0.1.0 | docs/web/spec.sportpulse.web.theme-and-global-announcement-system.md |
-| SPEC-SPORTPULSE-WEB-FRONTEND-EXECUTION-BACKLOG | Web Frontend Execution Backlog | spec | proposed | 0.2.0 | docs/web/spec.sportpulse.web.frontend-execution-backlog.md |
+| SPEC-SPORTPULSE-WEB-FRONTEND-EXECUTION-BACKLOG | Web Frontend Execution Backlog | spec | active | 1.0.0 | docs/web/spec.sportpulse.web.frontend-execution-backlog.md |
 | SPEC-SPORTPULSE-WEB-UI | UI Specification | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.web.ui.md |
 | SPEC-SPORTPULSE-WEB-DISPLAY-HINTS | Display Hints Specification | spec | active | 1.1.0 | docs/specs/portal/spec.sportpulse.web.display-hints.md |
 | SPEC-SPORTPULSE-WEB-MATCH-MAP-VISUAL-ENCODING | Match Map Visual Encoding | spec | active | 1.0.0 | docs/specs/portal/spec.sportpulse.web.match-map-visual-encoding.md |
@@ -136,7 +136,7 @@
 |-------------|-------|-------|--------|---------|----------------|
 | SPEC-SPORTPULSE-WEB-COMPONENT-MAP | Frontend Component Map | spec | active | 1.0.0 | docs/architecture/spec.sportpulse.web.component-map.md |
 | SPEC-SPORTPULSE-WEB-FRONTEND-ARCHITECTURE | Frontend Architecture | spec | active | 1.0.0 | docs/architecture/spec.sportpulse.web.frontend-architecture.md |
-| SPEC-SPORTPULSE-SERVER-BACKEND-ARCHITECTURE | Backend Architecture (MVP) | spec | active | 1.0.0 | docs/architecture/spec.sportpulse.server.backend-architecture.md |
+| SPEC-SPORTPULSE-SERVER-BACKEND-ARCHITECTURE | Backend Architecture (MVP) | spec | active | 1.1.0 | docs/architecture/spec.sportpulse.server.backend-architecture.md |
 
 ---
 
@@ -214,6 +214,16 @@
 | SP-0902 | Fixture Runner | plan | active | docs/plans/SP-0902-fixture-runner.md |
 | SP-0903 | Version Bump Gates | plan | active | docs/plans/SP-0903-version-bump-gates.md |
 
+### Phase 12 — Implementation Prompts (`docs/web/`)
+
+| artifact_id | title | class | status | canonical_path |
+|-------------|-------|-------|--------|----------------|
+| PROMPT-SPORTPULSE-WEB-PAQUETE-A | Prompt Maestro — Paquete A (Frontend Foundation) | prompt | active | docs/web/prompt-master-claude-paquete-a.md |
+| PROMPT-SPORTPULSE-WEB-PAQUETE-B | Prompt Maestro — Paquete B (Track Record Surface) | prompt | active | docs/web/prompt-master-claude-paquete-b.md |
+| PROMPT-SPORTPULSE-WEB-PAQUETE-C | Prompt Maestro — Paquete C (Auth Surface) | prompt | active | docs/web/prompt-master-claude-paquete-c.md |
+| PROMPT-SPORTPULSE-WEB-PAQUETE-D | Prompt Maestro — Paquete D (Subscription Surface) | prompt | active | docs/web/prompt-master-claude-paquete-d.md |
+| PROMPT-SPORTPULSE-WEB-PAQUETE-E | Prompt Maestro — Paquete E (Visual Polish) | prompt | active | docs/web/prompt-master-claude-paquete-e.md |
+
 ---
 
 ## Archive (`docs/archive/legacy-drafts/`)
@@ -265,10 +275,11 @@
 | SPEC-SPORTPULSE-BACKEND-SHARED-RETURN-CONTEXT-CONTRACT | Backend Shared Return Context Contract | spec | active | 1.0.0 | docs/backend/spec.sportpulse.backend.shared-return-context-contract.md |
 | SPEC-SPORTPULSE-BACKEND-SUBSCRIPTION-CHECKOUT-CONTRACT | Backend Subscription and Checkout Contract | spec | active | 1.0.0 | docs/backend/spec.sportpulse.backend.subscription-checkout-contract.md |
 | SPEC-SPORTPULSE-BACKEND-TRACK-RECORD-CONTRACT | Backend Track Record Contract | spec | active | 1.0.0 | docs/backend/spec.sportpulse.backend.track-record-contract.md |
-| SPEC-SPORTPULSE-CORE-CORPUS-INTEGRATION-PATCH-LOG | Corpus Integration Patch Log | note | draft | 0.1.0 | docs/core/spec.sportpulse.core.corpus-integration-patch-log.md |
+| SPEC-SPORTPULSE-CORE-CORPUS-INTEGRATION-PATCH-LOG | Corpus Integration Patch Log | spec | active | 1.0.0 | docs/core/spec.sportpulse.core.corpus-integration-patch-log.md |
 | SPEC-SPORTPULSE-QA-ACCEPTANCE-GAP-CLOSURE-UPDATE | Acceptance Gap Closure Update | spec | draft | 0.2.1 | docs/core/spec.sportpulse.qa.acceptance-gap-closure-update.md |
 | SPEC-SPORTPULSE-EXECUTION-PLAN-BACKEND-FRONTEND-GAP-CLOSURE | Backend Frontend Gap Closure Execution Plan | plan | draft | 0.1.0 | docs/plans/spec.sportpulse.execution-plan.backend-frontend-gap-closure.md |
 | SPEC-SPORTPULSE-EXECUTION-BOARD-WORK-PACKAGES | Execution Board — Work Packages | spec | active | 1.0.0 | docs/execution/spec.sportpulse.execution-board.work-packages.md |
+| REF-SPORTPULSE-EXECUTION-BOARD-WORK-PACKAGES-TABLE | Execution Board — Tabla ejecutiva (quick reference) | reference | active | 1.0.0 | docs/execution/sportpulse-tabla-ejecutiva-work-packages.md |
 | SPEC-SPORTPULSE-BACKEND-RUNTIME-STATE-AND-MIGRATIONS | Backend Runtime State and Migrations | spec | active | 1.0.0 | docs/backend/spec.sportpulse.backend.runtime-state-and-migrations.md |
 | SPEC-SPORTPULSE-BACKEND-SESSION-PERSISTENCE-AND-STATE-STORAGE | Backend Session Persistence and State Storage | spec | active | 1.0.0 | docs/backend/spec.sportpulse.backend.session-persistence-and-state-storage.md |
 | SPEC-SPORTPULSE-OPS-MAGIC-LINK-EMAIL-DELIVERY | Magic Link Email Delivery | spec | active | 1.0.0 | docs/ops/spec.sportpulse.ops.magic-link-email-delivery.md |

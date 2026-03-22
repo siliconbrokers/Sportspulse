@@ -35,4 +35,28 @@ export function validateEnv(): void {
     throw new Error(`[EnvValidator] ${missing.length} required env var(s) missing — aborting startup`);
   }
   console.log(`[EnvValidator] All required env vars present ✓`);
+
+  // Phase 12 conditional validation — V2 routes
+  const v2Active = (process.env['ENABLE_V2_ROUTES'] ?? '').toLowerCase() === 'true';
+  if (v2Active) {
+    const v2Required = ['DATABASE_URL', 'APP_BASE_URL'];
+    const v2Missing = v2Required.filter(name => {
+      const val = process.env[name];
+      return !val || val.trim() === '';
+    });
+    if (v2Missing.length > 0) {
+      console.error('[EnvValidator] V2_ROUTES active but missing required vars:');
+      for (const name of v2Missing) console.error(`  ${name}`);
+      throw new Error(`[EnvValidator] ${v2Missing.length} required V2 env var(s) missing — aborting startup`);
+    }
+    // Advisory warnings for vars that use dev adapters when absent
+    const v2Advisory = ['RESEND_API_KEY', 'EMAIL_FROM', 'STRIPE_SECRET_KEY'];
+    for (const name of v2Advisory) {
+      const val = process.env[name];
+      if (!val || val.trim() === '') {
+        console.warn(`[EnvValidator] WARNING: ${name} not set — using dev adapter (log-sink/mock)`);
+      }
+    }
+    console.log('[EnvValidator] V2 routes active — required vars present ✓');
+  }
 }

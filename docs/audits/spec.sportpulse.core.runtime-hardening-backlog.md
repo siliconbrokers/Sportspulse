@@ -17,7 +17,7 @@ related_artifacts:
   - SPEC-SPORTPULSE-QA-ACCEPTANCE-TEST-MATRIX
   - SPEC-SPORTPULSE-CORE-NON-FUNCTIONAL-REQUIREMENTS
   - SPEC-SPORTPULSE-CORE-MVP-EXECUTION-SCOPE
-canonical_path: docs/core/spec.sportpulse.core.runtime-hardening-backlog.md
+canonical_path: docs/audits/spec.sportpulse.core.runtime-hardening-backlog.md
 ---
 
 # SportPulse — Runtime Hardening Backlog

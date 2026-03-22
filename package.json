@@ -28,6 +28,7 @@
     "backtest:nexus": "dotenv -e .env -- tsx --tsconfig tsconfig.server.json tools/backtest-nexus.ts",
     "train:track3": "dotenv -e .env -- tsx --tsconfig tsconfig.server.json tools/train-track3.ts",
     "validate:registry": "pnpm tsx scripts/validate-doc-registry.ts",
+    "test:server": "vitest run --config vitest.server.config.ts",
     "smoke-test": "tsx scripts/smoke-test.ts",
     "pack-cache": "bash scripts/pack-cache.sh",
     "deploy": "bash scripts/deploy.sh",

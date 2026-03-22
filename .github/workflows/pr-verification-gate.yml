@@ -1,0 +1,218 @@
+name: PR Verification Gate
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verification-gate:
+    name: verification-gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR body for mandatory verification fields
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || "";
+
+            function fail(msg) {
+              core.setFailed(msg);
+            }
+
+            function has(pattern) {
+              return pattern.test(body);
+            }
+
+            function sectionHasContent(sectionTitle) {
+              const escaped = sectionTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const re = new RegExp(`##\\s+${escaped}[\\s\\S]*?(?=\\n##\\s+|$)`, "i");
+              const match = body.match(re);
+              if (!match) return false;
+              const content = match[0]
+                .replace(new RegExp(`##\\s+${escaped}`, "i"), "")
+                .trim();
+              if (!content) return false;
+
+              const stripped = content
+                .replace(/[-*]\s*/g, "")
+                .replace(/`/g, "")
+                .replace(/\[ \]/g, "")
+                .replace(/\[x\]/gi, "")
+                .replace(/Change:|Why:|Ticket \/ Ref:|Claimed status:|Changed|Explicitly unchanged|Fixture detail|Version reasoning|Commands run|Results|Manual verification \(only if needed\)|Adjacent surfaces checked:|Regressions found:|Remaining uncertainty:|QA lane reasoning|QA verdicts|Staging \/ Smoke \/ Rollback|Merge Gate Reminder/gi, "")
+                .trim();
+
+              return stripped.length > 0;
+            }
+
+            const trivialChecked = has(/- \[[xX]\]\s+Trivial change/);
+            const nonTrivialChecked = has(/- \[[xX]\]\s+Non-trivial change/);
+
+            if (!trivialChecked && !nonTrivialChecked) {
+              fail("PR template violation: exactly one change classification must be selected.");
+              return;
+            }
+
+            if (trivialChecked && nonTrivialChecked) {
+              fail("PR template violation: Trivial change and Non-trivial change cannot both be selected.");
+              return;
+            }
+
+            const requiredSectionsAll = [
+              "Change Summary",
+              "Change Classification",
+              "Governing Specs",
+              "Scope",
+              "Acceptance Mapping",
+              "Fixture Impact",
+              "Version Impact",
+              "Evidence",
+              "Regression Checks",
+              "Risks",
+              "Deploy / Release Impact",
+              "Final Checklist"
+            ];
+
+            for (const s of requiredSectionsAll) {
+              if (!has(new RegExp(`##\\s+${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i"))) {
+                fail(`PR template violation: missing section '${s}'.`);
+                return;
+              }
+            }
+
+            const verdictBlockExists = has(/###\s+QA verdicts/i);
+            if (!verdictBlockExists) {
+              fail("PR template violation: missing 'QA verdicts' subsection.");
+              return;
+            }
+
+            if (nonTrivialChecked) {
+              const requiredSectionsNonTrivial = [
+                "Required QA Lanes",
+                "Unknowns / Not Verified Yet"
+              ];
+
+              for (const s of requiredSectionsNonTrivial) {
+                if (!has(new RegExp(`##\\s+${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i"))) {
+                  fail(`Non-trivial PR violation: missing section '${s}'.`);
+                  return;
+                }
+              }
+
+              const requiredContentSections = [
+                "Governing Specs",
+                "Acceptance Mapping",
+                "Fixture Impact",
+                "Version Impact",
+                "Evidence",
+                "Regression Checks",
+                "Risks",
+                "Unknowns / Not Verified Yet",
+                "Required QA Lanes"
+              ];
+
+              for (const s of requiredContentSections) {
+                if (!sectionHasContent(s)) {
+                  fail(`Non-trivial PR violation: section '${s}' is present but effectively empty.`);
+                  return;
+                }
+              }
+
+              const requiredLaneChecks = [
+                /- \[[xX]\]\s+`qa-lead-verification-gate`/,
+                /- \[[xX ]\]\s+`qa-fixture-regression-auditor`/,
+              ];
+
+              if (!has(/- \[[xX]\]\s+`qa-lead-verification-gate`/)) {
+                fail("Non-trivial PR violation: `qa-lead-verification-gate` must be selected.");
+                return;
+              }
+
+              if (!has(/- \[[xX]\]\s+`qa-fixture-regression-auditor`/)) {
+                fail("Non-trivial PR violation: `qa-fixture-regression-auditor` must be selected.");
+                return;
+              }
+
+              const verdictLines = [
+                "QA Lead / Verification Gate:",
+                "QA Fixture & Regression Auditor:"
+              ];
+
+              for (const line of verdictLines) {
+                if (!has(new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"))) {
+                  fail(`Non-trivial PR violation: missing QA verdict line '${line}'.`);
+                  return;
+                }
+              }
+
+              const allowedVerdict = /(PASS|PASS_WITH_NOTES|FAIL|BLOCKED_BY_SPEC_CONFLICT|BLOCKED_BY_MISSING_EVIDENCE)/;
+
+              const qaLeadMatch = body.match(/QA Lead \/ Verification Gate:\s*(.+)/i);
+              const qaFixtureMatch = body.match(/QA Fixture & Regression Auditor:\s*(.+)/i);
+
+              if (!qaLeadMatch || !allowedVerdict.test(qaLeadMatch[1])) {
+                fail("Non-trivial PR violation: invalid or missing verdict for QA Lead / Verification Gate.");
+                return;
+              }
+
+              if (!qaFixtureMatch || !allowedVerdict.test(qaFixtureMatch[1])) {
+                fail("Non-trivial PR violation: invalid or missing verdict for QA Fixture & Regression Auditor.");
+                return;
+              }
+
+              const blockingVerdict = /(FAIL|BLOCKED_BY_SPEC_CONFLICT|BLOCKED_BY_MISSING_EVIDENCE)/;
+
+              if (blockingVerdict.test(qaLeadMatch[1])) {
+                fail("Merge blocked: QA Lead / Verification Gate verdict is blocking.");
+                return;
+              }
+
+              if (blockingVerdict.test(qaFixtureMatch[1])) {
+                fail("Merge blocked: QA Fixture & Regression Auditor verdict is blocking.");
+                return;
+              }
+
+              const deployBound = has(/- \[[xX]\]\s+Deploy-bound/);
+              if (deployBound) {
+                if (!has(/- \[[xX]\]\s+`release-smoke-auditor`/)) {
+                  fail("Deploy-bound PR violation: `release-smoke-auditor` must be selected.");
+                  return;
+                }
+
+                const releaseMatch = body.match(/Release Smoke Auditor:\s*(.+)/i);
+                if (!releaseMatch || !allowedVerdict.test(releaseMatch[1])) {
+                  fail("Deploy-bound PR violation: invalid or missing verdict for Release Smoke Auditor.");
+                  return;
+                }
+
+                if (blockingVerdict.test(releaseMatch[1])) {
+                  fail("Merge blocked: Release Smoke Auditor verdict is blocking.");
+                  return;
+                }
+
+                if (!sectionHasContent("Deploy / Release Impact")) {
+                  fail("Deploy-bound PR violation: Deploy / Release Impact section is empty.");
+                  return;
+                }
+              }
+
+              const predictionLaneChecked = has(/- \[[xX]\]\s+`prediction-qa-specialist`/);
+              if (predictionLaneChecked) {
+                const predictionMatch = body.match(/Prediction QA Specialist:\s*(.+)/i);
+                if (!predictionMatch || !allowedVerdict.test(predictionMatch[1])) {
+                  fail("Prediction-domain PR violation: invalid or missing verdict for Prediction QA Specialist.");
+                  return;
+                }
+
+                if (blockingVerdict.test(predictionMatch[1])) {
+                  fail("Merge blocked: Prediction QA Specialist verdict is blocking.");
+                  return;
+                }
+              }
+            }
+
+            core.info("PR verification gate passed.");
