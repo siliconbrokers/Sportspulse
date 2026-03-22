@@ -77,6 +77,18 @@ import {
 } from '@sportpulse/snapshot';
 import { MVP_POLICY } from '@sportpulse/scoring';
 
+// ── V2 imports (gated by ENABLE_V2_ROUTES) ────────────────────────────────
+import fastifyCookie from '@fastify/cookie';
+import fastifyCors from '@fastify/cors';
+import { corsConfig } from './auth/cors-config.js';
+import { getPool } from './db/client.js';
+import { runMigrations } from './db/migrate.js';
+import { registerSessionRoute } from './auth/session-route.js';
+import { registerAuthRouter } from './auth/auth-router.js';
+import { registerLogoutRoute } from './auth/logout-route.js';
+import { registerCommerceRouter } from './commerce/commerce-router.js';
+import { registerTrackRecordRoute } from './ui/track-record-route.js';
+
 const API_TOKEN = process.env.FOOTBALL_DATA_TOKEN;
 if (!API_TOKEN) {
   console.error('Missing FOOTBALL_DATA_TOKEN env var. Get a free key at https://www.football-data.org/');
@@ -1470,6 +1482,25 @@ async function main() {
     { provider: SPORTSDB_PROVIDER_KEY, competitionId: UY_LEAGUE_ID },
     { provider: AR_PROVIDER_KEY,       competitionId: AR_LEAGUE_ID },
   ]);
+
+  // ── V2 routes (gated by ENABLE_V2_ROUTES=true) ──────────────────────────
+  if ((process.env['ENABLE_V2_ROUTES'] ?? '').toLowerCase() === 'true') {
+    try {
+      const pool = getPool();
+      await runMigrations(pool);
+      await app.register(fastifyCors, corsConfig);
+      await app.register(fastifyCookie, { secret: process.env['ADMIN_SECRET'] ?? 'sp-dev-secret' });
+      await registerSessionRoute(app);
+      await registerAuthRouter(app);
+      await registerLogoutRoute(app);
+      await registerCommerceRouter(app);
+      await registerTrackRecordRoute(app, evaluationStore, forwardValStore);
+      console.log('[V2Routes] Auth + commerce + track-record routes registered ✓');
+    } catch (err) {
+      console.error('[V2Routes] Startup error:', err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  }
 
   await app.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`SportsPulse API running at http://localhost:${PORT}`);
