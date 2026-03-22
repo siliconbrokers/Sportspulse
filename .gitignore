@@ -40,3 +40,4 @@ data/
 # Claude worktrees (temporales, generados automáticamente)
 .claude/worktrees/
 .env.local
+.env.v2
