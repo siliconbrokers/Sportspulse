@@ -2,7 +2,7 @@
 artifact_id: SPEC-SPORTPULSE-PREDICTION-ENGINE-V2-EVALUATION-AND-PROMOTION
 title: "NEXUS Evaluation and Promotion Framework"
 artifact_class: spec
-status: DRAFT
+status: draft
 version: 0.1.0
 project: sportpulse
 domain: prediction

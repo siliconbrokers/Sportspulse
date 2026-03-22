@@ -2,7 +2,7 @@
 artifact_id: SPEC-SPORTPULSE-PREDICTION-ENGINE-V2-NEXUS-0
 title: "NEXUS-0: Temporal Feature Store Specification"
 artifact_class: spec
-status: DRAFT
+status: draft
 version: 0.1.0
 project: sportpulse
 domain: prediction

@@ -2,7 +2,7 @@
 artifact_id: SPEC-SPORTPULSE-PREDICTION-ENGINE-V2-MODEL-TAXONOMY-AND-ENSEMBLE
 title: "NEXUS Model Taxonomy and Ensemble Specification"
 artifact_class: spec
-status: DRAFT
+status: draft
 version: 0.1.0
 project: sportpulse
 domain: prediction
