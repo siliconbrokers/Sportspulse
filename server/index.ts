@@ -1367,6 +1367,25 @@ async function main() {
           .header('Cache-Control', 'no-store')
           .send({ matchId, events: [], snapshotType: null, quotaExhausted });
       }
+
+      // Patch live score: derive from goal events and update canonical source immediately.
+      // This fixes the race condition where events arrive via on-demand incidents fetch
+      // before the scheduler-driven canonical source refresh fires (up to 2 min lag).
+      // Only fires for live matches with AF-sourced events (not BL1 native goals).
+      if (status === 'LIVE' && afCanonicalSource && snapshot.events.length > 0) {
+        const homeGoals = snapshot.events.filter(
+          (e) =>
+            (e.teamSide === 'HOME' && (e.type === 'GOAL' || e.type === 'PENALTY_GOAL')) ||
+            (e.teamSide === 'AWAY' && e.type === 'OWN_GOAL'),
+        ).length;
+        const awayGoals = snapshot.events.filter(
+          (e) =>
+            (e.teamSide === 'AWAY' && (e.type === 'GOAL' || e.type === 'PENALTY_GOAL')) ||
+            (e.teamSide === 'HOME' && e.type === 'OWN_GOAL'),
+        ).length;
+        afCanonicalSource.patchLiveScore(matchId, homeGoals, awayGoals);
+      }
+
       return reply
         .header('Cache-Control', snapshot.isFinal ? 'public, max-age=3600' : 'no-store')
         .send({ ...snapshot, quotaExhausted });

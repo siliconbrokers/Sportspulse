@@ -418,6 +418,40 @@ export class ApiFootballCanonicalSource implements DataSource {
     return this.getCached(compId)?.matches ?? [];
   }
 
+  /**
+   * Immediately patches the in-memory score for a live match.
+   *
+   * Called by the incidents endpoint after deriving the score from AF goal events.
+   * This corrects the race condition where goal events arrive via the on-demand
+   * incidents fetch before the scheduler-driven canonical source refresh fires.
+   *
+   * Only applies when:
+   *   - The match exists in the in-memory cache
+   *   - The match is IN_PROGRESS (never overwrite FINISHED scores)
+   *   - The derived score is strictly greater (in total goals) than the current score
+   *     (prevents reversions from partial/out-of-order event lists)
+   *
+   * The patch is in-memory only — the next scheduler cycle will overwrite it with
+   * an authoritative AF fetch, so no disk writes are needed here.
+   */
+  patchLiveScore(matchId: string, homeScore: number, awayScore: number): void {
+    for (const entry of this.cache.values()) {
+      const idx = entry.matches.findIndex((m) => m.matchId === matchId);
+      if (idx === -1) continue;
+      const match = entry.matches[idx]!;
+      if (match.status !== 'IN_PROGRESS') return; // never patch finished matches
+      const currentTotal = (match.scoreHome ?? 0) + (match.scoreAway ?? 0);
+      const derivedTotal = homeScore + awayScore;
+      if (derivedTotal <= currentTotal) return; // no regression
+      entry.matches[idx] = { ...match, scoreHome: homeScore, scoreAway: awayScore };
+      console.log(
+        `[AfCanonical] patchLiveScore ${matchId}: ` +
+        `${match.scoreHome ?? 0}-${match.scoreAway ?? 0} → ${homeScore}-${awayScore}`,
+      );
+      return;
+    }
+  }
+
   getStandings(compId: string, subTournamentKey?: string): StandingEntry[] {
     const cfg = AF_COMPETITION_CONFIGS[compId];
     if (cfg?.hasSubTournaments) {
