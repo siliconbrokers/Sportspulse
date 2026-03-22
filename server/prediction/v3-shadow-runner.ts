@@ -435,11 +435,17 @@ async function runMatchPredictions(
   lineupSource?: LineupSource,
   afOddsService?: AfOddsService,
 ): Promise<void> {
+  // Only predict matches within the near-future window.
+  // Predicting 9+ months ahead is wasteful (stale by kickoff) and inflates
+  // snapshots.json past the 20MB guard, wiping the store on every server restart.
+  const HORIZON_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+  const nowMs = Date.now();
   const scheduled = dataSource.getMatches(seasonId).filter(
     (m) =>
       m.status === 'SCHEDULED' &&
       m.startTimeUtc !== null &&
-      new Date(m.startTimeUtc).getTime() > Date.now(),
+      new Date(m.startTimeUtc).getTime() > nowMs &&
+      new Date(m.startTimeUtc).getTime() <= nowMs + HORIZON_MS,
   );
 
   // Build team name lookup for odds matching and injury team resolution
