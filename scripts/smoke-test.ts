@@ -48,9 +48,10 @@ async function main(): Promise<void> {
   });
 
   // 3. Dashboard for each enabled competition
+  const dateLocal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
   for (const id of enabledIds) {
     await check(`dashboard: ${id}`, async () => {
-      const snap = await get<unknown>(`/api/ui/dashboard?competitionId=${encodeURIComponent(id)}&timezone=America%2FMontevideo`);
+      const snap = await get<unknown>(`/api/ui/dashboard?competitionId=${encodeURIComponent(id)}&dateLocal=${dateLocal}&timezone=America%2FMontevideo`);
       if (!snap) throw new Error('null response');
     });
   }
