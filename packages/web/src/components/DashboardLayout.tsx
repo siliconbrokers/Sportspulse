@@ -9,6 +9,7 @@ import { DetailPanel } from './DetailPanel.js';
 import type { PredictionProbsOverride } from '../utils/match-detail-viewmodel.js';
 import { ErrorState } from './ErrorState.js';
 import { RadarSection } from './radar/RadarSection.js';
+import { AdSlot } from '../commerce/AdSlot.js';
 
 interface DashboardLayoutProps {
   competitionId: string;
@@ -120,6 +121,10 @@ export function DashboardLayout({ competitionId, matchday, currentMatchday, time
           />
         );
       })()}
+      {/* WP-10 — AdSlot demonstration placement */}
+      <div style={{ padding: '0 16px 16px' }}>
+        <AdSlot id="sidebar-main" />
+      </div>
     </div>
   );
 }

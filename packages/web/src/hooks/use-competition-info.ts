@@ -7,7 +7,7 @@ export interface SubTournamentInfo {
   hasData: boolean;
 }
 
-interface CompetitionInfo {
+export interface CompetitionInfo {
   currentMatchday: number | null;
   lastPlayedMatchday: number | null;
   nextMatchday: number | null;

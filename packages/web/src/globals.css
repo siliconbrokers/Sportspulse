@@ -88,6 +88,7 @@
   --sp-text:     var(--sp-f-white);
   --sp-text-88:  rgba(255,255,255,0.88);
   --sp-text-85:  rgba(255,255,255,0.85);
+  --sp-text-80:  rgba(255,255,255,0.80);
   --sp-text-75:  rgba(255,255,255,0.75);
   --sp-text-70:  rgba(255,255,255,0.70);
   --sp-text-55:  rgba(255,255,255,0.55);
@@ -195,6 +196,7 @@ body.light {
   --sp-text:     var(--sp-f-gray-900);
   --sp-text-88:  rgba(15,23,42,0.88);
   --sp-text-85:  rgba(15,23,42,0.85);
+  --sp-text-80:  rgba(15,23,42,0.80);
   --sp-text-75:  rgba(15,23,42,0.75);
   --sp-text-70:  rgba(15,23,42,0.70);
   --sp-text-55:  rgba(15,23,42,0.55);

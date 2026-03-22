@@ -5,11 +5,13 @@
 import { useState, useRef, useEffect, forwardRef } from 'react';
 import {
   Home, Tv, CalendarDays, TrendingUp, Trophy,
-  Sun, Moon,
+  Sun, Moon, LogOut, LogIn,
 } from 'lucide-react';
 import { useWindowWidth } from '../hooks/use-window-width.js';
 import { useTheme } from '../hooks/use-theme.js';
 import { LeagueSelector } from './LeagueSelector.js';
+import { useSession } from '../auth/SessionProvider.js';
+import { apiClient } from '../api/client.js';
 
 export type ViewMode = 'home' | 'tv' | 'partidos' | 'standings' | 'pronosticos';
 
@@ -91,6 +93,7 @@ export function Navbar({
             </div>
 
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <AuthArea />
           </div>
 
           {/* Fila 3: tabs TV -o- selector de liga según vista */}
@@ -169,10 +172,89 @@ export function Navbar({
             {isLeagueView && competitions.length > 0 && (
               <LeagueSelector value={competitionId} onChange={onCompetitionChange} options={competitions} />
             )}
+            <AuthArea />
           </div>
         </div>
       )}
     </header>
+  );
+}
+
+// ─── AuthArea — auth state UI in the navbar ───────────────────────────────────
+
+function AuthArea() {
+  const { sessionStatus, email, loading, refresh } = useSession();
+
+  if (loading || sessionStatus === 'loading' as string) return null;
+
+  if (sessionStatus === 'anonymous' || sessionStatus === 'expired') {
+    return (
+      <button
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '5px 12px',
+          borderRadius: 9999,
+          border: '1px solid var(--sp-border-8)',
+          background: 'var(--sp-surface)',
+          color: 'var(--sp-text-40)',
+          fontSize: 12,
+          fontWeight: 500,
+          cursor: 'pointer',
+          minHeight: 44,
+          flexShrink: 0,
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <LogIn size={14} strokeWidth={2} />
+        <span>Iniciar sesión</span>
+      </button>
+    );
+  }
+
+  // sessionStatus === 'authenticated'
+  const handleLogout = () => {
+    apiClient.postLogout().catch(() => {}).finally(() => {
+      refresh();
+    });
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+      <span
+        style={{
+          fontSize: 12,
+          color: 'var(--sp-text-40)',
+          maxWidth: 140,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {email}
+      </span>
+      <button
+        data-testid="navbar-logout-btn"
+        onClick={handleLogout}
+        title="Cerrar sesión"
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--sp-border-8)',
+          border: '1px solid var(--sp-border-8)',
+          cursor: 'pointer',
+          color: 'var(--sp-text-55)',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <LogOut size={14} strokeWidth={2} />
+      </button>
+    </div>
   );
 }
 
@@ -400,8 +482,8 @@ function ThemeToggle({ theme, onToggle }: { theme: 'dark' | 'light'; onToggle: (
       onClick={onToggle}
       title={isLight ? 'Cambiar a modo noche' : 'Cambiar a modo día'}
       style={{
-        width: 34,
-        height: 34,
+        width: 44,
+        height: 44,
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',
